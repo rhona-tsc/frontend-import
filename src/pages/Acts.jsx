@@ -47,7 +47,7 @@ const effectiveUserId = userId || storedUser.userId || "";
 // ✅ Agent override (your agent ID)
 const isAgent =
   effectiveUserRole === "agent" ||
-  effectiveUserId === "68b090eb997226dabd9a495e"; // <-- your ID
+  effectiveUserId === "680fb453a2de6618675ca9ed"; // <-- your ID
 
 // ✅ Only use approved acts for filtering and display
 const approvedActs = acts.filter((act) => {
