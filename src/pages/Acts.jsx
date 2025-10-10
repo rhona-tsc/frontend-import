@@ -34,30 +34,52 @@ const Acts = ({ userRole: userRoleProp }) => {
     setSelectedAddress,
   } = useContext(ShopContext);
  // ---- role + test-flag helpers ----
-  const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
-  const storedUser = (() => {
-    try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; }
-  })();
+const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
 
-  // Prefer the prop from App; fall back to localStorage only if prop is missing
-  const effectiveUserRole = userRoleProp || storedUser?.userRole || storedUser?.role || "";
+// 🧩 Prefer prop from App, then localStorage
+const storedUser = JSON.parse(localStorage.getItem("user")) || {};
+const effectiveUserRole =
+  userRole || storedUser.userRole || ""; // fallback to localStorage role
 
+// 🧩 Add userId fallback for agent detection
+const effectiveUserId = userId || storedUser.userId || "";
 
-   // Only use approved acts for filtering and display
+// ✅ Agent override (your agent ID)
+const isAgent =
+  effectiveUserRole === "agent" ||
+  effectiveUserId === "68b090eb997226dabd9a495e"; // <-- your ID
+
+// ✅ Only use approved acts for filtering and display
 const approvedActs = acts.filter((act) => {
   const isApproved =
     act.status === "approved" || act.status === "Approved, changes pending";
 
-  // 🔍 Debug log: see what the test flag actually looks like
-  console.log("Act:", act.tscName || act.name, "isTest:", act.isTest, "effectiveUserRole:", effectiveUserRole);
+  // detect test flag from either root or actData
+  const isTest =
+    looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
 
-  // Hide test acts unless the logged-in user is an agent
-  if (effectiveUserRole === "agent") return isApproved;
+  // 🧠 Debug log for clarity
+  console.log(
+    "🔍 Act:",
+    act.tscName || act.name,
+    "| isTest:",
+    isTest,
+    "| status:",
+    act.status,
+    "| userRole:",
+    effectiveUserRole,
+    "| userId:",
+    effectiveUserId,
+    "| isAgent:",
+    isAgent
+  );
 
-  // ✅ For non-agents, hide if act.isTest is true
-  return isApproved && act.isTest !== true;
+  // 🧩 Agents see all approved acts
+  if (isAgent) return isApproved;
+
+  // 🧩 Non-agents: hide test acts
+  return isApproved && !isTest;
 });
-
   // --- Add isLoading state for fetching acts ---
     const filterRunIdRef = useRef(0);
 const [initializing, setInitializing] = useState(true);
