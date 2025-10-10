@@ -82,10 +82,20 @@ useEffect(() => {
 
     // 🔒 Require login before shortlisting
     if (!userId) {
-      // remember where to go back to after login
-      const fallback = actData?._id ? `/act/${actData._id}` : (location.pathname || '/');
+      // If we came from the Acts listing, return to that exact list (with filters/query)
+      const fromActsListing = String(location.pathname || '').startsWith('/acts');
+      const listUrl = `${location.pathname || ''}${location.search || ''}${location.hash || ''}` || '/acts';
+
+      // Otherwise, fall back to the specific act profile
+      const actUrl = actData?._id ? `/act/${actData._id}` : '/';
+
+      const fallback = fromActsListing ? listUrl : actUrl;
+
+      // Persist the intended next page for the login screen to read
       sessionStorage.setItem('postLoginNext', fallback);
-      navigate('/login');
+
+      // Navigate to login
+      navigate('/login', { state: { from: fallback } });
       return; // 👈 do not continue
     }
 
