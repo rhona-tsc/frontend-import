@@ -13,7 +13,7 @@ const ActItem = ({ actData, shortlistCount }) => {
   // Robust initial love count (DB source preferred) -> fallbacks
   const initialLove =
     Number(
-      actData?.numberOfShortlistsIn ??
+      actData?.timesShortlisted ??
       shortlistCount ??
       actData?.shortlistCount ??
       actData?.metrics?.shortlists ??
@@ -21,7 +21,7 @@ const ActItem = ({ actData, shortlistCount }) => {
     ) || 0;
 
   console.debug('💖 loveCount source →', {
-    fromDB: actData?.numberOfShortlistsIn,
+    fromDB: actData?.timesShortlisted,
     fromProp: shortlistCount,
     fromAct: actData?.shortlistCount,
     fromMetrics: actData?.metrics?.shortlists,
@@ -45,7 +45,7 @@ const ActItem = ({ actData, shortlistCount }) => {
   useEffect(() => {
     const next =
       Number(
-        actData?.numberOfShortlistsIn ??
+        actData?.timesShortlisted ??
         shortlistCount ??
         actData?.shortlistCount ??
         actData?.metrics?.shortlists ??
@@ -53,7 +53,7 @@ const ActItem = ({ actData, shortlistCount }) => {
       ) || 0;
     setLoveCount(next);
   }, [
-    actData?.numberOfShortlistsIn,
+    actData?.timesShortlisted,
     shortlistCount,
     actData?.shortlistCount,
     actData?.metrics?.shortlists
