@@ -14,7 +14,7 @@ const backendUrl = import.meta.env.VITE_BACKEND_URL;
 const api = (p) => `${backendUrl}/${String(p).replace(/^\/+/, "")}`;
 
 
-const Acts = ({ userRole: userRoleProp }) => {
+const Acts = ({ userRole, email }) => {
   const [filteredActs, setFilteredActs] = useState([]);
   const {
     acts,
@@ -39,15 +39,17 @@ const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
 // 🧩 Prefer prop from App, then localStorage
 const storedUser = JSON.parse(localStorage.getItem("user")) || {};
 const effectiveUserRole =
-  userRoleProp || storedUser.userRole || ""; // fallback to localStorage role
+  userRole || storedUser.userRole || ""; // fallback to localStorage role
 
 // 🧩 Add userId fallback for agent detection
 const effectiveUserId = userId || storedUser.userId || "";
+const effectiveUserEmail = email || storedUser.email || "";
 
 // ✅ Agent override (your agent ID)
 const isAgent =
   effectiveUserRole === "agent" ||
-  effectiveUserId === "680fb453a2de6618675ca9ed"; // <-- your ID
+  effectiveUserId === "680fb453a2de6618675ca9ed" || // <-- your ID
+  effectiveUserEmail === "rhona@thesupremecollective.co.uk";
 
 // ✅ Only use approved acts for filtering and display
 const approvedActs = acts.filter((act) => {
