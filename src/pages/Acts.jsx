@@ -39,7 +39,7 @@ const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
 // 🧩 Prefer prop from App, then localStorage
 const storedUser = JSON.parse(localStorage.getItem("user")) || {};
 const effectiveUserRole =
-  userRole || storedUser.userRole || ""; // fallback to localStorage role
+  userRoleProp || storedUser.userRole || ""; // fallback to localStorage role
 
 // 🧩 Add userId fallback for agent detection
 const effectiveUserId = userId || storedUser.userId || "";
