@@ -58,6 +58,7 @@ import additional_band_member_DJ_icon from "./additional_band_member_DJ_icon.png
 import Featured_Vocalist_Available from "./Vocalist_Featured_Available.png";
 import Deputy_Vocalist_Available from "./Deputy_Vocalist_Available.png";
 import agent_icon from "./agent_icon.png";
+import custom_play_iconV2 from "./custom_play_iconV2.png";
 
 
 export const assets = {
@@ -118,7 +119,8 @@ Deputy_Vocalist_Available,
 agent_icon,
 Funk_Royale,
 Band_Salsa,
-hero_no_logo: hero_img, // temporary fallback until file exists
+hero_no_logo: hero_img, 
+custom_play_iconV2,// temporary fallback until file exists
 };
 
 export const musician = {

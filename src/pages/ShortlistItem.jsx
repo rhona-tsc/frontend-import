@@ -179,7 +179,7 @@ return (
                     }}
                   />
                   <img
-                    src={assets.custom_play_icon}
+                    src={assets.custom_play_iconV2}
                     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 md:w-10 md:h-10"
                     alt="Play"
                   />
