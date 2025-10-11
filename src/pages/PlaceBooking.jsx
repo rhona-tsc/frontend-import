@@ -96,16 +96,21 @@ const handleSubmit = async () => {
     return;
   }
 
-  const missingTimes = actsSummary.filter(a =>
-  !a.performance ||
-  !a.performance.arrivalTime ||
-  !a.performance.finishTime
-);
+  // ✅ move declarations up here
+  const actsSummary = [];
+  const items = [];
+  let performanceTimesTop = null;
 
-if (missingTimes.length) {
-  console.warn("⚠️ Some lineups missing performance times:", missingTimes);
-  // optional: alert the user or block submit
-}
+  const missingTimes = actsSummary.filter(
+    (a) =>
+      !a.performance ||
+      !a.performance.arrivalTime ||
+      !a.performance.finishTime
+  );
+
+  if (missingTimes.length) {
+    console.warn("⚠️ Some lineups missing performance times:", missingTimes);
+  }
 
   // 1) Simple Stripe items
   const items = [];
