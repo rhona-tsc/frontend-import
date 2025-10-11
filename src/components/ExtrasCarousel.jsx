@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useMemo, useContext } from "react";
 import PropTypes from "prop-types";
 import "keen-slider/keen-slider.min.css";
 import { useKeenSlider } from "keen-slider/react";
@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import AcousticExtrasSelector from "./AcousticExtrasSelector";
 import { ShopContext } from "../context/ShopContext";
 import { addMinutesHHMM, baselineFinishTime } from "../pages/utils/time";
+import getTravelV2 from "@/pages/utils/travelV2";
 
 
 
@@ -81,6 +82,127 @@ const isManagerLike = (m = {}) => {
 
   return false;
 };
+
+
+// start of dj sax live calculation helpers
+
+
+ function looksLikeMap(obj) {
+  return obj && (obj instanceof Map || typeof obj.forEach === "function");
+}
+function getCountyFeeFromMap(fees, county) {
+  if (!fees || !county) return 0;
+  const norm = String(county).toLowerCase().trim();
+  const entries = looksLikeMap(fees)
+    ? (() => { const a=[]; fees.forEach((v,k)=>a.push([k,v])); return a; })()
+    : Object.entries(fees);
+  for (const [k,v] of entries) {
+    if (String(k).toLowerCase().trim() === norm) return Number(v) || 0;
+  }
+  return 0;
+}
+
+function DjLiveSaxCard({ actData, selectedLineup }) {
+  const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
+  const [djSaxPrice, setDjSaxPrice] = useState(null);
+
+  // does the current lineup already include a sax?
+  const hasSaxInLineup = useMemo(() => {
+    const members = selectedLineup?.bandMembers || [];
+    return members.some(m => /sax/i.test(m?.instrument || m?.title || ""));
+  }, [selectedLineup]);
+
+  // base NET price from act.extras
+  const baseNet = useMemo(() => {
+    const raw = actData?.extras?.get
+      ? actData.extras.get("DJ_live_sax_3x30mins")
+      : actData?.extras?.["DJ_live_sax_3x30mins"];
+    if (typeof raw === "number") return raw;
+    if (raw && typeof raw === "object") return Number(raw.price) || 0;
+    return 0;
+  }, [actData]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const calc = async () => {
+      // if sax is already in lineup → no extra travel
+      if (hasSaxInLineup) {
+        const gross = Math.ceil(baseNet / 0.75);
+        if (!cancelled) setDjSaxPrice(gross);
+        return;
+      }
+
+      // otherwise add travel for ONE extra performer
+      let travelNet = 0;
+
+      // 1) County table path
+      const useCountyTable =
+        actData?.useCountyTravelFee &&
+        (looksLikeMap(actData?.countyFees) || (actData?.countyFees && Object.keys(actData.countyFees).length > 0)) &&
+        selectedCounty;
+
+      if (useCountyTable) {
+        travelNet = getCountyFeeFromMap(actData.countyFees, selectedCounty);
+      }
+
+      // 2) Cost-per-mile path
+      if (!travelNet && Number(actData?.costPerMile) > 0) {
+        const destination =
+          typeof selectedAddress === "string"
+            ? selectedAddress
+            : selectedAddress?.postcode || selectedAddress?.address || "";
+
+        // pick a reasonable origin for the additional performer
+        const proxyOrigin =
+          // prefer a performer (not manager) postcode from lineup
+          (selectedLineup?.bandMembers || []).find(m => !m?.isManager && m?.postCode)?.postCode ||
+          // otherwise any band member postcode
+          (selectedLineup?.bandMembers || []).find(m => m?.postCode)?.postCode ||
+          // final fallback: an act-level default if you have one
+          actData?.defaultTravelPostcode ||
+          "";
+
+        if (proxyOrigin && destination) {
+          const { miles = 0 } = await getTravelV2(proxyOrigin, destination, selectedDate);
+          // your existing rule multiplies miles * costPerMile * 25 for travel NET
+          travelNet = miles * Number(actData.costPerMile) * 25;
+        }
+      }
+
+      // 3) MU fallback
+      if (!travelNet) {
+        const destination =
+          typeof selectedAddress === "string"
+            ? selectedAddress
+            : selectedAddress?.postcode || selectedAddress?.address || "";
+        const proxyOrigin =
+          (selectedLineup?.bandMembers || []).find(m => !m?.isManager && m?.postCode)?.postCode ||
+          (selectedLineup?.bandMembers || []).find(m => m?.postCode)?.postCode ||
+          "";
+
+        if (proxyOrigin && destination) {
+          const { outbound, returnTrip } = await getTravelV2(proxyOrigin, destination, selectedDate);
+          if (outbound && returnTrip) {
+            const totalMiles = (outbound.distance.value + returnTrip.distance.value) / 1609.34;
+            const totalHours = (outbound.duration.value + returnTrip.duration.value) / 3600;
+            const fuelFee = totalMiles * 0.56;
+            const timeFee = totalHours * 13.23;
+            const lateFee = (returnTrip.duration.value / 3600) > 1 ? 136 : 0;
+            const tollFee = (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
+            travelNet = fuelFee + timeFee + lateFee + tollFee;
+          }
+        }
+      }
+
+      const gross = Math.ceil((baseNet + (travelNet || 0)) / 0.75);
+      if (!cancelled) setDjSaxPrice(gross);
+    };
+
+    calc();
+    return () => { cancelled = true; };
+  }, [hasSaxInLineup, baseNet, actData, selectedCounty, selectedAddress, selectedDate, selectedLineup]);
+// end of dj sax live calculation helpers
 
   // Calculate lineupSize early, ensure it's correct
 // Calculate lineupSize using performers only (exclude managers / non-performers)
@@ -1225,37 +1347,21 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
 
           {/* 🎚 DJ_live_sax_3x30mins */}
           {(() => {
-            const raw = actData?.extras?.get
-              ? actData.extras.get("DJ_live_sax_3x30mins")
-              : actData?.extras?.["DJ_live_sax_3x30mins"];
-            const base = typeof raw === "number" ? raw : raw?.price || 0;
-            if (!base || base === 0) return null;
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-2">
-                  <img
-                    src={assets.dj_live_sax_icon}
-                    alt="DJ Live Sax (3x30mins)"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
-                <p className="text-sm font-medium text-center">
-                  DJ Live Sax (3x30mins)
-                </p>
-                <p className="text-sm text-gray-600 text-center">
-                  £
-                  {(() => {
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("DJ_live_sax_3x30mins")
-                      : actData?.extras?.["DJ_live_sax_3x30mins"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    return Math.ceil(base / 0.75);
-                  })()}
+           
+          return (
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="overflow-hidden h-24 w-full rounded mb-2">
+        <img
+          src={assets.dj_live_sax_icon}
+          alt="DJ Live Sax (3x30mins)"
+          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+        />
+      </div>
+      <p className="text-sm font-medium text-center">
+        DJ Live Sax (3x30mins)
+      </p>
+      <p className="text-sm text-gray-600 text-center">
+        £{djSaxPrice ?? Math.ceil(baseNet / 0.75)}
                 </p>
                 <button
                   onClick={() => {

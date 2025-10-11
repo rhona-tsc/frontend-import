@@ -4,10 +4,10 @@ const NewsletterBox = () => {
   return (
     <div className="text-center">
       <p className="text-2xl font-medium text-gray-800">
-        Subscribe now & get a £50 discount
+        Subscribe now to get disocunts & insider tips
       </p>
       <p className="text-gray-400 mt-3">
-        Join our mailing list and we&apos;ll send expert planning tips—plus your £50 voucher.
+        Join our mailing list and we&apos;ll send expert planning tips — and other goodies.
       </p>
 
       {/* Direct Mailchimp form */}
@@ -33,9 +33,7 @@ const NewsletterBox = () => {
         </button>
       </form>
 
-      <p className="text-gray-500">
-        Your £50 voucher will be valid for 7 days from today. One per customer, new subscribers only.
-      </p>
+     
     </div>
   );
 };
