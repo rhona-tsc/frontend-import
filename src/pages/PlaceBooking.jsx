@@ -112,12 +112,6 @@ const handleSubmit = async () => {
     console.warn("⚠️ Some lineups missing performance times:", missingTimes);
   }
 
-  // 1) Simple Stripe items
-  const items = [];
-  // 2) Rich snapshot for your Booking model / event sheet
-  const actsSummary = [];
-  // 3) Top-level performance block (mirror from first lineup’s times)
-  let performanceTimesTop = null;
 
   try {
     const getAct = (id) => acts.find((a) => String(a._id) === String(id));
