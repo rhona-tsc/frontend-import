@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useContext } from "react";
+import React, { useState, useMemo, useContext, useEffect } from "react";
 import PropTypes from "prop-types";
 import "keen-slider/keen-slider.min.css";
 import { useKeenSlider } from "keen-slider/react";
@@ -86,8 +86,8 @@ const isManagerLike = (m = {}) => {
 
 // start of dj sax live calculation helpers
 
-
- function looksLikeMap(obj) {
+// --- DJ Live Sax helpers ---
+function looksLikeMap(obj) {
   return obj && (obj instanceof Map || typeof obj.forEach === "function");
 }
 function getCountyFeeFromMap(fees, county) {
@@ -102,17 +102,15 @@ function getCountyFeeFromMap(fees, county) {
   return 0;
 }
 
-function DjLiveSaxCard({ actData, selectedLineup }) {
+function DjLiveSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtras, actId, lineupId }) {
   const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
   const [djSaxPrice, setDjSaxPrice] = useState(null);
 
-  // does the current lineup already include a sax?
   const hasSaxInLineup = useMemo(() => {
     const members = selectedLineup?.bandMembers || [];
     return members.some(m => /sax/i.test(m?.instrument || m?.title || ""));
   }, [selectedLineup]);
 
-  // base NET price from act.extras
   const baseNet = useMemo(() => {
     const raw = actData?.extras?.get
       ? actData.extras.get("DJ_live_sax_3x30mins")
@@ -124,49 +122,41 @@ function DjLiveSaxCard({ actData, selectedLineup }) {
 
   useEffect(() => {
     let cancelled = false;
-
-    const calc = async () => {
-      // if sax is already in lineup → no extra travel
+    (async () => {
+      // if sax already in lineup → no extra travel
       if (hasSaxInLineup) {
         const gross = Math.ceil(baseNet / 0.75);
         if (!cancelled) setDjSaxPrice(gross);
         return;
       }
 
-      // otherwise add travel for ONE extra performer
+      // add travel for ONE extra performer
       let travelNet = 0;
 
-      // 1) County table path
+      // 1) County table
       const useCountyTable =
         actData?.useCountyTravelFee &&
-        (looksLikeMap(actData?.countyFees) || (actData?.countyFees && Object.keys(actData.countyFees).length > 0)) &&
+        (looksLikeMap(actData?.countyFees) ||
+          (actData?.countyFees && Object.keys(actData.countyFees).length > 0)) &&
         selectedCounty;
-
       if (useCountyTable) {
         travelNet = getCountyFeeFromMap(actData.countyFees, selectedCounty);
       }
 
-      // 2) Cost-per-mile path
+      // 2) Cost-per-mile
       if (!travelNet && Number(actData?.costPerMile) > 0) {
         const destination =
           typeof selectedAddress === "string"
             ? selectedAddress
             : selectedAddress?.postcode || selectedAddress?.address || "";
-
-        // pick a reasonable origin for the additional performer
         const proxyOrigin =
-          // prefer a performer (not manager) postcode from lineup
           (selectedLineup?.bandMembers || []).find(m => !m?.isManager && m?.postCode)?.postCode ||
-          // otherwise any band member postcode
           (selectedLineup?.bandMembers || []).find(m => m?.postCode)?.postCode ||
-          // final fallback: an act-level default if you have one
           actData?.defaultTravelPostcode ||
           "";
-
         if (proxyOrigin && destination) {
           const { miles = 0 } = await getTravelV2(proxyOrigin, destination, selectedDate);
-          // your existing rule multiplies miles * costPerMile * 25 for travel NET
-          travelNet = miles * Number(actData.costPerMile) * 25;
+          travelNet = miles * Number(actData.costPerMile) * 25; // your NET rule
         }
       }
 
@@ -180,28 +170,52 @@ function DjLiveSaxCard({ actData, selectedLineup }) {
           (selectedLineup?.bandMembers || []).find(m => !m?.isManager && m?.postCode)?.postCode ||
           (selectedLineup?.bandMembers || []).find(m => m?.postCode)?.postCode ||
           "";
-
         if (proxyOrigin && destination) {
           const { outbound, returnTrip } = await getTravelV2(proxyOrigin, destination, selectedDate);
           if (outbound && returnTrip) {
-            const totalMiles = (outbound.distance.value + returnTrip.distance.value) / 1609.34;
-            const totalHours = (outbound.duration.value + returnTrip.duration.value) / 3600;
-            const fuelFee = totalMiles * 0.56;
-            const timeFee = totalHours * 13.23;
-            const lateFee = (returnTrip.duration.value / 3600) > 1 ? 136 : 0;
-            const tollFee = (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
-            travelNet = fuelFee + timeFee + lateFee + tollFee;
+            const miles = (outbound.distance.value + returnTrip.distance.value) / 1609.34;
+            const hours = (outbound.duration.value + returnTrip.duration.value) / 3600;
+            const fuel = miles * 0.56;
+            const time = hours * 13.23;
+            const late = (returnTrip.duration.value / 3600) > 1 ? 136 : 0;
+            const toll = (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
+            travelNet = fuel + time + late + toll;
           }
         }
       }
 
       const gross = Math.ceil((baseNet + (travelNet || 0)) / 0.75);
       if (!cancelled) setDjSaxPrice(gross);
-    };
-
-    calc();
+    })();
     return () => { cancelled = true; };
   }, [hasSaxInLineup, baseNet, actData, selectedCounty, selectedAddress, selectedDate, selectedLineup]);
+
+  const selected = safeSelectedExtras.find(e => e.key === "DJ_live_sax_3x30mins");
+  const displayPrice = djSaxPrice ?? Math.ceil(baseNet / 0.75);
+
+  return (
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="overflow-hidden h-24 w-full rounded mb-2">
+        <img src={assets.dj_live_sax_icon} alt="DJ Live Sax (3x30mins)" className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110" />
+      </div>
+      <p className="text-sm font-medium text-center">DJ Live Sax (3x30mins)</p>
+      <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
+      <button
+        onClick={() => {
+          updateExtras(actId, lineupId, {
+            name: "DJ Live Sax (3x30mins)",
+            key: "DJ_live_sax_3x30mins",
+            price: displayPrice,
+            quantity: selected ? 0 : 1,
+          });
+        }}
+        className={`mt-2 px-4 py-2 text-base rounded text-white ${selected ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"}`}
+      >
+        {selected ? "Remove" : "Add"}
+      </button>
+    </div>
+  );
+}
 // end of dj sax live calculation helpers
 
   // Calculate lineupSize early, ensure it's correct
@@ -1346,62 +1360,14 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           })()}
 
           {/* 🎚 DJ_live_sax_3x30mins */}
-          {(() => {
-           
-          return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-      <div className="overflow-hidden h-24 w-full rounded mb-2">
-        <img
-          src={assets.dj_live_sax_icon}
-          alt="DJ Live Sax (3x30mins)"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-        />
-      </div>
-      <p className="text-sm font-medium text-center">
-        DJ Live Sax (3x30mins)
-      </p>
-      <p className="text-sm text-gray-600 text-center">
-        £{djSaxPrice ?? Math.ceil(baseNet / 0.75)}
-                </p>
-                <button
-                  onClick={() => {
-                    const selected = safeSelectedExtras.find(
-                      (e) => e.key === "DJ_live_sax_3x30mins"
-                    );
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("DJ_live_sax_3x30mins")
-                      : actData?.extras?.["DJ_live_sax_3x30mins"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    const price = Math.ceil(base / 0.75);
-                    updateExtras(actId, lineupId, {
-                      name: "DJ Live Sax (3x30mins)",
-                      key: "DJ_live_sax_3x30mins",
-                      price,
-                      quantity: selected ? 0 : 1,
-                    });
-                  }}
-                  className={`mt-2 px-4 py-2 text-base rounded text-white ${
-                    safeSelectedExtras.find(
-                      (e) => e.key === "DJ_live_sax_3x30mins"
-                    )
-                      ? "bg-black"
-                      : "bg-gray-300 hover:bg-[#ff6667]"
-                  }`}
-                >
-                  {safeSelectedExtras.find(
-                    (e) => e.key === "DJ_live_sax_3x30mins"
-                  )
-                    ? "Remove"
-                    : "Add"}
-                </button>
-              </div>
-            );
-          })()}
+         <DjLiveSaxCard
+  actData={actData}
+  selectedLineup={lineup}
+  safeSelectedExtras={safeSelectedExtras}
+  updateExtras={updateExtras}
+  actId={actId}
+  lineupId={lineupId}
+/>
 
           {/* 🎚 DJ_live_bongos_3x30mins */}
           {(() => {

@@ -96,6 +96,17 @@ const handleSubmit = async () => {
     return;
   }
 
+  const missingTimes = actsSummary.filter(a =>
+  !a.performance ||
+  !a.performance.arrivalTime ||
+  !a.performance.finishTime
+);
+
+if (missingTimes.length) {
+  console.warn("⚠️ Some lineups missing performance times:", missingTimes);
+  // optional: alert the user or block submit
+}
+
   // 1) Simple Stripe items
   const items = [];
   // 2) Rich snapshot for your Booking model / event sheet
@@ -209,8 +220,21 @@ const handleSubmit = async () => {
 
         // 🔧 Build the canonical performance block (now includes plan fields)
         // inside the for (const lineupId...) loop in PlaceBooking
-        const cartPerf = cartItems[actId][lineupId]?.performance || {};
-        const toInt = (v, def = 0) => {
+const cartLine = cartItems?.[actId]?.[lineupId] || {};
+ const perfSource = cartLine.performance || {};
+ const cartPerf = {
+   ...perfSource,
+   // Fall back to top-level fields if nested ones are missing
+   arrivalTime:            perfSource.arrivalTime            ?? cartLine.arrivalTime            ?? "",
+   setupAndSoundcheckedBy: perfSource.setupAndSoundcheckedBy ?? cartLine.setupAndSoundcheckedBy ?? "",
+   startTime:              perfSource.startTime              ?? cartLine.startTime              ?? "",
+   finishTime:             perfSource.finishTime             ?? cartLine.finishTime             ?? "",
+   finishDayOffset:        perfSource.finishDayOffset        ?? cartLine.finishDayOffset        ?? 0,
+   paLightsFinishTime:     perfSource.paLightsFinishTime     ?? cartLine.paLightsFinishTime     ?? "",
+   paLightsFinishDayOffset:perfSource.paLightsFinishDayOffset?? cartLine.paLightsFinishDayOffset?? 0,
+   planIndex:              perfSource.planIndex              ?? cartLine.planIndex,
+   plan:                   perfSource.plan                   ?? cartLine.plan,
+};        const toInt = (v, def = 0) => {
           const n = Number(v);
           return Number.isInteger(n) ? n : def;
         };
