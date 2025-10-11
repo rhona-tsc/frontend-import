@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import AcousticExtrasSelector from "./AcousticExtrasSelector";
 import { ShopContext } from "../context/ShopContext";
 import { addMinutesHHMM, baselineFinishTime } from "../pages/utils/time";
-import getTravelV2 from "@/pages/utils/travelV2";
+import getTravelV2 from "../pages/utils/travelV2";
 
 
 
