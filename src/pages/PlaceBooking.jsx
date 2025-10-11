@@ -220,7 +220,6 @@ if (missingTimes.length) {
 
         // 🔧 Build the canonical performance block (now includes plan fields)
         // inside the for (const lineupId...) loop in PlaceBooking
-const cartLine = cartItems?.[actId]?.[lineupId] || {};
  const perfSource = cartLine.performance || {};
  const cartPerf = {
    ...perfSource,
