@@ -707,8 +707,14 @@ const handlePerformancePlanChange = (actId, lineupId, selectedPlanIndex, actData
         Math.max(setupCompleteTime.getTime(), sevenPm.getTime())
       );
     }
-    const permittedOnSiteMinutes =
-      7 * 60 + earlyArrivalMinutes + lateStayMinutes;
+  // Allow a flexible total on-site duration
+const clientOnSiteMinutes =
+  overrides.totalOnSiteMinutes && overrides.totalOnSiteMinutes > 0
+    ? overrides.totalOnSiteMinutes
+    : 7 * 60; // fallback if not specified
+
+const permittedOnSiteMinutes =
+  clientOnSiteMinutes + earlyArrivalMinutes + lateStayMinutes;
 
     const finishOverride = parseWithLog(
       overrides.finishTime,
@@ -738,17 +744,17 @@ const handlePerformancePlanChange = (actId, lineupId, selectedPlanIndex, actData
       rawFinish.setDate(rawFinish.getDate() + 1);
     }
 
-    if (!finishOverride && lateStayMinutes <= 0) {
-      const latestAllowedNoLateStay = new Date(
-        Math.min(
-          midnight.getTime(),
-          arrivalTime.getTime() + (7 * 60 + earlyArrivalMinutes) * 60000
-        )
-      );
-      if (rawFinish.getTime() > latestAllowedNoLateStay.getTime()) {
-        rawFinish = latestAllowedNoLateStay;
-      }
-    }
+   if (!finishOverride && lateStayMinutes <= 0) {
+  const latestAllowedNoLateStay = new Date(
+    Math.min(
+      midnight.getTime(),
+      arrivalTime.getTime() + (clientOnSiteMinutes + earlyArrivalMinutes) * 60000
+    )
+  );
+  if (rawFinish.getTime() > latestAllowedNoLateStay.getTime()) {
+    rawFinish = latestAllowedNoLateStay;
+  }
+}
 
     const finishTime = rawFinish;
     let requiredPerformanceMinutes = 120;
