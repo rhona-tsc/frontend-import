@@ -1360,7 +1360,8 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           })()}
 
           {/* 🎚 DJ_live_sax_3x30mins */}
-         <DjLiveSaxCard
+          {(() => {
+            <DjLiveSaxCard
   actData={actData}
   selectedLineup={lineup}
   safeSelectedExtras={safeSelectedExtras}
@@ -1368,7 +1369,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
   actId={actId}
   lineupId={lineupId}
 />
-
+ })()}
           {/* 🎚 DJ_live_bongos_3x30mins */}
           {(() => {
             const raw = actData?.extras?.get
