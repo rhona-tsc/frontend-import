@@ -166,7 +166,29 @@ const ActItem = ({ actData, shortlistCount }) => {
     });
 
     shortlistAct(userId, actData._id);
+try {
+  const lineupId = actData?.lineups?.[0]?._id;
 
+  await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shortlist/add`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      userId,
+      actId: actData._id,
+      lineupId,
+      selectedDate,
+      selectedAddress,
+      selectedCounty,
+      source: "Website",
+    }),
+  });
+
+  console.log("✅ Shortlist add triggered Twilio availability check");
+} catch (err) {
+  console.error("❌ Failed to POST /api/shortlist/add:", err);
+}
     setTimeout(() => setIsAnimating(false), 300);
   };
 
