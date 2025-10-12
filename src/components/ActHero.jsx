@@ -16,20 +16,46 @@ const ActHero = ({ actId, acts, hideHeart = false }) => {
       ? shortlistItems.map(String).includes(String(actData._id))
       : false;
 
-  const handleHeartClick = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!actData?._id || !userId) return; // context can prompt login elsewhere
-    setIsAnimating(true);
-    try {
-      await shortlistAct(userId, actData._id.toString());
-      // no local toggle; context update will re-render and fill/empty the heart
-    } catch (err) {
-      // swallow; UI will reflect context on next render
-    } finally {
-      setTimeout(() => setIsAnimating(false), 300);
+const handleHeartClick = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (!actData?._id || !userId) return;
+
+  // 🧩 Guard: prevent duplicate availability triggers
+  const selectedDate = sessionStorage.getItem("selectedDate");
+  const selectedAddress = sessionStorage.getItem("selectedAddress");
+
+  try {
+    const canTrigger = await checkAvailabilityTriggered(
+      actData._id,
+      selectedDate,
+      selectedAddress
+    );
+    if (!canTrigger) {
+      toast(
+        <CustomToast
+          type="info"
+          message="Availability already checked for this act/date."
+        />,
+        { position: "top-right", autoClose: 2000 }
+      );
+      return;
     }
-  };
+  } catch (err) {
+    console.warn("⚠️ Availability guard failed:", err);
+  }
+
+  // 🩷 Proceed with shortlist toggle + animation
+  setIsAnimating(true);
+  try {
+    await shortlistAct(userId, actData._id.toString());
+  } catch (err) {
+    console.error("❌ Heart click failed", err);
+  } finally {
+    setTimeout(() => setIsAnimating(false), 300);
+  }
+};
 
   useEffect(() => {
     if (Array.isArray(acts) && acts.length > 0) {

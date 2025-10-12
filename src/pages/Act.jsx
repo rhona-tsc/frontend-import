@@ -19,6 +19,29 @@ import axios from "axios";
 import { useLocation } from "react-router-dom";
 import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 
+const checkAvailabilityTriggered = async (actId, selectedDate, selectedAddress) => {
+  try {
+    const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
+    const url = `${base}/api/v2/availability/check-duplicate`;
+
+    const res = await axios.post(url, {
+      actId,
+      date: selectedDate,
+      address: selectedAddress,
+    });
+
+    // The backend will return { success: false, message: "Availability already triggered..." }
+    if (res?.data?.success === false) {
+      console.log("⚠️ Skipping duplicate availability trigger:", res.data.message);
+      return false; // already triggered
+    }
+    return true; // safe to proceed
+  } catch (err) {
+    console.warn("⚠️ checkAvailabilityTriggered failed:", err?.message || err);
+    return true; // default to true if uncertain (fail-safe)
+  }
+};
+
 // Calculate average rating from reviews, rounded to nearest 0.5
 const calculateAverageRating = (reviews) => {
   if (!reviews || reviews.length === 0) return 0;
@@ -81,21 +104,27 @@ const Act = () => {
 
 const id = extractVideoId(video);
 
- const handleShortlistToggle = async () => {
-  if (!selectedLineup) {
-    console.warn("⚠️ No lineup selected before adding/removing from shortlist");
+const handleShortlistToggle = async () => {
+  if (!selectedLineup || !actData?._id) return;
+
+  // 🧩 Guard check first
+  const canTrigger = await checkAvailabilityTriggered(actData._id, selectedDate, selectedAddress);
+  if (!canTrigger) {
+    toast(<CustomToast type="info" message="Already sent availability check for this act/date." />, {
+      position: "top-right",
+      autoClose: 2000,
+    });
     return;
   }
-  if (!actData?._id) return;
 
   try {
-    await shortlistAct(userId, actData._id);  // context method does optimistic update + server patch
-    // Optional UX toast if you want:
-    // const inNow = shortlistedActs.includes(String(actData._id));
-    // toast(<CustomToast type="success" message={inNow ? "Added to shortlist!" : "Removed from shortlist."} />, { position: "top-right", autoClose: 1400 });
+    await shortlistAct(userId, actData._id);
   } catch (e) {
     console.error("❌ Shortlist toggle failed", e);
-    toast(<CustomToast type="error" message="Could not update shortlist." />, { position: "top-right", autoClose: 1600 });
+    toast(<CustomToast type="error" message="Could not update shortlist." />, {
+      position: "top-right",
+      autoClose: 1600,
+    });
   }
 };
 
@@ -619,48 +648,59 @@ const id = extractVideoId(video);
       {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
     </button>
     <button
-      onClick={() => {
-        if (!selectedLineup) {
-          console.warn("⚠️ No lineup selected before adding to cart");
-          return;
-        }
+onClick={async () => {
+  if (!selectedLineup) {
+    console.warn("⚠️ No lineup selected before adding to cart");
+    return;
+  }
 
-        if (!isInCart) {
-          // add the currently selected lineup
-          addToCart(
-            actData._id,
-            selectedLineup._id || selectedLineup.lineupId
-          );
-          toast(
-            <CustomToast type="success" message="Added to cart!" />,
-            { position: "top-right", autoClose: 1600 }
-          );
-          return;
-        }
+  // 🧩 Guard: skip duplicate availability trigger
+  const canTrigger = await checkAvailabilityTriggered(
+    actData._id,
+    selectedDate,
+    selectedAddress
+  );
+  if (!canTrigger) {
+    toast(
+      <CustomToast
+        type="info"
+        message="Availability already checked for this act/date."
+      />,
+      {
+        position: "top-right",
+        autoClose: 2000,
+      }
+    );
+    return;
+  }
 
-        // cart has an entry
-        if (isSameLineupAsCart) {
-          // same lineup selected -> remove from cart
-          const lineupIds = Object.keys(cartItems[actData._id] || {});
-          lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
-          toast(
-            <CustomToast type="success" message="Removed from cart." />,
-            { position: "top-right", autoClose: 1600 }
-          );
-        } else {
-          // different lineup selected -> replace (update lineup)
-          const lineupIds = Object.keys(cartItems[actData._id] || {});
-          lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
-          addToCart(
-            actData._id,
-            selectedLineup._id || selectedLineup.lineupId
-          );
-          toast(
-            <CustomToast type="success" message="Lineup updated in cart!" />,
-            { position: "top-right", autoClose: 1600 }
-          );
-        }
-      }}
+  // --- existing add/remove logic below ---
+  if (!isInCart) {
+    addToCart(actData._id, selectedLineup._id || selectedLineup.lineupId);
+    toast(
+      <CustomToast type="success" message="Added to cart!" />,
+      { position: "top-right", autoClose: 1600 }
+    );
+    return;
+  }
+
+  if (isSameLineupAsCart) {
+    const lineupIds = Object.keys(cartItems[actData._id] || {});
+    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
+    toast(
+      <CustomToast type="success" message="Removed from cart." />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  } else {
+    const lineupIds = Object.keys(cartItems[actData._id] || {});
+    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
+    addToCart(actData._id, selectedLineup._id || selectedLineup.lineupId);
+    toast(
+      <CustomToast type="success" message="Lineup updated in cart!" />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  }
+}}
       className="flex-1 px-4 py-3 rounded text-sm font-medium bg-black text-white hover:bg-[#ff6667] transition"
       aria-pressed={!!isInCart}
     >
@@ -976,18 +1016,37 @@ const id = extractVideoId(video);
               </button>
 
               <button
-  onClick={() => {
+  onClick={async () => {
     if (!selectedLineup) {
       console.warn("⚠️ No lineup selected before adding to cart");
       return;
     }
 
+    // 🧩 Guard: skip duplicate availability trigger
+    const canTrigger = await checkAvailabilityTriggered(
+      actData._id,
+      selectedDate,
+      selectedAddress
+    );
+    if (!canTrigger) {
+      toast(
+        <CustomToast
+          type="info"
+          message="Availability already checked for this act/date."
+        />,
+        {
+          position: "top-right",
+          autoClose: 2000,
+        }
+      );
+      return;
+    }
+
+    // --- existing add/remove logic below ---
     if (isInCart) {
       // remove all lineups for this act
       const lineupIds = Object.keys(cartItems[actData._id] || {});
-      lineupIds.forEach((lineupId) =>
-        removeFromCart(actData._id, lineupId)
-      );
+      lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
 
       toast(
         <CustomToast type="success" message="Removed from cart." />,
@@ -999,7 +1058,6 @@ const id = extractVideoId(video);
         actData._id,
         selectedLineup._id || selectedLineup.lineupId
       );
-
       toast(
         <CustomToast type="success" message="Added to cart!" />,
         { position: "top-right", autoClose: 1600 }

@@ -1,5 +1,7 @@
 // frontend/src/components/ActItem.jsx
 import React, { useState, useEffect, useContext } from 'react';
+import { toast } from 'react-toastify';
+import CustomToast from './CustomToast';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import calculateActPricing from '../pages/utils/pricing';
 import { ShopContext } from '../context/ShopContext';
@@ -117,7 +119,7 @@ const ActItem = ({ actData, shortlistCount }) => {
   const displayTotal =
     rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
 
-  const handleHeartClick = (e) => {
+  const handleHeartClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -139,6 +141,19 @@ const ActItem = ({ actData, shortlistCount }) => {
       // Navigate to login
       navigate('/login', { state: { from: fallback } });
       return; // 👈 do not continue
+    }
+
+    // 🛡️ Prevent duplicate availability triggers
+    if (typeof window.checkAvailabilityTriggered === "function") {
+      try {
+        const canTrigger = await window.checkAvailabilityTriggered(actData._id, selectedDate, selectedAddress);
+        if (!canTrigger) {
+          toast(<CustomToast message="Availability already checked for this act/date." type="info" />);
+          return;
+        }
+      } catch (err) {
+        // fallback: allow if error
+      }
     }
 
     setIsAnimating(true);
