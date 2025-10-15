@@ -131,32 +131,16 @@ const ringSrc = variant === "deputy"
 );
 }
 
-// ---------------------------------------------------------------------------
-// Wrapper: show lead badge or up to 3 deputy badges when lead isn't available
-// Usage:
-//   <VocalistFeaturedAvailable
-//     badge={act.availabilityBadge}
-//     size={140}
-//     cacheBuster={act?.availabilityBadge?.setAt}
-//     className="mt-2"
-//   />
-//
-// Expected `badge` shape (server):
-// {
-//   active: boolean,
-//   photoUrl?: string,
-//   profilePicture?: string,
-//   vocalistName?: string,
-//   musicianId?: string,
-//   setAt?: string|number|Date,
-//   deputies?: Array<{
-//     profilePicture?: string,
-//     photoUrl?: string,
-//     musicianId?: string,
-//     profileUrl?: string,
-//     setAt?: string|number|Date
-//   }>
-// }
+//  Wrapper: show lead badge or up to 3 deputy badges when lead isn't available
+ // Usage:
+   <VocalistFeaturedAvailable
+     badge={act.availabilityBadge}
+     size={140}
+     cacheBuster={act?.availabilityBadge?.setAt}
+     className="mt-2"
+   />
+
+
 export function VocalistFeaturedAvailable({
   badge = null,
   size = 140,
@@ -176,7 +160,7 @@ export function VocalistFeaturedAvailable({
           const musId = String(d?.musicianId || "");
           const profile =
             (d?.profileUrl && String(d.profileUrl)) ||
-            (musId ? `${PUBLIC_SITE_BASE}/musician/${musId}` : "");
+            (musId ? `${FRONTEND_URL}/musician/${musId}` : "");
 
           // prefer an explicit deputy photoUrl; else FeaturedVocalistBadge falls back to d.profilePicture
           const img =

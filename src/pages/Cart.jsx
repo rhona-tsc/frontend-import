@@ -1236,11 +1236,11 @@ const displayCartDetails = Array.isArray(cartDetails)
               </button>
 <div className="flex flex-col md:flex-row gap-4 items-start w-full">
 {item.image && (
-  <div className="w-full md:w-auto">
+  <div className="w-full">
     <img
       src={item.image?.url || item.image || ""}
       alt={item.actName}
-      className="w-full md:w-40 h-52 md:h-40 object-cover rounded"
+      className="w-full h-auto max-h-64 object-cover rounded"
       loading="lazy"
       onError={(e) => (e.target.style.display = "none")}
       onClick={() => navigate(`/act/${item.actId}`)}
