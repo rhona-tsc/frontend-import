@@ -131,16 +131,31 @@ const ringSrc = variant === "deputy"
 );
 }
 
-//  Wrapper: show lead badge or up to 3 deputy badges when lead isn't available
- // Usage:
-   <VocalistFeaturedAvailable
-     badge={act.availabilityBadge}
-     size={140}
-     cacheBuster={act?.availabilityBadge?.setAt}
-     className="mt-2"
-   />
-
-
+// Wrapper: show lead badge or up to 3 deputy badges when lead isn't available
+// Usage:
+//   <VocalistFeaturedAvailable
+//     badge={act.availabilityBadge}
+//     size={140}
+//     cacheBuster={act?.availabilityBadge?.setAt}
+//     className="mt-2"
+//   />
+//
+// Expected `badge` shape (server):
+// {
+//   active: boolean,
+//   photoUrl?: string,
+//   profilePicture?: string,
+//   vocalistName?: string,
+//   musicianId?: string,
+//   setAt?: string|number|Date,
+//   deputies?: Array<{
+//     profilePicture?: string,
+//     photoUrl?: string,
+//     musicianId?: string,
+//     profileUrl?: string,
+//     setAt?: string|number|Date
+//   }>
+// }
 export function VocalistFeaturedAvailable({
   badge = null,
   size = 140,

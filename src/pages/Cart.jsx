@@ -1236,7 +1236,7 @@ const displayCartDetails = Array.isArray(cartDetails)
               </button>
 <div className="flex flex-col md:flex-row gap-4 items-start w-full">
 {item.image && (
-  <div className="w-full">
+  <div className="w-full md:w-auto">
     <img
       src={item.image?.url || item.image || ""}
       alt={item.actName}
