@@ -369,6 +369,7 @@ if (isTestDancefloorMagic) {
 }
 
 console.log("💰 Amounts:", { fullAmount, depositAmount, isTestDancefloorMagic, clientWantsFull });
+
     const signatureImage = signaturePad.getTrimmedCanvas().toDataURL("image/png");
 
     const endpoint = `${backendUrl}/api/booking/create-checkout-session`;
