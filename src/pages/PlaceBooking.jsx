@@ -333,22 +333,42 @@ const handleSubmit = async () => {
       return;
     }
 
-    // Compute full amount & deposit from the snapshot we’ll store
-    const fullAmount = actsSummary.reduce((sum, item) => {
-      const perUnit =
-        Number(item?.prices?.adjustedTotal || 0) +
-        (item.selectedExtras || []).reduce(
-          (s, ex) => s + (Number(ex.price) || 0),
-          0
-        );
-      return sum + perUnit * (item.quantity || 1);
-    }, 0);
+   // ✅ Compute full amount & deposit with conditional logic
+const fullAmount = actsSummary.reduce((sum, item) => {
+  const perUnit =
+    Number(item?.prices?.adjustedTotal || 0) +
+    (item.selectedExtras || []).reduce(
+      (s, ex) => s + (Number(ex.price) || 0),
+      0
+    );
+  return sum + perUnit * (item.quantity || 1);
+}, 0);
 
-    const calcDeposit = (gross) =>
-      gross <= 0 ? 0 : Math.ceil((gross - 50) * 0.2) + 50;
+// 25% deposit rule except for "Test Dancefloor Magic"
+const isTestDancefloorMagic = actsSummary.some(
+  (a) =>
+    String(a.actName || "")
+      .toLowerCase()
+      .includes("test dancefloor magic")
+);
 
-    const depositAmount = clientWantsFull ? fullAmount : calcDeposit(fullAmount);
+// base deposit logic: 25% deposit unless special case
+const calcDeposit = (gross) => {
+  if (gross <= 0) return 0;
+  // your standard 25% rule — simple and clean
+  return Math.ceil(gross * 0.25);
+};
 
+// decide deposit amount
+let depositAmount;
+if (isTestDancefloorMagic) {
+  // 💡 No deposit for test act
+  depositAmount = fullAmount;
+} else {
+  depositAmount = clientWantsFull ? fullAmount : calcDeposit(fullAmount);
+}
+
+console.log("💰 Amounts:", { fullAmount, depositAmount, isTestDancefloorMagic, clientWantsFull });
     const signatureImage = signaturePad.getTrimmedCanvas().toDataURL("image/png");
 
     const endpoint = `${backendUrl}/api/booking/create-checkout-session`;
