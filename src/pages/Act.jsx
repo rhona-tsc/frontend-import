@@ -104,50 +104,39 @@ const Act = () => {
 
 const id = extractVideoId(video);
 
+const triggerEnquiryFlow = async (actId, lineupId, selectedDate, selectedAddress) => {
+  try {
+    const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
+    const url = `${base}/api/shortlist/add`;
+    const res = await axios.post(url, {
+      userId,
+      actId,
+      lineupId,
+      selectedDate,
+      selectedAddress,
+    });
+    console.log("📩 Enquiry flow triggered:", res.data.message || res.data);
+  } catch (err) {
+    console.error("❌ Failed to trigger enquiry flow:", err.message);
+  }
+};
+
 const handleShortlistToggle = async () => {
   if (!selectedLineup || !actData?._id) return;
 
-  // 🧩 Prevent duplicates
+  // 🧩 Guard check
   const canTrigger = await checkAvailabilityTriggered(actData._id, selectedDate, selectedAddress);
-  if (!canTrigger) {
-    toast(<CustomToast type="info" message="Already checked availability for this act/date." />, {
-      position: "top-right",
-      autoClose: 2000,
-    });
-    return;
+
+  // 💬 Trigger enquiry message if new
+  if (canTrigger && selectedDate && selectedAddress) {
+    await triggerEnquiryFlow(actData._id, selectedLineup._id || selectedLineup.lineupId, selectedDate, selectedAddress);
   }
 
   try {
-    // 🔥 Call the backend route that triggers the full WhatsApp flow
-    const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
-    const url = `${base}/api/shortlist/add`;
-
-    const payload = {
-      userId,
-      actId: actData._id,
-      selectedDate,
-      selectedAddress,
-      lineupId: selectedLineup._id || selectedLineup.lineupId,
-    };
-
-    console.log("🎯 Triggering shortlist + availability flow", payload);
-
-    const res = await axios.post(url, payload);
-
-    if (res.data?.success) {
-      toast(<CustomToast type="success" message="Availability request sent!" />, {
-        position: "top-right",
-        autoClose: 2000,
-      });
-    } else {
-      toast(<CustomToast type="info" message={res.data?.message || "Already checked availability."} />, {
-        position: "top-right",
-        autoClose: 2000,
-      });
-    }
-  } catch (err) {
-    console.error("❌ Shortlist flow failed", err);
-    toast(<CustomToast type="error" message="Could not trigger availability flow." />, {
+    await shortlistAct(userId, actData._id);
+  } catch (e) {
+    console.error("❌ Shortlist toggle failed", e);
+    toast(<CustomToast type="error" message="Could not update shortlist." />, {
       position: "top-right",
       autoClose: 1600,
     });
@@ -662,17 +651,81 @@ const handleShortlistToggle = async () => {
       {/* share icon */}
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-share-icon lucide-share"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/></svg>
     </button>
-    <button
-      onClick={handleShortlistToggle}
-      aria-pressed={isShortlisted}
-      className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${
-        isShortlisted
-          ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
-          : "bg-black text-white hover:bg-[#ff6667]"
-      }`}
-    >
-      {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
-    </button>
+<button
+  onClick={async () => {
+   
+
+    // 🧩 Guard: skip duplicate availability trigger
+    const canTrigger = await checkAvailabilityTriggered(
+      actData._id,
+      selectedDate,
+      selectedAddress
+    );
+
+    // 💬 Trigger enquiry message if new
+    if (canTrigger && selectedDate && selectedAddress) {
+      await triggerEnquiryFlow(
+        actData._id,
+        selectedLineup._id || selectedLineup.lineupId,
+        selectedDate,
+        selectedAddress
+      );
+    }
+
+    if (!canTrigger) {
+      toast(
+        <CustomToast
+          type="info"
+          message="Availability already checked for this act/date."
+        />,
+        {
+          position: "top-right",
+          autoClose: 2000,
+        }
+      );
+    }
+
+    // --- existing shortlist toggle logic ---
+    try {
+      await shortlistAct(userId, actData._id);
+
+      toast(
+        <CustomToast
+          type="success"
+          message={
+            isShortlisted
+              ? "Removed from shortlist."
+              : "Added to shortlist!"
+          }
+        />,
+        {
+          position: "top-right",
+          autoClose: 1600,
+        }
+      );
+    } catch (e) {
+      console.error("❌ Shortlist toggle failed", e);
+      toast(
+        <CustomToast
+          type="error"
+          message="Could not update shortlist."
+        />,
+        {
+          position: "top-right",
+          autoClose: 1600,
+        }
+      );
+    }
+  }}
+  aria-pressed={isShortlisted}
+  className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${
+    isShortlisted
+      ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
+      : "bg-black text-white hover:bg-[#ff6667]"
+  }`}
+>
+  {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
+</button>
     <button
 onClick={async () => {
   if (!selectedLineup) {
@@ -686,6 +739,12 @@ onClick={async () => {
     selectedDate,
     selectedAddress
   );
+
+    // 💬 Trigger enquiry message if new
+  if (canTrigger && selectedDate && selectedAddress) {
+    await triggerEnquiryFlow(actData._id, selectedLineup._id || selectedLineup.lineupId, selectedDate, selectedAddress);
+  }
+
   if (!canTrigger) {
     toast(
       <CustomToast
@@ -699,24 +758,6 @@ onClick={async () => {
     );
     return;
   }
-
-    // ✅ Trigger WhatsApp enquiry message flow (same as shortlist)
-    try {
-      const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
-      const url = `${base}/api/shortlist/add`;
-      const payload = {
-        userId,
-        actId: actData._id,
-        selectedDate,
-        selectedAddress,
-        lineupId: selectedLineup._id || selectedLineup.lineupId,
-      };
-
-      console.log("🎯 Triggering WhatsApp enquiry flow from ADD TO CART", payload);
-      await axios.post(url, payload);
-    } catch (err) {
-      console.error("❌ Failed to trigger enquiry flow from cart", err);
-    }
 
   // --- existing add/remove logic below ---
   if (!isInCart) {
@@ -1047,17 +1088,81 @@ onClick={async () => {
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row my-6 gap-6 ml-3">
-              <button
-                onClick={handleShortlistToggle}
-                aria-pressed={isShortlisted}
-                className={`px-8 py-3 text-m rounded transition-colors ${
-                  isShortlisted
-                    ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
-                    : "bg-black text-white hover:bg-[#ff6667]"
-                }`}
-              >
-                {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
-              </button>
+            <button
+  onClick={async () => {
+   
+
+    // 🧩 Guard: skip duplicate availability trigger
+    const canTrigger = await checkAvailabilityTriggered(
+      actData._id,
+      selectedDate,
+      selectedAddress
+    );
+
+    // 💬 Trigger enquiry message if new
+    if (canTrigger && selectedDate && selectedAddress) {
+      await triggerEnquiryFlow(
+        actData._id,
+        selectedLineup._id || selectedLineup.lineupId,
+        selectedDate,
+        selectedAddress
+      );
+    }
+
+    if (!canTrigger) {
+      toast(
+        <CustomToast
+          type="info"
+          message="Availability already checked for this act/date."
+        />,
+        {
+          position: "top-right",
+          autoClose: 2000,
+        }
+      );
+    }
+
+    // --- existing shortlist toggle logic ---
+    try {
+      await shortlistAct(userId, actData._id);
+
+      toast(
+        <CustomToast
+          type="success"
+          message={
+            isShortlisted
+              ? "Removed from shortlist."
+              : "Added to shortlist!"
+          }
+        />,
+        {
+          position: "top-right",
+          autoClose: 1600,
+        }
+      );
+    } catch (e) {
+      console.error("❌ Shortlist toggle failed", e);
+      toast(
+        <CustomToast
+          type="error"
+          message="Could not update shortlist."
+        />,
+        {
+          position: "top-right",
+          autoClose: 1600,
+        }
+      );
+    }
+  }}
+  aria-pressed={isShortlisted}
+  className={`px-8 py-3 text-m rounded transition-colors ${
+    isShortlisted
+      ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
+      : "bg-black text-white hover:bg-[#ff6667]"
+  }`}
+>
+  {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
+</button>
 
               <button
   onClick={async () => {
@@ -1072,6 +1177,12 @@ onClick={async () => {
       selectedDate,
       selectedAddress
     );
+
+      // 💬 Trigger enquiry message if new
+  if (canTrigger && selectedDate && selectedAddress) {
+    await triggerEnquiryFlow(actData._id, selectedLineup._id || selectedLineup.lineupId, selectedDate, selectedAddress);
+  }
+
     if (!canTrigger) {
       toast(
         <CustomToast
@@ -1084,24 +1195,6 @@ onClick={async () => {
         }
       );
       return;
-    }
-
-      // ✅ Trigger WhatsApp enquiry message flow (same as shortlist)
-    try {
-      const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
-      const url = `${base}/api/shortlist/add`;
-      const payload = {
-        userId,
-        actId: actData._id,
-        selectedDate,
-        selectedAddress,
-        lineupId: selectedLineup._id || selectedLineup.lineupId,
-      };
-
-      console.log("🎯 Triggering WhatsApp enquiry flow from ADD TO CART", payload);
-      await axios.post(url, payload);
-    } catch (err) {
-      console.error("❌ Failed to trigger enquiry flow from cart", err);
     }
 
     // --- existing add/remove logic below ---
