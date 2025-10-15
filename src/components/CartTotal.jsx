@@ -153,8 +153,16 @@ const CartTotal = () => {
   }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate]);
 
   // Same formula as server-side
-  const deposit = totalAmount === 0 ? 0 : Math.ceil((totalAmount - 50) * 0.2) + 50;
+// 💰 Deposit = 25% unless it's "Test Dancefloor Magic"
+const isTestBooking = summaryItems.some(
+  (item) =>
+    item.tscName?.toLowerCase().includes("test dancefloor magic") ||
+    item.actName?.toLowerCase().includes("test dancefloor magic")
+);
 
+const deposit = isTestBooking
+  ? 0
+  : Math.round(totalAmount * 0.25);
   return (
     <div className='w-full'>
       <div className='text-2xl mb-4'>

@@ -1,6 +1,6 @@
 
 import { assets } from "../assets/assets"; // top-level import
-const PUBLIC_SITE_BASE = (import.meta?.env?.VITE_PUBLIC_SITE_URL || "http://localhost:5174").replace(/\/$/, "");
+const PUBLIC_SITE_BASE = (import.meta?.env?.FRONTEND_URL).replace(/\/$/, "");
 
 // Extract a valid http(s) URL from an object that may have profile fields.
 // We ONLY accept `profilePicture` (string URL). Anything else is ignored.
@@ -175,7 +175,7 @@ export function VocalistFeaturedAvailable({
           const musId = String(d?.musicianId || "");
           const profile =
             (d?.profileUrl && String(d.profileUrl)) ||
-            (musId ? `${FRONTEND_URL}/musician/${musId}` : "");
+            (musId ? `${PUBLIC_SITE_BASE}/musician/${musId}` : "");
 
           // prefer an explicit deputy photoUrl; else FeaturedVocalistBadge falls back to d.profilePicture
           const img =
