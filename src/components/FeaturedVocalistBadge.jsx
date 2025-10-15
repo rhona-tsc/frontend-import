@@ -1,6 +1,6 @@
 
 import { assets } from "../assets/assets"; // top-level import
-const PUBLIC_SITE_BASE = (import.meta?.env?.FRONTEND_URL).replace(/\/$/, "");
+const PUBLIC_SITE_BASE = (import.meta?.env?.FRONTEND_URL);
 
 // Extract a valid http(s) URL from an object that may have profile fields.
 // We ONLY accept `profilePicture` (string URL). Anything else is ignored.
