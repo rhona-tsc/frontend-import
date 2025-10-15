@@ -107,10 +107,10 @@ const id = extractVideoId(video);
 const handleShortlistToggle = async () => {
   if (!selectedLineup || !actData?._id) return;
 
-  // 🧩 Guard check first
+  // 🧩 Prevent duplicates
   const canTrigger = await checkAvailabilityTriggered(actData._id, selectedDate, selectedAddress);
   if (!canTrigger) {
-    toast(<CustomToast type="info" message="Already sent availability check for this act/date." />, {
+    toast(<CustomToast type="info" message="Already checked availability for this act/date." />, {
       position: "top-right",
       autoClose: 2000,
     });
@@ -118,10 +118,36 @@ const handleShortlistToggle = async () => {
   }
 
   try {
-    await shortlistAct(userId, actData._id);
-  } catch (e) {
-    console.error("❌ Shortlist toggle failed", e);
-    toast(<CustomToast type="error" message="Could not update shortlist." />, {
+    // 🔥 Call the backend route that triggers the full WhatsApp flow
+    const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
+    const url = `${base}/api/shortlist/add`;
+
+    const payload = {
+      userId,
+      actId: actData._id,
+      selectedDate,
+      selectedAddress,
+      lineupId: selectedLineup._id || selectedLineup.lineupId,
+    };
+
+    console.log("🎯 Triggering shortlist + availability flow", payload);
+
+    const res = await axios.post(url, payload);
+
+    if (res.data?.success) {
+      toast(<CustomToast type="success" message="Availability request sent!" />, {
+        position: "top-right",
+        autoClose: 2000,
+      });
+    } else {
+      toast(<CustomToast type="info" message={res.data?.message || "Already checked availability."} />, {
+        position: "top-right",
+        autoClose: 2000,
+      });
+    }
+  } catch (err) {
+    console.error("❌ Shortlist flow failed", err);
+    toast(<CustomToast type="error" message="Could not trigger availability flow." />, {
       position: "top-right",
       autoClose: 1600,
     });
@@ -674,6 +700,24 @@ onClick={async () => {
     return;
   }
 
+    // ✅ Trigger WhatsApp enquiry message flow (same as shortlist)
+    try {
+      const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
+      const url = `${base}/api/shortlist/add`;
+      const payload = {
+        userId,
+        actId: actData._id,
+        selectedDate,
+        selectedAddress,
+        lineupId: selectedLineup._id || selectedLineup.lineupId,
+      };
+
+      console.log("🎯 Triggering WhatsApp enquiry flow from ADD TO CART", payload);
+      await axios.post(url, payload);
+    } catch (err) {
+      console.error("❌ Failed to trigger enquiry flow from cart", err);
+    }
+
   // --- existing add/remove logic below ---
   if (!isInCart) {
     addToCart(actData._id, selectedLineup._id || selectedLineup.lineupId);
@@ -1040,6 +1084,24 @@ onClick={async () => {
         }
       );
       return;
+    }
+
+      // ✅ Trigger WhatsApp enquiry message flow (same as shortlist)
+    try {
+      const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
+      const url = `${base}/api/shortlist/add`;
+      const payload = {
+        userId,
+        actId: actData._id,
+        selectedDate,
+        selectedAddress,
+        lineupId: selectedLineup._id || selectedLineup.lineupId,
+      };
+
+      console.log("🎯 Triggering WhatsApp enquiry flow from ADD TO CART", payload);
+      await axios.post(url, payload);
+    } catch (err) {
+      console.error("❌ Failed to trigger enquiry flow from cart", err);
     }
 
     // --- existing add/remove logic below ---
