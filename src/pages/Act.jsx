@@ -22,7 +22,7 @@ import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 const checkAvailabilityTriggered = async (actId, selectedDate, selectedAddress) => {
   try {
     const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
-    const url = `${base}/api/v2/availability/check-duplicate`;
+    const url = `${base}/api/shortlist/availability/request`;
 
     const res = await axios.post(url, {
       actId,
