@@ -154,25 +154,31 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Shortlist */}
-          <Link to="/shortlist" className="relative p-2 rounded hover:bg-gray-100 active:scale-95">
-            <img src={assets.shortlist_icon} alt="Shortlist" className="w-5 h-5" />
-            <span className="absolute -right-1.5 -bottom-1.5 min-w-4 px-1 text-center bg-black text-white rounded-full text-[10px] leading-4">
-              {getShortlistCount()}
-            </span>
-          </Link>
+     {/* Shortlist */}
+<Link
+  to="/shortlist"
+  className="relative p-2 rounded hover:bg-gray-100 active:scale-95"
+>
+  <img src={assets.shortlist_icon} alt="Shortlist" className="w-5 h-5" />
+  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center bg-black text-white rounded-full text-[10px] leading-none">
+    {getShortlistCount()}
+  </span>
+</Link>
 
-          {/* Cart */}
-          <Link to="/cart" className="relative p-2 rounded hover:bg-gray-100 active:scale-95">
-            <img src={assets.cart_icon} alt="Cart" className="w-5 h-5" />
-            <span className="absolute -right-1.5 -bottom-3 min-w-4 px-1 text-center bg-black text-white rounded-full text-[10px] leading-4">
-              {getCartCount()}
-            </span>
-            {cartUpdated && (
-              <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-ping" />
-            )}
-          </Link>
-        </div>
+{/* Cart */}
+<Link
+  to="/cart"
+  className="relative p-2 rounded hover:bg-gray-100 active:scale-95"
+>
+  <img src={assets.cart_icon} alt="Cart" className="w-5 h-5" />
+  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center bg-black text-white rounded-full text-[10px] leading-none">
+    {getCartCount()}
+  </span>
+
+  {cartUpdated && (
+    <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-ping" />
+  )}
+</Link>
 
         {/* Hamburger — visible below lg (i.e., as soon as we switch logos) */}
         <button
