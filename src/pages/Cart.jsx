@@ -19,6 +19,7 @@ import ExtrasCarousel from "../components/ExtrasCarousel";
 import { assets } from "../assets/assets";
 import { calculateExtraPrice } from "./utils/pricing";
 import { addMinutesHHMM } from "./utils/time";
+import { FeaturedVocalistBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
 
 const Cart = () => {
   const {
@@ -1255,18 +1256,12 @@ const displayCartDetails = Array.isArray(cartDetails)
                     {item.actName}
                   </p>
                   {/* Availability badge */}
-                  {availabilityStatus?.[item.actId]?.status && (
-                    <div
-                      className={`mt-1 inline-flex items-center gap-2 rounded px-2 py-1 text-sm ${
-                        availabilityStatus[item.actId].status === "lead"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      <span className="inline-block h-2 w-2 rounded-full bg-current" />
-                      <span>{availabilityStatus[item.actId].message}</span>
-                    </div>
-                  )}
+              <FeaturedVocalistBadgeForCart
+                                 badge={item?.availabilityBadge}
+                                 size={140}
+                                 cacheBuster={item?.availabilityBadge?.setAt}
+                                 className="mt-2"
+                               />
 
                   {(() => {
                     const times = calculateAdjustedTimes(
