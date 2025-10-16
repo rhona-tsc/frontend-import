@@ -22,6 +22,19 @@ export function FeaturedVocalistBadge({
   musicianId = "",
   profileUrl = "",         // optional explicit URL; overrides musicianId if provided
 }) {
+  // Debug: log when function runs and what props are passed
+  console.log("[FeaturedVocalistBadge] called with props:", {
+    imageUrl,
+    pictureSource,
+    variant,
+    size,
+    photoScale,
+    photoOffsetY,
+    cacheBuster,
+    className,
+    musicianId,
+    profileUrl,
+  });
   const inner = Math.round(size * photoScale);
 // FeaturedVocalistBadge.jsx
 const ringSrc = variant === "deputy"
@@ -65,22 +78,14 @@ const ringSrc = variant === "deputy"
     sourceProfileUrl ||
     sourceMusicianUrl;
 
-  // Debug log
-  console.log("🎖️ FeaturedVocalistBadge render →", {
-    rawImageUrl: imageUrl,
-    derivedFromSource: pictureSource ? pickProfilePicture(pictureSource) : "",
+  // Debug: log before return to confirm rendering state
+  console.log("[FeaturedVocalistBadge] rendering with state:", {
+    imageUrl,
+    pictureSource,
+    variant,
     resolvedImageUrl,
     imgSrc,
     hasValidUrl,
-    variant,
-    musicianId,
-    profileUrl,
-    sourceProfileUrl,
-    sourceMusicianId: pictureSource?.musicianId || "",
-    sourceMusicianUrl,
-    effectiveProfileUrl,
-    usingPictureSource: !!pictureSource,
-    pictureSourceKeys: pictureSource ? Object.keys(pictureSource) : [],
   });
 
 
