@@ -35,6 +35,7 @@ const Cart = () => {
     requestVocalistAvailability,
     updatePerformance,
     isActUnavailableForSelectedDate,
+    selectVocalistForAct, selectedVocalists,
   availLoading
   } = useContext(ShopContext);
 
@@ -51,6 +52,9 @@ const Cart = () => {
   const [isChangingLineup, setIsChangingLineup] = useState(false);
   const navigate = useNavigate();
   const mergedUpdateExtras = useMergedUpdateExtras(cartItems, setCartItems);
+const handleSelect = (musicianId) => {
+  selectVocalistForAct(act._id, musicianId);
+};
 
   // NEW: track which lineups got auto-added extras so the banner shows the right text.
   // key shape: `${actId}:${lineupId}` -> 'late' | 'early'
@@ -1075,6 +1079,9 @@ const displayCartDetails = Array.isArray(cartDetails)
   ? cartDetails.filter((item) => !isActUnavailableForSelectedDate(item.actId))
   : [];
 
+    const { selectedVocalists, toggleVocalistForAct } = useContext(ShopContext);
+  const selected = selectedVocalists[act._id] || [];
+
   return (
     <div className="border-t pt-14">
       <div className="text-2xl mb-3">
@@ -1256,12 +1263,43 @@ const displayCartDetails = Array.isArray(cartDetails)
                     {item.actName}
                   </p>
                   {/* Availability badge */}
-              <FeaturedVocalistBadgeForCart
-                                 badge={item?.availabilityBadge}
-                                 size={140}
-                                 cacheBuster={item?.availabilityBadge?.setAt}
-                                 className="mt-2"
-                               />
+                         <div className="mt-6">
+      <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
+       <div className="flex gap-4 flex-wrap">
+                             
+
+        {item.availabilityBadge?.active ? (
+          <FeaturedVocalistBadgeForCart
+            imageUrl={item.availabilityBadge.photoUrl}
+            pictureSource={item.availabilityBadge}
+            musicianId={item.availabilityBadge.musicianId}
+            selectable
+            isSelected={selected.includes(item.availabilityBadge.musicianId)}
+            onSelect={(id) => toggleVocalistForAct(item._id, id)}
+          />
+        ) : (
+          item.availabilityBadge?.deputies?.map((dep) => (
+            <FeaturedVocalistBadgeForCart
+              key={dep.musicianId}
+              imageUrl={dep.photoUrl}
+              pictureSource={dep}
+              musicianId={dep.musicianId}
+              selectable
+              isSelected={selected.includes(dep.musicianId)} // ✅ your question line
+              onSelect={(id) => toggleVocalistForAct(item._id, id)} // ✅ toggles selection
+              variant="deputy"
+              size={120}
+            />
+          ))
+        )}
+      </div>
+
+      {selected.length > 0 && (
+        <p className="mt-3 text-sm text-gray-700">
+          ✅ Selected {selected.length} vocalist{selected.length > 1 ? "s" : ""}.
+        </p>
+      )}
+    </div>
 
                   {(() => {
                     const times = calculateAdjustedTimes(

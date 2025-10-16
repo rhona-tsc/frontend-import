@@ -27,6 +27,7 @@ const ShopProvider = (props) => {
   const [acts, setActs] = useState([]);
   const [cartItems, setCartItems] = useState({});
   const [token, setToken] = useState("");
+const [selectedVocalists, setSelectedVocalists] = useState({}); 
 
   // --- User / shortlist (single sources of truth) ---
   const [userId, setUserId] = useState(null);
@@ -83,6 +84,13 @@ const loadAvailabilityForDate = async (dateISO) => {
     }
     return map;
   };
+
+  const selectVocalistForAct = (actId, musicianId) => {
+  setSelectedVocalists(prev => ({
+    ...prev,
+    [actId]: musicianId
+  }));
+};
 
   setAvailLoading(true);
   try {
@@ -950,6 +958,9 @@ updatePerformance,
     logout,
      computeBalanceDueDate,
     scheduleBalanceInvoice,
+
+    selectedVocalists,
+  selectVocalistForAct,
   };
 
   return (

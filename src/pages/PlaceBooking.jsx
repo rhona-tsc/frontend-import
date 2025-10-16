@@ -23,7 +23,7 @@ const PlaceBooking = () => {
     acts,
     selectedAddress,
     selectedDate,
-    backendUrl
+    backendUrl, selectVocalistForAct, selectedVocalists,
   } = useContext(ShopContext);
 
   const [eventType, setEventType] = useState("Wedding");
@@ -120,6 +120,7 @@ const handleSubmit = async () => {
 
     for (const actId in cartItems) {
       const act = getAct(actId);
+      const chosenVocalists = selectedVocalists?.[actId] || [];
       if (!act) continue;
 
       for (const lineupId in cartItems[actId]) {
@@ -269,6 +270,7 @@ const handleSubmit = async () => {
 
           actSlug: act.slug || null,
           image: act?.profileImage?.[0] || act?.images?.[0] || null,
+  chosenVocalists: chosenVocalists.map((id) => ({ musicianId: id })),
 
           lineupId: String(lineupId),
           lineupLabel: lineup?.actSize || "",
@@ -393,7 +395,7 @@ console.log("💰 Amounts:", { fullAmount, depositAmount, isTestDancefloorMagic,
       actsSummary,                        // rich snapshot persisted in DB
       // 🔝 send top-level performance block too
       performanceTimes: performanceTimesTop || undefined,
-
+selectedVocalists, 
       eventType,
       date: selectedDate,
       venueAddress: selectedAddress,      // store as venueAddress
