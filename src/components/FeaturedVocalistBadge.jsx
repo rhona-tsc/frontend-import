@@ -231,14 +231,18 @@ export function VocalistFeaturedAvailable({
   const leadProfile =
     (badge?.profileUrl && String(badge.profileUrl)) ||
     (leadMusId ? `${PUBLIC_SITE_BASE}/musician/${leadMusId}` : "");
-  const leadImg =
-    typeof badge?.photoUrl === "string" && badge.photoUrl.startsWith("http")
-      ? badge.photoUrl
-      : "";
+// ✅ Try both photoUrl and profilePicture as sources
+const leadImg =
+  (typeof badge?.photoUrl === "string" && badge.photoUrl.startsWith("http"))
+    ? badge.photoUrl
+    : (typeof badge?.profilePicture === "string" && badge.profilePicture.startsWith("http"))
+    ? badge.profilePicture
+    : "";
 
-  if (!leadImg && !badge?.profilePicture) return null;
+if (!leadImg) return null;
 
   console.log("⭐ Rendering lead badge:", {
+    photoSourceUsed: leadImg.includes("cloudinary") ? "profilePicture" : "photoUrl",
     name: badge?.vocalistName || "(unnamed)",
     musicianId: leadMusId,
     profileUrl: leadProfile,
