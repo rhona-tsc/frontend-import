@@ -36,6 +36,7 @@ const Cart = () => {
     updatePerformance,
     isActUnavailableForSelectedDate,
     selectVocalistForAct, selectedVocalists,
+    toggleVocalistForAct,
   availLoading
   } = useContext(ShopContext);
 
@@ -1079,7 +1080,6 @@ const displayCartDetails = Array.isArray(cartDetails)
   ? cartDetails.filter((item) => !isActUnavailableForSelectedDate(item.actId))
   : [];
 
-    const { selectedVocalists, toggleVocalistForAct } = useContext(ShopContext);
   const selected = selectedVocalists[act._id] || [];
 
   return (
