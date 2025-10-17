@@ -22,6 +22,9 @@ export function FeaturedVocalistBadge({
   musicianId = "",
   profileUrl = "",         // optional explicit URL; overrides musicianId if provided
 }) {
+
+  console.log("🎨 Rendering badge variant:", variant);
+
   // Debug: log when function runs and what props are passed
   console.log("[FeaturedVocalistBadge] called with props:", {
     imageUrl,
@@ -172,26 +175,20 @@ export function VocalistFeaturedAvailable({
   const deputies = Array.isArray(badge.deputies) ? badge.deputies.slice(0, 3) : [];
   const hasDeputies = deputies.length > 0;
 
-  // Log what we're working with
-  console.log("🎤 [VocalistFeaturedAvailable] badge data:", {
+  // 🌈 Grouped logs so it's easy to see
+  console.group("🎤 [VocalistFeaturedAvailable]");
+  console.log("Full badge object:", badge);
+  console.log("Computed props:", {
     active: badge.active,
     isDeputy: badge.isDeputy,
     totalDeputies: deputies.length,
-    deputies: deputies.map(d => ({
-      name: d?.vocalistName || d?.name || "(unnamed)",
-      musicianId: d?.musicianId,
-      photoUrl: d?.photoUrl,
-      profileUrl: d?.profileUrl
-    })),
   });
+  console.log("Deputies array:", deputies);
+  console.groupEnd();
 
-  // If the lead isn't available/active but we have deputies → render up to 3 deputies
+  // 🔹 Case 1: Lead not active but deputies exist → show deputies
   if (!badge.active && hasDeputies) {
-    console.log(
-      "🎤 Rendering deputy badges:",
-      deputies.map((d) => d?.vocalistName || d?.name || "(unnamed)")
-    );
-
+    console.log("🎭 Rendering deputies...");
     return (
       <div className={`flex gap-3 items-center ${className}`}>
         {deputies.map((d, i) => {
@@ -199,17 +196,17 @@ export function VocalistFeaturedAvailable({
           const profile =
             (d?.profileUrl && String(d.profileUrl)) ||
             (musId ? `${PUBLIC_SITE_BASE}/musician/${musId}` : "");
-
           const img =
             typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http")
               ? d.photoUrl
               : "";
 
-          console.log(`🎵 Deputy ${i + 1}:`, {
-            name: d?.vocalistName || d?.name,
+          console.log(`🎵 Rendering Deputy #${i + 1}`, {
+            vocalistName: d?.vocalistName || d?.name,
             musicianId: musId,
+            photoUrl: img,
             profileUrl: profile,
-            img,
+            variantPassedToBadge: "deputy",
           });
 
           return (
@@ -229,7 +226,7 @@ export function VocalistFeaturedAvailable({
     );
   }
 
-  // Otherwise show the single lead badge (when active)
+  // 🔹 Case 2: Lead badge (default)
   const leadMusId = String(badge?.musicianId || "");
   const leadProfile =
     (badge?.profileUrl && String(badge.profileUrl)) ||
@@ -246,6 +243,7 @@ export function VocalistFeaturedAvailable({
     musicianId: leadMusId,
     profileUrl: leadProfile,
     photoUrl: leadImg,
+    variantToPass: badge?.isDeputy ? "deputy" : "lead",
   });
 
   return (
