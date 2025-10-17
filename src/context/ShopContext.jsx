@@ -52,6 +52,13 @@ const [selectedVocalists, setSelectedVocalists] = useState({});
 const api = (path) =>
   `${backendUrl}${path.startsWith('/') ? path : `/${path}`}`;
 
+  const selectVocalistForAct = (actId, musicianId) => {
+  setSelectedVocalists(prev => ({
+    ...prev,
+    [actId]: musicianId
+  }));
+};
+
   // Fetch + cache availability map for a given date (YYYY-MM-DD or ISO)
 const loadAvailabilityForDate = async (dateISO) => {
   const d = String(dateISO || "").slice(0, 10);
@@ -85,12 +92,7 @@ const loadAvailabilityForDate = async (dateISO) => {
     return map;
   };
 
-  const selectVocalistForAct = (actId, musicianId) => {
-  setSelectedVocalists(prev => ({
-    ...prev,
-    [actId]: musicianId
-  }));
-};
+
 
   setAvailLoading(true);
   try {
