@@ -179,7 +179,7 @@ const Navbar = () => {
     <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-ping" />
   )}
 </Link>
-
+</div>
         {/* Hamburger — visible below lg (i.e., as soon as we switch logos) */}
         <button
           onClick={() => setDrawerOpen(true)}
