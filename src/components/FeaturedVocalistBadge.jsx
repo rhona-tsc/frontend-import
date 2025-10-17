@@ -172,8 +172,26 @@ export function VocalistFeaturedAvailable({
   const deputies = Array.isArray(badge.deputies) ? badge.deputies.slice(0, 3) : [];
   const hasDeputies = deputies.length > 0;
 
+  // Log what we're working with
+  console.log("🎤 [VocalistFeaturedAvailable] badge data:", {
+    active: badge.active,
+    isDeputy: badge.isDeputy,
+    totalDeputies: deputies.length,
+    deputies: deputies.map(d => ({
+      name: d?.vocalistName || d?.name || "(unnamed)",
+      musicianId: d?.musicianId,
+      photoUrl: d?.photoUrl,
+      profileUrl: d?.profileUrl
+    })),
+  });
+
   // If the lead isn't available/active but we have deputies → render up to 3 deputies
   if (!badge.active && hasDeputies) {
+    console.log(
+      "🎤 Rendering deputy badges:",
+      deputies.map((d) => d?.vocalistName || d?.name || "(unnamed)")
+    );
+
     return (
       <div className={`flex gap-3 items-center ${className}`}>
         {deputies.map((d, i) => {
@@ -182,11 +200,17 @@ export function VocalistFeaturedAvailable({
             (d?.profileUrl && String(d.profileUrl)) ||
             (musId ? `${PUBLIC_SITE_BASE}/musician/${musId}` : "");
 
-          // prefer an explicit deputy photoUrl; else FeaturedVocalistBadge falls back to d.profilePicture
           const img =
             typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http")
               ? d.photoUrl
               : "";
+
+          console.log(`🎵 Deputy ${i + 1}:`, {
+            name: d?.vocalistName || d?.name,
+            musicianId: musId,
+            profileUrl: profile,
+            img,
+          });
 
           return (
             <FeaturedVocalistBadge
@@ -194,7 +218,7 @@ export function VocalistFeaturedAvailable({
               imageUrl={img || undefined}
               pictureSource={d}
               variant="deputy"
-              size={Math.round(size * 0.86)}            // make deputies slightly smaller
+              size={Math.round(size * 0.86)}
               cacheBuster={d?.setAt || cacheBuster || ""}
               musicianId={musId}
               profileUrl={profile}
@@ -215,8 +239,14 @@ export function VocalistFeaturedAvailable({
       ? badge.photoUrl
       : "";
 
-  // If we have no image nor profilePicture to render, show nothing
   if (!leadImg && !badge?.profilePicture) return null;
+
+  console.log("⭐ Rendering lead badge:", {
+    name: badge?.vocalistName || "(unnamed)",
+    musicianId: leadMusId,
+    profileUrl: leadProfile,
+    photoUrl: leadImg,
+  });
 
   return (
     <FeaturedVocalistBadge
