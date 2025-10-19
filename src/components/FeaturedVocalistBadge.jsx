@@ -23,6 +23,9 @@ export function FeaturedVocalistBadge({
   className = "",
   musicianId = "",
   profileUrl = "",         // optional explicit URL; overrides musicianId if provided
+  // Add act/date context for debugging if passed
+  actContext = null,
+  dateContext = null,
 }) {
   // Group logs for this render
   console.groupCollapsed(
@@ -39,7 +42,15 @@ export function FeaturedVocalistBadge({
     className,
     musicianId,
     profileUrl,
+    actContext,
+    dateContext,
   });
+  // Log PUBLIC_SITE_BASE for debugging
+  console.log("🔗 PUBLIC_SITE_BASE:", PUBLIC_SITE_BASE);
+  // Log context if provided
+  if (actContext || dateContext) {
+    console.log("🧩 Context: ", { actContext, dateContext });
+  }
 
   const inner = Math.round(size * photoScale);
   const ringSrc =
@@ -95,7 +106,19 @@ export function FeaturedVocalistBadge({
     inner,
   });
 
+  // Extra debugging: log when image is missing or invalid
   if (!imgSrc) {
+    const warnSymbol = "🛑";
+    console.group(`${warnSymbol} Badge Image Debug`);
+    if (!imageUrl && !pickProfilePicture(pictureSource || {})) {
+      console.warn(`${warnSymbol} No imageUrl or valid profilePicture in pictureSource`);
+    } else if (imageUrl && !imageUrl.startsWith("http")) {
+      console.warn(`${warnSymbol} imageUrl does not start with http:`, imageUrl);
+    } else if (pictureSource && pictureSource.profilePicture && !pictureSource.profilePicture.startsWith("http")) {
+      console.warn(`${warnSymbol} pictureSource.profilePicture invalid:`, pictureSource.profilePicture);
+    }
+    console.log("Context (act/date):", { actContext, dateContext });
+    console.groupEnd();
     console.warn("❌ No valid image found – skipping render (no badge shown)");
     console.groupEnd();
     return null;
@@ -182,17 +205,43 @@ export function VocalistFeaturedAvailable({
   size = 140,
   cacheBuster = "",
   className = "",
+  // Optionally pass act context and date for debugging
+  actContext = null,
+  dateContext = null,
 }) {
   console.group("🎤 [VocalistFeaturedAvailable] BEGIN");
+  // Log PUBLIC_SITE_BASE for debugging
+  console.log("🔗 PUBLIC_SITE_BASE:", PUBLIC_SITE_BASE);
+  // Log act/date context if provided
+  if (actContext || dateContext) {
+    console.log("🧩 Component context:", { actContext, dateContext });
+  }
   if (!badge) {
+    console.group("🛑 Badge Debug");
     console.warn("❌ No badge prop received – skipping render");
+    console.log("Context (act/date):", { actContext, dateContext });
+    console.groupEnd();
     console.groupEnd();
     return null;
   }
 
   // Log props and badge
-  console.log("Props received:", { badge, size, cacheBuster, className });
+  console.log("Props received:", { badge, size, cacheBuster, className, actContext, dateContext });
   console.log("Full badge object:", badge);
+  // Extra debugging: log if badge is null/undefined or missing photoUrl/profilePicture
+  if (badge == null) {
+    console.group("🛑 Badge Debug");
+    console.warn("❌ badge is null or undefined");
+    console.log("Context (act/date):", { actContext, dateContext });
+    console.groupEnd();
+  }
+  if (!badge.photoUrl && !badge.profilePicture) {
+    console.group("🛑 Badge Debug");
+    console.warn("❌ badge missing photoUrl/profilePicture", badge);
+    console.log("Context (act/date):", { actContext, dateContext });
+    console.groupEnd();
+  }
+
   const deputies = Array.isArray(badge.deputies) ? badge.deputies.slice(0, 3) : [];
   const hasDeputies = deputies.length > 0;
   console.log("Derived variables:", {
@@ -219,6 +268,13 @@ export function VocalistFeaturedAvailable({
             typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http")
               ? d.photoUrl
               : "";
+          // Extra debugging for deputy badges
+          if (!img && (!d?.profilePicture || !d?.profilePicture.startsWith("http"))) {
+            console.group(`🛑 Deputy Badge #${i + 1} Debug`);
+            console.warn("❌ Deputy badge missing photoUrl/profilePicture", d);
+            console.log("Context (act/date):", { actContext, dateContext });
+            console.groupEnd();
+          }
           console.groupCollapsed(`🎵 Deputy #${i + 1} (musicianId: ${musId})`);
           console.log({
             vocalistName: d?.vocalistName || d?.name,
@@ -239,6 +295,8 @@ export function VocalistFeaturedAvailable({
               cacheBuster={d?.setAt || cacheBuster || ""}
               musicianId={musId}
               profileUrl={profile}
+              actContext={actContext}
+              dateContext={dateContext}
             />
           );
         })}
@@ -262,6 +320,13 @@ export function VocalistFeaturedAvailable({
       : (typeof badge?.profilePicture === "string" && badge.profilePicture.startsWith("http"))
       ? badge.profilePicture
       : "";
+  // Extra debugging for lead badge
+  if (!leadImg && (!badge?.profilePicture || !badge?.profilePicture.startsWith("http"))) {
+    console.group("🛑 Lead Badge Debug");
+    console.warn("❌ Lead badge missing photoUrl/profilePicture", badge);
+    console.log("Context (act/date):", { actContext, dateContext });
+    console.groupEnd();
+  }
   console.log("leadMusId:", leadMusId);
   console.log("leadProfile:", leadProfile);
   console.log("leadImg:", leadImg);
@@ -280,6 +345,8 @@ export function VocalistFeaturedAvailable({
     className,
     musicianId: leadMusId,
     profileUrl: leadProfile,
+    actContext,
+    dateContext,
   });
   const badgeDom = (
     <FeaturedVocalistBadge
@@ -291,6 +358,8 @@ export function VocalistFeaturedAvailable({
       className={className}
       musicianId={leadMusId}
       profileUrl={leadProfile}
+      actContext={actContext}
+      dateContext={dateContext}
     />
   );
   console.groupEnd();
