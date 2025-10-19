@@ -853,20 +853,21 @@ onClick={async () => {
                   })}
                 </div>
                 <div className="my-3 mt-5">
-                <FeaturedVocalistBadge
+               <VocalistFeaturedAvailable
+  key={badgeForDate ? `${selectedDate}-${badgeForDate?.setAt || Date.now()}` : selectedDate}
   badge={badgeForDate}
   size={140}
   cacheBuster={badgeForDate?.setAt}
   className="mt-2"
 />
-<FeaturedVocalistBadge
-  badge={{
-    active: true,
-    photoUrl: "https://res.cloudinary.com/...jpg",
-    musicianId: "123",
-    vocalistName: "Test Vocalist"
-  }}
+  <FeaturedVocalistBadge
+  key={badgeForDate ? `${selectedDate}-${badgeForDate?.setAt || Date.now()}` : selectedDate}
+  badge={badgeForDate}
+  size={140}
+  cacheBuster={badgeForDate?.setAt}
+  className="mt-2"
 />
+
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
