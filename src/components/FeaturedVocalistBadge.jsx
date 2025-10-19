@@ -1,7 +1,9 @@
 
 import { assets } from "../assets/assets"; // top-level import
-const PUBLIC_SITE_BASE = (import.meta?.env?.FRONTEND_URL);
-
+const PUBLIC_SITE_BASE =
+  import.meta.env.VITE_FRONTEND_URL ||
+  window.location.origin; // fallback to current site origin
+  
 // Extract a valid http(s) URL from an object that may have profile fields.
 // We ONLY accept `profilePicture` (string URL). Anything else is ignored.
 const pickProfilePicture = (obj = {}) => {
@@ -92,7 +94,7 @@ const ringSrc = variant === "deputy"
   });
 
 
-
+console.log("🧩 Final render check:", { ringSrc });
   // if no valid imgSrc, don't render a headshot at all
   return (
   <div className={`inline-flex flex-col items-center ${className}`} style={{ width: size }}>
@@ -208,7 +210,6 @@ export function VocalistFeaturedAvailable({
             profileUrl: profile,
             variantPassedToBadge: "deputy",
           });
-
           return (
             <FeaturedVocalistBadge
               key={`dep-badge-${i}-${musId || "na"}`}
