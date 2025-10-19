@@ -507,6 +507,7 @@ const handleShortlistToggle = async () => {
   if (!actData) {
     return <div className="p-4 text-gray-500">Loading act details...</div>;
   }
+  console.log("🧩 Parent passing badge:", actData?.availabilityBadge);
 
   return (
     <div className="p-4">
@@ -857,6 +858,14 @@ onClick={async () => {
   size={140}
   cacheBuster={badgeForDate?.setAt}
   className="mt-2"
+/>
+<VocalistFeaturedAvailable
+  badge={{
+    active: true,
+    photoUrl: "https://res.cloudinary.com/...jpg",
+    musicianId: "123",
+    vocalistName: "Test Vocalist"
+  }}
 />
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>

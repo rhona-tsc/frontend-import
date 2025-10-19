@@ -127,8 +127,7 @@ export function FeaturedVocalistBadge({
   // Render
   console.log("✅ Rendering badge DOM (image and ring)...");
   const badgeDom = (
-    <div className={`inline-flex flex-col items-center ${className}`} style={{ width: size }}>
-      <div
+<div className={`inline-flex flex-col items-center ${className}`} style={{ width: size, zIndex: 50 }}>      <div
         className={`relative select-none z-10`}
         style={{
           width: size,
