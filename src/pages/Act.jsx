@@ -42,6 +42,8 @@ const checkAvailabilityTriggered = async (actId, selectedDate, selectedAddress) 
   }
 };
 
+
+
 // Calculate average rating from reviews, rounded to nearest 0.5
 const calculateAverageRating = (reviews) => {
   if (!reviews || reviews.length === 0) return 0;
@@ -104,6 +106,14 @@ const Act = () => {
 
 const id = extractVideoId(video);
 
+useEffect(() => {
+  if (!selectedDate || !actData) return;
+  const hasBadgeForDate = actData.availabilityBadges?.[selectedDate];
+  if (!hasBadgeForDate) {
+    actData.availabilityBadge = null; // clear stale badge display
+  }
+}, [selectedDate, actData]);
+
 const triggerEnquiryFlow = async (actId, lineupId, selectedDate, selectedAddress) => {
   try {
     const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
@@ -120,6 +130,9 @@ const triggerEnquiryFlow = async (actId, lineupId, selectedDate, selectedAddress
     console.error("❌ Failed to trigger enquiry flow:", err.message);
   }
 };
+
+const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
+
 
 const handleShortlistToggle = async () => {
   if (!selectedLineup || !actData?._id) return;
@@ -839,12 +852,12 @@ onClick={async () => {
                   })}
                 </div>
                 <div className="my-3 mt-5">
-                  <VocalistFeaturedAvailable
-                    badge={actData?.availabilityBadge}
-                    size={140}
-                    cacheBuster={actData?.availabilityBadge?.setAt}
-                    className="mt-2"
-                  />
+                <VocalistFeaturedAvailable
+  badge={badgeForDate}
+  size={140}
+  cacheBuster={badgeForDate?.setAt}
+  className="mt-2"
+/>
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">

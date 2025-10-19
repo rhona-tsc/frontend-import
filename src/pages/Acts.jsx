@@ -146,6 +146,8 @@ const [availLoading, setAvailLoading] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("user"));
 
+
+
   const calculateActPricing = async (
     act,
     selectedCounty,

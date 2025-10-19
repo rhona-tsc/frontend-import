@@ -10,7 +10,7 @@ import { ShopContext } from "../context/ShopContext";
 import PreviewPanelRepertoireSection from "../components/PreviewPanelRepertoireSection";
 import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
-import { FeaturedVocalistBadge } from "../components/FeaturedVocalistBadge";
+import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 
 const ShortlistPreviewPanel = ({ hoveredAct, removeFromCart }) => {
   const actData = hoveredAct?.actData;
@@ -35,6 +35,15 @@ const ShortlistPreviewPanel = ({ hoveredAct, removeFromCart }) => {
 
   const [badgeMusicianId, setBadgeMusicianId] = useState("");
 
+  useEffect(() => {
+  if (!selectedDate || !actData) return;
+  const hasBadgeForDate = actData.availabilityBadges?.[selectedDate];
+  if (!hasBadgeForDate) {
+    actData.availabilityBadge = null; // clear stale badge display
+  }
+}, [selectedDate, actData]);
+
+const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
 
   const migrateCartLineup = (actIdParam, newLineupId) => {
     try {
@@ -541,27 +550,23 @@ const ShortlistPreviewPanel = ({ hoveredAct, removeFromCart }) => {
           const profile =
             d?.profileUrl || (musId ? `${_PUBLIC_SITE_BASE}/musician/${musId}` : "");
           return (
-            <FeaturedVocalistBadge
-              key={`dep-badge-prev-${i}-${musId}`}
-              pictureSource={d}                    // <- lets it use d.profilePicture
-              cacheBuster={d?.setAt || cacheKey || ""}
-              size={120}
-              musicianId={musId}
-              profileUrl={profile}
-            />
+           <VocalistFeaturedAvailable
+  badge={badgeForDate}
+  size={140}
+  cacheBuster={badgeForDate?.setAt}
+  className="mt-2"
+/>
           );
         })}
       </div>
     ) : (
       badgeImg ? (
-        <FeaturedVocalistBadge
-          imageUrl={badgeImg || ""}               // or omit to force profilePicture
-          pictureSource={badge}                   // <- if badge has profilePicture
-          cacheBuster={cacheKey || ""}
-          size={140}
-          musicianId={_musId}
-          profileUrl={_profileUrl}
-        />
+       <VocalistFeaturedAvailable
+  badge={badgeForDate}
+  size={140}
+  cacheBuster={badgeForDate?.setAt}
+  className="mt-2"
+/>
       ) : null
     )
   ) : null}

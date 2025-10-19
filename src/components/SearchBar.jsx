@@ -16,6 +16,7 @@ const SearchBar = () => {
     sessionStorage.setItem("selectedAddress", localAddress);
     sessionStorage.setItem("selectedDate", localDate);
     sessionStorage.setItem("selectedCounty", county);
+    sessionStorage.removeItem("availabilityBadges");
 
     if (!localAddress.trim()) {
       alert("Please enter a venue address.");
