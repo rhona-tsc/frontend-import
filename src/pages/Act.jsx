@@ -106,13 +106,6 @@ const Act = () => {
 
 const id = extractVideoId(video);
 
-useEffect(() => {
-  if (!selectedDate || !actData) return;
-  const hasBadgeForDate = actData.availabilityBadges?.[selectedDate];
-  if (!hasBadgeForDate) {
-    actData.availabilityBadge = null; // clear stale badge display
-  }
-}, [selectedDate, actData]);
 
 
   useEffect(() => {
