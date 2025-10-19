@@ -17,7 +17,7 @@ import AcousticExtrasSelector from "../components/AcousticExtrasSelector";
 import ActPerformanceOverview from "../components/ActPerformanceOverview";
 import axios from "axios";
 import { useLocation } from "react-router-dom";
-import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
+import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 
 const checkAvailabilityTriggered = async (actId, selectedDate, selectedAddress) => {
   try {
@@ -853,13 +853,13 @@ onClick={async () => {
                   })}
                 </div>
                 <div className="my-3 mt-5">
-                <VocalistFeaturedAvailable
+                <FeaturedVocalistBadge
   badge={badgeForDate}
   size={140}
   cacheBuster={badgeForDate?.setAt}
   className="mt-2"
 />
-<VocalistFeaturedAvailable
+<FeaturedVocalistBadge
   badge={{
     active: true,
     photoUrl: "https://res.cloudinary.com/...jpg",
