@@ -98,11 +98,17 @@ console.log("🧩 Final render check:", { ringSrc });
   // if no valid imgSrc, don't render a headshot at all
   return (
   <div className={`inline-flex flex-col items-center ${className}`} style={{ width: size }}>
-    <div
-      className="relative select-none"
-      style={{ width: size, height: size }}
-      aria-label="Vocalist featured & available"
-    >
+   <div
+  className={`relative select-none z-10`}
+  style={{
+    width: size,
+    height: size,
+    minHeight: size,
+    position: "relative",
+    overflow: "visible",
+  }}
+  aria-label="Vocalist featured & available"
+>
       {imgSrc && (
         <img
           src={imgSrc}
