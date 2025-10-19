@@ -1,9 +1,9 @@
 
 import { assets } from "../assets/assets"; // top-level import
 const PUBLIC_SITE_BASE =
-  import.meta.env.VITE_FRONTEND_URL ||
+  import.meta.env.FRONTEND_URL ||
   window.location.origin; // fallback to current site origin
-  
+
 // Extract a valid http(s) URL from an object that may have profile fields.
 // We ONLY accept `profilePicture` (string URL). Anything else is ignored.
 const pickProfilePicture = (obj = {}) => {
