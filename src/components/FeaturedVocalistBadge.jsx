@@ -24,34 +24,38 @@ export function FeaturedVocalistBadge({
   musicianId = "",
   profileUrl = "",         // optional explicit URL; overrides musicianId if provided
 }) {
-
-  console.log("🎨 Rendering badge variant:", variant);
-
-  // Debug: log when function runs and what props are passed
-  console.log("[FeaturedVocalistBadge] called with props:", {
+  // Group logs for this render
+  console.groupCollapsed(
+    `🎨 [FeaturedVocalistBadge] BEGIN (variant: ${variant})`
+  );
+  console.log("Props received:", {
     imageUrl,
     pictureSource,
-    variant,
     size,
     photoScale,
     photoOffsetY,
+    variant,
     cacheBuster,
     className,
     musicianId,
     profileUrl,
   });
+
   const inner = Math.round(size * photoScale);
-// FeaturedVocalistBadge.jsx
-const ringSrc = variant === "deputy"
-  ? assets.Deputy_Vocalist_Available
-  : assets.Featured_Vocalist_Available;
-    
+  const ringSrc =
+    variant === "deputy"
+      ? assets.Deputy_Vocalist_Available
+      : assets.Featured_Vocalist_Available;
+  console.log("Ring image used:", ringSrc);
+
   // If no explicit imageUrl was passed, try to derive it from pictureSource (profilePicture only)
   const resolvedImageUrl = imageUrl || pickProfilePicture(pictureSource || {});
+  console.log("resolvedImageUrl:", resolvedImageUrl);
 
   const hasValidUrl =
     typeof resolvedImageUrl === "string" &&
     resolvedImageUrl.trim().startsWith("http");
+  console.log("hasValidUrl:", hasValidUrl);
 
   const imgSrc =
     hasValidUrl && cacheBuster
@@ -59,8 +63,7 @@ const ringSrc = variant === "deputy"
       : hasValidUrl
       ? resolvedImageUrl
       : "";
-
-
+  console.log("imgSrc:", imgSrc);
 
   // Compute final profile URL with fallbacks:
   // 1) explicit profileUrl prop
@@ -71,45 +74,48 @@ const ringSrc = variant === "deputy"
     pictureSource && typeof pictureSource.profileUrl === "string"
       ? pictureSource.profileUrl.trim()
       : "";
-
   const sourceMusicianUrl =
     pictureSource && pictureSource.musicianId
       ? `${PUBLIC_SITE_BASE}/musician/${pictureSource.musicianId}`
       : "";
-
   const effectiveProfileUrl =
     (profileUrl || "").trim() ||
     (musicianId ? `${PUBLIC_SITE_BASE}/musician/${musicianId}` : "") ||
     sourceProfileUrl ||
     sourceMusicianUrl;
+  console.log("effectiveProfileUrl:", effectiveProfileUrl);
 
-  // Debug: log before return to confirm rendering state
-  console.log("[FeaturedVocalistBadge] rendering with state:", {
-    imageUrl,
-    pictureSource,
-    variant,
+  // Log before rendering
+  console.log("Rendering state summary:", {
     resolvedImageUrl,
     imgSrc,
     hasValidUrl,
+    effectiveProfileUrl,
+    ringSrc,
+    inner,
   });
 
+  if (!imgSrc) {
+    console.warn("❌ No valid image found – skipping render (no badge shown)");
+    console.groupEnd();
+    return null;
+  }
 
-console.log("🧩 Final render check:", { ringSrc });
-  // if no valid imgSrc, don't render a headshot at all
-  return (
-  <div className={`inline-flex flex-col items-center ${className}`} style={{ width: size }}>
-   <div
-  className={`relative select-none z-10`}
-  style={{
-    width: size,
-    height: size,
-    minHeight: size,
-    position: "relative",
-    overflow: "visible",
-  }}
-  aria-label="Vocalist featured & available"
->
-      {imgSrc && (
+  // Render
+  console.log("✅ Rendering badge DOM (image and ring)...");
+  const badgeDom = (
+    <div className={`inline-flex flex-col items-center ${className}`} style={{ width: size }}>
+      <div
+        className={`relative select-none z-10`}
+        style={{
+          width: size,
+          height: size,
+          minHeight: size,
+          position: "relative",
+          overflow: "visible",
+        }}
+        aria-label="Vocalist featured & available"
+      >
         <img
           src={imgSrc}
           alt=""
@@ -123,28 +129,27 @@ console.log("🧩 Final render check:", { ringSrc });
           }}
           draggable={false}
         />
+        <img
+          src={ringSrc}
+          alt=""
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          draggable={false}
+        />
+      </div>
+      {effectiveProfileUrl && (
+        <a
+          href={effectiveProfileUrl}
+          className="text-[14px] text-blue-600 underline block mt-1"
+          target="_blank"
+          rel="noreferrer"
+        >
+          View Profile
+        </a>
       )}
-
-      <img
-        src={ringSrc}
-        alt=""
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        draggable={false}
-      />
     </div>
-
-    {effectiveProfileUrl && (
-      <a
-        href={effectiveProfileUrl}
-        className="text-[14px] text-blue-600 underline block mt-1"
-        target="_blank"
-        rel="noreferrer"
-      >
-        View Profile
-      </a>
-    )}
-  </div>
-);
+  );
+  console.groupEnd();
+  return badgeDom;
 }
 
 // Wrapper: show lead badge or up to 3 deputy badges when lead isn't available
@@ -178,26 +183,32 @@ export function VocalistFeaturedAvailable({
   cacheBuster = "",
   className = "",
 }) {
-  if (!badge) return null;
+  console.group("🎤 [VocalistFeaturedAvailable] BEGIN");
+  if (!badge) {
+    console.warn("❌ No badge prop received – skipping render");
+    console.groupEnd();
+    return null;
+  }
 
+  // Log props and badge
+  console.log("Props received:", { badge, size, cacheBuster, className });
+  console.log("Full badge object:", badge);
   const deputies = Array.isArray(badge.deputies) ? badge.deputies.slice(0, 3) : [];
   const hasDeputies = deputies.length > 0;
-
-  // 🌈 Grouped logs so it's easy to see
-  console.group("🎤 [VocalistFeaturedAvailable]");
-  console.log("Full badge object:", badge);
-  console.log("Computed props:", {
-    active: badge.active,
-    isDeputy: badge.isDeputy,
-    totalDeputies: deputies.length,
+  console.log("Derived variables:", {
+    deputies,
+    hasDeputies,
+    badgeActive: badge.active,
+    badgeIsDeputy: badge.isDeputy,
   });
-  console.log("Deputies array:", deputies);
-  console.groupEnd();
 
-  // 🔹 Case 1: Lead not active but deputies exist → show deputies
+  // Branch 1: Lead not active but deputies exist → show deputies
   if (!badge.active && hasDeputies) {
-    console.log("🎭 Rendering deputies...");
-    return (
+    console.group("🎭 Deputies branch");
+    console.log(
+      "Condition: !badge.active && hasDeputies === true. Rendering deputies array."
+    );
+    const deputiesDom = (
       <div className={`flex gap-3 items-center ${className}`}>
         {deputies.map((d, i) => {
           const musId = String(d?.musicianId || "");
@@ -208,14 +219,16 @@ export function VocalistFeaturedAvailable({
             typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http")
               ? d.photoUrl
               : "";
-
-          console.log(`🎵 Rendering Deputy #${i + 1}`, {
+          console.groupCollapsed(`🎵 Deputy #${i + 1} (musicianId: ${musId})`);
+          console.log({
             vocalistName: d?.vocalistName || d?.name,
             musicianId: musId,
             photoUrl: img,
             profileUrl: profile,
             variantPassedToBadge: "deputy",
+            setAt: d?.setAt,
           });
+          console.groupEnd();
           return (
             <FeaturedVocalistBadge
               key={`dep-badge-${i}-${musId || "na"}`}
@@ -231,33 +244,44 @@ export function VocalistFeaturedAvailable({
         })}
       </div>
     );
+    console.groupEnd();
+    console.groupEnd();
+    return deputiesDom;
   }
 
-  // 🔹 Case 2: Lead badge (default)
+  // Branch 2: Lead badge (default)
+  console.group("⭐ Lead badge branch");
   const leadMusId = String(badge?.musicianId || "");
   const leadProfile =
     (badge?.profileUrl && String(badge.profileUrl)) ||
     (leadMusId ? `${PUBLIC_SITE_BASE}/musician/${leadMusId}` : "");
-// ✅ Try both photoUrl and profilePicture as sources
-const leadImg =
-  (typeof badge?.photoUrl === "string" && badge.photoUrl.startsWith("http"))
-    ? badge.photoUrl
-    : (typeof badge?.profilePicture === "string" && badge.profilePicture.startsWith("http"))
-    ? badge.profilePicture
-    : "";
-
-if (!leadImg) return null;
-
-  console.log("⭐ Rendering lead badge:", {
-    photoSourceUsed: leadImg.includes("cloudinary") ? "profilePicture" : "photoUrl",
-    name: badge?.vocalistName || "(unnamed)",
+  // Try both photoUrl and profilePicture as sources
+  const leadImg =
+    (typeof badge?.photoUrl === "string" && badge.photoUrl.startsWith("http"))
+      ? badge.photoUrl
+      : (typeof badge?.profilePicture === "string" && badge.profilePicture.startsWith("http"))
+      ? badge.profilePicture
+      : "";
+  console.log("leadMusId:", leadMusId);
+  console.log("leadProfile:", leadProfile);
+  console.log("leadImg:", leadImg);
+  if (!leadImg) {
+    console.warn("❌ No valid lead image found – skipping render");
+    console.groupEnd();
+    console.groupEnd();
+    return null;
+  }
+  console.log("Rendering FeaturedVocalistBadge with:", {
+    imageUrl: leadImg,
+    pictureSource: badge,
+    variant: badge?.isDeputy ? "deputy" : "lead",
+    size,
+    cacheBuster: badge?.setAt || cacheBuster || "",
+    className,
     musicianId: leadMusId,
     profileUrl: leadProfile,
-    photoUrl: leadImg,
-    variantToPass: badge?.isDeputy ? "deputy" : "lead",
   });
-
-  return (
+  const badgeDom = (
     <FeaturedVocalistBadge
       imageUrl={leadImg || undefined}
       pictureSource={badge}
@@ -269,4 +293,7 @@ if (!leadImg) return null;
       profileUrl={leadProfile}
     />
   );
+  console.groupEnd();
+  console.groupEnd();
+  return badgeDom;
 }
