@@ -114,6 +114,12 @@ useEffect(() => {
   }
 }, [selectedDate, actData]);
 
+
+  useEffect(() => {
+  console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
+}, [actData?.availabilityBadge]);
+
+
 const triggerEnquiryFlow = async (actId, lineupId, selectedDate, selectedAddress) => {
   try {
     const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
@@ -507,7 +513,10 @@ const handleShortlistToggle = async () => {
   if (!actData) {
     return <div className="p-4 text-gray-500">Loading act details...</div>;
   }
+
+
   console.log("🧩 Parent passing badge:", actData?.availabilityBadge);
+  
 
   return (
     <div className="p-4">
@@ -853,20 +862,28 @@ onClick={async () => {
                   })}
                 </div>
                 <div className="my-3 mt-5">
-               <VocalistFeaturedAvailable
-  key={badgeForDate ? `${selectedDate}-${badgeForDate?.setAt || Date.now()}` : selectedDate}
-  badge={badgeForDate}
-  size={140}
-  cacheBuster={badgeForDate?.setAt}
-  className="mt-2"
-/>
+             {badgeForDate && (
+  <VocalistFeaturedAvailable
+    key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
+    badge={badgeForDate}
+    size={140}
+    cacheBuster={badgeForDate?.setAt}
+    className="mt-2"
+    actContext={actData?.tscName}
+    dateContext={selectedDate}
+  />
+)}
+{badgeForDate && (
   <FeaturedVocalistBadge
-  key={badgeForDate ? `${selectedDate}-${badgeForDate?.setAt || Date.now()}` : selectedDate}
-  badge={badgeForDate}
-  size={140}
-  cacheBuster={badgeForDate?.setAt}
-  className="mt-2"
-/>
+    key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
+    badge={badgeForDate}
+    size={140}
+    cacheBuster={badgeForDate?.setAt}
+    className="mt-2"
+    actContext={actData?.tscName}
+    dateContext={selectedDate}
+  />
+)}
 
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
