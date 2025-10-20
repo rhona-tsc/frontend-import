@@ -65,6 +65,22 @@ const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
     }
   };
 
+    useEffect(() => {
+    console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
+  }, [actData?.availabilityBadge]);
+  
+  
+  useEffect(() => {
+    const evtSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/shortlist/availability/subscribe`);
+    evtSource.onmessage = (e) => {
+    console.log("📡 Availability update received:", e.data);
+    setActData((prev) => ({ ...prev })); // simple re-render trigger if needed
+  };
+    evtSource.onerror = (err) => console.warn("⚠️ SSE connection error", err);
+    return () => evtSource.close();
+  }, []);
+  
+
 
   useEffect(() => {
     // Dev-only: compute pricing for all lineups to verify calculations

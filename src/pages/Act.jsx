@@ -113,6 +113,17 @@ const id = extractVideoId(video);
 }, [actData?.availabilityBadge]);
 
 
+useEffect(() => {
+  const evtSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/shortlist/availability/subscribe`);
+  evtSource.onmessage = (e) => {
+  console.log("📡 Availability update received:", e.data);
+  setActData((prev) => ({ ...prev })); // simple re-render trigger if needed
+};
+  evtSource.onerror = (err) => console.warn("⚠️ SSE connection error", err);
+  return () => evtSource.close();
+}, []);
+
+
 const triggerEnquiryFlow = async (actId, lineupId, selectedDate, selectedAddress) => {
   try {
     const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
