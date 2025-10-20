@@ -143,18 +143,7 @@ const ActItem = ({ actData, shortlistCount }) => {
       return; // 👈 do not continue
     }
 
-    // 🛡️ Prevent duplicate availability triggers
-    if (typeof window.checkAvailabilityTriggered === "function") {
-      try {
-        const canTrigger = await window.checkAvailabilityTriggered(actData._id, selectedDate, selectedAddress);
-        if (!canTrigger) {
-          toast(<CustomToast message="Availability already checked for this act/date." type="info" />);
-          return;
-        }
-      } catch (err) {
-        // fallback: allow if error
-      }
-    }
+ 
 
     setIsAnimating(true);
 

@@ -19,28 +19,7 @@ import axios from "axios";
 import { useLocation } from "react-router-dom";
 import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 
-const checkAvailabilityTriggered = async (actId, selectedDate, selectedAddress) => {
-  try {
-    const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
-    const url = `${base}/api/availability/request`;
 
-    const res = await axios.post(url, {
-      actId,
-      date: selectedDate,
-      address: selectedAddress,
-    });
-
-    // The backend will return { success: false, message: "Availability already triggered..." }
-    if (res?.data?.success === false) {
-      console.log("⚠️ Skipping duplicate availability trigger:", res.data.message);
-      return false; // already triggered
-    }
-    return true; // safe to proceed
-  } catch (err) {
-    console.warn("⚠️ checkAvailabilityTriggered failed:", err?.message || err);
-    return true; // default to true if uncertain (fail-safe)
-  }
-};
 
 
 
@@ -144,27 +123,7 @@ const triggerEnquiryFlow = async (actId, lineupId, selectedDate, selectedAddress
 const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
 
 
-const handleShortlistToggle = async () => {
-  if (!selectedLineup || !actData?._id) return;
 
-  // 🧩 Guard check
-  const canTrigger = await checkAvailabilityTriggered(actData._id, selectedDate, selectedAddress);
-
-  // 💬 Trigger enquiry message if new
-  if (canTrigger && selectedDate && selectedAddress) {
-    await triggerEnquiryFlow(actData._id, selectedLineup._id || selectedLineup.lineupId, selectedDate, selectedAddress);
-  }
-
-  try {
-    await shortlistAct(userId, actData._id);
-  } catch (e) {
-    console.error("❌ Shortlist toggle failed", e);
-    toast(<CustomToast type="error" message="Could not update shortlist." />, {
-      position: "top-right",
-      autoClose: 1600,
-    });
-  }
-};
 
   const formatDate = (dateString) => {
     if (!dateString) return "No date selected";
@@ -682,12 +641,6 @@ const handleShortlistToggle = async () => {
   onClick={async () => {
    
 
-    // 🧩 Guard: skip duplicate availability trigger
-    const canTrigger = await checkAvailabilityTriggered(
-      actData._id,
-      selectedDate,
-      selectedAddress
-    );
 
     // 💬 Trigger enquiry message if new
     if (canTrigger && selectedDate && selectedAddress) {
@@ -760,31 +713,7 @@ onClick={async () => {
     return;
   }
 
-  // 🧩 Guard: skip duplicate availability trigger
-  const canTrigger = await checkAvailabilityTriggered(
-    actData._id,
-    selectedDate,
-    selectedAddress
-  );
 
-    // 💬 Trigger enquiry message if new
-  if (canTrigger && selectedDate && selectedAddress) {
-    await triggerEnquiryFlow(actData._id, selectedLineup._id || selectedLineup.lineupId, selectedDate, selectedAddress);
-  }
-
-  if (!canTrigger) {
-    toast(
-      <CustomToast
-        type="info"
-        message="Availability already checked for this act/date."
-      />,
-      {
-        position: "top-right",
-        autoClose: 2000,
-      }
-    );
-    return;
-  }
 
   // --- existing add/remove logic below ---
   if (!isInCart) {
@@ -1136,35 +1065,7 @@ onClick={async () => {
   onClick={async () => {
    
 
-    // 🧩 Guard: skip duplicate availability trigger
-    const canTrigger = await checkAvailabilityTriggered(
-      actData._id,
-      selectedDate,
-      selectedAddress
-    );
-
-    // 💬 Trigger enquiry message if new
-    if (canTrigger && selectedDate && selectedAddress) {
-      await triggerEnquiryFlow(
-        actData._id,
-        selectedLineup._id || selectedLineup.lineupId,
-        selectedDate,
-        selectedAddress
-      );
-    }
-
-    if (!canTrigger) {
-      toast(
-        <CustomToast
-          type="info"
-          message="Availability already checked for this act/date."
-        />,
-        {
-          position: "top-right",
-          autoClose: 2000,
-        }
-      );
-    }
+   
 
     // --- existing shortlist toggle logic ---
     try {
@@ -1215,31 +1116,6 @@ onClick={async () => {
       return;
     }
 
-    // 🧩 Guard: skip duplicate availability trigger
-    const canTrigger = await checkAvailabilityTriggered(
-      actData._id,
-      selectedDate,
-      selectedAddress
-    );
-
-      // 💬 Trigger enquiry message if new
-  if (canTrigger && selectedDate && selectedAddress) {
-    await triggerEnquiryFlow(actData._id, selectedLineup._id || selectedLineup.lineupId, selectedDate, selectedAddress);
-  }
-
-    if (!canTrigger) {
-      toast(
-        <CustomToast
-          type="info"
-          message="Availability already checked for this act/date."
-        />,
-        {
-          position: "top-right",
-          autoClose: 2000,
-        }
-      );
-      return;
-    }
 
     // --- existing add/remove logic below ---
     if (isInCart) {

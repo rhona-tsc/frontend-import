@@ -22,29 +22,8 @@ const handleHeartClick = async (e) => {
 
   if (!actData?._id || !userId) return;
 
-  // 🧩 Guard: prevent duplicate availability triggers
-  const selectedDate = sessionStorage.getItem("selectedDate");
-  const selectedAddress = sessionStorage.getItem("selectedAddress");
-
-  try {
-    const canTrigger = await checkAvailabilityTriggered(
-      actData._id,
-      selectedDate,
-      selectedAddress
-    );
-    if (!canTrigger) {
-      toast(
-        <CustomToast
-          type="info"
-          message="Availability already checked for this act/date."
-        />,
-        { position: "top-right", autoClose: 2000 }
-      );
-      return;
-    }
-  } catch (err) {
-    console.warn("⚠️ Availability guard failed:", err);
-  }
+  
+  
 
   // 🩷 Proceed with shortlist toggle + animation
   setIsAnimating(true);
