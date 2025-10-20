@@ -317,7 +317,7 @@ useEffect(() => {
     console.log("🌐 Fetching shortlist for userId:", userId);
     if (userId) {
       try {
-        const res = await axios.get(`${backendUrl}/api/shortlist/user/${userId}/shortlisted`);
+        const res = await axios.get(`${backendUrl}/api/availability/user/${userId}/shortlisted`);
         const actIds = res.data.acts.map(act => act._id);
         setShortlistedActs(actIds);
         console.log("📥 Fetched shortlist from server:", actIds);

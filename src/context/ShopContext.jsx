@@ -220,7 +220,7 @@ const loadAvailabilityForDate = async (dateISO) => {
         if (storedUser?._id) {
           setUserId(storedUser._id);
           const res = await axios.get(
-            `${backendUrl}/api/shortlist/user/${storedUser._id}/shortlisted`
+            `${backendUrl}/api/availability/user/${storedUser._id}/shortlisted`
           );
           const ids = (res.data?.acts || []).map((a) => String(a._id));
           setShortlistedActs(ids);
@@ -430,7 +430,7 @@ const requestVocalistAvailability = async ({ actId, lineupId }) => {
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
   useEffect(() => {
     try {
-const sse = new EventSource(api('api/shortlist/availability/subscribe')); // absolute URL for SSE
+const sse = new EventSource(api('api/availability/subscribe')); // absolute URL for SSE
       sse.addEventListener("open", () => {
       });
 
@@ -485,7 +485,7 @@ const sse = new EventSource(api('api/shortlist/availability/subscribe')); // abs
       const u = uid || userId;
       if (!u) return;
       const res = await axios.get(
-        `${backendUrl}/api/shortlist/user/${u}/shortlisted`
+        `${backendUrl}/api/availability/user/${u}/shortlisted`
       );
       if (res.data.success) {
         const ids = (res.data.acts || []).map((a) => String(a._id));
@@ -548,9 +548,9 @@ const addToShortlist = async (itemId, selectedLineup) => {
 
     try {
       if (isShortlistedNow) {
-        await axios.patch(`${backendUrl}/api/shortlist/act/${idStr}/decrement-shortlist`, { userId: u });
+        await axios.patch(`${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`, { userId: u });
       } else {
-        await axios.patch(`${backendUrl}/api/shortlist/act/${idStr}/increment-shortlist`, { userId: u, updateTimesShortlisted: true });
+        await axios.patch(`${backendUrl}/api/availability/act/${idStr}/increment-shortlist`, { userId: u, updateTimesShortlisted: true });
         if (selectedDate && selectedAddress && isActAllowed(idStr)) {
           await requestVocalistAvailability({ actId: idStr, lineupId: null });
         }

@@ -205,7 +205,7 @@ const Musician = () => {
     const fetchShortlist = async (userId) => {
       try {
         const res = await axios.get(
-          `/api/shortlist/user/${userId}/shortlisted`
+          `/api/availability/user/${userId}/shortlisted`
         );
         const musicianIds = res.data.acts.map((act) => act._id);
         setShortlistedActs(musicianIds);
