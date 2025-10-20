@@ -71,7 +71,7 @@ const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
   
   
   useEffect(() => {
-    const evtSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/shortlist/availability/subscribe`);
+    const evtSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`);
     evtSource.onmessage = (e) => {
     console.log("📡 Availability update received:", e.data);
     setActData((prev) => ({ ...prev })); // simple re-render trigger if needed

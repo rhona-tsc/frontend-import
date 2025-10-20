@@ -22,7 +22,7 @@ import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/
 const checkAvailabilityTriggered = async (actId, selectedDate, selectedAddress) => {
   try {
     const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
-    const url = `${base}/api/shortlist/availability/request`;
+    const url = `${base}/api/availability/request`;
 
     const res = await axios.post(url, {
       actId,
@@ -114,7 +114,7 @@ const id = extractVideoId(video);
 
 
 useEffect(() => {
-  const evtSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/shortlist/availability/subscribe`);
+  const evtSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`);
   evtSource.onmessage = (e) => {
   console.log("📡 Availability update received:", e.data);
   setActData((prev) => ({ ...prev })); // simple re-render trigger if needed

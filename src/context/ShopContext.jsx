@@ -348,7 +348,7 @@ const requestVocalistAvailability = async ({ actId, lineupId }) => {
 
     // Always hit absolute backend URL to avoid Netlify/ngrok intercepts
     const base = String(backendUrl || "").replace(/\/+$/, "");
-    const url = `${base}/api/shortlist/availability/request`;
+    const url = `${base}/api/availability/request`;
 
     // Normalize date to YYYY-MM-DD
     const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
@@ -430,7 +430,7 @@ const requestVocalistAvailability = async ({ actId, lineupId }) => {
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
   useEffect(() => {
     try {
-const sse = new EventSource(api('api/shortlist/availability/subscribe')); // absolute URL for SSE
+const sse = new EventSource(api('api/availability/subscribe')); // absolute URL for SSE
       sse.addEventListener("open", () => {
       });
 
