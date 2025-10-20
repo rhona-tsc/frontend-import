@@ -169,7 +169,7 @@ const ActItem = ({ actData, shortlistCount }) => {
 try {
   const lineupId = actData?.lineups?.[0]?._id;
 
-  await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shortlist/add`, {
+  await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shortlists/add`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -187,7 +187,7 @@ try {
 
   console.log("✅ Shortlist add triggered Twilio availability check");
 } catch (err) {
-  console.error("❌ Failed to POST /api/shortlist/add:", err);
+  console.error("❌ Failed to POST /api/shortlists/add:", err);
 }
     setTimeout(() => setIsAnimating(false), 300);
   };

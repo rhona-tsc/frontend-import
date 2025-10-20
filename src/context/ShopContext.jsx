@@ -406,7 +406,7 @@ const requestVocalistAvailability = async ({ actId, lineupId }) => {
 
             // ✅ Request availability via V2 (absolute URL)
             await axios.post(
-              api("api/shortlist/request"),
+              api("api/shortlists/request"),
               {
                 actId,
                 lineupId: null,
@@ -548,9 +548,9 @@ const addToShortlist = async (itemId, selectedLineup) => {
 
     try {
       if (isShortlistedNow) {
-        await axios.patch(`${backendUrl}/api/shortlist/act/${idStr}/decrement-shortlist`, { userId: u });
+        await axios.patch(`${backendUrl}/api/shortlists/act/${idStr}/decrement-shortlist`, { userId: u });
       } else {
-        await axios.patch(`${backendUrl}/api/shortlist/act/${idStr}/increment-shortlist`, { userId: u, updateTimesShortlisted: true });
+        await axios.patch(`${backendUrl}/api/shortlists/act/${idStr}/increment-shortlist`, { userId: u, updateTimesShortlisted: true });
         if (selectedDate && selectedAddress && isActAllowed(idStr)) {
           await requestVocalistAvailability({ actId: idStr, lineupId: null });
         }
