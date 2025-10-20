@@ -406,7 +406,7 @@ const requestVocalistAvailability = async ({ actId, lineupId }) => {
 
             // ✅ Request availability via V2 (absolute URL)
             await axios.post(
-              api("api/availability-v2/request"),
+              api("api/shortlist/request"),
               {
                 actId,
                 lineupId: null,
