@@ -348,7 +348,7 @@ const requestVocalistAvailability = async ({ actId, lineupId }) => {
 
     // Always hit absolute backend URL to avoid Netlify/ngrok intercepts
     const base = String(backendUrl || "").replace(/\/+$/, "");
-    const url = `${base}/api/availability/request`;
+    const url = `${base}/api/shortlist/availability/request`;
 
     // Normalize date to YYYY-MM-DD
     const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
@@ -406,7 +406,7 @@ const requestVocalistAvailability = async ({ actId, lineupId }) => {
 
             // ✅ Request availability via V2 (absolute URL)
             await axios.post(
-              api("api/shortlists/request"),
+              api("api/availability/request"),
               {
                 actId,
                 lineupId: null,
@@ -430,7 +430,7 @@ const requestVocalistAvailability = async ({ actId, lineupId }) => {
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
   useEffect(() => {
     try {
-const sse = new EventSource(api('api/availability/subscribe')); // absolute URL for SSE
+const sse = new EventSource(api('api/shortlist/availability/subscribe')); // absolute URL for SSE
       sse.addEventListener("open", () => {
       });
 
@@ -548,9 +548,9 @@ const addToShortlist = async (itemId, selectedLineup) => {
 
     try {
       if (isShortlistedNow) {
-        await axios.patch(`${backendUrl}/api/shortlists/act/${idStr}/decrement-shortlist`, { userId: u });
+        await axios.patch(`${backendUrl}/api/shortlist/act/${idStr}/decrement-shortlist`, { userId: u });
       } else {
-        await axios.patch(`${backendUrl}/api/shortlists/act/${idStr}/increment-shortlist`, { userId: u, updateTimesShortlisted: true });
+        await axios.patch(`${backendUrl}/api/shortlist/act/${idStr}/increment-shortlist`, { userId: u, updateTimesShortlisted: true });
         if (selectedDate && selectedAddress && isActAllowed(idStr)) {
           await requestVocalistAvailability({ actId: idStr, lineupId: null });
         }

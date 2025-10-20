@@ -127,7 +127,7 @@ useEffect(() => {
 const triggerEnquiryFlow = async (actId, lineupId, selectedDate, selectedAddress) => {
   try {
     const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
-    const url = `${base}/api/shortlists/add`;
+    const url = `${base}/api/availability/request`;
     const res = await axios.post(url, {
       userId,
       actId,
