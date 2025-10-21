@@ -103,22 +103,6 @@ useEffect(() => {
 }, []);
 
 
-const triggerEnquiryFlow = async (actId, lineupId, selectedDate, selectedAddress) => {
-  try {
-    const base = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
-    const url = `${base}/api/availability/request`;
-    const res = await axios.post(url, {
-      userId,
-      actId,
-      lineupId,
-      selectedDate,
-      selectedAddress,
-    });
-    console.log("📩 Enquiry flow triggered:", res.data.message || res.data);
-  } catch (err) {
-    console.error("❌ Failed to trigger enquiry flow:", err.message);
-  }
-};
 
 const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
 
@@ -640,30 +624,6 @@ const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
 <button
   onClick={async () => {
    
-
-
-    // 💬 Trigger enquiry message if new
-    if (canTrigger && selectedDate && selectedAddress) {
-      await triggerEnquiryFlow(
-        actData._id,
-        selectedLineup._id || selectedLineup.lineupId,
-        selectedDate,
-        selectedAddress
-      );
-    }
-
-    if (!canTrigger) {
-      toast(
-        <CustomToast
-          type="info"
-          message="Availability already checked for this act/date."
-        />,
-        {
-          position: "top-right",
-          autoClose: 2000,
-        }
-      );
-    }
 
     // --- existing shortlist toggle logic ---
     try {
