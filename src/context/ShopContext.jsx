@@ -390,17 +390,6 @@ const requestVocalistAvailability = (() => {
             try { j = text ? JSON.parse(text) : {}; } catch {}
             if (res.ok && j?.latestReply === "yes") continue;
 
-            // ✅ Request availability via V2 (absolute URL)
-            await axios.post(
-              api("api/availability/request"),
-              {
-                actId,
-                lineupId: null,
-                date: dateISO,
-                address: selectedAddress,
-              },
-              { headers: { accept: "application/json" }, withCredentials: false, timeout: 15000 }
-            );
 
             lastAutoTriggerRef.current[key] = now;
           } catch (e) {
