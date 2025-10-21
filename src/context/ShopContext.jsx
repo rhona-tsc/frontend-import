@@ -310,52 +310,67 @@ const updatePerformance = (actId, lineupId, patch) => {
     }
   };
 
-// Deduped availability trigger
-const requestVocalistAvailability = (() => {
-  // Persistent cache across renders
-  const inFlight = new Map();
+  // Trigger availability requests for an act/lineup — **gated** by allowed act names
+ // Trigger availability requests for an act/lineup — **gated** by allowed act names
+const requestVocalistAvailability = async ({ actId, lineupId }) => {
+  try {
+    // Require date + address
+    if (!selectedDate || !selectedAddress) return;
+    // Only allow whitelisted acts (prevents unwanted spam)
+    if (!isActAllowed(actId)) return;
 
-  return async ({ actId, lineupId }) => {
-    try {
-      if (!selectedDate || !selectedAddress) return;
-      if (!isActAllowed(actId)) return;
+    // Resolve act + lineup for an optional fee hint
+    const act = Array.isArray(acts) ? acts.find((a) => String(a._id) === String(actId)) : null;
+    let feeForMsg = null;
 
-      // Create a unique key for the current request
-      const dateKey = new Date(selectedDate).toISOString().slice(0, 10);
-      const key = `${actId}:${lineupId || "none"}:${dateKey}`;
+    if (act) {
+      const lineup =
+        (act.lineups || []).find(
+          (l) =>
+            String(l._id) === String(lineupId) ||
+            String(l.lineupId) === String(lineupId)
+        ) ||
+        (act.lineups || []).reduce((max, l) => {
+          const len = Array.isArray(l?.bandMembers) ? l.bandMembers.length : 0;
+          const curr = Array.isArray(max?.bandMembers) ? max.bandMembers.length : 0;
+          return len > curr ? l : max;
+        }, null);
 
-      // Guard: if a request for this combo is already in flight or was just sent, skip
-      const existing = inFlight.get(key);
-      if (existing && Date.now() - existing < 8000) {
-        console.log(`🟡 Skipping duplicate availability trigger for ${key}`);
-        return;
+      if (lineup) {
+        feeForMsg = await computeVocalistFeeForMessage({
+          act,
+          lineup,
+          address: selectedAddress,
+          date: selectedDate,
+        });
       }
-
-      // Mark as in-flight
-      inFlight.set(key, Date.now());
-
-      // Compose payload
-      const payload = {
-        actId: String(actId),
-        lineupId: lineupId != null ? String(lineupId) : null,
-        date: dateKey,
-        address: String(selectedAddress),
-      };
-
-      // Make the API call
-      const base = String(backendUrl || "").replace(/\/+$/, "");
-      const url = `${base}/api/availability/request`;
-      await axios.post(url, payload, {
-        headers: { accept: "application/json" },
-        timeout: 15000,
-      });
-
-      console.log(`✅ Sent availability request for ${key}`);
-    } catch (err) {
-      console.warn("⚠️ requestVocalistAvailability failed:", err?.message || err);
     }
-  };
-})();
+
+    // Always hit absolute backend URL to avoid Netlify/ngrok intercepts
+    const base = String(backendUrl || "").replace(/\/+$/, "");
+    const url = `${base}/api/availability/request`;
+
+    // Normalize date to YYYY-MM-DD
+    const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
+
+    const payload = {
+      actId: String(actId),
+      lineupId: lineupId != null ? String(lineupId) : null,
+      date: dateISO,
+      address: String(selectedAddress),
+      // fee: feeForMsg ?? undefined, // optional — backend can compute if omitted
+    };
+
+    await axios.post(url, payload, {
+      headers: { accept: "application/json" },
+      withCredentials: false,
+      timeout: 15000,
+    });
+  } catch (err) {
+    // Keep UI quiet, but log for debugging
+    console.warn("requestVocalistAvailability failed:", err?.message || err);
+  }
+};
 
   // 🔁 Global AUTO-TRIGGER: when user adds date+address AFTER shortlisting,
   // ping availability for ALL shortlisted acts (with 6h per-act cooldown).
