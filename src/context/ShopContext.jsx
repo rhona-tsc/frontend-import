@@ -10,6 +10,7 @@ import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
 import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
+import debounce from "lodash/debounce";
 
 export const ShopContext = createContext();
 
@@ -851,6 +852,13 @@ const addToShortlist = async (itemId, selectedLineup) => {
     return Math.ceil(totalAmount);
   };
 
+  // Wrap the availability trigger in a debounce to avoid double-fire from rapid clicks or React rerenders
+const debouncedRequestVocalistAvailability = debounce(
+  (params) => requestVocalistAvailability(params),
+  500, // wait 500ms before allowing another
+  { leading: true, trailing: false }
+);
+
   // ============ Simple helpers ============
 
   const getShortlistCount = () => shortlistedActs.length;
@@ -931,8 +939,7 @@ updatePerformance,
     // availability
     availabilityStatus,
     setAvailabilityStatus,
-    requestVocalistAvailability,
-
+requestVocalistAvailability: debouncedRequestVocalistAvailability,
     // auth
     token,
     setToken,
