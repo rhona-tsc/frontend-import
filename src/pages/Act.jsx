@@ -769,7 +769,8 @@ onClick={async () => {
 {badgeForDate && (
   <FeaturedVocalistBadge
     key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
-    badge={badgeForDate}
+    imageUrl={badgeForDate?.photoUrl || badgeForDate?.profilePicture || ""}
+    pictureSource={badgeForDate}
     size={140}
     cacheBuster={badgeForDate?.setAt}
     className="mt-2"
