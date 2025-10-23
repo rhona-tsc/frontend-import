@@ -759,47 +759,26 @@ onClick={async () => {
                   
 {/* 🔍 Debug: Badge rendering context */}
 {(() => {
-  // 🧠 Debug: inspect badges available for this act and date
+// 🧠 Debug: inspect badges available for this act and date
 console.group("🧩 [Act.jsx] Badge resolution debug");
 console.log("actName:", actData?.tscName);
 console.log("selectedDate:", selectedDate);
 console.log("availabilityBadges:", actData?.availabilityBadges);
-const badgeForDate =
-  actData?.availabilityBadges?.find(
+
+let badgeForDate = null;
+const badges = actData?.availabilityBadges;
+
+if (Array.isArray(badges)) {
+  badgeForDate = badges.find(
     (b) => b?.dateISO?.slice(0, 10) === selectedDate
   ) || null;
+} else if (badges && typeof badges === "object") {
+  // Handles object-style map e.g. { "2027-03-03": { ... } }
+  badgeForDate = badges[selectedDate] || null;
+}
+
 console.log("🎯 badgeForDate resolved:", badgeForDate);
 console.groupEnd();
-
-  console.log("🎯 [Act.jsx] Badge render context:", {
-    actName: actData?.tscName,
-    selectedDate,
-    badgeForDate,
-    badgeKeys: badgeForDate ? Object.keys(badgeForDate) : null,
-    photoUrl: badgeForDate?.photoUrl,
-    profilePicture: badgeForDate?.profilePicture,
-    setAt: badgeForDate?.setAt,
-  });
-
-  if (!badgeForDate) {
-    console.warn("⚠️ [Act.jsx] No badgeForDate found for selectedDate:", selectedDate);
-  } else if (
-    !badgeForDate.photoUrl &&
-    !badgeForDate.profilePicture
-  ) {
-    console.warn(
-      "🚨 [Act.jsx] BadgeForDate missing both photoUrl and profilePicture:",
-      badgeForDate
-    );
-  } else if (
-    badgeForDate.photoUrl &&
-    !badgeForDate.photoUrl.startsWith("http")
-  ) {
-    console.warn(
-      "🚨 [Act.jsx] Invalid photoUrl (does not start with http):",
-      badgeForDate.photoUrl
-    );
-  }
 })()}
 
 {/* 🎤 Wrapper: VocalistFeaturedAvailable */}
