@@ -10,7 +10,7 @@ import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
 import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
-import debounce from "lodash/debounce";
+import debounce from "lodash.debounce";
 
 export const ShopContext = createContext();
 
