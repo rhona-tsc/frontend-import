@@ -755,8 +755,22 @@ onClick={async () => {
                   })}
                 </div>
                 <div className="my-3 mt-5">
+
+                  
 {/* 🔍 Debug: Badge rendering context */}
 {(() => {
+  // 🧠 Debug: inspect badges available for this act and date
+console.group("🧩 [Act.jsx] Badge resolution debug");
+console.log("actName:", actData?.tscName);
+console.log("selectedDate:", selectedDate);
+console.log("availabilityBadges:", actData?.availabilityBadges);
+const badgeForDate =
+  actData?.availabilityBadges?.find(
+    (b) => b?.dateISO?.slice(0, 10) === selectedDate
+  ) || null;
+console.log("🎯 badgeForDate resolved:", badgeForDate);
+console.groupEnd();
+
   console.log("🎯 [Act.jsx] Badge render context:", {
     actName: actData?.tscName,
     selectedDate,
