@@ -755,7 +755,41 @@ onClick={async () => {
                   })}
                 </div>
                 <div className="my-3 mt-5">
-             {badgeForDate && (
+{/* 🔍 Debug: Badge rendering context */}
+{(() => {
+  console.log("🎯 [Act.jsx] Badge render context:", {
+    actName: actData?.tscName,
+    selectedDate,
+    badgeForDate,
+    badgeKeys: badgeForDate ? Object.keys(badgeForDate) : null,
+    photoUrl: badgeForDate?.photoUrl,
+    profilePicture: badgeForDate?.profilePicture,
+    setAt: badgeForDate?.setAt,
+  });
+
+  if (!badgeForDate) {
+    console.warn("⚠️ [Act.jsx] No badgeForDate found for selectedDate:", selectedDate);
+  } else if (
+    !badgeForDate.photoUrl &&
+    !badgeForDate.profilePicture
+  ) {
+    console.warn(
+      "🚨 [Act.jsx] BadgeForDate missing both photoUrl and profilePicture:",
+      badgeForDate
+    );
+  } else if (
+    badgeForDate.photoUrl &&
+    !badgeForDate.photoUrl.startsWith("http")
+  ) {
+    console.warn(
+      "🚨 [Act.jsx] Invalid photoUrl (does not start with http):",
+      badgeForDate.photoUrl
+    );
+  }
+})()}
+
+{/* 🎤 Wrapper: VocalistFeaturedAvailable */}
+{badgeForDate && (
   <VocalistFeaturedAvailable
     key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
     badge={badgeForDate}
@@ -766,6 +800,8 @@ onClick={async () => {
     dateContext={selectedDate}
   />
 )}
+
+{/* 🎨 Direct badge: FeaturedVocalistBadge */}
 {badgeForDate && (
   <FeaturedVocalistBadge
     key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
@@ -778,7 +814,6 @@ onClick={async () => {
     dateContext={selectedDate}
   />
 )}
-
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
