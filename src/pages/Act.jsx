@@ -104,9 +104,51 @@ useEffect(() => {
 
 
 
-const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
+
+// 🪄 Fetch single availability badge from backend (availability DB)
+async function fetchBadgeForActAndDate(actId, dateISO) {
+  if (!actId || !dateISO) return null;
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_BACKEND_URL}/api/availability/badge/${actId}/${dateISO}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    console.log("🎯 [fetchBadgeForActAndDate] fetched:", data);
+    return data?.badge || null;
+  } catch (err) {
+    console.warn("⚠️ fetchBadgeForActAndDate failed:", err);
+    return null;
+  }
+}
 
 
+
+
+
+useEffect(() => {
+  if (!actId || !selectedDate) return;
+
+  const cleanDate = selectedDate.slice(0, 10);
+  console.log("📡 Fetching badge for act/date:", { actId, cleanDate });
+
+  fetchBadgeForActAndDate(actId, cleanDate).then((badge) => {
+    if (!badge) {
+      console.log("🪶 No badge returned for", cleanDate);
+      return;
+    }
+
+    // Merge the badge into actData
+    setActData((prev) => {
+      const updatedBadges = {
+        ...(prev?.availabilityBadges || {}),
+        [cleanDate]: badge,
+      };
+      console.log("💾 Merged availabilityBadges:", updatedBadges);
+      return { ...prev, availabilityBadges: updatedBadges };
+    });
+  });
+}, [actId, selectedDate]);
 
 
   const formatDate = (dateString) => {
@@ -758,61 +800,27 @@ onClick={async () => {
 
 {/* 🔍 Debug: Badge rendering context */}
 {(() => {
-  console.group("🧩 [Act.jsx] Badge resolution debug");
-  console.log("actName:", actData?.tscName);
-  console.log("selectedDate:", selectedDate);
-  console.log("availabilityBadges:", actData?.availabilityBadges);
-
   const badges = actData?.availabilityBadges || {};
-  const dateKey = selectedDate; // e.g. "2027-03-04"
+  const dateKey = selectedDate;
   const keys = Object.keys(badges);
+  const matchedKey = keys.find(k => k.startsWith(dateKey) || k.startsWith(`${dateKey}_`));
 
-  // ✅ Flexible matching (handles keys like 2027-03-04_tbc)
-  const matchedKey = keys.find(
-    (k) => k.startsWith(dateKey) || k.startsWith(`${dateKey}_`)
-  );
-
-  let badgeForDate = matchedKey ? badges[matchedKey] : null;
-
-  // ✅ Fallbacks for array or plain-object badge structures
-  if (Array.isArray(badges)) {
-    badgeForDate =
-      badges.find((b) => b?.dateISO?.slice(0, 10) === selectedDate) || null;
-  } else if (badges && typeof badges === "object") {
-    badgeForDate = badgeForDate || badges[selectedDate] || null;
-  }
-
-  console.log("🎯 badgeForDate resolved:", badgeForDate);
-  console.groupEnd();
+  const badgeForDate = Array.isArray(badges)
+    ? badges.find((b) => b?.dateISO?.slice(0, 10) === selectedDate) || null
+    : matchedKey
+      ? badges[matchedKey]
+      : badges[selectedDate] || null;
 
   if (!badgeForDate) return null;
-
   return (
-    <>
-      {/* 🎤 Wrapper: VocalistFeaturedAvailable */}
-      <VocalistFeaturedAvailable
-        key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
-        badge={badgeForDate}
-        size={140}
-        cacheBuster={badgeForDate?.setAt}
-        className="mt-2"
-        actContext={actData?.tscName}
-        dateContext={selectedDate}
-      />
-
-       {/* 🎨 Direct badge: FeaturedVocalistBadge */}
-      {/*<FeaturedVocalistBadge
-        key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
-        imageUrl={badgeForDate?.photoUrl || badgeForDate?.profilePicture || ""}
-        pictureSource={badgeForDate}
-        size={140}
-        cacheBuster={badgeForDate?.setAt}
-        className="mt-2"
-        actContext={actData?.tscName}
-        dateContext={selectedDate}
-      />
-      */}
-    </>
+    <VocalistFeaturedAvailable
+      badge={badgeForDate}
+      size={140}
+      cacheBuster={badgeForDate?.setAt}
+      className="mt-2"
+      actContext={actData?.tscName}
+      dateContext={selectedDate}
+    />
   );
 })()}
                 </div>
