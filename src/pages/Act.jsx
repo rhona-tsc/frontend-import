@@ -800,8 +800,8 @@ onClick={async () => {
         dateContext={selectedDate}
       />
 
-      {/* 🎨 Direct badge: FeaturedVocalistBadge */}
-      <FeaturedVocalistBadge
+       {/* 🎨 Direct badge: FeaturedVocalistBadge */}
+      {/*<FeaturedVocalistBadge
         key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
         imageUrl={badgeForDate?.photoUrl || badgeForDate?.profilePicture || ""}
         pictureSource={badgeForDate}
@@ -811,6 +811,7 @@ onClick={async () => {
         actContext={actData?.tscName}
         dateContext={selectedDate}
       />
+      */}
     </>
   );
 })()}

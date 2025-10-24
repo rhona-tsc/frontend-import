@@ -102,55 +102,62 @@ export function FeaturedVocalistBadge({
   }
 
   // --- Render
-  console.log("🎨 [FV] ✅ Rendering badge DOM (image + ring)...");
-  const badgeDom = (
+console.log("🎨 [FV] ✅ Rendering badge DOM (image + ring)...");
+
+const badgeDom = (
+  <div
+    className={`inline-flex flex-col items-center ${className}`}
+    style={{
+      width: size,
+      zIndex: 50,
+      border: "2px solid red", // ✅ TEMP: test border
+      background: "rgba(255,0,0,0.05)",
+      minHeight: size, // ✅ ensures it doesn’t collapse visually
+    }}
+  >
     <div
-      className={`inline-flex flex-col items-center ${className}`}
-      style={{ width: size, zIndex: 50 }}
+      className="relative select-none z-10"
+      style={{
+        width: size,
+        height: size,
+        minHeight: size,
+        position: "relative",
+        overflow: "visible",
+      }}
+      aria-label="Vocalist featured & available"
     >
-      <div
-        className={`relative select-none z-10`}
+      <img
+        src={imgSrc}
+        alt=""
+        className="absolute rounded-full object-cover shadow-sm"
         style={{
-          width: size,
-          height: size,
-          minHeight: size,
-          position: "relative",
-          overflow: "visible",
+          width: inner,
+          height: inner,
+          left: "50%",
+          top: "50%",
+          transform: `translate(-50%, calc(-50% + ${photoOffsetY}px))`,
         }}
-        aria-label="Vocalist featured & available"
-      >
-        <img
-          src={imgSrc}
-          alt=""
-          className="absolute rounded-full object-cover shadow-sm"
-          style={{
-            width: inner,
-            height: inner,
-            left: "50%",
-            top: "50%",
-            transform: `translate(-50%, calc(-50% + ${photoOffsetY}px))`,
-          }}
-          draggable={false}
-        />
-        <img
-          src={ringSrc}
-          alt=""
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          draggable={false}
-        />
-      </div>
-      {effectiveProfileUrl && (
-        <a
-          href={effectiveProfileUrl}
-          className="text-[14px] text-blue-600 underline block mt-1"
-          target="_blank"
-          rel="noreferrer"
-        >
-          View Profile
-        </a>
-      )}
+        draggable={false}
+      />
+      <img
+        src={ringSrc}
+        alt=""
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        draggable={false}
+      />
     </div>
-  );
+    {effectiveProfileUrl && (
+      <a
+        href={effectiveProfileUrl}
+        className="text-[14px] text-blue-600 underline block mt-1"
+        target="_blank"
+        rel="noreferrer"
+      >
+        View Profile
+      </a>
+    )}
+  </div>
+);
 
   console.log("🎨 [FV] ✅ Rendered successfully with imgSrc:", imgSrc);
   console.groupEnd();
