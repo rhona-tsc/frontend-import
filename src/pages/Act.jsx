@@ -756,57 +756,64 @@ onClick={async () => {
                 </div>
                 <div className="my-3 mt-5">
 
-                  
 {/* 🔍 Debug: Badge rendering context */}
 {(() => {
-// 🧠 Debug: inspect badges available for this act and date
-console.group("🧩 [Act.jsx] Badge resolution debug");
-console.log("actName:", actData?.tscName);
-console.log("selectedDate:", selectedDate);
-console.log("availabilityBadges:", actData?.availabilityBadges);
+  console.group("🧩 [Act.jsx] Badge resolution debug");
+  console.log("actName:", actData?.tscName);
+  console.log("selectedDate:", selectedDate);
+  console.log("availabilityBadges:", actData?.availabilityBadges);
 
-let badgeForDate = null;
-const badges = actData?.availabilityBadges;
+  const badges = actData?.availabilityBadges || {};
+  const dateKey = selectedDate; // e.g. "2027-03-04"
+  const keys = Object.keys(badges);
 
-if (Array.isArray(badges)) {
-  badgeForDate = badges.find(
-    (b) => b?.dateISO?.slice(0, 10) === selectedDate
-  ) || null;
-} else if (badges && typeof badges === "object") {
-  // Handles object-style map e.g. { "2027-03-03": { ... } }
-  badgeForDate = badges[selectedDate] || null;
-}
+  // ✅ Flexible matching (handles keys like 2027-03-04_tbc)
+  const matchedKey = keys.find(
+    (k) => k.startsWith(dateKey) || k.startsWith(`${dateKey}_`)
+  );
 
-console.log("🎯 badgeForDate resolved:", badgeForDate);
-console.groupEnd();
+  let badgeForDate = matchedKey ? badges[matchedKey] : null;
+
+  // ✅ Fallbacks for array or plain-object badge structures
+  if (Array.isArray(badges)) {
+    badgeForDate =
+      badges.find((b) => b?.dateISO?.slice(0, 10) === selectedDate) || null;
+  } else if (badges && typeof badges === "object") {
+    badgeForDate = badgeForDate || badges[selectedDate] || null;
+  }
+
+  console.log("🎯 badgeForDate resolved:", badgeForDate);
+  console.groupEnd();
+
+  if (!badgeForDate) return null;
+
+  return (
+    <>
+      {/* 🎤 Wrapper: VocalistFeaturedAvailable */}
+      <VocalistFeaturedAvailable
+        key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
+        badge={badgeForDate}
+        size={140}
+        cacheBuster={badgeForDate?.setAt}
+        className="mt-2"
+        actContext={actData?.tscName}
+        dateContext={selectedDate}
+      />
+
+      {/* 🎨 Direct badge: FeaturedVocalistBadge */}
+      <FeaturedVocalistBadge
+        key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
+        imageUrl={badgeForDate?.photoUrl || badgeForDate?.profilePicture || ""}
+        pictureSource={badgeForDate}
+        size={140}
+        cacheBuster={badgeForDate?.setAt}
+        className="mt-2"
+        actContext={actData?.tscName}
+        dateContext={selectedDate}
+      />
+    </>
+  );
 })()}
-
-{/* 🎤 Wrapper: VocalistFeaturedAvailable */}
-{badgeForDate && (
-  <VocalistFeaturedAvailable
-    key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
-    badge={badgeForDate}
-    size={140}
-    cacheBuster={badgeForDate?.setAt}
-    className="mt-2"
-    actContext={actData?.tscName}
-    dateContext={selectedDate}
-  />
-)}
-
-{/* 🎨 Direct badge: FeaturedVocalistBadge */}
-{badgeForDate && (
-  <FeaturedVocalistBadge
-    key={`${selectedDate}-${badgeForDate?.setAt || Date.now()}`}
-    imageUrl={badgeForDate?.photoUrl || badgeForDate?.profilePicture || ""}
-    pictureSource={badgeForDate}
-    size={140}
-    cacheBuster={badgeForDate?.setAt}
-    className="mt-2"
-    actContext={actData?.tscName}
-    dateContext={selectedDate}
-  />
-)}
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
