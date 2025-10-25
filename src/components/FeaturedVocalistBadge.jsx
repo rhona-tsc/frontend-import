@@ -212,12 +212,13 @@ const hasDeputies = Array.isArray(deputies) && deputies.length > 0;
   });
 
   // --- Deputies branch
-  if (!badge.active && hasDeputies) {
-    console.group("🎤 [VFA] 🎭 Deputies branch");
+if (!badge?.active && Array.isArray(deputies) && deputies.length > 0) {
+      console.group("🎤 [VFA] 🎭 Deputies branch");
     console.log("🎤 [VFA] Rendering deputies...");
     const deputiesDom = (
       <div className={`flex gap-3 items-center ${className}`}>
-        {deputies.map((d, i) => {
+        {Array.isArray(deputies) &&
+  deputies.map((d, i) => {
           const musId = String(d?.musicianId || "");
           const profile =
             (d?.profileUrl && String(d.profileUrl)) ||
