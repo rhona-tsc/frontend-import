@@ -201,10 +201,9 @@ export function VocalistFeaturedAvailable({
     console.groupEnd();
   }
 
-  const deputies = Array.isArray(badge.deputies)
-    ? badge.deputies.slice(0, 3)
-    : [];
-  const hasDeputies = deputies.length > 0;
+const deputies = Array.isArray(badge.deputies) ? badge.deputies.slice(0, 3) : [];
+const hasDeputies = Array.isArray(deputies) && deputies.length > 0;
+
   console.log("🎤 [VFA] Derived variables:", {
     deputies,
     hasDeputies,
