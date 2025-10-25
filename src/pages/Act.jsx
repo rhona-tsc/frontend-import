@@ -318,6 +318,12 @@ const scrollGallery = (direction) => {
 
   console.log("🧩 Parent passing badge:", actData?.availabilityBadge);
 
+  console.group("🔍 Act Debug");
+console.log("actData.numberOfSets", actData?.numberOfSets);
+console.log("actData.lengthOfSets", actData?.lengthOfSets);
+console.log("selectedLineup.base_fee", selectedLineup?.base_fee);
+console.groupEnd();
+
   return (
     <div className="p-4">
       {/* Top Navigation */}
@@ -615,7 +621,10 @@ const scrollGallery = (direction) => {
               )}
               <p className="mt-5 text-3xl font-medium p-3">
                 {(() => {
-                  let basePrice = selectedLineup?.base_fee?.[0]?.total_fee || 0;
+const baseFeeArray = Array.isArray(selectedLineup?.base_fee)
+  ? selectedLineup.base_fee
+  : [];
+let basePrice = baseFeeArray[0]?.total_fee || 0;
                   selectedLineup?.bandMembers?.forEach((member) => {
                     const essentialRoles = (
                       member.additionalRoles || []
