@@ -15,8 +15,7 @@ import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adju
 import AcousticExtrasSelector from "../components/AcousticExtrasSelector";
 import ActPerformanceOverview from "../components/ActPerformanceOverview";
 import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
-import numberToWords from "./utils/numberToWords";
-import { scrollGallery, paMap, lightMap, generateDescription, handleLineupChange, formatDate, fetchBadgeForActAndDate, calculateAverageRating } from "./utils/helpersforAct";
+import { paMap, lightMap, generateDescription, numberToWords, formatDate, fetchBadgeForActAndDate, calculateAverageRating } from "./utils/helpersforAct";
 
 const Act = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
