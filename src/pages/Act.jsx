@@ -50,6 +50,16 @@ const scrollGallery = (direction) => {
       }
     };
 
+    useEffect(() => {
+  if (actData) {
+    console.log("🎭 [Act.jsx] actData loaded:", {
+      name: actData.name,
+      numberOfSets: actData.numberOfSets,
+      lengthOfSets: actData.lengthOfSets,
+      lineups: actData.lineups?.length,
+    });
+  }
+}, [actData]);
 
   useEffect(() => {
     if (location.hash) {
