@@ -1,9 +1,8 @@
 import React, { useContext, useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import RelatedActs from "../components/RelatedActs";
-import { postcodes } from "../assets/assets";
 import calculateActPricing from "./utils/pricing";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -15,23 +14,9 @@ import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import AcousticExtrasSelector from "../components/AcousticExtrasSelector";
 import ActPerformanceOverview from "../components/ActPerformanceOverview";
-import axios from "axios";
-import { useLocation } from "react-router-dom";
 import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
-
-
-
-
-
-// Calculate average rating from reviews, rounded to nearest 0.5
-const calculateAverageRating = (reviews) => {
-  if (!reviews || reviews.length === 0) return 0;
-  const sum = reviews.reduce(
-    (total, review) => total + (review.rating || 0),
-    0
-  );
-  return Math.round((sum / reviews.length) * 2) / 2; // round to nearest 0.5
-};
+import numberToWords from "./utils/numberToWords";
+import { scrollGallery, paMap, lightMap, generateDescription, handleLineupChange, formatDate, fetchBadgeForActAndDate, calculateAverageRating } from "./utils/helpersforAct";
 
 const Act = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -44,18 +29,19 @@ const Act = () => {
     return match ? match[1] : url;
   };
   const { actId } = useParams();
-  const {
-    acts,
-    addToCart,
-    addToShortlist,
-    selectedDate,
-    selectedAddress,
-    setShowSearch,
-    userId, shortlistAct, shortlistedActs, setShortlistedActs, cartItems, removeFromCart
-  } = useContext(ShopContext);
-  const [selectedCounty, setSelectedCounty] = useState(
-    sessionStorage.getItem("selectedCounty") || ""
-  );
+  const { acts, addToCart, selectedDate, selectedAddress, setShowSearch, userId, shortlistAct, shortlistedActs, cartItems, removeFromCart } = useContext(ShopContext);
+  const [actData, setActData] = useState(null);
+  const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
+  const [selectedLineup, setSelectedLineup] = useState("");
+  const [video, setVideo] = useState("");
+  const navigate = useNavigate();
+  const storedPlace = sessionStorage.getItem("selectedPlace") || "";
+  const [formattedPrice, setFormattedPrice] = useState(null);
+  const [playing, setPlaying] = useState(false);
+  const [finalTravelPrice, setFinalTravelPrice] = useState(null);
+  const [selectedLineup, setSelectedLineup] = useState("");
+  const [formattedPrice, setFormattedPrice] = useState(null);
+  const id = extractVideoId(video);
 
   useEffect(() => {
     if (location.hash) {
@@ -63,117 +49,50 @@ const Act = () => {
       if (target) {
         setTimeout(() => {
           target.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 100); 
+        }, 100);
       }
     }
   }, [location]);
-  
-  const [actData, setActData] = useState(null);
-
-  const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
-
-  const [selectedLineup, setSelectedLineup] = useState("");
-  const [video, setVideo] = useState("");
-  const navigate = useNavigate();
-  const storedPlace = sessionStorage.getItem("selectedPlace") || "";
-
-  const [formattedPrice, setFormattedPrice] = useState(null);
-  const [playing, setPlaying] = useState(false);
-
-
-const id = extractVideoId(video);
-
-
 
   useEffect(() => {
-  console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
-}, [actData?.availabilityBadge]);
+    console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
+  }, [actData?.availabilityBadge]);
 
-
-useEffect(() => {
-  const evtSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`);
-  evtSource.onmessage = (e) => {
-  console.log("📡 Availability update received:", e.data);
-  setActData((prev) => ({ ...prev })); // simple re-render trigger if needed
-};
-  evtSource.onerror = (err) => console.warn("⚠️ SSE connection error", err);
-  return () => evtSource.close();
-}, []);
-
-
-
-
-// 🪄 Fetch single availability badge from backend (availability DB)
-async function fetchBadgeForActAndDate(actId, dateISO) {
-  if (!actId || !dateISO) return null;
-  try {
-    const res = await fetch(
-      `${import.meta.env.VITE_BACKEND_URL}/api/availability/badge/${actId}/${dateISO}`
+  useEffect(() => {
+    const evtSource = new EventSource(
+      `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`
     );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    console.log("🎯 [fetchBadgeForActAndDate] fetched:", data);
-    return data?.badge || null;
-  } catch (err) {
-    console.warn("⚠️ fetchBadgeForActAndDate failed:", err);
-    return null;
-  }
-}
+    evtSource.onmessage = (e) => {
+      console.log("📡 Availability update received:", e.data);
+      setActData((prev) => ({ ...prev })); // simple re-render trigger if needed
+    };
+    evtSource.onerror = (err) => console.warn("⚠️ SSE connection error", err);
+    return () => evtSource.close();
+  }, []);
 
+  useEffect(() => {
+    if (!actId || !selectedDate) return;
 
+    const cleanDate = selectedDate.slice(0, 10);
+    console.log("📡 Fetching badge for act/date:", { actId, cleanDate });
 
+    fetchBadgeForActAndDate(actId, cleanDate).then((badge) => {
+      if (!badge) {
+        console.log("🪶 No badge returned for", cleanDate);
+        return;
+      }
 
-
-useEffect(() => {
-  if (!actId || !selectedDate) return;
-
-  const cleanDate = selectedDate.slice(0, 10);
-  console.log("📡 Fetching badge for act/date:", { actId, cleanDate });
-
-  fetchBadgeForActAndDate(actId, cleanDate).then((badge) => {
-    if (!badge) {
-      console.log("🪶 No badge returned for", cleanDate);
-      return;
-    }
-
-    // Merge the badge into actData
-    setActData((prev) => {
-      const updatedBadges = {
-        ...(prev?.availabilityBadges || {}),
-        [cleanDate]: badge,
-      };
-      console.log("💾 Merged availabilityBadges:", updatedBadges);
-      return { ...prev, availabilityBadges: updatedBadges };
+      // Merge the badge into actData
+      setActData((prev) => {
+        const updatedBadges = {
+          ...(prev?.availabilityBadges || {}),
+          [cleanDate]: badge,
+        };
+        console.log("💾 Merged availabilityBadges:", updatedBadges);
+        return { ...prev, availabilityBadges: updatedBadges };
+      });
     });
-  });
-}, [actId, selectedDate]);
-
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "No date selected";
-
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleString("en-GB", { month: "long" });
-    const year = date.getFullYear();
-
-    // Convert day to "1st", "2nd", "3rd", etc.
-    const suffix = ["th", "st", "nd", "rd"][
-      day % 10 > 3 ? 0 : ((day % 100) - (day % 10) !== 10) * (day % 10)
-    ];
-
-    return `${day}${suffix} of ${month} ${year}`;
-  };
-
-  // Gallery Carousel logic
-  const galleryRef = useRef(null);
-
-  const scrollGallery = (direction) => {
-    if (galleryRef.current) {
-      const scrollAmount = direction === "left" ? -400 : 400;
-      galleryRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-    }
-  };
+  }, [actId, selectedDate]);
 
   // verify latest reply on this act+date (use stable actId to avoid stale state)
   useEffect(() => {
@@ -185,31 +104,42 @@ useEffect(() => {
           return;
         }
 
-        const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+        const base = (import.meta.env.VITE_BACKEND_URL || "").replace(
+          /\/+$/,
+          ""
+        );
         const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
         const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
         u.searchParams.set("date", dateISO);
         u.searchParams.set("actId", String(actId));
 
-        const resp = await fetch(u.toString(), { headers: { accept: "application/json" } });
+        const resp = await fetch(u.toString(), {
+          headers: { accept: "application/json" },
+        });
         const text = await resp.text();
         let j = {};
-        try { j = text ? JSON.parse(text) : {}; } catch { j = {}; }
+        try {
+          j = text ? JSON.parse(text) : {};
+        } catch {
+          j = {};
+        }
         if (!resp.ok) throw new Error(`availability ${resp.status}`);
 
         if (!abort) {
           // tolerate different shapes; prefer explicit latestReply
           const latest = j?.latestReply || j?.latest || j?.reply || null;
-          setIsYesForSelectedDate(latest === "yes" ? true : (latest === "no" ? false : null));
+          setIsYesForSelectedDate(
+            latest === "yes" ? true : latest === "no" ? false : null
+          );
         }
       } catch (e) {
         if (!abort) setIsYesForSelectedDate(null);
       }
     })();
-    return () => { abort = true; };
+    return () => {
+      abort = true;
+    };
   }, [actId, selectedDate]);
-
-
 
   // Touch/swipe gesture support for gallery carousel (images)
   useEffect(() => {
@@ -242,19 +172,6 @@ useEffect(() => {
       el.removeEventListener("touchend", onTouchEnd);
     };
   }, []);
-
-  // Review gallery carousel logic
-  const reviewGalleryRef = useRef(null);
-
-  const scrollReviews = (direction) => {
-    if (reviewGalleryRef.current) {
-      const scrollAmount = direction === "left" ? -400 : 400;
-      reviewGalleryRef.current.scrollBy({
-        left: scrollAmount,
-        behavior: "smooth",
-      });
-    }
-  };
 
   useEffect(() => {
     const el = reviewGalleryRef.current;
@@ -298,38 +215,11 @@ useEffect(() => {
         });
         setVideo(foundAct.videos?.[0]?.url || "");
         if (Array.isArray(foundAct.lineups) && foundAct.lineups.length > 0) {
-          setSelectedLineup(foundAct.lineups[0]); // Set first lineup as default
+          setSelectedLineup(foundAct.actData?.lineups?.[0]); // Set first lineup as default
         }
       }
     }
   }, [actId, acts]);
-
-  // ✅ Ensure price updates instantly when lineup changes
-
-const handleLineupChange = (lineup) => {
-  setSelectedLineup(lineup);
-
-  if (actData) {
-    let basePrice = lineup?.base_fee?.[0]?.total_fee || 0;
-
-    const additionalEssentialRoles = (lineup?.bandMembers || []).flatMap((member) =>
-      (member?.additionalRoles || []).filter(
-        (r) => r?.isEssential && typeof r?.additionalFee === "number"
-      )
-    );
-
-    const additionalRolesTotal = additionalEssentialRoles.reduce(
-      (sum, role) => sum + (role?.additionalFee || 0),
-      0
-    );
-
-    basePrice += additionalRolesTotal;
-    const displayPrice = Math.ceil(basePrice / 0.75);
-    setFormattedPrice(displayPrice);
-  }
-};
-
-  const [finalTravelPrice, setFinalTravelPrice] = useState(null);
 
   useEffect(() => {
     const fetchPrice = async () => {
@@ -365,51 +255,38 @@ const handleLineupChange = (lineup) => {
     fetchPrice();
   }, [actData, selectedLineup, selectedDate, selectedAddress]);
 
- const generateDescription = (lineup) => {
-  const count =
-    lineup?.actSize ||
-    (Array.isArray(lineup?.bandMembers) ? lineup.bandMembers.length : 0);
+  const handleLineupChange = (lineup) => {
+  setSelectedLineup(lineup);
 
-  const instruments = (lineup?.bandMembers || [])
-    .filter((m) => m?.isEssential)
-    .map((m) => m?.instrument)
-    .filter(Boolean);
+  if (actData) {
+    let basePrice = lineup?.base_fee?.[0]?.total_fee || 0;
 
-  instruments.sort((a, b) => {
-    const aLower = a?.toLowerCase?.() || "";
-    const bLower = b?.toLowerCase?.() || "";
-    const isVocal = (str) => str.includes("vocal");
-    const isDrums = (str) => str === "drums";
-    if (isVocal(aLower) && !isVocal(bLower)) return -1;
-    if (!isVocal(aLower) && isVocal(bLower)) return 1;
-    if (isDrums(aLower)) return 1;
-    if (isDrums(bLower)) return -1;
-    return 0;
-  });
+    const additionalEssentialRoles = (lineup?.bandMembers || []).flatMap((member) =>
+      (member?.additionalRoles || []).filter(
+        (r) => r?.isEssential && typeof r?.additionalFee === "number"
+      )
+    );
 
-  const roles = (lineup?.bandMembers || []).flatMap((member) =>
-    (member?.additionalRoles || [])
-      .filter((r) => r?.isEssential)
-      .map((r) => r?.role || "Unnamed Service")
-  );
+    const additionalRolesTotal = additionalEssentialRoles.reduce(
+      (sum, role) => sum + (role?.additionalFee || 0),
+      0
+    );
 
-  if (count === 0) return "Add a Lineup";
-
-  const formatWithAnd = (arr) => {
-    const unique = [...new Set(arr)];
-    if (unique.length === 0) return "";
-    if (unique.length === 1) return unique[0];
-    if (unique.length === 2) return `${unique[0]} & ${unique[1]}`;
-    return `${unique.slice(0, -1).join(", ")} & ${unique[unique.length - 1]}`;
-  };
-
-  const instrumentsStr = formatWithAnd(instruments);
-  const rolesStr = roles.length
-    ? ` (including ${formatWithAnd(roles)} services)`
-    : "";
-
-  return `${count}: ${instrumentsStr}${rolesStr}`;
+    basePrice += additionalRolesTotal;
+    const displayPrice = Math.ceil(basePrice / 0.75);
+    setFormattedPrice(displayPrice);
+  }
 };
+
+    // Gallery Carousel logic
+  const galleryRef = useRef(null);
+
+const scrollGallery = (direction) => {
+      if (galleryRef.current) {
+        const scrollAmount = direction === "left" ? -400 : 400;
+        galleryRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+      }
+    };
 
   // Check if the act is already in the cart
   const isInCart =
@@ -422,9 +299,12 @@ const handleLineupChange = (lineup) => {
     actData && cartItems[actData._id]
       ? Object.keys(cartItems[actData._id])[0] || null
       : null;
-  const selectedLineupId = selectedLineup?._id || selectedLineup?.lineupId || null;
+  const selectedLineupId =
+    selectedLineup?._id || selectedLineup?.lineupId || null;
   const isSameLineupAsCart =
-    !!cartLineupId && !!selectedLineupId && String(cartLineupId) === String(selectedLineupId);
+    !!cartLineupId &&
+    !!selectedLineupId &&
+    String(cartLineupId) === String(selectedLineupId);
 
   // Is this act currently shortlisted?
   const isShortlisted =
@@ -432,80 +312,12 @@ const handleLineupChange = (lineup) => {
       ? shortlistedActs.includes(actData._id)
       : false;
 
-  const setlistDescriptions = {
-    smallTailoring:
-      " performs our signature setlist that we know works brilliantly with any audience.",
-    mediumTailoring:
-      " blends client favourites with our signature hits — usually around 50% client picks, 50% proven crowd-pleasers.",
-    largeTailoring:
-      " aims to accommodate nearly all client suggestions — typically 90-100% of the set is built from client suggestions.",
-  };
-
-  const paMap = {
-    smallPA: "small",
-    mediumPA: "medium",
-    largePA: "large",
-  };
-
-  const lightMap = {
-    smallLight: "small",
-    mediumLight: "medium",
-    largeLight: "large",
-  };
-
-  const numberToWords = (num) => {
-    const words = [
-      "Zero",
-      "One",
-      "Two",
-      "Three",
-      "Four",
-      "Five",
-      "Six",
-      "Seven",
-      "Eight",
-      "Nine",
-      "Ten",
-      "Eleven",
-      "Twelve",
-      "Thirteen",
-      "Fourteen",
-      "Fifteen",
-      "Sixteen",
-      "Seventeen",
-      "Eighteen",
-      "Nineteen",
-      "Twenty",
-      "Twenty-one",
-      "Twenty-two",
-      "Twenty-three",
-      "Twenty-four",
-      "Twenty-five",
-      "Twenty-six",
-      "Twenty-seven",
-      "Twenty-eight",
-      "Twenty-nine",
-      "Thirty",
-    ];
-    return words[num] || num;
-  };
-
-  /**
-   * Props:
-   *  - imageUrl: string (the CROPPED headshot url)
-   *  - size: number (px) – overall badge box (ring scales with it)
-   *  - photoScale: number (0–1) – how big the circular photo sits inside the ring
-   *  - photoOffsetY: number (px) – nudge the photo upward a little to compensate for the ribbon
-   */
-
   // Ensure hooks above always run; show loading UI after hooks are set up
   if (!actData) {
     return <div className="p-4 text-gray-500">Loading act details...</div>;
   }
 
-
   console.log("🧩 Parent passing badge:", actData?.availabilityBadge);
-  
 
   return (
     <div className="p-4">
@@ -570,35 +382,42 @@ const handleLineupChange = (lineup) => {
                 const selectedVideoId = extractVideoId(video);
                 return (
                   <div className="relative aspect-video rounded overflow-hidden">
-    {!playing ? (
-      <button
-        type="button"
-        className="group w-full h-full relative"
-        onClick={() => setPlaying(true)}
-        aria-label="Play video"
-      >
-        <img
-          src={`https://img.youtube.com/vi/${selectedVideoId}/hqdefault.jpg`}
-          alt="Video thumbnail"
-          className="w-full h-full object-cover"
-        />
-        <span className="absolute inset-0 grid place-items-center">
-          <span className="rounded-full p-4 bg-black/50 group-hover:bg-black/70 transition">
-            {/* play triangle */}
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg>
-          </span>
-        </span>
-      </button>
-    ) : (
-      <iframe
-        className="w-full h-full"
-        src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1&modestbranding=1&rel=0&controls=1`}
-        title="YouTube player"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-      />
-    )}
-  </div>
+                    {!playing ? (
+                      <button
+                        type="button"
+                        className="group w-full h-full relative"
+                        onClick={() => setPlaying(true)}
+                        aria-label="Play video"
+                      >
+                        <img
+                          src={`https://img.youtube.com/vi/${selectedVideoId}/hqdefault.jpg`}
+                          alt="Video thumbnail"
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute inset-0 grid place-items-center">
+                          <span className="rounded-full p-4 bg-black/50 group-hover:bg-black/70 transition">
+                            {/* play triangle */}
+                            <svg
+                              width="36"
+                              height="36"
+                              viewBox="0 0 24 24"
+                              fill="#fff"
+                            >
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </span>
+                        </span>
+                      </button>
+                    ) : (
+                      <iframe
+                        className="w-full h-full"
+                        src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1&modestbranding=1&rel=0&controls=1`}
+                        title="YouTube player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    )}
+                  </div>
                 );
               })()}
             </div>
@@ -634,133 +453,184 @@ const handleLineupChange = (lineup) => {
                       actData.averageRating >= i
                         ? assets.star_icon
                         : actData.averageRating >= i - 0.5
-                        ? assets.star_half_icon
-                        : assets.star_dull_icon
+                          ? assets.star_half_icon
+                          : assets.star_dull_icon
                     }
                     alt={`Star ${i}`}
                   />
                 ))}
                 <p className="pl-2">({actData.reviews?.length || 0})</p>
               </div>
-          {/* ✅ Sticky bar only on mobile */}
-{actData && (
-  <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3 z-50">
-    <button
-      onClick={() => {
-        if (navigator.share) {
-          navigator.share({
-            title: actData?.tscName || "Act",
-            text: `Check out this amazing act: ${actData?.tscName}`,
-            url: window.location.href,
-          }).catch(err => console.error("Share failed:", err));
-        } else {
-          alert("Sharing not supported in this browser.");
-        }
-      }}
-      className="p-3 rounded-md bg-[#ff6667] text-white hover:bg-[#ff6667] active:bg-black transition"
-      aria-label="Share act"
-    >
-      {/* share icon */}
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-share-icon lucide-share"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/></svg>
-    </button>
-<button
-  onClick={async () => {
-   
+              {/* ✅ Sticky bar only on mobile */}
+              {actData && (
+                <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3 z-50">
+                  <button
+                    onClick={() => {
+                      if (navigator.share) {
+                        navigator
+                          .share({
+                            title: actData?.tscName || "Act",
+                            text: `Check out this amazing act: ${actData?.tscName}`,
+                            url: window.location.href,
+                          })
+                          .catch((err) => console.error("Share failed:", err));
+                      } else {
+                        alert("Sharing not supported in this browser.");
+                      }
+                    }}
+                    className="p-3 rounded-md bg-[#ff6667] text-white hover:bg-[#ff6667] active:bg-black transition"
+                    aria-label="Share act"
+                  >
+                    {/* share icon */}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="lucide lucide-share-icon lucide-share"
+                    >
+                      <path d="M12 2v13" />
+                      <path d="m16 6-4-4-4 4" />
+                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      // --- existing shortlist toggle logic ---
+                      try {
+                        await shortlistAct(userId, actData._id);
 
-    // --- existing shortlist toggle logic ---
-    try {
-      await shortlistAct(userId, actData._id);
+                        toast(
+                          <CustomToast
+                            type="success"
+                            message={
+                              isShortlisted
+                                ? "Removed from shortlist."
+                                : "Added to shortlist!"
+                            }
+                          />,
+                          {
+                            position: "top-right",
+                            autoClose: 1600,
+                          }
+                        );
+                      } catch (e) {
+                        console.error("❌ Shortlist toggle failed", e);
+                        toast(
+                          <CustomToast
+                            type="error"
+                            message="Could not update shortlist."
+                          />,
+                          {
+                            position: "top-right",
+                            autoClose: 1600,
+                          }
+                        );
+                      }
+                    }}
+                    aria-pressed={isShortlisted}
+                    className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${
+                      isShortlisted
+                        ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
+                        : "bg-black text-white hover:bg-[#ff6667]"
+                    }`}
+                  >
+                    {isShortlisted
+                      ? "REMOVE FROM SHORTLIST"
+                      : "ADD TO SHORTLIST"}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!selectedLineup) {
+                        console.warn(
+                          "⚠️ No lineup selected before adding to cart"
+                        );
+                        return;
+                      }
 
-      toast(
-        <CustomToast
-          type="success"
-          message={
-            isShortlisted
-              ? "Removed from shortlist."
-              : "Added to shortlist!"
-          }
-        />,
-        {
-          position: "top-right",
-          autoClose: 1600,
-        }
-      );
-    } catch (e) {
-      console.error("❌ Shortlist toggle failed", e);
-      toast(
-        <CustomToast
-          type="error"
-          message="Could not update shortlist."
-        />,
-        {
-          position: "top-right",
-          autoClose: 1600,
-        }
-      );
-    }
-  }}
-  aria-pressed={isShortlisted}
-  className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${
-    isShortlisted
-      ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
-      : "bg-black text-white hover:bg-[#ff6667]"
-  }`}
->
-  {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
-</button>
-    <button
-onClick={async () => {
-  if (!selectedLineup) {
-    console.warn("⚠️ No lineup selected before adding to cart");
-    return;
-  }
+                      // --- existing add/remove logic below ---
+                      if (!isInCart) {
+                        addToCart(
+                          actData._id,
+                          selectedLineup._id || selectedLineup.lineupId
+                        );
+                        toast(
+                          <CustomToast
+                            type="success"
+                            message="Added to cart!"
+                          />,
+                          { position: "top-right", autoClose: 1600 }
+                        );
+                        return;
+                      }
 
-
-
-  // --- existing add/remove logic below ---
-  if (!isInCart) {
-    addToCart(actData._id, selectedLineup._id || selectedLineup.lineupId);
-    toast(
-      <CustomToast type="success" message="Added to cart!" />,
-      { position: "top-right", autoClose: 1600 }
-    );
-    return;
-  }
-
-  if (isSameLineupAsCart) {
-    const lineupIds = Object.keys(cartItems[actData._id] || {});
-    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
-    toast(
-      <CustomToast type="success" message="Removed from cart." />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  } else {
-    const lineupIds = Object.keys(cartItems[actData._id] || {});
-    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
-    addToCart(actData._id, selectedLineup._id || selectedLineup.lineupId);
-    toast(
-      <CustomToast type="success" message="Lineup updated in cart!" />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  }
-}}
-      className="flex-1 px-4 py-3 rounded text-sm font-medium bg-black text-white hover:bg-[#ff6667] transition"
-      aria-pressed={!!isInCart}
-    >
-      {!isInCart ? "ADD TO CART" : isSameLineupAsCart ? "REMOVE FROM CART" : "UPDATE LINEUP"}
-    </button>
-  </div>
-)}
+                      if (isSameLineupAsCart) {
+                        const lineupIds = Object.keys(
+                          cartItems[actData._id] || {}
+                        );
+                        lineupIds.forEach((lineupId) =>
+                          removeFromCart(actData._id, lineupId)
+                        );
+                        toast(
+                          <CustomToast
+                            type="success"
+                            message="Removed from cart."
+                          />,
+                          { position: "top-right", autoClose: 1600 }
+                        );
+                      } else {
+                        const lineupIds = Object.keys(
+                          cartItems[actData._id] || {}
+                        );
+                        lineupIds.forEach((lineupId) =>
+                          removeFromCart(actData._id, lineupId)
+                        );
+                        addToCart(
+                          actData._id,
+                          selectedLineup._id || selectedLineup.lineupId
+                        );
+                        toast(
+                          <CustomToast
+                            type="success"
+                            message="Lineup updated in cart!"
+                          />,
+                          { position: "top-right", autoClose: 1600 }
+                        );
+                      }
+                    }}
+                    className="flex-1 px-4 py-3 rounded text-sm font-medium bg-black text-white hover:bg-[#ff6667] transition"
+                    aria-pressed={!!isInCart}
+                  >
+                    {!isInCart
+                      ? "ADD TO CART"
+                      : isSameLineupAsCart
+                        ? "REMOVE FROM CART"
+                        : "UPDATE LINEUP"}
+                  </button>
+                </div>
+              )}
               <p className="mt-5 text-3xl font-medium p-3">
                 {(() => {
                   let basePrice = selectedLineup?.base_fee?.[0]?.total_fee || 0;
                   selectedLineup?.bandMembers?.forEach((member) => {
-                    const essentialRoles = (member.additionalRoles || []).filter(
-                      (r) => r.isEssential && typeof r.additionalFee === "number"
+                    const essentialRoles = (
+                      member.additionalRoles || []
+                    ).filter(
+                      (r) =>
+                        r.isEssential && typeof r.additionalFee === "number"
                     );
-                    basePrice += essentialRoles.reduce((sum, r) => sum + r.additionalFee, 0);
+                    basePrice += essentialRoles.reduce(
+                      (sum, r) => sum + r.additionalFee,
+                      0
+                    );
                   });
-                  const displayPrice = basePrice > 0 ? Math.ceil(basePrice / 0.75) : 0;
+                  const displayPrice =
+                    basePrice > 0 ? Math.ceil(basePrice / 0.75) : 0;
                   if (finalTravelPrice) {
                     return finalTravelPrice.travelCalculated
                       ? `£${finalTravelPrice.total}`
@@ -797,54 +667,72 @@ onClick={async () => {
                   })}
                 </div>
                 <div className="my-3 mt-5">
+                  {/* 🔍 Debug: Badge rendering context */}
+                  {(() => {
+                    const badges = actData?.availabilityBadges || {};
+                    const dateKey = selectedDate;
+                    const keys = Object.keys(badges);
+                    const matchedKey = keys.find(
+                      (k) =>
+                        k.startsWith(dateKey) || k.startsWith(`${dateKey}_`)
+                    );
 
-{/* 🔍 Debug: Badge rendering context */}
-{(() => {
-  const badges = actData?.availabilityBadges || {};
-  const dateKey = selectedDate;
-  const keys = Object.keys(badges);
-  const matchedKey = keys.find(k => k.startsWith(dateKey) || k.startsWith(`${dateKey}_`));
+                    const badgeForDate = Array.isArray(badges)
+                      ? badges.find(
+                          (b) => b?.dateISO?.slice(0, 10) === selectedDate
+                        ) || null
+                      : matchedKey
+                        ? badges[matchedKey]
+                        : badges[selectedDate] || null;
 
-  const badgeForDate = Array.isArray(badges)
-    ? badges.find((b) => b?.dateISO?.slice(0, 10) === selectedDate) || null
-    : matchedKey
-      ? badges[matchedKey]
-      : badges[selectedDate] || null;
-
-  if (!badgeForDate) return null;
-  return (
-    <VocalistFeaturedAvailable
-      badge={badgeForDate}
-      size={140}
-      cacheBuster={badgeForDate?.setAt}
-      className="mt-2"
-      actContext={actData?.tscName}
-      dateContext={selectedDate}
-    />
-  );
-})()}
+                    if (!badgeForDate) return null;
+                    return (
+                      <VocalistFeaturedAvailable
+                        badge={badgeForDate}
+                        size={140}
+                        cacheBuster={badgeForDate?.setAt}
+                        className="mt-2"
+                        actContext={actData?.tscName}
+                        dateContext={selectedDate}
+                      />
+                    );
+                  })()}
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
                   <li>
-                    Up to {actData.numberOfSets[0]}x{actData.lengthOfSets[0]}mins or {actData.numberOfSets[1]}x{actData.lengthOfSets[1]}mins live performance
+                    Up to {actData.numberOfSets[0]}x{actData.lengthOfSets[0]}
+                    mins or {actData.numberOfSets[1]}x{actData.lengthOfSets[1]}
+                    mins live performance
                   </li>
                   <li>
-                    {actData?.paSystem && `A ${paMap[actData.paSystem]} PA system `}
+                    {actData?.paSystem &&
+                      `A ${paMap[actData.paSystem]} PA system `}
                     {actData?.lightingSystem && (
                       <>
-                        {actData.paSystem && " and "}a {lightMap[actData.lightingSystem]} lighting system to light up your stage
-                        {["mediumLight", "largeLight"].includes(actData.lightingSystem) && " and dancefloor"}
+                        {actData.paSystem && " and "}a{" "}
+                        {lightMap[actData.lightingSystem]} lighting system to
+                        light up your stage
+                        {["mediumLight", "largeLight"].includes(
+                          actData.lightingSystem
+                        ) && " and dancefloor"}
                       </>
                     )}
                   </li>
                   <li>
-                    The band on site for up to 7 hours or until midnight, whichever comes first
+                    The band on site for up to 7 hours or until midnight,
+                    whichever comes first
                   </li>
                   {Object.entries(actData.extras || {})
-                    .filter(([_, value]) => typeof value === "object" && value.complimentary === true)
+                    .filter(
+                      ([_, value]) =>
+                        typeof value === "object" &&
+                        value.complimentary === true
+                    )
                     .map(([key]) => {
-                      const formattedLabel = key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+                      const formattedLabel = key
+                        .replace(/_/g, " ")
+                        .replace(/^\w/, (c) => c.toUpperCase());
                       return <li key={key}>{formattedLabel}</li>;
                     })}
                   {actData.offRepertoireRequests > 0 && (
@@ -855,15 +743,26 @@ onClick={async () => {
                     </li>
                   )}
                   {actData?.setlist === "smallTailoring" && (
-                    <li>A signature setlist curated by the band — guaranteed crowd-pleasers that they know work every time</li>
+                    <li>
+                      A signature setlist curated by the band — guaranteed
+                      crowd-pleasers that they know work every time
+                    </li>
                   )}
                   {actData?.setlist === "mediumTailoring" && (
-                    <li>A collaborative setlist blending your top picks with our tried-and-tested favourites for the perfect party balance</li>
+                    <li>
+                      A collaborative setlist blending your top picks with our
+                      tried-and-tested favourites for the perfect party balance
+                    </li>
                   )}
                   {actData?.setlist === "largeTailoring" && (
-                    <li>A fully tailored setlist made up almost entirely of your requests — a truly personalised music experience</li>
+                    <li>
+                      A fully tailored setlist made up almost entirely of your
+                      requests — a truly personalised music experience
+                    </li>
                   )}
-                  {finalTravelPrice && selectedAddress?.trim() && <li>& travel to {selectedAddress}</li>}
+                  {finalTravelPrice && selectedAddress?.trim() && (
+                    <li>& travel to {selectedAddress}</li>
+                  )}
                 </ul>
               </div>
             </div>
@@ -926,7 +825,6 @@ onClick={async () => {
                     role: r.role || "Unnamed Role",
                     fee: r.additionalFee,
                   }));
-              
                 });
 
                 const additionalEssentialRoles =
@@ -944,8 +842,6 @@ onClick={async () => {
 
                 basePrice += additionalRolesTotal;
                 const displayPrice = Math.ceil(basePrice / 0.75);
-
-          
 
                 // ✅ Use finalTravelPrice.total and .travelCalculated
                 if (finalTravelPrice) {
@@ -999,10 +895,11 @@ onClick={async () => {
               <p className="text-gray-600 text-lg ml-3">Including:</p>
               <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
                 <li>
-                  Up to {actData.numberOfSets[0]}x{actData.lengthOfSets[0]}mins
-                  or {actData.numberOfSets[1]}x{actData.lengthOfSets[1]}mins
-                  live performance
-                </li>
+  Up to {actData.numberOfSets?.[0] || "?"}x
+  {actData.lengthOfSets?.[0] || "?"}mins
+  or {actData.numberOfSets?.[1] || "?"}x
+  {actData.lengthOfSets?.[1] || "?"}mins live performance
+</li>
                 <li>
                   {actData?.paSystem &&
                     `A ${paMap[actData.paSystem]} PA system `}
@@ -1066,89 +963,89 @@ onClick={async () => {
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row my-6 gap-6 ml-3">
-            <button
-  onClick={async () => {
-   
+              <button
+                onClick={async () => {
+                  // --- existing shortlist toggle logic ---
+                  try {
+                    await shortlistAct(userId, actData._id);
 
-   
-
-    // --- existing shortlist toggle logic ---
-    try {
-      await shortlistAct(userId, actData._id);
-
-      toast(
-        <CustomToast
-          type="success"
-          message={
-            isShortlisted
-              ? "Removed from shortlist."
-              : "Added to shortlist!"
-          }
-        />,
-        {
-          position: "top-right",
-          autoClose: 1600,
-        }
-      );
-    } catch (e) {
-      console.error("❌ Shortlist toggle failed", e);
-      toast(
-        <CustomToast
-          type="error"
-          message="Could not update shortlist."
-        />,
-        {
-          position: "top-right",
-          autoClose: 1600,
-        }
-      );
-    }
-  }}
-  aria-pressed={isShortlisted}
-  className={`px-8 py-3 text-m rounded transition-colors ${
-    isShortlisted
-      ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
-      : "bg-black text-white hover:bg-[#ff6667]"
-  }`}
->
-  {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
-</button>
+                    toast(
+                      <CustomToast
+                        type="success"
+                        message={
+                          isShortlisted
+                            ? "Removed from shortlist."
+                            : "Added to shortlist!"
+                        }
+                      />,
+                      {
+                        position: "top-right",
+                        autoClose: 1600,
+                      }
+                    );
+                  } catch (e) {
+                    console.error("❌ Shortlist toggle failed", e);
+                    toast(
+                      <CustomToast
+                        type="error"
+                        message="Could not update shortlist."
+                      />,
+                      {
+                        position: "top-right",
+                        autoClose: 1600,
+                      }
+                    );
+                  }
+                }}
+                aria-pressed={isShortlisted}
+                className={`px-8 py-3 text-m rounded transition-colors ${
+                  isShortlisted
+                    ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
+                    : "bg-black text-white hover:bg-[#ff6667]"
+                }`}
+              >
+                {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
+              </button>
 
               <button
-  onClick={async () => {
-    if (!selectedLineup) {
-      console.warn("⚠️ No lineup selected before adding to cart");
-      return;
-    }
+                onClick={async () => {
+                  if (!selectedLineup) {
+                    console.warn("⚠️ No lineup selected before adding to cart");
+                    return;
+                  }
 
+                  // --- existing add/remove logic below ---
+                  if (isInCart) {
+                    // remove all lineups for this act
+                    const lineupIds = Object.keys(cartItems[actData._id] || {});
+                    lineupIds.forEach((lineupId) =>
+                      removeFromCart(actData._id, lineupId)
+                    );
 
-    // --- existing add/remove logic below ---
-    if (isInCart) {
-      // remove all lineups for this act
-      const lineupIds = Object.keys(cartItems[actData._id] || {});
-      lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
-
-      toast(
-        <CustomToast type="success" message="Removed from cart." />,
-        { position: "top-right", autoClose: 1600 }
-      );
-    } else {
-      // add selected lineup
-      addToCart(
-        actData._id,
-        selectedLineup._id || selectedLineup.lineupId
-      );
-      toast(
-        <CustomToast type="success" message="Added to cart!" />,
-        { position: "top-right", autoClose: 1600 }
-      );
-    }
-  }}
-  className="bg-black text-white px-8 py-3 text-m active:bg-gray-700 hover:bg-[#ff6667] transition-colors duration-200 rounded"
-  aria-pressed={!!isInCart}
->
-  {isInCart ? "REMOVE FROM CART" : "ADD TO CART"}
-</button>
+                    toast(
+                      <CustomToast
+                        type="success"
+                        message="Removed from cart."
+                      />,
+                      { position: "top-right", autoClose: 1600 }
+                    );
+                  } else {
+                    // add selected lineup
+                    addToCart(
+                      actData._id,
+                      selectedLineup._id || selectedLineup.lineupId
+                    );
+                    toast(
+                      <CustomToast type="success" message="Added to cart!" />,
+                      { position: "top-right", autoClose: 1600 }
+                    );
+                  }
+                }}
+                className="bg-black text-white px-8 py-3 text-m active:bg-gray-700 hover:bg-[#ff6667] transition-colors duration-200 rounded"
+                aria-pressed={!!isInCart}
+              >
+                {isInCart ? "REMOVE FROM CART" : "ADD TO CART"}
+              </button>
             </div>
           </div>
         </div>
@@ -1305,7 +1202,6 @@ onClick={async () => {
               {/* Foreground component */}
               <div className="relative z-10">
                 {(() => {
-                
                   return (
                     <AcousticExtrasSelector
                       actData={actData}
@@ -1441,7 +1337,9 @@ onClick={async () => {
                           className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b py-1 sm:gap-3"
                         >
                           {/* Label */}
-                          <span className="whitespace-normal break-words">{label}</span>
+                          <span className="whitespace-normal break-words">
+                            {label}
+                          </span>
                           {/* Price */}
                           <span className="font-semibold justify-self-end">
                             £{finalFee}
@@ -1461,7 +1359,7 @@ onClick={async () => {
                                 price: finalFee,
                                 key,
                               };
-                             
+
                               addToCart(actData._id, lineupId, extra);
                               toast(
                                 <CustomToast
