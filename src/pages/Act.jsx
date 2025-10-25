@@ -39,8 +39,6 @@ const Act = () => {
   const [formattedPrice, setFormattedPrice] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [finalTravelPrice, setFinalTravelPrice] = useState(null);
-  const [selectedLineup, setSelectedLineup] = useState("");
-  const [formattedPrice, setFormattedPrice] = useState(null);
   const id = extractVideoId(video);
 
   useEffect(() => {
