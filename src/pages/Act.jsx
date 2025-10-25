@@ -306,27 +306,28 @@ useEffect(() => {
 
   // ✅ Ensure price updates instantly when lineup changes
 
-  const handleLineupChange = (lineup) => {
-    setSelectedLineup(lineup);
+const handleLineupChange = (lineup) => {
+  setSelectedLineup(lineup);
 
-    if (actData) {
-      let basePrice = lineup?.base_fee?.[0]?.total_fee || 0;
+  if (actData) {
+    let basePrice = lineup?.base_fee?.[0]?.total_fee || 0;
 
-      const additionalEssentialRoles = lineup.bandMembers.flatMap((member) =>
-        (member.additionalRoles || []).filter(
-          (r) => r.isEssential && typeof r.additionalFee === "number"
-        )
-      );
-      const additionalRolesTotal = additionalEssentialRoles.reduce(
-        (sum, role) => sum + role.additionalFee,
-        0
-      );
+    const additionalEssentialRoles = (lineup?.bandMembers || []).flatMap((member) =>
+      (member?.additionalRoles || []).filter(
+        (r) => r?.isEssential && typeof r?.additionalFee === "number"
+      )
+    );
 
-      basePrice += additionalRolesTotal;
-      const displayPrice = Math.ceil(basePrice / 0.75);
-      setFormattedPrice(displayPrice);
-    }
-  };
+    const additionalRolesTotal = additionalEssentialRoles.reduce(
+      (sum, role) => sum + (role?.additionalFee || 0),
+      0
+    );
+
+    basePrice += additionalRolesTotal;
+    const displayPrice = Math.ceil(basePrice / 0.75);
+    setFormattedPrice(displayPrice);
+  }
+};
 
   const [finalTravelPrice, setFinalTravelPrice] = useState(null);
 
@@ -364,50 +365,51 @@ useEffect(() => {
     fetchPrice();
   }, [actData, selectedLineup, selectedDate, selectedAddress]);
 
-  const generateDescription = (lineup) => {
-const count = lineup?.actSize || (Array.isArray(lineup?.bandMembers) ? lineup.bandMembers.length : 0);
+ const generateDescription = (lineup) => {
+  const count =
+    lineup?.actSize ||
+    (Array.isArray(lineup?.bandMembers) ? lineup.bandMembers.length : 0);
 
-    const instruments = lineup.bandMembers
-      .filter((m) => m.isEssential)
-      .map((m) => m.instrument)
-      .filter(Boolean);
+  const instruments = (lineup?.bandMembers || [])
+    .filter((m) => m?.isEssential)
+    .map((m) => m?.instrument)
+    .filter(Boolean);
 
-    instruments.sort((a, b) => {
-      const aLower = a.toLowerCase();
-      const bLower = b.toLowerCase();
-      const isVocal = (str) => str.includes("vocal");
-      const isDrums = (str) => str === "drums";
+  instruments.sort((a, b) => {
+    const aLower = a?.toLowerCase?.() || "";
+    const bLower = b?.toLowerCase?.() || "";
+    const isVocal = (str) => str.includes("vocal");
+    const isDrums = (str) => str === "drums";
+    if (isVocal(aLower) && !isVocal(bLower)) return -1;
+    if (!isVocal(aLower) && isVocal(bLower)) return 1;
+    if (isDrums(aLower)) return 1;
+    if (isDrums(bLower)) return -1;
+    return 0;
+  });
 
-      if (isVocal(aLower) && !isVocal(bLower)) return -1;
-      if (!isVocal(aLower) && isVocal(bLower)) return 1;
-      if (isDrums(aLower)) return 1;
-      if (isDrums(bLower)) return -1;
-      return 0;
-    });
+  const roles = (lineup?.bandMembers || []).flatMap((member) =>
+    (member?.additionalRoles || [])
+      .filter((r) => r?.isEssential)
+      .map((r) => r?.role || "Unnamed Service")
+  );
 
-    const formatWithAnd = (arr) => {
-      const unique = [...new Set(arr)];
-      if (unique.length === 0) return "";
-      if (unique.length === 1) return unique[0];
-      if (unique.length === 2) return `${unique[0]} & ${unique[1]}`;
-      return `${unique.slice(0, -1).join(", ")} & ${unique[unique.length - 1]}`;
-    };
+  if (count === 0) return "Add a Lineup";
 
-    const roles = lineup.bandMembers.flatMap((member) =>
-      (member.additionalRoles || [])
-        .filter((r) => r.isEssential)
-        .map((r) => r.role || r.role || "Unnamed Service")
-    );
-
-    if (count === 0) return "Add a Lineup";
-
-    const instrumentsStr = formatWithAnd(instruments);
-    const rolesStr = roles.length
-      ? ` (including ${formatWithAnd(roles)} services)`
-      : "";
-
-    return `${count}: ${instrumentsStr}${rolesStr}`;
+  const formatWithAnd = (arr) => {
+    const unique = [...new Set(arr)];
+    if (unique.length === 0) return "";
+    if (unique.length === 1) return unique[0];
+    if (unique.length === 2) return `${unique[0]} & ${unique[1]}`;
+    return `${unique.slice(0, -1).join(", ")} & ${unique[unique.length - 1]}`;
   };
+
+  const instrumentsStr = formatWithAnd(instruments);
+  const rolesStr = roles.length
+    ? ` (including ${formatWithAnd(roles)} services)`
+    : "";
+
+  return `${count}: ${instrumentsStr}${rolesStr}`;
+};
 
   // Check if the act is already in the cart
   const isInCart =
