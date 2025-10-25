@@ -40,6 +40,17 @@ const Act = () => {
   const [finalTravelPrice, setFinalTravelPrice] = useState(null);
   const id = extractVideoId(video);
 
+      // Gallery Carousel logic
+  const galleryRef = useRef(null);
+  const reviewGalleryRef = useRef(null); // ✅ fix
+const scrollGallery = (direction) => {
+      if (galleryRef.current) {
+        const scrollAmount = direction === "left" ? -400 : 400;
+        galleryRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+      }
+    };
+
+
   useEffect(() => {
     if (location.hash) {
       const target = document.querySelector(location.hash);
@@ -275,15 +286,6 @@ const Act = () => {
   }
 };
 
-    // Gallery Carousel logic
-  const galleryRef = useRef(null);
-
-const scrollGallery = (direction) => {
-      if (galleryRef.current) {
-        const scrollAmount = direction === "left" ? -400 : 400;
-        galleryRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-      }
-    };
 
   // Check if the act is already in the cart
   const isInCart =
