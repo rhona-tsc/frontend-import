@@ -17,7 +17,7 @@ import AcousticExtrasSelector from "../components/AcousticExtrasSelector";
 import ActPerformanceOverview from "../components/ActPerformanceOverview";
 import axios from "axios";
 import { useLocation } from "react-router-dom";
-import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
+import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 
 
 
@@ -74,11 +74,9 @@ const Act = () => {
 
   const [selectedLineup, setSelectedLineup] = useState("");
   const [video, setVideo] = useState("");
-  const [adjustedTotal, setAdjustedTotal] = useState(null);
   const navigate = useNavigate();
   const storedPlace = sessionStorage.getItem("selectedPlace") || "";
-  const availableCounties =
-    postcodes?.length > 0 ? Object.keys(postcodes[0]) : [];
+
   const [formattedPrice, setFormattedPrice] = useState(null);
   const [playing, setPlaying] = useState(false);
 
@@ -367,7 +365,7 @@ useEffect(() => {
   }, [actData, selectedLineup, selectedDate, selectedAddress]);
 
   const generateDescription = (lineup) => {
-    const count = lineup.actSize || lineup.bandMembers.length;
+const count = lineup?.actSize || (Array.isArray(lineup?.bandMembers) ? lineup.bandMembers.length : 0);
 
     const instruments = lineup.bandMembers
       .filter((m) => m.isEssential)
@@ -798,7 +796,31 @@ onClick={async () => {
                 </div>
                 <div className="my-3 mt-5">
 
+{/* 🔍 Debug: Badge rendering context */}
+{(() => {
+  const badges = actData?.availabilityBadges || {};
+  const dateKey = selectedDate;
+  const keys = Object.keys(badges);
+  const matchedKey = keys.find(k => k.startsWith(dateKey) || k.startsWith(`${dateKey}_`));
 
+  const badgeForDate = Array.isArray(badges)
+    ? badges.find((b) => b?.dateISO?.slice(0, 10) === selectedDate) || null
+    : matchedKey
+      ? badges[matchedKey]
+      : badges[selectedDate] || null;
+
+  if (!badgeForDate) return null;
+  return (
+    <VocalistFeaturedAvailable
+      badge={badgeForDate}
+      size={140}
+      cacheBuster={badgeForDate?.setAt}
+      className="mt-2"
+      actContext={actData?.tscName}
+      dateContext={selectedDate}
+    />
+  );
+})()}
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
