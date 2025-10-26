@@ -72,9 +72,7 @@ const scrollGallery = (direction) => {
     }
   }, [location]);
 
-  useEffect(() => {
-    console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
-  }, [actData?.availabilityBadge]);
+
 
   useEffect(() => {
     const evtSource = new EventSource(
@@ -324,6 +322,11 @@ useEffect(() => {
     setFormattedPrice(displayPrice);
   }
 };
+
+  useEffect(() => {
+    if (!actId || !selectedDate) return;
+    console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
+  }, [actData?.availabilityBadge]);
 
 
   // Check if the act is already in the cart
