@@ -127,7 +127,7 @@ const scrollGallery = (direction) => {
           ""
         );
         const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
-        const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
+const u = new URL(`${base}/api/availability/acts-by-date`);
         u.searchParams.set("date", dateISO);
         u.searchParams.set("actId", String(actId));
 
