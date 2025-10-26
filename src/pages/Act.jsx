@@ -937,14 +937,7 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                   );
                 })}
               </div>
-              <div className="my-3 mt-5">
-                <VocalistFeaturedAvailable
-                  badge={actData?.availabilityBadge}
-                  size={140}
-                  cacheBuster={actData?.availabilityBadge?.setAt}
-                  className="mt-2"
-                />
-              </div>
+            
               <p className="text-gray-600 text-lg ml-3">Including:</p>
               <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
                 <li>
