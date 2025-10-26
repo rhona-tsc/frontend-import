@@ -28,7 +28,7 @@ const Act = () => {
     return match ? match[1] : url;
   };
   const { actId } = useParams();
-  const { acts, addToCart, selectedDate, selectedAddress, setShowSearch, userId, shortlistAct, shortlistedActs, cartItems, removeFromCart } = useContext(ShopContext);
+  const { acts, getActById, addToCart, selectedDate, selectedAddress, setShowSearch, userId, shortlistAct, shortlistedActs, cartItems, removeFromCart } = useContext(ShopContext);
   const [actData, setActData] = useState(null);
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
   const [selectedLineup, setSelectedLineup] = useState("");
@@ -222,22 +222,51 @@ const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
     };
   }, []);
 
-  useEffect(() => {
-    if (acts.length > 0) {
-      const foundAct = acts.find((item) => item._id === actId);
-      if (foundAct) {
-        const avgRating = calculateAverageRating(foundAct.reviews || []);
-        setActData({
-          ...foundAct,
-          averageRating: avgRating,
-        });
-        setVideo(foundAct.videos?.[0]?.url || "");
-        if (Array.isArray(foundAct.lineups) && foundAct.lineups.length > 0) {
-setSelectedLineup(foundAct?.lineups?.[0] || null);
+useEffect(() => {
+  (async () => {
+    if (!actId) return;
+
+    // 1️⃣ Try to find act in cached list first
+    let foundAct = acts.find((item) => item._id === actId);
+
+    // 2️⃣ If not found or missing key fields, fetch full version from backend
+    if (
+      !foundAct ||
+      !foundAct.lineups ||
+      !Array.isArray(foundAct.lineups) ||
+      !foundAct.numberOfSets ||
+      !foundAct.lengthOfSets
+    ) {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`,
+          { headers: { accept: "application/json" } }
+        );
+        const json = await res.json();
+        if (res.ok && json?.success && json?.act) {
+          foundAct = json.act;
         }
+      } catch (err) {
+        console.error("⚠️ Failed to fetch full act:", err);
       }
     }
-  }, [actId, acts]);
+
+    // 3️⃣ If we have act data, populate state
+    if (foundAct) {
+      const avgRating = calculateAverageRating(foundAct.reviews || []);
+      setActData({
+        ...foundAct,
+        averageRating: avgRating,
+      });
+
+      setVideo(foundAct.videos?.[0]?.url || "");
+
+      if (Array.isArray(foundAct.lineups) && foundAct.lineups.length > 0) {
+        setSelectedLineup(foundAct.lineups[0] || null);
+      }
+    }
+  })();
+}, [actId, acts]);
 
   useEffect(() => {
     const fetchPrice = async () => {

@@ -60,6 +60,16 @@ const api = (path) =>
   }));
 };
 
+const getActById = async (actId) => {
+  try {
+    const res = await axios.get(`${backendUrl}/api/act/${actId}`);
+    if (res.data?.success && res.data?.act) return res.data.act;
+  } catch (err) {
+    console.warn("Failed to fetch act by ID:", err?.message || err);
+  }
+  return null;
+};
+
   // Fetch + cache availability map for a given date (YYYY-MM-DD or ISO)
 const loadAvailabilityForDate = async (dateISO) => {
   const d = String(dateISO || "").slice(0, 10);
@@ -890,7 +900,7 @@ const debouncedRequestVocalistAvailability = debounce(
     showSearch,
     setShowSearch,
     backendUrl,
-
+getActById,
     // cart
     cartItems,
     setCartItems,
