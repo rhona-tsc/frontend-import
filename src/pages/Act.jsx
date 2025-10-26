@@ -233,7 +233,7 @@ const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
         });
         setVideo(foundAct.videos?.[0]?.url || "");
         if (Array.isArray(foundAct.lineups) && foundAct.lineups.length > 0) {
-          setSelectedLineup(foundAct.actData?.lineups?.[0]); // Set first lineup as default
+setSelectedLineup(foundAct?.lineups?.[0] || null);
         }
       }
     }
