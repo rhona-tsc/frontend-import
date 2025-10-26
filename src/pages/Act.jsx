@@ -262,7 +262,7 @@ useEffect(() => {
       setVideo(foundAct.videos?.[0]?.url || "");
 
       if (Array.isArray(foundAct.lineups) && foundAct.lineups.length > 0) {
-        setSelectedLineup(foundAct.lineups[0] || null);
+        setSelectedLineup(foundAct.lineups?.[0] || null);
       }
     }
   })();
@@ -351,9 +351,9 @@ useEffect(() => {
       : false;
 
   // Ensure hooks above always run; show loading UI after hooks are set up
-  if (!actData) {
-    return <div className="p-4 text-gray-500">Loading act details...</div>;
-  }
+if (!actData || !selectedLineup) {
+  return <div className="p-4 text-gray-500">Loading act details...</div>;
+}
 
   console.log("🧩 Parent passing badge:", actData?.availabilityBadge);
 
@@ -362,6 +362,12 @@ console.log("actData.numberOfSets", actData?.numberOfSets);
 console.log("actData.lengthOfSets", actData?.lengthOfSets);
 console.log("selectedLineup.base_fee", selectedLineup?.base_fee);
 console.groupEnd();
+
+console.log("🟢 Render check", {
+  hasAct: !!actData,
+  hasLineups: Array.isArray(actData?.lineups),
+  hasSelectedLineup: !!selectedLineup,
+});
 
   return (
     <div className="p-4">
@@ -663,7 +669,7 @@ console.groupEnd();
 const baseFeeArray = Array.isArray(selectedLineup?.base_fee)
   ? selectedLineup.base_fee
   : [];
-let basePrice = baseFeeArray[0]?.total_fee || 0;
+let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                   selectedLineup?.bandMembers?.forEach((member) => {
                     const essentialRoles = (
                       member.additionalRoles || []
@@ -748,8 +754,8 @@ let basePrice = baseFeeArray[0]?.total_fee || 0;
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
                   <li>
-                    Up to {actData.numberOfSets[0]}x{actData.lengthOfSets[0]}
-                    mins or {actData.numberOfSets[1]}x{actData.lengthOfSets[1]}
+                    Up to {actData?.numberOfSets?.[0]}x{actData?.lengthOfSets?.[0]}
+                    mins or {actData?.numberOfSets?.[1]}x{actData?.lengthOfSets?.[1]}
                     mins live performance
                   </li>
                   <li>
@@ -852,7 +858,7 @@ let basePrice = baseFeeArray[0]?.total_fee || 0;
                   alt={`Star ${i}`}
                 />
               ))}
-              <p className="pl-2">({actData.reviews?.length || 0})</p>
+              <p className="pl-2">({actData?.reviews?.length || 0})</p>
             </div>
 
             <p className="mt-5 text-3xl font-medium p-3">
@@ -942,21 +948,21 @@ let basePrice = baseFeeArray[0]?.total_fee || 0;
               <p className="text-gray-600 text-lg ml-3">Including:</p>
               <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
                 <li>
-  Up to {actData.numberOfSets?.[0] || "?"}x
-  {actData.lengthOfSets?.[0] || "?"}mins
-  or {actData.numberOfSets?.[1] || "?"}x
-  {actData.lengthOfSets?.[1] || "?"}mins live performance
+  Up to {actData?.numberOfSets?.[0] || "?"}x
+  {actData?.lengthOfSets?.[0] || "?"}mins
+  or {actData?.numberOfSets?.[1] || "?"}x
+  {actData?.lengthOfSets?.[1] || "?"}mins live performance
 </li>
                 <li>
                   {actData?.paSystem &&
-                    `A ${paMap[actData.paSystem]} PA system `}
+                    `A ${paMap[actData?.paSystem]} PA system `}
                   {actData?.lightingSystem && (
                     <>
-                      {actData.paSystem && " and "}a{" "}
-                      {lightMap[actData.lightingSystem]} lighting system to
+                      {actData?.paSystem && " and "}a{" "}
+                      {lightMap[actData?.lightingSystem]} lighting system to
                       light up your stage
                       {["mediumLight", "largeLight"].includes(
-                        actData.lightingSystem
+                        actData?.lightingSystem
                       ) && " and dancefloor"}
                     </>
                   )}
