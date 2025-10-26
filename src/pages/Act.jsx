@@ -723,36 +723,29 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                   })}
                 </div>
                 <div className="my-3 mt-5">
-                  {/* 🔍 Debug: Badge rendering context */}
-                  {(() => {
-                    const badges = actData?.availabilityBadges || {};
-                    const dateKey = selectedDate;
-                    const keys = Object.keys(badges);
-                    const matchedKey = keys.find(
-                      (k) =>
-                        k.startsWith(dateKey) || k.startsWith(`${dateKey}_`)
-                    );
+               <div className="my-3 mt-5">
+  {(() => {
+    const badges = actData?.availabilityBadges || {};
+    const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
+    const badgeForDate = cleanDate ? badges[cleanDate] : null;
 
-                    const badgeForDate = Array.isArray(badges)
-                      ? badges.find(
-                          (b) => b?.dateISO?.slice(0, 10) === selectedDate
-                        ) || null
-                      : matchedKey
-                        ? badges[matchedKey]
-                        : badges[selectedDate] || null;
+    if (!badgeForDate) {
+      console.log("🪶 No badge found for date:", cleanDate, badges);
+      return null;
+    }
 
-                    if (!badgeForDate) return null;
-                    return (
-                      <VocalistFeaturedAvailable
-                        badge={badgeForDate}
-                        size={140}
-                        cacheBuster={badgeForDate?.setAt}
-                        className="mt-2"
-                        actContext={actData?.tscName}
-                        dateContext={selectedDate}
-                      />
-                    );
-                  })()}
+    return (
+      <VocalistFeaturedAvailable
+        badge={badgeForDate}
+        size={140}
+        cacheBuster={badgeForDate?.setAt}
+        className="mt-2"
+        actContext={actData?.tscName}
+        dateContext={selectedDate}
+      />
+    );
+  })()}
+</div>
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
