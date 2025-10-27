@@ -489,43 +489,7 @@ console.log("🟢 Render check", {
                 );
               })}
             </div>
-              {(() => {
-    const badges = actData?.availabilityBadges || {};
-    const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
-
-    // 🔍 Try to match key directly or with a suffix like _tbc
-    const matchedKey =
-      cleanDate &&
-      Object.keys(badges).find(
-        (key) =>
-          key === cleanDate ||
-          key.startsWith(`${cleanDate}_`) ||
-          key.includes(cleanDate)
-      );
-
-    const badgeForDate = matchedKey ? badges[matchedKey] : null;
-
-    if (!badgeForDate) {
-      console.log("🪶 No badge found for date:", cleanDate, badges);
-      return null;
-    }
-
-    console.log("🎯 Rendering badgeForDate:", badgeForDate);
-
-    return (
-     <VocalistFeaturedAvailable
-    badge={badgeForDate}
-    size={140}
-    cacheBuster={badgeForDate?.setAt}
-    className="mt-2"
-    actContext={actData?.tscName}
-    dateContext={selectedDate}
-  />
-      
-    );
-    
-    
-  })()}
+     
             {/* Inclusions (mobile only) */}
             <div className="block sm:hidden">
               <div className="text-2xl mt-6" id="lineup-selector-mobile">
@@ -834,7 +798,7 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                 </ul>
               </div>
               {/* move this block ABOVE or BELOW the .block sm:hidden */}
-<div className="my-3 mt-5 flex justify-center overflow-visible">
+<div className="my-3 mt-5 flex justify-left overflow-visible">
   {(() => {
     const badges = actData?.availabilityBadges || {};
     const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
@@ -1051,7 +1015,7 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
               </ul>
             </div>
             {/* move this block ABOVE or BELOW the .block sm:hidden */}
-<div className="my-3 mt-5 flex justify-center overflow-visible">
+<div className="my-3 mt-5 flex justify-left overflow-visible">
   {(() => {
     const badges = actData?.availabilityBadges || {};
     const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
