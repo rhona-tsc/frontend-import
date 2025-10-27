@@ -90,17 +90,6 @@ export function FeaturedVocalistBadge({
     inner,
   });
 
-  // --- Guard: No valid image
-  if (!imgSrc) {
-    console.group("🛑 [FV] Badge Image Debug");
-    console.warn("🎨 [FV] ❌ No valid image found – skipping render (no badge shown)");
-    console.table({ imageUrl, pictureSource, resolvedImageUrl, hasValidUrl });
-    console.log("🎨 [FV] Context:", { actContext, dateContext });
-    console.groupEnd();
-    console.groupEnd();
-    return null;
-  }
-
   // --- Render
 console.log("🎨 [FV] ✅ Rendering badge DOM (image + ring)...");
 

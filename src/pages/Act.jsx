@@ -748,17 +748,22 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
     console.log("🎯 Rendering badgeForDate:", badgeForDate);
 
     return (
-      <VocalistFeaturedAvailable
-        badge={badgeForDate}
-        size={140}
-        cacheBuster={badgeForDate?.setAt}
-        className="mt-2"
-        actContext={actData?.tscName}
-        dateContext={selectedDate}
-      />
+     <VocalistFeaturedAvailable
+    badge={badgeForDate}
+    size={140}
+    cacheBuster={badgeForDate?.setAt}
+    className="mt-2"
+    actContext={actData?.tscName}
+    dateContext={selectedDate}
+  />
+      
     );
+    
+    
   })()}
+  
 </div>
+
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
