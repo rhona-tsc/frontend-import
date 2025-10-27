@@ -833,6 +833,35 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                   )}
                 </ul>
               </div>
+              {/* move this block ABOVE or BELOW the .block sm:hidden */}
+<div className="my-3 mt-5 flex justify-center overflow-visible">
+  {(() => {
+    const badges = actData?.availabilityBadges || {};
+    const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
+    const matchedKey =
+      cleanDate &&
+      Object.keys(badges).find(
+        (key) =>
+          key === cleanDate ||
+          key.startsWith(`${cleanDate}_`) ||
+          key.includes(cleanDate)
+      );
+    const badgeForDate = matchedKey ? badges[matchedKey] : null;
+
+    if (!badgeForDate) return null;
+
+    return (
+      <VocalistFeaturedAvailable
+        badge={badgeForDate}
+        size={140}
+        cacheBuster={badgeForDate?.setAt}
+        className="mt-2"
+        actContext={actData?.tscName}
+        dateContext={selectedDate}
+      />
+    );
+  })()}
+</div>
             </div>
             {/* Bio section */}
             <div className="mt-6">
@@ -1021,6 +1050,35 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                 )}
               </ul>
             </div>
+            {/* move this block ABOVE or BELOW the .block sm:hidden */}
+<div className="my-3 mt-5 flex justify-center overflow-visible">
+  {(() => {
+    const badges = actData?.availabilityBadges || {};
+    const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
+    const matchedKey =
+      cleanDate &&
+      Object.keys(badges).find(
+        (key) =>
+          key === cleanDate ||
+          key.startsWith(`${cleanDate}_`) ||
+          key.includes(cleanDate)
+      );
+    const badgeForDate = matchedKey ? badges[matchedKey] : null;
+
+    if (!badgeForDate) return null;
+
+    return (
+      <VocalistFeaturedAvailable
+        badge={badgeForDate}
+        size={140}
+        cacheBuster={badgeForDate?.setAt}
+        className="mt-2"
+        actContext={actData?.tscName}
+        dateContext={selectedDate}
+      />
+    );
+  })()}
+</div>
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row my-6 gap-6 ml-3">

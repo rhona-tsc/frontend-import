@@ -100,8 +100,6 @@ const badgeDom = (
     style={{
       width: size,
       zIndex: 50,
-      border: "2px solid red", // ✅ TEMP: test border
-      background: "rgba(255,0,0,0.05)",
       minHeight: size, // ✅ ensures it doesn’t collapse visually
     }}
   >
