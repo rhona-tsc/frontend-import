@@ -94,6 +94,7 @@ export function FeaturedVocalistBadge({
 console.log("🎨 [FV] ✅ Rendering badge DOM (image + ring)...");
 
 const badgeDom = (
+  
   <div
     className={`inline-flex flex-col items-center ${className}`}
     style={{
@@ -150,7 +151,13 @@ const badgeDom = (
 
   console.log("🎨 [FV] ✅ Rendered successfully with imgSrc:", imgSrc);
   console.groupEnd();
-  return badgeDom;
+console.log("🎨 [FV] 💡 Rendering visible test marker");
+return (
+  <div style={{border:'4px solid lime', padding:10}}>
+    TEST BADGE
+    {badgeDom}
+  </div>
+);
 }
 
 // 🎤 VocalistFeaturedAvailable — wrapper for lead + deputies
