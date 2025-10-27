@@ -798,7 +798,7 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                 </ul>
               </div>
               {/* move this block ABOVE or BELOW the .block sm:hidden */}
-<div className="my-3 mt-5 flex justify-left overflow-visible">
+<div className="my-3 mt-5 flex justify-left">
   {(() => {
     const badges = actData?.availabilityBadges || {};
     const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
@@ -1015,7 +1015,7 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
               </ul>
             </div>
             {/* move this block ABOVE or BELOW the .block sm:hidden */}
-<div className="my-3 mt-5 flex justify-left overflow-visible">
+<div className="my-3 mt-5 flex justify-left">
   {(() => {
     const badges = actData?.availabilityBadges || {};
     const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
