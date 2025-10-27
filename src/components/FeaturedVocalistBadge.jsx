@@ -96,7 +96,7 @@ console.log("🎨 [FV] ✅ Rendering badge DOM (image + ring)...");
 const badgeDom = (
   
   <div
-    className={`inline-flex flex-col items-center`}
+    className={`inline-flex flex-col items-center ${className}`}
     style={{
       width: size,
       zIndex: 50,
@@ -151,13 +151,7 @@ const badgeDom = (
 
   console.log("🎨 [FV] ✅ Rendered successfully with imgSrc:", imgSrc);
   console.groupEnd();
-console.log("🎨 [FV] 💡 Rendering visible test marker");
-return (
-  <div style={{border:'4px solid lime', padding:10}}>
-    TEST BADGE
-    {badgeDom}
-  </div>
-);
+  return badgeDom;
 }
 
 // 🎤 VocalistFeaturedAvailable — wrapper for lead + deputies
