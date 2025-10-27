@@ -96,7 +96,7 @@ console.log("🎨 [FV] ✅ Rendering badge DOM (image + ring)...");
 const badgeDom = (
   
   <div
-    className={`inline-flex flex-col items-center ${className}`}
+    className={`inline-flex flex-col items-center`}
     style={{
       width: size,
       zIndex: 50,
