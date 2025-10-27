@@ -745,6 +745,8 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
       return null;
     }
 
+    console.log("🎯 Rendering badgeForDate:", badgeForDate);
+
     return (
       <VocalistFeaturedAvailable
         badge={badgeForDate}
