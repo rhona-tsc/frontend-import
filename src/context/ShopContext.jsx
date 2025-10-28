@@ -443,9 +443,12 @@ const sse = new EventSource(api('api/availability/subscribe')); // absolute URL 
               message: msg,
             },
           }));
-
-          toast(<CustomToast type="success" message={msg} />);
-
+console.log("📡 SSE payload:", payload);
+// 🧩 Only show toast if it's a YES-type event
+const allowToastTypes = ["availability_yes", "deputy_yes"];
+if (allowToastTypes.includes(payload.type)) {
+  toast(<CustomToast type="success" message={msg} />);
+}
           // 🧲 Force-refresh the specific act to ensure badge/photo is up-to-date
           await refreshActById(payload.actId);
         } catch (e) {
