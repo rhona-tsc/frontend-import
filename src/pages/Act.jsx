@@ -72,6 +72,7 @@ const scrollGallery = (direction) => {
     }
   }, [location]);
 
+  
 
 
 useEffect(() => {
@@ -82,31 +83,49 @@ useEffect(() => {
   evtSource.onmessage = async (e) => {
     try {
       const data = JSON.parse(e.data);
-      console.log(`📡 SSE update [${data.type}] for act ${data.actId}:`, data);
+      console.log(`📡 SSE event received:`, data);
 
-      // Only refresh if this SSE matches the current act
-      if (data?.actId === actId) {
-        const cleanDate = selectedDate?.slice(0, 10);
-        if (!cleanDate) return;
+      // ✅ Only act on known badge-related event types
+      const validTypes = [
+        "availability_yes",
+        "availability_deputy_yes",
+        "availability_badge_updated",
+      ];
 
-        const badge = await fetchBadgeForActAndDate(actId, cleanDate);
-        if (badge) {
-          console.log("♻️ Updated badge from SSE:", badge);
-          setActData((prev) => ({
-            ...prev,
-            availabilityBadges: {
-              ...(prev?.availabilityBadges || {}),
-              [cleanDate]: badge,
-            },
-          }));
-        }
+      if (!validTypes.includes(data.type)) return;
+
+      // ✅ Only refresh if this SSE is for this act
+      if (String(data.actId) !== String(actId)) return;
+
+      // 🔁 Determine which date to refresh
+      const cleanDate = data.dateISO?.slice(0, 10) || selectedDate?.slice(0, 10);
+      if (!cleanDate) return;
+
+      console.log("🔄 Refreshing badge for date:", cleanDate);
+
+      // 🧭 Fetch latest badge from backend
+      const badge = await fetchBadgeForActAndDate(actId, cleanDate);
+
+      if (badge) {
+        console.log("♻️ Updated badge from SSE:", badge);
+        setActData((prev) => ({
+          ...prev,
+          availabilityBadges: {
+            ...(prev?.availabilityBadges || {}),
+            [cleanDate]: badge,
+          },
+        }));
+      } else {
+        console.log("🪶 No badge returned for SSE event.");
       }
     } catch (err) {
       console.error("⚠️ Error processing SSE message:", err);
     }
   };
 
-  evtSource.onerror = (err) => console.warn("⚠️ SSE connection error", err);
+  evtSource.onerror = (err) => {
+    console.warn("⚠️ SSE connection error", err);
+  };
 
   return () => evtSource.close();
 }, [actId, selectedDate]);
