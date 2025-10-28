@@ -74,17 +74,42 @@ const scrollGallery = (direction) => {
 
 
 
-  useEffect(() => {
-    const evtSource = new EventSource(
-      `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`
-    );
-    evtSource.onmessage = (e) => {
-      console.log("📡 Availability update received:", e.data);
-      setActData((prev) => ({ ...prev })); // simple re-render trigger if needed
-    };
-    evtSource.onerror = (err) => console.warn("⚠️ SSE connection error", err);
-    return () => evtSource.close();
-  }, []);
+useEffect(() => {
+  const evtSource = new EventSource(
+    `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`
+  );
+
+  evtSource.onmessage = async (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      console.log(`📡 SSE update [${data.type}] for act ${data.actId}:`, data);
+
+      // Only refresh if this SSE matches the current act
+      if (data?.actId === actId) {
+        const cleanDate = selectedDate?.slice(0, 10);
+        if (!cleanDate) return;
+
+        const badge = await fetchBadgeForActAndDate(actId, cleanDate);
+        if (badge) {
+          console.log("♻️ Updated badge from SSE:", badge);
+          setActData((prev) => ({
+            ...prev,
+            availabilityBadges: {
+              ...(prev?.availabilityBadges || {}),
+              [cleanDate]: badge,
+            },
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("⚠️ Error processing SSE message:", err);
+    }
+  };
+
+  evtSource.onerror = (err) => console.warn("⚠️ SSE connection error", err);
+
+  return () => evtSource.close();
+}, [actId, selectedDate]);
 
   useEffect(() => {
     if (!actId || !selectedDate) return;
