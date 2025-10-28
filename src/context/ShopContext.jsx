@@ -436,10 +436,10 @@ useEffect(() => {
           payload.type === "availability_badge_updated" && payload.isDeputy;
 
         const msg = isLead
-          ? `🎤 ${payload.musicianName || "Lead vocalist"} confirmed availability for ${payload.actName} on ${formatShortDate(
+          ? `${payload.musicianName || "Lead vocalist"}, ${payload.actName}'s lead vocalist is available on ${formatShortDate(
               payload.dateISO
             )}.`
-          : `${payload.actName}'s deputy ${payload.musicianName} is available for ${formatShortDate(
+          : `${payload.actName}'s deputy, ${payload.musicianName}, is available for ${formatShortDate(
               payload.dateISO
             )}.`;
 
