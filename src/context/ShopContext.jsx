@@ -413,57 +413,76 @@ const requestVocalistAvailability = (() => {
   }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
 
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
-  useEffect(() => {
-    try {
-const sse = new EventSource(api('api/availability/subscribe')); // absolute URL for SSE
-      sse.addEventListener("open", () => {
-      });
+useEffect(() => {
+  try {
+    const sse = new EventSource(api("api/availability/subscribe"));
 
-      sse.addEventListener("message", async (evt) => {
-        if (!evt?.data) return;
-        try {
-          const payload = JSON.parse(evt.data);
-          if (!payload?.actId) return;
+    sse.addEventListener("open", () => {
+      console.log("📡 SSE connection established");
+    });
 
-          const isLead = payload.type === "availability_yes";
-          const msg = isLead
-            ? `Lead vocalist ${payload.musicianName} (featured in ${payload.actName}) is available for ${formatShortDate(
-                payload.dateISO
-              )}.`
-            : `${payload.actName}'s deputy vocalist ${payload.musicianName} is available for ${formatShortDate(
-                payload.dateISO
-              )}.`;
+    sse.addEventListener("message", async (evt) => {
+      if (!evt?.data) return;
+      try {
+        const payload = JSON.parse(evt.data);
+        if (!payload?.actId) return;
 
-          setAvailabilityStatus((prev) => ({
-            ...prev,
-            [payload.actId]: {
-              status: isLead ? "lead" : "deputy",
-              musicianName: payload.musicianName,
-              dateISO: payload.dateISO,
-              message: msg,
-            },
-          }));
-console.log("📡 SSE payload:", payload);
-// 🧩 Only show toast if it's a YES-type event
-const allowToastTypes = ["availability_yes", "deputy_yes"];
-if (allowToastTypes.includes(payload.type)) {
-  toast(<CustomToast type="success" message={msg} />);
-}
-          // 🧲 Force-refresh the specific act to ensure badge/photo is up-to-date
-          await refreshActById(payload.actId);
-        } catch (e) {
+        console.log("📡 SSE payload:", payload);
+
+        const isLead =
+          payload.type === "availability_yes" || payload.type === "leadYes";
+        const isDeputy =
+          payload.type === "deputy_yes" ||
+          payload.type === "availability_badge_updated" && payload.isDeputy;
+
+        const msg = isLead
+          ? `🎤 ${payload.musicianName || "Lead vocalist"} confirmed availability for ${payload.actName} on ${formatShortDate(
+              payload.dateISO
+            )}.`
+          : `${payload.actName}'s deputy ${payload.musicianName} is available for ${formatShortDate(
+              payload.dateISO
+            )}.`;
+
+        // Update availability badge in state
+        setAvailabilityStatus((prev) => ({
+          ...prev,
+          [payload.actId]: {
+            status: isLead ? "lead" : "deputy",
+            musicianName: payload.musicianName,
+            dateISO: payload.dateISO,
+            message: msg,
+          },
+        }));
+
+        // ✅ Toast feedback for YES confirmations
+        const allowToastTypes = [
+          "availability_yes",
+          "leadYes",
+          "deputy_yes",
+        ];
+        if (allowToastTypes.includes(payload.type)) {
+          toast(<CustomToast type="success" message={msg} />);
         }
-      });
 
-      sse.addEventListener("error", (err) => {
-      });
+        // 🧲 Force-refresh the specific act to update badge/photo
+        await refreshActById(payload.actId);
+      } catch (e) {
+        console.warn("⚠️ SSE parse error:", e);
+      }
+    });
 
-      return () => {
-        sse.close();
-      };
-    } catch (e) {
-    }
-  }, [backendUrl]);
+    sse.addEventListener("error", (err) => {
+      console.warn("⚠️ SSE connection error:", err);
+    });
+
+    return () => {
+      sse.close();
+      console.log("❌ SSE connection closed");
+    };
+  } catch (e) {
+    console.error("❌ Failed to initialize SSE:", e);
+  }
+}, [backendUrl]);
 
   // ============ Shortlist helpers ============
 
