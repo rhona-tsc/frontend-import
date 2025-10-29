@@ -92,21 +92,28 @@ useEffect(() => {
         "availability_badge_updated",
       ];
 
-      if (!validTypes.includes(data.type)) return;
+   if (!validTypes.includes(data.type)) return;
 
-      // ✅ Only refresh if this SSE is for this act
-      if (String(data.actId) !== String(actId)) return;
+// ✅ Only act on this act
+if (String(data.actId) !== String(actId)) return;
 
-      // 🔁 Determine which date to refresh
-      const cleanDate = data.dateISO?.slice(0, 10) || selectedDate?.slice(0, 10);
-      if (!cleanDate) return;
+const cleanDate = data.dateISO?.slice(0, 10) || selectedDate?.slice(0, 10);
+if (!cleanDate) return;
 
-      console.log("🔄 Refreshing badge for date:", cleanDate);
+// 🧹 Handle explicit null badge clears
+if (data.type === "availability_badge_updated" && data.badge === null) {
+  console.log("🧹 Explicit badge clear received via SSE:", data);
+  setActData((prev) => {
+    const updated = { ...(prev?.availabilityBadges || {}) };
+    delete updated[cleanDate];
+    return { ...prev, availabilityBadges: updated };
+  });
+  return; // stop here — no need to refetch
+}
 
-      // 🧭 Fetch latest badge from backend
-      const badge = await fetchBadgeForActAndDate(actId, cleanDate);
-
-     if (badge) {
+// 🧭 Otherwise fetch and update latest badge
+const badge = await fetchBadgeForActAndDate(actId, cleanDate);
+if (badge) {
   console.log("♻️ Updated badge from SSE:", badge);
   setActData((prev) => ({
     ...prev,
@@ -116,12 +123,8 @@ useEffect(() => {
     },
   }));
 } else {
-  console.log("🪶 No badge returned — clearing badge for date:", cleanDate);
-  setActData((prev) => {
-    const updated = { ...(prev?.availabilityBadges || {}) };
-    delete updated[cleanDate];
-    return { ...prev, availabilityBadges: updated };
-  });
+  console.log("🪶 No badge returned for SSE event.");
+
 }
     } catch (err) {
       console.error("⚠️ Error processing SSE message:", err);
