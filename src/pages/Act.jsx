@@ -339,38 +339,33 @@ useEffect(() => {
 }, [actId, acts]);
 
   useEffect(() => {
-    const fetchPrice = async () => {
-      if (!actData || !selectedLineup || !selectedDate || !selectedAddress) {
-        console.debug("Skipping travel price calc – waiting for inputs");
-        return;
-      }
+  if (!actData?._id || !selectedLineup?._id || !selectedDate || !selectedAddress) return;
 
+  const fetchPrice = async () => {
+    try {
       const selectedCounty =
         selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+      const result = await calculateActPricing(
+        actData,
+        selectedCounty,
+        selectedAddress,
+        selectedDate,
+        selectedLineup
+      );
+      if (result) setFinalTravelPrice(result);
+    } catch (err) {
+      console.error("❌ Error in price calculation:", err);
+    }
+  };
 
-      try {
-        const result = await calculateActPricing(
-          actData,
-          selectedCounty,
-          selectedAddress,
-          selectedDate,
-          selectedLineup
-        );
-
-        if (result) {
-          setFinalTravelPrice(result);
-        } else {
-          console.warn(
-            "⚠️ Failed to calculate travel-inclusive price (null result)"
-          );
-        }
-      } catch (error) {
-        console.error("❌ Error in price calculation:", error);
-      }
-    };
-
-    fetchPrice();
-  }, [actData, selectedLineup, selectedDate, selectedAddress]);
+  // 🧠 Only run once per key variables, not when actData updates shallowly
+  fetchPrice();
+}, [
+  actData?._id,
+  selectedLineup?._id,
+  selectedDate,
+  selectedAddress,
+]);
 
   const handleLineupChange = (lineup) => {
   setSelectedLineup(lineup);
