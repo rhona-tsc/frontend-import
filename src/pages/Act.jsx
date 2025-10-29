@@ -106,18 +106,23 @@ useEffect(() => {
       // 🧭 Fetch latest badge from backend
       const badge = await fetchBadgeForActAndDate(actId, cleanDate);
 
-      if (badge) {
-        console.log("♻️ Updated badge from SSE:", badge);
-        setActData((prev) => ({
-          ...prev,
-          availabilityBadges: {
-            ...(prev?.availabilityBadges || {}),
-            [cleanDate]: badge,
-          },
-        }));
-      } else {
-        console.log("🪶 No badge returned for SSE event.");
-      }
+     if (badge) {
+  console.log("♻️ Updated badge from SSE:", badge);
+  setActData((prev) => ({
+    ...prev,
+    availabilityBadges: {
+      ...(prev?.availabilityBadges || {}),
+      [cleanDate]: badge,
+    },
+  }));
+} else {
+  console.log("🪶 No badge returned — clearing badge for date:", cleanDate);
+  setActData((prev) => {
+    const updated = { ...(prev?.availabilityBadges || {}) };
+    delete updated[cleanDate];
+    return { ...prev, availabilityBadges: updated };
+  });
+}
     } catch (err) {
       console.error("⚠️ Error processing SSE message:", err);
     }
