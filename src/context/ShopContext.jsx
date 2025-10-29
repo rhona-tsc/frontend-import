@@ -432,25 +432,14 @@ useEffect(() => {
 
         // 🧩 Badge update handler
         if (payload.type === "availability_badge_updated") {
-          console.log(
-            "🟦 [ShopContext] availability_badge_updated received",
-            {
-              actId: payload.actId,
-              dateISO: payload.dateISO,
-              actName: payload.actName,
-            }
-          );
+          console.log("🟦 [ShopContext] availability_badge_updated received:", payload);
 
-          // See if the act exists in the shortlist
-          console.log("🔍 Checking shortlist for actId:", payload.actId);
-          const inShortlist = shortlistedActs?.some(
-            (a) => a._id === payload.actId
-          );
-          console.log("📋 In shortlist?", inShortlist, {
-            shortlistedActs: shortlistedActs?.map((a) => a._id),
-          });
+          // 🧹 Ignore explicit null clears — Act.jsx handles them locally
+          if (payload.badge === null) {
+            console.log("🧹 [ShopContext] Ignoring badge:null to avoid overwrite");
+            return;
+          }
 
-          // Trigger refresh (log before + after)
           console.log("♻️ Calling refreshActById for badge update:", payload.actId);
           await refreshActById(payload.actId);
           console.log("✅ Finished refreshActById for:", payload.actId);
@@ -505,8 +494,7 @@ useEffect(() => {
   } catch (e) {
     console.error("❌ Failed to initialize SSE:", e);
   }
-}, [backendUrl, shortlistedActs]);
-
+}, [backendUrl]);
   // ============ Shortlist helpers ============
 
   // Public helper to refresh shortlist from backend
