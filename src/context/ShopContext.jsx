@@ -429,21 +429,25 @@ useEffect(() => {
 
         console.log("📡 SSE payload:", payload);
 
+        // 🧩 Handle badge updates first (clear / refresh)
+        if (payload.type === "availability_badge_updated") {
+          console.log("🧩 Badge update received:", payload);
+          await refreshActById(payload.actId);
+          return;
+        }
+
+        // Determine type
         const isLead =
           payload.type === "availability_yes" || payload.type === "leadYes";
         const isDeputy =
-          payload.type === "deputy_yes" ||
-          payload.type === "availability_badge_updated" && payload.isDeputy;
+          payload.type === "deputy_yes" || payload.isDeputy;
 
+        // Build message
         const msg = isLead
-          ? `${payload.musicianName || "Lead vocalist"}, ${payload.actName}'s lead vocalist is available on ${formatShortDate(
-              payload.dateISO
-            )}.`
-          : `${payload.actName}'s deputy, ${payload.musicianName}, is available for ${formatShortDate(
-              payload.dateISO
-            )}.`;
+          ? `${payload.musicianName || "Lead vocalist"} from ${payload.actName} is available for ${formatShortDate(payload.dateISO)}.`
+          : `${payload.actName}'s deputy ${payload.musicianName} is available for ${formatShortDate(payload.dateISO)}.`;
 
-        // Update availability badge in state
+        // Update availability state
         setAvailabilityStatus((prev) => ({
           ...prev,
           [payload.actId]: {
@@ -454,17 +458,13 @@ useEffect(() => {
           },
         }));
 
-        // ✅ Toast feedback for YES confirmations
-        const allowToastTypes = [
-          "availability_yes",
-          "leadYes",
-          "deputy_yes",
-        ];
+        // ✅ Toast for positive replies
+        const allowToastTypes = ["availability_yes", "leadYes", "deputy_yes"];
         if (allowToastTypes.includes(payload.type)) {
           toast(<CustomToast type="success" message={msg} />);
         }
 
-        // 🧲 Force-refresh the specific act to update badge/photo
+        // 🧲 Always refresh act to reflect badge/photo update
         await refreshActById(payload.actId);
       } catch (e) {
         console.warn("⚠️ SSE parse error:", e);
