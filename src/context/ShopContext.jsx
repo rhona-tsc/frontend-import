@@ -416,9 +416,10 @@ const requestVocalistAvailability = (() => {
 useEffect(() => {
   try {
     const sse = new EventSource(api("api/availability/subscribe"));
+    console.log("🔌 SSE listener initialized:", api("api/availability/subscribe"));
 
     sse.addEventListener("open", () => {
-      console.log("📡 SSE connection established");
+      console.log("📡 SSE connection established ✅");
     });
 
     sse.addEventListener("message", async (evt) => {
@@ -427,27 +428,48 @@ useEffect(() => {
         const payload = JSON.parse(evt.data);
         if (!payload?.actId) return;
 
-        console.log("📡 SSE payload:", payload);
+        console.log("📨 [SSE] Raw payload received:", payload);
 
-        // 🧩 Handle badge updates first (clear / refresh)
+        // 🧩 Badge update handler
         if (payload.type === "availability_badge_updated") {
-          console.log("🧩 Badge update received:", payload);
+          console.log(
+            "🟦 [ShopContext] availability_badge_updated received",
+            {
+              actId: payload.actId,
+              dateISO: payload.dateISO,
+              actName: payload.actName,
+            }
+          );
+
+          // See if the act exists in the shortlist
+          console.log("🔍 Checking shortlist for actId:", payload.actId);
+          const inShortlist = shortlistedActs?.some(
+            (a) => a._id === payload.actId
+          );
+          console.log("📋 In shortlist?", inShortlist, {
+            shortlistedActs: shortlistedActs?.map((a) => a._id),
+          });
+
+          // Trigger refresh (log before + after)
+          console.log("♻️ Calling refreshActById for badge update:", payload.actId);
           await refreshActById(payload.actId);
+          console.log("✅ Finished refreshActById for:", payload.actId);
           return;
         }
 
-        // Determine type
+        // 🟢 Normal availability update
         const isLead =
           payload.type === "availability_yes" || payload.type === "leadYes";
-        const isDeputy =
-          payload.type === "deputy_yes" || payload.isDeputy;
+        const isDeputy = payload.type === "deputy_yes" || payload.isDeputy;
 
-        // Build message
         const msg = isLead
-          ? `${payload.musicianName || "Lead vocalist"} from ${payload.actName} is available for ${formatShortDate(payload.dateISO)}.`
+          ? `${payload.musicianName || "Lead vocalist"} from ${
+              payload.actName
+            } is available for ${formatShortDate(payload.dateISO)}.`
           : `${payload.actName}'s deputy ${payload.musicianName} is available for ${formatShortDate(payload.dateISO)}.`;
 
-        // Update availability state
+        console.log("🧠 Availability update message built:", msg);
+
         setAvailabilityStatus((prev) => ({
           ...prev,
           [payload.actId]: {
@@ -458,16 +480,17 @@ useEffect(() => {
           },
         }));
 
-        // ✅ Toast for positive replies
         const allowToastTypes = ["availability_yes", "leadYes", "deputy_yes"];
         if (allowToastTypes.includes(payload.type)) {
+          console.log("🔔 Triggering success toast for:", payload.type);
           toast(<CustomToast type="success" message={msg} />);
         }
 
-        // 🧲 Always refresh act to reflect badge/photo update
+        console.log("♻️ Refreshing act after availability change:", payload.actId);
         await refreshActById(payload.actId);
+        console.log("✅ Act refreshed:", payload.actId);
       } catch (e) {
-        console.warn("⚠️ SSE parse error:", e);
+        console.warn("⚠️ SSE parse error:", e, evt.data);
       }
     });
 
@@ -482,7 +505,7 @@ useEffect(() => {
   } catch (e) {
     console.error("❌ Failed to initialize SSE:", e);
   }
-}, [backendUrl]);
+}, [backendUrl, shortlistedActs]);
 
   // ============ Shortlist helpers ============
 
