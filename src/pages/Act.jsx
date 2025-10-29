@@ -38,6 +38,8 @@ const Act = () => {
   const [formattedPrice, setFormattedPrice] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [finalTravelPrice, setFinalTravelPrice] = useState(null);
+  // 🧹 Track locally cleared availability badges
+const [clearedBadges, setClearedBadges] = useState(new Set());
   const id = extractVideoId(video);
 
       // Gallery Carousel logic
@@ -60,6 +62,22 @@ const scrollGallery = (direction) => {
     });
   }
 }, [actData]);
+
+// 🧩 Merge new act data but skip any locally cleared badges
+useEffect(() => {
+  if (!actData) return;
+  setActData((prev) => {
+    if (!prev) return actData;
+    const merged = {
+      ...actData,
+      availabilityBadges: { ...(actData.availabilityBadges || {}) },
+    };
+    clearedBadges.forEach((d) => {
+      delete merged.availabilityBadges?.[d];
+    });
+    return merged;
+  });
+}, [actData, clearedBadges]);
 
   useEffect(() => {
     if (location.hash) {
@@ -103,11 +121,13 @@ if (!cleanDate) return;
 // 🧹 Handle explicit null badge clears
 if (data.type === "availability_badge_updated" && data.badge === null) {
   console.log("🧹 Explicit badge clear received via SSE:", data);
-  setActData((prev) => {
-    const updated = { ...(prev?.availabilityBadges || {}) };
-    delete updated[cleanDate];
-    return { ...prev, availabilityBadges: updated };
-  });
+ setClearedBadges((prev) => new Set(prev).add(cleanDate));
+
+setActData((prev) => {
+  const updated = { ...(prev?.availabilityBadges || {}) };
+  delete updated[cleanDate];
+  return { ...prev, availabilityBadges: updated };
+});
   return; // stop here — no need to refetch
 }
 
