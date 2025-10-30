@@ -132,14 +132,21 @@ if (!cleanDate) return;
 // 🧹 Handle explicit null badge clears
 if (data.type === "availability_badge_updated" && data.badge === null) {
   console.log("🧹 Explicit badge clear received via SSE:", data);
- setClearedBadges((prev) => new Set(prev).add(cleanDate));
+  setClearedBadges((prev) => new Set(prev).add(cleanDate));
 
-setActData((prev) => {
-  const updated = { ...(prev?.availabilityBadges || {}) };
-  delete updated[cleanDate];
-  return { ...prev, availabilityBadges: updated };
-});
-  return; // stop here — no need to refetch
+  setActData((prev) => {
+    if (!prev) return prev;
+    const updatedBadges = { ...(prev.availabilityBadges || {}) };
+
+    // 🔍 Delete both possible variants
+    delete updatedBadges[cleanDate];
+    delete updatedBadges[`${cleanDate}_tbc`];
+
+    console.log("🗑️ Cleared badge keys from actData:", Object.keys(updatedBadges));
+    return { ...prev, availabilityBadges: updatedBadges };
+  });
+
+  return;
 }
 
 // 🧭 Otherwise fetch and update latest badge
