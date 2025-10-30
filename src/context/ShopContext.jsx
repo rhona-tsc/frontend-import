@@ -424,6 +424,7 @@ useEffect(() => {
 
     sse.addEventListener("message", async (evt) => {
       if (!evt?.data) return;
+
       try {
         const payload = JSON.parse(evt.data);
         if (!payload?.actId) return;
@@ -436,18 +437,20 @@ useEffect(() => {
         if (payload.type === "availability_badge_updated") {
           console.log("🟦 [ShopContext] availability_badge_updated received:", payload);
 
-          // 🧹 Ignore explicit null clears (handled in Act.jsx)
+          // 🧹 Ignore explicit null clears (Act.jsx handles those)
           if (payload.badge === null) {
-            console.log("🧹 Ignoring badge:null to avoid overwrite");
+            console.log("🧹 [ShopContext] Ignoring badge:null to avoid overwrite");
             return;
           }
 
-          // 💬 Deputy-specific badge toast (fires once)
-          if (payload.isDeputy) {
+          // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast
+          if (payload.badge) {
+            const name = payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
+            const formattedDate = formatShortDate(payload.dateISO);
+            const roleLabel = payload.isDeputy ? "Deputy Vocalist" : "Lead Vocalist";
+
             toast.success(
-              `${payload.badge?.vocalistName || "Deputy"} is now featured with ${
-                payload.actName
-              } for ${formatShortDate(payload.dateISO)}.`
+              `${roleLabel}, ${name}, available for ${payload.actName} on ${formattedDate}.`
             );
           }
 
@@ -488,7 +491,7 @@ useEffect(() => {
           },
         }));
 
-        // 🔔 Show success toast for deputy_yes or leadYes only (avoid double-fire)
+        // 🔔 Show success toast for specific events only
         const showToast =
           payload.type === "deputy_yes" ||
           payload.type === "leadYes" ||
