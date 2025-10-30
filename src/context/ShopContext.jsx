@@ -430,14 +430,25 @@ useEffect(() => {
 
         console.log("📨 [SSE] Raw payload received:", payload);
 
-        // 🧩 Badge update handler
+        /* ---------------------------------------------------------------------- */
+        /* 🟦 AVAILABILITY_BADGE_UPDATED                                          */
+        /* ---------------------------------------------------------------------- */
         if (payload.type === "availability_badge_updated") {
           console.log("🟦 [ShopContext] availability_badge_updated received:", payload);
 
-          // 🧹 Ignore explicit null clears — Act.jsx handles them locally
+          // 🧹 Ignore explicit null clears (handled in Act.jsx)
           if (payload.badge === null) {
-            console.log("🧹 [ShopContext] Ignoring badge:null to avoid overwrite");
+            console.log("🧹 Ignoring badge:null to avoid overwrite");
             return;
+          }
+
+          // 💬 Deputy-specific badge toast (fires once)
+          if (payload.isDeputy) {
+            toast.success(
+              `${payload.badge?.vocalistName || "Deputy"} is now featured with ${
+                payload.actName
+              } for ${formatShortDate(payload.dateISO)}.`
+            );
           }
 
           console.log("♻️ Calling refreshActById for badge update:", payload.actId);
@@ -446,35 +457,48 @@ useEffect(() => {
           return;
         }
 
-        // 🟢 Normal availability update
+        /* ---------------------------------------------------------------------- */
+        /* 🟢 NORMAL AVAILABILITY UPDATES (Lead / Deputy)                         */
+        /* ---------------------------------------------------------------------- */
         const isLead =
           payload.type === "availability_yes" || payload.type === "leadYes";
-        const isDeputy = payload.type === "deputy_yes" || payload.isDeputy;
+        const isDeputy =
+          payload.type === "deputy_yes" || payload.isDeputy === true;
 
-        const msg = isLead
-          ? `${payload.musicianName || "Lead vocalist"} from ${
-              payload.actName
-            } is available for ${formatShortDate(payload.dateISO)}.`
-          : `${payload.actName}'s deputy ${payload.musicianName} is available for ${formatShortDate(payload.dateISO)}.`;
+        const shortDate = formatShortDate(payload.dateISO);
 
-        console.log("🧠 Availability update message built:", msg);
+        // 🧠 Build consistent toast message
+        let toastMsg;
+        if (isDeputy) {
+          toastMsg = `${payload.musicianName} is available to perform with ${payload.actName} on ${shortDate}.`;
+        } else {
+          toastMsg = `${payload.musicianName || "Lead vocalist"} from ${payload.actName} is available for ${shortDate}.`;
+        }
 
+        console.log("🧠 Availability update message built:", toastMsg);
+
+        // ✅ Update context state
         setAvailabilityStatus((prev) => ({
           ...prev,
           [payload.actId]: {
             status: isLead ? "lead" : "deputy",
             musicianName: payload.musicianName,
             dateISO: payload.dateISO,
-            message: msg,
+            message: toastMsg,
           },
         }));
 
-        const allowToastTypes = ["availability_yes", "leadYes", "deputy_yes"];
-        if (allowToastTypes.includes(payload.type)) {
-          console.log("🔔 Triggering success toast for:", payload.type);
-          toast(<CustomToast type="success" message={msg} />);
+        // 🔔 Show success toast for deputy_yes or leadYes only (avoid double-fire)
+        const showToast =
+          payload.type === "deputy_yes" ||
+          payload.type === "leadYes" ||
+          payload.type === "availability_yes";
+
+        if (showToast) {
+          toast(<CustomToast type="success" message={toastMsg} />);
         }
 
+        // ♻️ Refresh Act data so UI updates live
         console.log("♻️ Refreshing act after availability change:", payload.actId);
         await refreshActById(payload.actId);
         console.log("✅ Act refreshed:", payload.actId);
