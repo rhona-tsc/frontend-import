@@ -104,13 +104,12 @@ const badgeDom = (
     }}
   >
     <div
-      className="relative select-none z-10"
+      className="relative select-none"
       style={{
         width: size,
         height: size,
         minHeight: size,
         position: "relative",
-        overflow: "visible",
       }}
       aria-label="Vocalist featured & available"
     >
