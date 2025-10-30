@@ -63,21 +63,32 @@ const scrollGallery = (direction) => {
   }
 }, [actData]);
 
-// 🧩 Merge new act data but skip any locally cleared badges
+// ✅ Safe merge to prevent infinite loop
 useEffect(() => {
   if (!actData) return;
+
   setActData((prev) => {
     if (!prev) return actData;
+
+    // Compare shallowly — skip update if same object
+    const prevBadges = prev.availabilityBadges || {};
+    const newBadges = actData.availabilityBadges || {};
+
+    // Skip if badge data hasn’t changed
+    if (JSON.stringify(prevBadges) === JSON.stringify(newBadges)) {
+      return prev;
+    }
+
     const merged = {
       ...actData,
-      availabilityBadges: { ...(actData.availabilityBadges || {}) },
+      availabilityBadges: { ...newBadges },
     };
     clearedBadges.forEach((d) => {
       delete merged.availabilityBadges?.[d];
     });
     return merged;
   });
-}, [actData, clearedBadges]);
+}, [clearedBadges]); // 👈 removed actData from deps
 
   useEffect(() => {
     if (location.hash) {
