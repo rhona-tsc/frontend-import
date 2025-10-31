@@ -113,7 +113,7 @@ const badgeDom = (
       }}
       aria-label="Vocalist featured & available"
     >
-      <img
+      <img        
         src={imgSrc}
         alt=""
         className="absolute rounded-full object-cover shadow-sm"

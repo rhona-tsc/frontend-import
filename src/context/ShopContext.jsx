@@ -443,16 +443,26 @@ useEffect(() => {
             return;
           }
 
-          // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast
-          if (payload.badge) {
-            const name = payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
-            const formattedDate = formatShortDate(payload.dateISO);
-            const roleLabel = payload.isDeputy ? "Deputy Vocalist" : "Lead Vocalist";
+         // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (improved)
+if (payload.badge) {
+  const formattedDate = formatShortDate(payload.dateISO);
+  const actName = payload.actName || "the act";
 
-            toast.success(
-              `${roleLabel}, ${name}, available for ${payload.actName} on ${formattedDate}.`
-            );
-          }
+  let toastMsg = "";
+
+  if (payload.badge.isDeputy && Array.isArray(payload.badge.deputies)) {
+    const deputyNames = payload.badge.deputies
+      .map((d) => d.name?.split(" ")[0])
+      .filter(Boolean)
+      .join(", ");
+    toastMsg = `${deputyNames}, deputy vocalist${payload.badge.deputies.length > 1 ? "s" : ""} for ${actName}, available for ${formattedDate}.`;
+  } else {
+    const name = payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
+    toastMsg = `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
+  }
+
+  toast.success(toastMsg);
+}
 
           console.log("♻️ Calling refreshActById for badge update:", payload.actId);
           await refreshActById(payload.actId);
