@@ -49,20 +49,34 @@ const [selectedVocalists, setSelectedVocalists] = useState({});
     sessionStorage.getItem("selectedDate") || ""
   );
 
+  // --- Auto-trigger availability request when date/address set ---
+useEffect(() => {
+  if (!selectedDate || !selectedAddress) return;
 
-  const storedUserRaw = localStorage.getItem("user");
-const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-const clientName = storedUser?.name || storedUser?.firstName || "";
-const clientEmail = storedUser?.email || "";
+  const sendAvailability = async () => {
+    try {
+      const storedUserRaw = localStorage.getItem("user");
+      const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+      const clientName = storedUser?.name || storedUser?.firstName || "";
+      const clientEmail = storedUser?.email || "";
 
-await axios.post(`${backendUrl}/api/availability/request`, {
-  actId,
-  lineupId,
-  date: selectedDate,
-  address: selectedAddress,
-  clientName,
-  clientEmail,
-});
+      await axios.post(`${backendUrl}/api/availability/request`, {
+        actId,        // make sure you define actId or loop through shortlistedActs
+        lineupId,     // optional, can be null
+        date: selectedDate,
+        address: selectedAddress,
+        clientName,
+        clientEmail,
+      });
+
+      console.log("📤 Availability request sent successfully");
+    } catch (err) {
+      console.warn("⚠️ Failed to send availability request:", err.message);
+    }
+  };
+
+  sendAvailability();
+}, [selectedDate, selectedAddress]);
 
 // Always build absolute API URLs
 const api = (path) =>
