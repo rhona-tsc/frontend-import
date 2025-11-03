@@ -49,6 +49,21 @@ const [selectedVocalists, setSelectedVocalists] = useState({});
     sessionStorage.getItem("selectedDate") || ""
   );
 
+
+  const storedUserRaw = localStorage.getItem("user");
+const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+const clientName = storedUser?.name || storedUser?.firstName || "";
+const clientEmail = storedUser?.email || "";
+
+await axios.post(`${backendUrl}/api/availability/request`, {
+  actId,
+  lineupId,
+  date: selectedDate,
+  address: selectedAddress,
+  clientName,
+  clientEmail,
+});
+
 // Always build absolute API URLs
 const api = (path) =>
   `${backendUrl}${path.startsWith('/') ? path : `/${path}`}`;
@@ -532,6 +547,48 @@ if (payload.badge) {
     console.error("❌ Failed to initialize SSE:", e);
   }
 }, [backendUrl]);
+
+
+
+// --- Auto-sync backend when both date + address are present ---
+const handleDateOrAddressChange = debounce(async (actId) => {
+  try {
+    if (!selectedDate || !selectedAddress || !userId) return;
+
+    const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
+    console.log("📅 [ShopContext] Updating shortlist with date + address...", {
+      actId,
+      dateISO,
+      selectedAddress,
+      userId,
+    });
+
+    await fetch(`${backendUrl}/api/shortlist/update`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actId,
+        dateISO,
+        formattedAddress: selectedAddress,
+        userId,
+      }),
+    });
+
+    console.log("✅ [ShopContext] Shortlist update triggered successfully");
+  } catch (err) {
+    console.warn("⚠️ [ShopContext] Failed to update shortlist:", err.message);
+  }
+}, 1000);
+
+// --- Trigger when both date & address exist ---
+useEffect(() => {
+  if (!selectedDate || !selectedAddress) return;
+  const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
+  shortlistedActs.forEach((actId) => {
+    handleDateOrAddressChange(actId, dateISO);
+  });
+}, [selectedDate, selectedAddress]);
+
   // ============ Shortlist helpers ============
 
   // Public helper to refresh shortlist from backend
@@ -1021,7 +1078,7 @@ requestVocalistAvailability: debouncedRequestVocalistAvailability,
     logout,
      computeBalanceDueDate,
     scheduleBalanceInvoice,
-
+handleDateOrAddressChange,
     selectedVocalists,
   selectVocalistForAct,
   };

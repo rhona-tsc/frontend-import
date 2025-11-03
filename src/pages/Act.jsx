@@ -28,7 +28,7 @@ const Act = () => {
     return match ? match[1] : url;
   };
   const { actId } = useParams();
-  const { acts, getActById, addToCart, selectedDate, selectedAddress, setShowSearch, userId, shortlistAct, shortlistedActs, cartItems, removeFromCart } = useContext(ShopContext);
+  const { acts, getActById, addToCart, selectedDate, setSelectedDate, selectedAddress, setSelectedAddress, setShowSearch, userId, shortlistAct, shortlistedActs, cartItems, removeFromCart, handleDateOrAddressChange } = useContext(ShopContext);
   const [actData, setActData] = useState(null);
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
   const [selectedLineup, setSelectedLineup] = useState("");
@@ -40,6 +40,7 @@ const Act = () => {
   const [finalTravelPrice, setFinalTravelPrice] = useState(null);
   // 🧹 Track locally cleared availability badges
 const [clearedBadges, setClearedBadges] = useState(new Set());
+
   const id = extractVideoId(video);
 
       // Gallery Carousel logic
@@ -62,6 +63,14 @@ const scrollGallery = (direction) => {
     });
   }
 }, [actData]);
+
+const handleInputChange = (actId, date, address) => {
+  // update local UI state first
+  setSelectedDate(date);
+  setSelectedAddress(address);
+  // then trigger backend update
+  handleDateOrAddressChange(actId);
+};
 
 // ✅ Safe merge to prevent infinite loop
 useEffect(() => {

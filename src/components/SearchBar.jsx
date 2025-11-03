@@ -1,17 +1,28 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ShopContext } from '../context/ShopContext';
-import GoogleAutocomplete from './GoogleAutocomplete';
-import calculateActPricing from '../pages/utils/pricing';
+import React, { useState, useContext, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { ShopContext } from "../context/ShopContext";
+import GoogleAutocomplete from "./GoogleAutocomplete";
+import calculateActPricing from "../pages/utils/pricing";
 
 const SearchBar = () => {
-  const { acts } = useContext(ShopContext);
-  const [county, setCounty] = useState('');
+  const {
+    acts,
+    shortlistedActs,
+    handleDateOrAddressChange,
+    requestVocalistAvailability,
+    setSelectedAddress,
+    setSelectedDate,
+  } = useContext(ShopContext);
+
+  const [county, setCounty] = useState("");
   const [filteredActs, setFilteredActs] = useState([]);
   const navigate = useNavigate();
+
+  // Local controlled inputs
   const [localAddress, setLocalAddress] = useState("");
   const [localDate, setLocalDate] = useState("");
 
+  // When user hits "Search"
   const handleSearch = async () => {
     sessionStorage.setItem("selectedAddress", localAddress);
     sessionStorage.setItem("selectedDate", localDate);
@@ -31,53 +42,89 @@ const SearchBar = () => {
       return;
     }
 
-    // Filter acts based on the selected county
+    // Sync with global context
+    setSelectedAddress(localAddress);
+    setSelectedDate(localDate);
+
+    // Recalculate act prices for chosen location/date
     const updatedActs = await Promise.all(
       acts.map(async (act) => ({
         ...act,
-        formattedPrice: await calculateActPricing(act, county, localAddress, localDate),
+        formattedPrice: await calculateActPricing(
+          act,
+          county,
+          localAddress,
+          localDate
+        ),
       }))
     );
 
     setFilteredActs(updatedActs);
 
-    navigate('/acts', {
+    navigate("/acts", {
       state: {
         county,
         selectedAddress: localAddress,
         selectedDate: localDate,
       },
     });
-          window.scrollTo({ top: 0, left: 0 }); // or just window.scrollTo(0,0)
-
+    window.scrollTo({ top: 0, left: 0 });
   };
+
+  /* -------------------------------------------------------
+     🧠 AUTO-TRIGGER: when date + address both change,
+     update all shortlisted acts and request availability.
+  -------------------------------------------------------- */
+  useEffect(() => {
+    if (!localDate || !localAddress) return;
+    const dateISO = new Date(localDate).toISOString().slice(0, 10);
+
+    shortlistedActs.forEach(async (actId) => {
+      // Update shortlist record (so backend stores new date/address)
+      await handleDateOrAddressChange(actId, dateISO);
+      // Trigger vocalist availability WhatsApp flow
+      await requestVocalistAvailability({ actId, lineupId: null });
+    });
+  }, [localDate, localAddress]);
 
   return (
     <section className="w-full bg-black py-6">
       <div className="mx-auto max-w-6xl px-4">
         {/* Row 1: Title */}
         <div className="mb-4">
-          <h2 className="text-white text-3xl sm:text-4xl font-semibold">Quick Search</h2>
+          <h2 className="text-white text-3xl sm:text-4xl font-semibold">
+            Quick Search
+          </h2>
         </div>
 
-        {/* Row 2: Controls (wrap on small screens) */}
+        {/* Row 2: Controls */}
         <div className="flex flex-wrap items-end gap-4">
           {/* Date */}
           <div className="flex-1 min-w-[220px]">
-            <label className="block text-white text-xs sm:text-sm mb-1" htmlFor="qs-date">DATE</label>
+            <label
+              className="block text-white text-xs sm:text-sm mb-1"
+              htmlFor="qs-date"
+            >
+              DATE
+            </label>
             <input
               id="qs-date"
               type="date"
               className="w-full border-2 border-gray-300 p-2 shadow-sm text-gray-700 rounded"
               value={localDate}
               onChange={(e) => setLocalDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
+              min={new Date().toISOString().split("T")[0]}
             />
           </div>
 
           {/* Venue */}
           <div className="flex-[2] min-w-[260px]">
-            <label className="block text-white text-xs sm:text-sm mb-1" htmlFor="qs-venue">VENUE</label>
+            <label
+              className="block text-white text-xs sm:text-sm mb-1"
+              htmlFor="qs-venue"
+            >
+              VENUE
+            </label>
             <GoogleAutocomplete
               setAddress={setLocalAddress}
               setCounty={setCounty}
