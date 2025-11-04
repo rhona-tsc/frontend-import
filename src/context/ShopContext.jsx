@@ -483,7 +483,7 @@ if (payload.badge) {
 
   if (payload.badge.isDeputy && Array.isArray(payload.badge.deputies)) {
    const deputyNames = payload.badge.deputies
-  .map((d) => d.vocalistName?.split(" ")[0])
+  .map((d) => (d.vocalistName || d.name || "Deputy").split(" ")[0])
   .filter(Boolean)
   .join(", ");
     toastMsg = `${deputyNames}, deputy vocalist${payload.badge.deputies.length > 1 ? "s" : ""} for ${actName}, available for ${formattedDate}.`;

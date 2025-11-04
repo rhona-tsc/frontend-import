@@ -250,57 +250,65 @@ if (!badge?.active && Array.isArray(deputies) && deputies.length > 0) {
     return deputiesDom;
   }
 
-  // --- Lead branch
-  console.group("🎤 [VFA] ⭐ Lead badge branch");
-  const leadMusId = String(badge?.musicianId || "");
-  const leadProfile =
-    (badge?.profileUrl && String(badge.profileUrl)) ||
-    (leadMusId ? `${PUBLIC_SITE_BASE}/musician/${leadMusId}` : "");
-  const leadImg =
-    typeof badge?.photoUrl === "string" && badge.photoUrl.startsWith("http")
-      ? badge.photoUrl
-      : typeof badge?.profilePicture === "string" &&
-        badge.profilePicture.startsWith("http")
-      ? badge.profilePicture
-      : "";
+  // --- Lead or Deputy-Lead branch
+console.group("🎤 [VFA] ⭐ Lead/Deputy badge branch");
 
-  if (!leadImg) {
-    console.warn("🎤 [VFA] ❌ No valid image for lead badge; skipping render");
-    console.table({
-      badgePhotoUrl: badge?.photoUrl,
-      badgeProfilePicture: badge?.profilePicture,
-      badge,
-    });
-    console.groupEnd();
-    console.groupEnd();
-    return null;
-  }
+const leadMusId = String(badge?.musicianId || badge?.deputies?.[0]?.musicianId || "");
+const leadProfile =
+  (badge?.profileUrl && String(badge.profileUrl)) ||
+  (leadMusId ? `${PUBLIC_SITE_BASE}/musician/${leadMusId}` : "") ||
+  (badge?.deputies?.[0]?.profileUrl ?? "");
 
-  console.log("🎤 [VFA] Rendering FeaturedVocalistBadge with:", {
-    imageUrl: leadImg,
-    pictureSource: badge,
-    variant: badge?.isDeputy ? "deputy" : "lead",
-    musicianId: leadMusId,
-    profileUrl: leadProfile,
+const leadImg =
+  // ✅ 1. Direct badge photo
+  (typeof badge?.photoUrl === "string" && badge.photoUrl.startsWith("http") && badge.photoUrl) ||
+  // ✅ 2. Badge-level profilePicture
+  (typeof badge?.profilePicture === "string" && badge.profilePicture.startsWith("http") && badge.profilePicture) ||
+  // ✅ 3. Deputy photo fallback (from backend-resolved getDeputyDisplayBits)
+  (badge?.deputies?.[0]?.photoUrl && badge.deputies[0].photoUrl.startsWith("http") && badge.deputies[0].photoUrl) ||
+  // ✅ 4. Deputy profilePicture fallback
+  (badge?.deputies?.[0]?.profilePicture && badge.deputies[0].profilePicture.startsWith("http") && badge.deputies[0].profilePicture) ||
+  "";
+
+if (!leadImg) {
+  console.warn("🎤 [VFA] ❌ No valid image for lead/deputy badge; skipping render");
+  console.table({
+    badgePhotoUrl: badge?.photoUrl,
+    badgeProfilePicture: badge?.profilePicture,
+    deputyPhotoUrl: badge?.deputies?.[0]?.photoUrl,
+    deputyProfilePicture: badge?.deputies?.[0]?.profilePicture,
+    badge,
   });
-
-  const badgeDom = (
-    <FeaturedVocalistBadge
-      imageUrl={leadImg || undefined}
-      pictureSource={badge}
-      variant={badge?.isDeputy ? "deputy" : "lead"}
-      size={size}
-      cacheBuster={badge?.setAt || cacheBuster || ""}
-      className={className}
-      musicianId={leadMusId}
-      profileUrl={leadProfile}
-      actContext={actContext}
-      dateContext={dateContext}
-    />
-  );
-
-  console.log("🎤 [VFA] ✅ Rendered lead badge successfully");
   console.groupEnd();
   console.groupEnd();
-  return badgeDom;
+  return null;
+}
+
+console.log("🎤 [VFA] Rendering FeaturedVocalistBadge with:", {
+  imageUrl: leadImg,
+  pictureSource: badge,
+  variant: badge?.isDeputy ? "deputy" : "lead",
+  musicianId: leadMusId,
+  profileUrl: leadProfile,
+});
+
+const badgeDom = (
+  <FeaturedVocalistBadge
+    imageUrl={leadImg || undefined}
+    pictureSource={badge}
+    variant={badge?.isDeputy ? "deputy" : "lead"}
+    size={size}
+    cacheBuster={badge?.setAt || cacheBuster || ""}
+    className={className}
+    musicianId={leadMusId}
+    profileUrl={leadProfile}
+    actContext={actContext}
+    dateContext={dateContext}
+  />
+);
+
+console.log("🎤 [VFA] ✅ Rendered lead/deputy badge successfully");
+console.groupEnd();
+console.groupEnd();
+return badgeDom;
 }
