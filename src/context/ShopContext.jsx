@@ -480,10 +480,10 @@ if (payload.badge) {
   let toastMsg = "";
 
   if (payload.badge.isDeputy && Array.isArray(payload.badge.deputies)) {
-    const deputyNames = payload.badge.deputies
-      .map((d) => d.name?.split(" ")[0])
-      .filter(Boolean)
-      .join(", ");
+   const deputyNames = payload.badge.deputies
+  .map((d) => d.vocalistName?.split(" ")[0])
+  .filter(Boolean)
+  .join(", ");
     toastMsg = `${deputyNames}, deputy vocalist${payload.badge.deputies.length > 1 ? "s" : ""} for ${actName}, available for ${formattedDate}.`;
   } else {
     const name = payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
