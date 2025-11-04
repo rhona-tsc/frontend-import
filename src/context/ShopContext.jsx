@@ -380,6 +380,8 @@ const requestVocalistAvailability = (() => {
         lineupId: lineupId != null ? String(lineupId) : null,
         date: dateKey,
         address: String(selectedAddress),
+        userId
+       
       };
 
       // Make the API call
@@ -639,6 +641,7 @@ const promptLogin = (msg = "Please log in to save acts to your shortlist.") => {
 
   // Add to shortlist (uses toggle route + triggers availability if date/address present)
 const addToShortlist = async (itemId, selectedLineup) => {
+
   // keep signature for callers, but route through shortlistAct (toggle)
   const storedUserRaw = localStorage.getItem("user");
   const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
@@ -652,6 +655,8 @@ const addToShortlist = async (itemId, selectedLineup) => {
 
   // Toggle shortlist via PATCH routes with optimistic UI
   const shortlistAct = async (uid, actId) => {
+    const storedUserRaw = localStorage.getItem("user");
+const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
     const u = uid || userId;
     if (!actId) return;
     if (!u) {
@@ -674,9 +679,9 @@ const addToShortlist = async (itemId, selectedLineup) => {
 
     try {
       if (isShortlistedNow) {
-        await axios.patch(`${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`, { userId: u });
+        await axios.patch(`${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`, { userId: u, clientEmail: storedUser?.email || "" });
       } else {
-        await axios.patch(`${backendUrl}/api/availability/act/${idStr}/increment-shortlist`, { userId: u, updateTimesShortlisted: true });
+        await axios.patch(`${backendUrl}/api/availability/act/${idStr}/increment-shortlist`, { userId: u, updateTimesShortlisted: true, clientEmail: storedUser?.email || "" });
         if (selectedDate && selectedAddress && isActAllowed(idStr)) {
           await requestVocalistAvailability({ actId: idStr, lineupId: null });
         }
