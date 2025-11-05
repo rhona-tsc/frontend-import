@@ -474,19 +474,24 @@ useEffect(() => {
             return;
           }
 
-         // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (improved)
+// 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (refined)
 if (payload.badge) {
   const formattedDate = formatShortDate(payload.dateISO);
   const actName = payload.actName || "the act";
-
   let toastMsg = "";
 
   if (payload.badge.isDeputy && Array.isArray(payload.badge.deputies)) {
-   const deputyNames = payload.badge.deputies
-  .map((d) => (d.vocalistName || d.name || "Deputy").split(" ")[0])
-  .filter(Boolean)
-  .join(", ");
-    toastMsg = `${deputyNames}, deputy vocalist${payload.badge.deputies.length > 1 ? "s" : ""} for ${actName}, available for ${formattedDate}.`;
+    // 🔹 Pick the most recent deputy (sorted by setAt)
+    const sortedDeps = [...payload.badge.deputies].sort(
+      (a, b) => new Date(b.setAt) - new Date(a.setAt)
+    );
+    const latestDep = sortedDeps[0];
+    const name =
+      latestDep?.vocalistName?.split(" ")[0] ||
+      latestDep?.name?.split(" ")[0] ||
+      "Deputy";
+
+    toastMsg = `${name}, deputy vocalist for ${actName}, available for ${formattedDate}.`;
   } else {
     const name = payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
     toastMsg = `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;

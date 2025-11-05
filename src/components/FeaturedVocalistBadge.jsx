@@ -199,8 +199,8 @@ const hasDeputies = Array.isArray(deputies) && deputies.length > 0;
   });
 
   // --- Deputies branch
-if (!badge?.active && Array.isArray(deputies) && deputies.length > 0) {
-      console.group("🎤 [VFA] 🎭 Deputies branch");
+if (badge?.isDeputy && Array.isArray(deputies) && deputies.length > 0) {
+        console.group("🎤 [VFA] 🎭 Deputies branch");
     console.log("🎤 [VFA] Rendering deputies...");
     const deputiesDom = (
       <div className={`flex gap-3 items-center ${className}`}>
