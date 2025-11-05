@@ -76,7 +76,7 @@ useEffect(() => {
   };
 
   sendAvailability();
-}, [selectedDate, selectedAddress]);
+}, [selectedDate, selectedAddress, backendUrl]);
 
 // Always build absolute API URLs
 const api = (path) =>
@@ -113,7 +113,9 @@ const loadAvailabilityForDate = async (dateISO) => {
       const parsed = JSON.parse(cached);
       if (parsed && typeof parsed === "object") setAvailableMap(parsed);
     }
-  } catch {}
+  } catch (err) {
+    console.warn("Failed to load availability from cache:", err?.message);
+  }
 
   // Helper to build tri-state map from various backend shapes
   const toMap = (payload = {}) => {
@@ -248,7 +250,7 @@ const loadAvailabilityForDate = async (dateISO) => {
 
   useEffect(() => {
     getActsData().catch(() => {});
-  }, []);
+  }, [getActsData]);
 
   // ✅ Hydrate logged-in user + shortlist once
   useEffect(() => {
@@ -441,7 +443,7 @@ const requestVocalistAvailability = (() => {
         // swallow
       }
     })();
-  }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
+  }, [selectedDate, selectedAddress, shortlistedActs, backendUrl, isActAllowed ]);
 
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
 useEffect(() => {
@@ -566,7 +568,7 @@ if (payload.badge) {
   } catch (e) {
     console.error("❌ Failed to initialize SSE:", e);
   }
-}, [backendUrl]);
+}, [backendUrl, refreshActById, api]);
 
 
 
@@ -636,7 +638,9 @@ const location = useLocation();
 const promptLogin = (msg = "Please log in to save acts to your shortlist.") => {
   try {
     toast(<CustomToast type="info" message={msg} />);
-  } catch {}
+  } catch (err) {
+    console.warn('Failed to sync shortlist update:', err?.message || err);
+  }
   // Remember current page to come back to after login
   const next = `${location.pathname}${location.search || ""}`;
   sessionStorage.setItem("postLoginNext", next);
@@ -679,7 +683,11 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
 
     setShortlistedActs(next);
     setShortlistItems(next);
-    try { localStorage.setItem("shortlistItems", JSON.stringify(next)); } catch {}
+    try { 
+      localStorage.setItem("shortlistItems", JSON.stringify(next)); 
+    } catch (err) {
+      console.warn('Failed to save shortlist to localStorage:', err?.message || err);
+    }
 
     try {
       if (isShortlistedNow) {
@@ -690,12 +698,14 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
           await requestVocalistAvailability({ actId: idStr, lineupId: null });
         }
       }
-    } catch (err) {
+    } catch (error) {
       // revert on failure
       setShortlistedActs(prev);
       setShortlistItems(prev);
       try { localStorage.setItem("shortlistItems", JSON.stringify(prev)); } catch {}
-      try { toast(<CustomToast type="error" message="Could not update shortlist." />); } catch {}
+      try { toast(<CustomToast type="error" message="Could not update shortlist." />); } catch (err) {
+        // Intentionally ignore toast errors
+      }
     }
   };
 
@@ -954,7 +964,8 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
             { headers: { token } }
           );
         } catch (err) {
-        }
+  console.debug(err);
+}
       }
     }
   };
