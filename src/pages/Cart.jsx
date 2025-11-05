@@ -1078,7 +1078,6 @@ const displayCartDetails = Array.isArray(cartDetails)
   ? cartDetails.filter((item) => !isActUnavailableForSelectedDate(item.actId))
   : [];
 
-  const selected = selectedVocalists[act._id] || [];
 
   return (
     <div className="border-t pt-14">
