@@ -714,65 +714,88 @@ const ShopProvider = (props) => {
   };
 
   // Toggle shortlist via PATCH routes with optimistic UI
-  const shortlistAct = async (uid, actId) => {
-    const storedUserRaw = localStorage.getItem("user");
-    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-    const u = uid || userId;
-    if (!actId) return;
-    if (!u) {
-      promptLogin("Please log in to manage your shortlist.");
-      return;
-    }
+const shortlistAct = async (uid, actId) => {
+  const storedUserRaw = localStorage.getItem("user");
+  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+  const u = uid || userId;
 
-    const idStr = String(actId);
-    const isShortlistedNow =
-      Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
+  if (!actId) return;
+  if (!u) {
+    promptLogin("Please log in to manage your shortlist.");
+    return;
+  }
 
-    // optimistic update
-    const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
-    const next = isShortlistedNow
-      ? prev.filter((id) => id !== idStr)
-      : [...new Set([...prev, idStr])];
+  const idStr = String(actId);
+  const isShortlistedNow =
+    Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
 
-    setShortlistedActs(next);
-    setShortlistItems(next);
-    try {
-      localStorage.setItem("shortlistItems", JSON.stringify(next));
-    } catch {}
+  // Optimistic update
+  const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
+  const next = isShortlistedNow
+    ? prev.filter((id) => id !== idStr)
+    : [...new Set([...prev, idStr])];
 
-    try {
-      if (isShortlistedNow) {
-        await axios.patch(
-          `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
-          { userId: u, clientEmail: storedUser?.email || "" }
-        );
-      } else {
-        await axios.patch(
-          `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
-          {
-            userId: u,
-            updateTimesShortlisted: true,
-            clientEmail: storedUser?.email || "",
-          }
-        );
-        if (selectedDate && selectedAddress && isActAllowed(idStr)) {
-          await requestVocalistAvailability({ actId: idStr, lineupId: null });
+  setShortlistedActs(next);
+  setShortlistItems(next);
+  try {
+    localStorage.setItem("shortlistItems", JSON.stringify(next));
+  } catch {}
+
+  try {
+    if (isShortlistedNow) {
+      // 🔵 Removing from shortlist
+      await axios.patch(
+        `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
+        { userId: u, clientEmail: storedUser?.email || "" }
+      );
+    } else {
+      // 🟢 Adding to shortlist
+      await axios.patch(
+        `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
+        {
+          userId: u,
+          updateTimesShortlisted: true,
+          clientEmail: storedUser?.email || "",
         }
+      );
+
+      // 🟩 Trigger availability request if date & address already exist
+      if (selectedDate && selectedAddress && isActAllowed(idStr)) {
+        const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
+        console.log("📅 Triggering shortlist update → triggerAvailabilityRequest", {
+          actId: idStr,
+          dateISO,
+          selectedAddress,
+          userId: u,
+        });
+
+        await axios.patch(`${backendUrl}/api/shortlist/update`, {
+          actId: idStr,
+          dateISO,
+          formattedAddress: selectedAddress,
+          userId: u,
+          clientName: storedUser?.name || storedUser?.firstName || "",
+          clientEmail: storedUser?.email || "",
+        });
+
+        console.log("✅ Triggered availability request for shortlisted act");
       }
-    } catch (err) {
-      // revert on failure
-      setShortlistedActs(prev);
-      setShortlistItems(prev);
-      try {
-        localStorage.setItem("shortlistItems", JSON.stringify(prev));
-      } catch {}
-      try {
-        toast(
-          <CustomToast type="error" message="Could not update shortlist." />
-        );
-      } catch {}
     }
-  };
+  } catch (err) {
+    // ❌ Revert on failure
+    console.error("❌ shortlistAct error:", err.message);
+    setShortlistedActs(prev);
+    setShortlistItems(prev);
+    try {
+      localStorage.setItem("shortlistItems", JSON.stringify(prev));
+    } catch {}
+    try {
+      toast(
+        <CustomToast type="error" message="Could not update shortlist." />
+      );
+    } catch {}
+  }
+};
 
   // ============ Invoicing helpers ============
   const computeBalanceDueDate = (eventISO) => {
