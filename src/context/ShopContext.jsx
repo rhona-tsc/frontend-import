@@ -76,7 +76,7 @@ useEffect(() => {
   };
 
   sendAvailability();
-}, [selectedDate, selectedAddress, backendUrl]);
+}, [selectedDate, selectedAddress]);
 
 // Always build absolute API URLs
 const api = (path) =>
@@ -113,9 +113,7 @@ const loadAvailabilityForDate = async (dateISO) => {
       const parsed = JSON.parse(cached);
       if (parsed && typeof parsed === "object") setAvailableMap(parsed);
     }
-  } catch (err) {
-    console.warn("Failed to load availability from cache:", err?.message);
-  }
+  } catch {}
 
   // Helper to build tri-state map from various backend shapes
   const toMap = (payload = {}) => {
@@ -250,7 +248,7 @@ const loadAvailabilityForDate = async (dateISO) => {
 
   useEffect(() => {
     getActsData().catch(() => {});
-  }, [getActsData]);
+  }, []);
 
   // ✅ Hydrate logged-in user + shortlist once
   useEffect(() => {
@@ -476,25 +474,26 @@ useEffect(() => {
             return;
           }
 
+// 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (refined)
 if (payload.badge) {
   const formattedDate = formatShortDate(payload.dateISO);
   const actName = payload.actName || "the act";
   let toastMsg = "";
 
-  if (payload.badge.isDeputy) {
-    // 🧠 Prefer the live musicianName from payload
-    const liveName =
-      payload.musicianName?.split(" ")[0] ||
-      payload.badge.vocalistName?.split(" ")[0] ||
-      payload.badge.deputies?.[0]?.vocalistName?.split(" ")[0] ||
+  if (payload.badge.isDeputy && Array.isArray(payload.badge.deputies)) {
+    // 🔹 Pick the most recent deputy (sorted by setAt)
+    const sortedDeps = [...payload.badge.deputies].sort(
+      (a, b) => new Date(b.setAt) - new Date(a.setAt)
+    );
+    const latestDep = sortedDeps[0];
+    const name =
+      latestDep?.vocalistName?.split(" ")[0] ||
+      latestDep?.name?.split(" ")[0] ||
       "Deputy";
 
-    toastMsg = `${liveName}, deputy vocalist for ${actName}, available for ${formattedDate}.`;
+    toastMsg = `${name}, deputy vocalist for ${actName}, available for ${formattedDate}.`;
   } else {
-    const name =
-      payload.musicianName?.split(" ")[0] ||
-      payload.badge.vocalistName?.split(" ")[0] ||
-      "Vocalist";
+    const name = payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
     toastMsg = `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
   }
 
@@ -638,9 +637,7 @@ const location = useLocation();
 const promptLogin = (msg = "Please log in to save acts to your shortlist.") => {
   try {
     toast(<CustomToast type="info" message={msg} />);
-  } catch (err) {
-    console.warn('Failed to sync shortlist update:', err?.message || err);
-  }
+  } catch {}
   // Remember current page to come back to after login
   const next = `${location.pathname}${location.search || ""}`;
   sessionStorage.setItem("postLoginNext", next);
@@ -683,11 +680,7 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
 
     setShortlistedActs(next);
     setShortlistItems(next);
-    try { 
-      localStorage.setItem("shortlistItems", JSON.stringify(next)); 
-    } catch (err) {
-      console.warn('Failed to save shortlist to localStorage:', err?.message || err);
-    }
+    try { localStorage.setItem("shortlistItems", JSON.stringify(next)); } catch {}
 
     try {
       if (isShortlistedNow) {
@@ -698,14 +691,12 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
           await requestVocalistAvailability({ actId: idStr, lineupId: null });
         }
       }
-    } catch (error) {
+    } catch (err) {
       // revert on failure
       setShortlistedActs(prev);
       setShortlistItems(prev);
       try { localStorage.setItem("shortlistItems", JSON.stringify(prev)); } catch {}
-      try { toast(<CustomToast type="error" message="Could not update shortlist." />); } catch (err) {
-        // Intentionally ignore toast errors
-      }
+      try { toast(<CustomToast type="error" message="Could not update shortlist." />); } catch {}
     }
   };
 
@@ -964,8 +955,7 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
             { headers: { token } }
           );
         } catch (err) {
-  console.debug(err);
-}
+        }
       }
     }
   };
