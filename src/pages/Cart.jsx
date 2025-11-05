@@ -53,8 +53,8 @@ const Cart = () => {
   const [isChangingLineup, setIsChangingLineup] = useState(false);
   const navigate = useNavigate();
   const mergedUpdateExtras = useMergedUpdateExtras(cartItems, setCartItems);
-const handleSelect = (musicianId) => {
-  selectVocalistForAct(act._id, musicianId);
+const handleSelect = (actId, musicianId) => {
+  selectVocalistForAct(actId, musicianId);
 };
 
   // NEW: track which lineups got auto-added extras so the banner shows the right text.
