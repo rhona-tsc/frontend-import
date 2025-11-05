@@ -443,7 +443,7 @@ const requestVocalistAvailability = (() => {
         // swallow
       }
     })();
-  }, [selectedDate, selectedAddress, shortlistedActs, backendUrl, isActAllowed ]);
+  }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
 
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
 useEffect(() => {
@@ -568,7 +568,7 @@ if (payload.badge) {
   } catch (e) {
     console.error("❌ Failed to initialize SSE:", e);
   }
-}, [backendUrl, refreshActById, api]);
+}, [backendUrl]);
 
 
 
