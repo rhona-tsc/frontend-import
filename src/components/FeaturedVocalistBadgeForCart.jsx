@@ -23,6 +23,14 @@ export function FeaturedVocalistBadgeForCart({
   isSelected = false,
   onSelect = () => {},
 }) {
+
+  if (typeof assets.Featured_Vocalist_Available !== "string") {
+  console.error("🚨 assets.Featured_Vocalist_Available should be a URL but got:", assets.Featured_Vocalist_Available);
+}
+if (typeof onSelect !== "function" && selectable) {
+  console.error("🚨 onSelect is not a function:", onSelect);
+}
+
   const inner = Math.round(size * photoScale);
   const ringSrc =
     variant === "deputy"
