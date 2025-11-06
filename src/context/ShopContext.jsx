@@ -729,7 +729,7 @@ const shortlistAct = async (uid, actId) => {
   const isShortlistedNow =
     Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
 
-  // Optimistic update
+  // ⚡ Optimistic update
   const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
   const next = isShortlistedNow
     ? prev.filter((id) => id !== idStr)
@@ -749,20 +749,22 @@ const shortlistAct = async (uid, actId) => {
         { userId: u, clientEmail: storedUser?.email || "" }
       );
     } else {
-      // 🟢 Adding to shortlist
+      // 🟢 Adding to shortlist (includes address + date)
       await axios.patch(
         `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
         {
           userId: u,
           updateTimesShortlisted: true,
           clientEmail: storedUser?.email || "",
+          selectedDate: selectedDate || null,
+          selectedAddress: selectedAddress || null,
         }
       );
 
-      // 🟩 Trigger availability request if date & address already exist
+      // 🩵 Optional: force a shortlist sync to ensure frontend UI matches backend
       if (selectedDate && selectedAddress && isActAllowed(idStr)) {
         const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
-        console.log("📅 Triggering shortlist update → triggerAvailabilityRequest", {
+        console.log("📅 [shortlistAct] Triggering shortlist sync", {
           actId: idStr,
           dateISO,
           selectedAddress,
@@ -778,12 +780,13 @@ const shortlistAct = async (uid, actId) => {
           clientEmail: storedUser?.email || "",
         });
 
-        console.log("✅ Triggered availability request for shortlisted act");
+        console.log("✅ [shortlistAct] Synced shortlisted act with backend");
       }
     }
   } catch (err) {
-    // ❌ Revert on failure
     console.error("❌ shortlistAct error:", err.message);
+
+    // 🔁 Revert on failure
     setShortlistedActs(prev);
     setShortlistItems(prev);
     try {
