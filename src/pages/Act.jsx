@@ -622,7 +622,7 @@ console.log("🟢 Render check", {
               </div>
               {/* ✅ Sticky bar only on mobile */}
               {actData && (
-                <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3 z-50">
+                <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3 z-[9999]">
                   <button
                     onClick={() => {
                       if (navigator.share) {
@@ -1120,7 +1120,7 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
               </ul>
             </div>
             {/* move this block ABOVE or BELOW the .block sm:hidden */}
-<div className="my-3 mt-5 flex justify-left">
+<div className="my-3 mt-5 flex justify-left z-10">
   {(() => {
     const badges = actData?.availabilityBadges || {};
     const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
