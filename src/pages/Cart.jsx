@@ -1244,18 +1244,18 @@ const displayCartDetails = Array.isArray(cartDetails)
                          <div className="mt-6">
                           {(() => {
   console.log("🎤 CART VOCALIST DEBUG:", {
-    actId: item._id,
-    actName: item.actName,
-    badge: item.availabilityBadge,
-    hasActive: item.availabilityBadge?.active,
-    deputiesCount: item.availabilityBadge?.deputies?.length || 0,
-    deputies: item.availabilityBadge?.deputies?.map((d) => ({
-      name: d.vocalistName || d.name,
-      musicianId: d.musicianId,
-      photoUrl: d.photoUrl,
-    })),
-    selected,
-  });
+  actId: item.actId || item._id,
+  actName: item.actName,
+  badge: item.availabilityBadge || item.badge || null,
+  hasActive: item.availabilityBadge?.active,
+  deputiesCount: item.availabilityBadge?.deputies?.length || 0,
+  deputies: item.availabilityBadge?.deputies?.map((d) => ({
+    name: d.vocalistName || d.name,
+    musicianId: d.musicianId,
+    photoUrl: d.photoUrl,
+  })),
+  selected,
+});
 })()}
       <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
        <div className="flex gap-4 flex-wrap">
