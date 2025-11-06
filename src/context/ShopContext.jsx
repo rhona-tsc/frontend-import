@@ -750,16 +750,15 @@ const shortlistAct = async (uid, actId) => {
       );
     } else {
       // 🟢 Adding to shortlist (includes address + date)
-      await axios.patch(
-        `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
-        {
-          userId: u,
-          updateTimesShortlisted: true,
-          clientEmail: storedUser?.email || "",
-          selectedDate: selectedDate || null,
-          selectedAddress: selectedAddress || null,
-        }
-      );
+    await axios.patch(
+  `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
+  {
+    userId: u,
+    clientEmail: storedUser?.email || "",
+    selectedDate: selectedDate || new Date().toISOString().slice(0, 10),
+    selectedAddress: selectedAddress || "TBC",
+  }
+);
 
       // 🩵 Optional: force a shortlist sync to ensure frontend UI matches backend
       if (selectedDate && selectedAddress && isActAllowed(idStr)) {
