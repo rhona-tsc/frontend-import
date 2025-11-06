@@ -35,7 +35,7 @@ const Cart = () => {
     updatePerformance,
     isActUnavailableForSelectedDate,
     toggleVocalistForAct,
-  availLoading
+  availLoading, setSelectedVocalists, selectedVocalists,
   } = useContext(ShopContext);
 
   const changingLineupRef = useRef(false);
@@ -44,7 +44,6 @@ const Cart = () => {
 
   const [selectedEventType, setSelectedEventType] = useState("Wedding");
   const [customEventType, setCustomEventType] = useState("");
-const [selected, setSelected] = useState([]);
   const [performancePlans, setPerformancePlans] = useState({});
 
   const navigate = useNavigate();
@@ -1187,6 +1186,8 @@ const displayCartDetails = Array.isArray(cartDetails)
               ? perfFromCart.arrivalTime
               : "";
 
+              const selected = selectedVocalists?.[item._id] ? [selectedVocalists[item._id]] : [];
+
           return (
             <div
               key={item.actId}
@@ -1241,6 +1242,21 @@ const displayCartDetails = Array.isArray(cartDetails)
                   </p>
                   {/* Availability badge */}
                          <div className="mt-6">
+                          {(() => {
+  console.log("🎤 CART VOCALIST DEBUG:", {
+    actId: item._id,
+    actName: item.actName,
+    badge: item.availabilityBadge,
+    hasActive: item.availabilityBadge?.active,
+    deputiesCount: item.availabilityBadge?.deputies?.length || 0,
+    deputies: item.availabilityBadge?.deputies?.map((d) => ({
+      name: d.vocalistName || d.name,
+      musicianId: d.musicianId,
+      photoUrl: d.photoUrl,
+    })),
+    selected,
+  });
+})()}
       <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
        <div className="flex gap-4 flex-wrap">
                              
