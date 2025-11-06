@@ -1,5 +1,10 @@
 // frontend/src/context/ShopContext.jsx
-import React, { createContext, useState, useEffect, useRef } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import axios from "axios";
 import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
@@ -10,6 +15,7 @@ import debounce from "lodash.debounce";
 export const ShopContext = createContext();
 
 const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
+
 
 const ShopProvider = (props) => {
   const currency = "£";
@@ -22,7 +28,7 @@ const ShopProvider = (props) => {
   const [acts, setActs] = useState([]);
   const [cartItems, setCartItems] = useState({});
   const [token, setToken] = useState("");
-  const [selectedVocalists, setSelectedVocalists] = useState({});
+const [selectedVocalists, setSelectedVocalists] = useState({}); 
 
   // --- User / shortlist (single sources of truth) ---
   const [userId, setUserId] = useState(null);
@@ -33,6 +39,8 @@ const ShopProvider = (props) => {
   const [availableMap, setAvailableMap] = useState({});
   const [availLoading, setAvailLoading] = useState(false);
 
+
+
   // --- Location / date (synced with sessionStorage) ---
   const [selectedAddress, setSelectedAddress] = useState(
     sessionStorage.getItem("selectedAddress") || ""
@@ -42,153 +50,123 @@ const ShopProvider = (props) => {
   );
 
   // --- Auto-trigger availability request when date/address set ---
-  useEffect(() => {
-    if (!selectedDate || !selectedAddress) return;
+useEffect(() => {
+  if (!selectedDate || !selectedAddress) return;
 
-    const sendAvailability = async () => {
-      try {
-        const storedUserRaw = localStorage.getItem("user");
-        const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-        const clientName = storedUser?.name || storedUser?.firstName || "";
-        const clientEmail = storedUser?.email || "";
+  const sendAvailability = async () => {
+    try {
+      const storedUserRaw = localStorage.getItem("user");
+      const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+      const clientName = storedUser?.name || storedUser?.firstName || "";
+      const clientEmail = storedUser?.email || "";
 
-        await axios.post(`${backendUrl}/api/availability/request`, {
-          actId, // make sure you define actId or loop through shortlistedActs
-          lineupId, // optional, can be null
-          date: selectedDate,
-          address: selectedAddress,
-          clientName,
-          clientEmail,
-        });
+      await axios.post(`${backendUrl}/api/availability/request`, {
+        actId,        // make sure you define actId or loop through shortlistedActs
+        lineupId,     // optional, can be null
+        date: selectedDate,
+        address: selectedAddress,
+        clientName,
+        clientEmail,
+      });
 
-        console.log("📤 Availability request sent successfully");
-      } catch (err) {
-        console.warn("⚠️ Failed to send availability request:", err.message);
-      }
-    };
+      console.log("📤 Availability request sent successfully");
+    } catch (err) {
+      console.warn("⚠️ Failed to send availability request:", err.message);
+    }
+  };
 
-    sendAvailability();
-  }, [selectedDate, selectedAddress]);
+  sendAvailability();
+}, [selectedDate, selectedAddress]);
 
-  // Always build absolute API URLs
-  const api = (path) =>
-    `${backendUrl}${path.startsWith("/") ? path : `/${path}`}`;
+// Always build absolute API URLs
+const api = (path) =>
+  `${backendUrl}${path.startsWith('/') ? path : `/${path}`}`;
 
   const selectVocalistForAct = (actId, musicianId) => {
-    setSelectedVocalists((prev) => ({
-      ...prev,
-      [actId]: musicianId,
-    }));
-  };
-
-  const toggleVocalistForAct = (actId, musicianId) => {
-  setSelectedVocalists((prev) => {
-    const current = prev[actId];
-    // toggle if already selected
-    return {
-      ...prev,
-      [actId]: current === musicianId ? null : musicianId,
-    };
-  });
+  setSelectedVocalists(prev => ({
+    ...prev,
+    [actId]: musicianId
+  }));
 };
 
-  const getActById = async (actId) => {
-    try {
-      const res = await axios.get(`${backendUrl}/api/act/${actId}`);
-      if (res.data?.success && res.data?.act) return res.data.act;
-    } catch (err) {
-      console.warn("Failed to fetch act by ID:", err?.message || err);
-    }
-    return null;
-  };
+const getActById = async (actId) => {
+  try {
+    const res = await axios.get(`${backendUrl}/api/act/${actId}`);
+    if (res.data?.success && res.data?.act) return res.data.act;
+  } catch (err) {
+    console.warn("Failed to fetch act by ID:", err?.message || err);
+  }
+  return null;
+};
 
   // Fetch + cache availability map for a given date (YYYY-MM-DD or ISO)
-  const loadAvailabilityForDate = async (dateISO) => {
-    const d = String(dateISO || "").slice(0, 10);
-    if (!d) return;
+const loadAvailabilityForDate = async (dateISO) => {
+  const d = String(dateISO || "").slice(0, 10);
+  if (!d) return;
 
-    const cacheKey = `availMap:${d}`;
+  const cacheKey = `availMap:${d}`;
 
-    // 1) Warm from cache if present (instant UI)
-    try {
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed && typeof parsed === "object") setAvailableMap(parsed);
-      }
-    } catch {}
-
-    // Helper to build tri-state map from various backend shapes
-    const toMap = (payload = {}) => {
-      const map = {};
-      const unavailable = Array.isArray(payload.unavailableActIds)
-        ? payload.unavailableActIds
-        : [];
-      const available = Array.isArray(payload.availableActIds)
-        ? payload.availableActIds
-        : [];
-      const actIds = Array.isArray(payload.actIds) ? payload.actIds : [];
-
-      unavailable.forEach((id) => {
-        map[id] = false;
-      });
-      available.forEach((id) => {
-        if (!(id in map)) map[id] = true;
-      });
-
-      // Compat: some endpoints only return actIds ⇒ treat as available
-      if (!payload.unavailableActIds && actIds.length) {
-        actIds.forEach((id) => {
-          if (!(id in map)) map[id] = true;
-        });
-      }
-      return map;
-    };
-
-    setAvailLoading(true);
-    try {
-      // 2) Try the canonical acts-by-date endpoint
-      const url1 = api(
-        `api/v2/availability/acts-by-dateV2?date=${encodeURIComponent(d)}`
-      );
-      let res = await fetch(url1, { headers: { accept: "application/json" } });
-      let text = await res.text();
-      let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {}
-
-      // 3) If missing (404) or not OK, attempt fallback to acts-available
-      if (!res.ok) {
-        if (res.status === 404) {
-          const url2 = api(
-            `api/availability/acts-available?date=${encodeURIComponent(d)}`
-          );
-          res = await fetch(url2, { headers: { accept: "application/json" } });
-          text = await res.text();
-          try {
-            data = text ? JSON.parse(text) : {};
-          } catch {}
-        }
-        if (!res.ok) {
-          const msg =
-            data?.message || data?.error || text || `HTTP ${res.status}`;
-          throw new Error(msg);
-        }
-      }
-
-      const map = toMap(data);
-      try {
-        sessionStorage.setItem(cacheKey, JSON.stringify(map));
-      } catch {}
-      setAvailableMap(map);
-    } catch (e) {
-      console.warn("[avail] load failed:", e?.message || e);
-      // Keep any cached UI; don't overwrite with empty on error
-    } finally {
-      setAvailLoading(false);
+  // 1) Warm from cache if present (instant UI)
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && typeof parsed === "object") setAvailableMap(parsed);
     }
+  } catch {}
+
+  // Helper to build tri-state map from various backend shapes
+  const toMap = (payload = {}) => {
+    const map = {};
+    const unavailable = Array.isArray(payload.unavailableActIds) ? payload.unavailableActIds : [];
+    const available   = Array.isArray(payload.availableActIds)   ? payload.availableActIds   : [];
+    const actIds      = Array.isArray(payload.actIds)            ? payload.actIds            : [];
+
+    unavailable.forEach((id) => { map[id] = false; });
+    available.forEach((id)   => { if (!(id in map)) map[id] = true; });
+
+    // Compat: some endpoints only return actIds ⇒ treat as available
+    if (!payload.unavailableActIds && actIds.length) {
+      actIds.forEach((id) => { if (!(id in map)) map[id] = true; });
+    }
+    return map;
   };
+
+
+
+  setAvailLoading(true);
+  try {
+    // 2) Try the canonical acts-by-date endpoint
+    const url1 = api(`api/v2/availability/acts-by-dateV2?date=${encodeURIComponent(d)}`);
+    let res = await fetch(url1, { headers: { accept: "application/json" } });
+    let text = await res.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch {}
+
+    // 3) If missing (404) or not OK, attempt fallback to acts-available
+    if (!res.ok) {
+      if (res.status === 404) {
+        const url2 = api(`api/availability/acts-available?date=${encodeURIComponent(d)}`);
+        res = await fetch(url2, { headers: { accept: "application/json" } });
+        text = await res.text();
+        try { data = text ? JSON.parse(text) : {}; } catch {}
+      }
+      if (!res.ok) {
+        const msg = data?.message || data?.error || text || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+    }
+
+    const map = toMap(data);
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(map)); } catch {}
+    setAvailableMap(map);
+  } catch (e) {
+    console.warn("[avail] load failed:", e?.message || e);
+    // Keep any cached UI; don't overwrite with empty on error
+  } finally {
+    setAvailLoading(false);
+  }
+};
 
   // Re-load when date changes
   useEffect(() => {
@@ -205,6 +183,7 @@ const ShopProvider = (props) => {
   // ---- Availability (lead/deputy) driven by SSE ----
   const [availabilityStatus, setAvailabilityStatus] = useState({});
   // shape: { [actId]: { status: 'lead' | 'deputy', musicianName, dateISO, message } }
+
 
   // Cooldown map for global auto-trigger (per actId:dateISO)
   const lastAutoTriggerRef = useRef({});
@@ -288,7 +267,8 @@ const ShopProvider = (props) => {
           setShortlistItems(ids);
           localStorage.setItem("shortlistItems", JSON.stringify(ids));
         }
-      } catch (err) {}
+      } catch (err) {
+      }
     })();
   }, [backendUrl]);
 
@@ -307,24 +287,24 @@ const ShopProvider = (props) => {
   }, [selectedAddress]);
 
   // inside ShopProvider, near other cart helpers
-  const updatePerformance = (actId, lineupId, patch) => {
-    setCartItems((prev) => {
-      const next = structuredClone(prev || {});
-      if (!next[actId] || !next[actId][lineupId]) return prev; // nothing to update
+const updatePerformance = (actId, lineupId, patch) => {
+  setCartItems(prev => {
+    const next = structuredClone(prev || {});
+    if (!next[actId] || !next[actId][lineupId]) return prev; // nothing to update
 
-      const current = next[actId][lineupId].performance || {
-        arrivalTime: "",
-        setupAndSoundcheckedBy: "",
-        startTime: "",
-        finishTime: "",
-        finishDayOffset: 0,
-        paLightsFinishTime: "",
-        paLightsFinishDayOffset: 0,
-      };
-      next[actId][lineupId].performance = { ...current, ...patch };
-      return next;
-    });
-  };
+    const current = next[actId][lineupId].performance || {
+      arrivalTime: "",
+      setupAndSoundcheckedBy: "",
+      startTime: "",
+      finishTime: "",
+      finishDayOffset: 0,
+      paLightsFinishTime: "",
+      paLightsFinishDayOffset: 0,
+    };
+    next[actId][lineupId].performance = { ...current, ...patch };
+    return next;
+  });
+};
 
   // ============ Availability helpers ============
 
@@ -338,33 +318,24 @@ const ShopProvider = (props) => {
   };
 
   // Compute vocalist-specific “fee” for messaging (optional/nice-to-have)
-  const computeVocalistFeeForMessage = async ({
-    act,
-    lineup,
-    address,
-    date,
-  }) => {
+  const computeVocalistFeeForMessage = async ({ act, lineup, address, date }) => {
     try {
       // members & base per-head
-      const members = Array.isArray(lineup?.bandMembers)
-        ? lineup.bandMembers
-        : [];
+      const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
       const lineupTotal =
         Number(lineup?.base_fee?.[0]?.total_fee) ||
         Number(act?.base_fee?.[0]?.total_fee) ||
         0;
-      const perHead = members.length > 0 ? lineupTotal / members.length : 0;
+      const perHead =
+        members.length > 0 ? lineupTotal / members.length : 0;
 
       // try a basic travel component (very light touch; your pricing util can be heavier)
       // we won’t overfit here—this is just for the message number
       const vocalist =
         members.find((m) =>
-          [
-            "Lead Male Vocal",
-            "Lead Female Vocal",
-            "Lead Vocal",
-            "vocalist-guitarist",
-          ].includes(m.instrument)
+          ["Lead Male Vocal", "Lead Female Vocal", "Lead Vocal", "vocalist-guitarist"].includes(
+            m.instrument
+          )
         ) || members[0];
 
       let travelFee = 0;
@@ -379,56 +350,54 @@ const ShopProvider = (props) => {
     }
   };
 
-  // Deduped availability trigger
-  const requestVocalistAvailability = (() => {
-    // Persistent cache across renders
-    const inFlight = new Map();
+// Deduped availability trigger
+const requestVocalistAvailability = (() => {
+  // Persistent cache across renders
+  const inFlight = new Map();
 
-    return async ({ actId, lineupId }) => {
-      try {
-        if (!selectedDate || !selectedAddress) return;
-        if (!isActAllowed(actId)) return;
+  return async ({ actId, lineupId }) => {
+    try {
+      if (!selectedDate || !selectedAddress) return;
+      if (!isActAllowed(actId)) return;
 
-        // Create a unique key for the current request
-        const dateKey = new Date(selectedDate).toISOString().slice(0, 10);
-        const key = `${actId}:${lineupId || "none"}:${dateKey}`;
+      // Create a unique key for the current request
+      const dateKey = new Date(selectedDate).toISOString().slice(0, 10);
+      const key = `${actId}:${lineupId || "none"}:${dateKey}`;
 
-        // Guard: if a request for this combo is already in flight or was just sent, skip
-        const existing = inFlight.get(key);
-        if (existing && Date.now() - existing < 8000) {
-          console.log(`🟡 Skipping duplicate availability trigger for ${key}`);
-          return;
-        }
-
-        // Mark as in-flight
-        inFlight.set(key, Date.now());
-
-        // Compose payload
-        const payload = {
-          actId: String(actId),
-          lineupId: lineupId != null ? String(lineupId) : null,
-          date: dateKey,
-          address: String(selectedAddress),
-          userId,
-        };
-
-        // Make the API call
-        const base = String(backendUrl || "").replace(/\/+$/, "");
-        const url = `${base}/api/availability/request`;
-        await axios.post(url, payload, {
-          headers: { accept: "application/json" },
-          timeout: 15000,
-        });
-
-        console.log(`✅ Sent availability request for ${key}`);
-      } catch (err) {
-        console.warn(
-          "⚠️ requestVocalistAvailability failed:",
-          err?.message || err
-        );
+      // Guard: if a request for this combo is already in flight or was just sent, skip
+      const existing = inFlight.get(key);
+      if (existing && Date.now() - existing < 8000) {
+        console.log(`🟡 Skipping duplicate availability trigger for ${key}`);
+        return;
       }
-    };
-  })();
+
+      // Mark as in-flight
+      inFlight.set(key, Date.now());
+
+      // Compose payload
+      const payload = {
+        actId: String(actId),
+        lineupId: lineupId != null ? String(lineupId) : null,
+        date: dateKey,
+        address: String(selectedAddress),
+        userId
+       
+      };
+
+      // Make the API call
+      const base = String(backendUrl || "").replace(/\/+$/, "");
+      const url = `${base}/api/availability/request`;
+      await axios.post(url, payload, {
+        headers: { accept: "application/json" },
+        timeout: 15000,
+      });
+
+      console.log(`✅ Sent availability request for ${key}`);
+    } catch (err) {
+      console.warn("⚠️ requestVocalistAvailability failed:", err?.message || err);
+    }
+  };
+})();
 
   // 🔁 Global AUTO-TRIGGER: when user adds date+address AFTER shortlisting,
   // ping availability for ALL shortlisted acts (with 6h per-act cooldown).
@@ -436,9 +405,7 @@ const ShopProvider = (props) => {
     (async () => {
       try {
         if (!selectedDate || !selectedAddress) return;
-        const shortlistIds = Array.isArray(shortlistedActs)
-          ? shortlistedActs
-          : [];
+        const shortlistIds = Array.isArray(shortlistedActs) ? shortlistedActs : [];
         if (!shortlistIds.length) return;
 
         const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
@@ -456,17 +423,14 @@ const ShopProvider = (props) => {
           try {
             // ✅ Skip if already YES recorded (call absolute backend URL)
             const res = await fetch(
-              api(
-                `api/availability/check-latest?actId=${encodeURIComponent(actId)}&dateISO=${encodeURIComponent(dateISO)}`
-              ),
+              api(`api/availability/check-latest?actId=${encodeURIComponent(actId)}&dateISO=${encodeURIComponent(dateISO)}`),
               { headers: { accept: "application/json" } }
             );
             const text = await res.text();
             let j = {};
-            try {
-              j = text ? JSON.parse(text) : {};
-            } catch {}
+            try { j = text ? JSON.parse(text) : {}; } catch {}
             if (res.ok && j?.latestReply === "yes") continue;
+
 
             lastAutoTriggerRef.current[key] = now;
           } catch (e) {
@@ -480,190 +444,166 @@ const ShopProvider = (props) => {
   }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
 
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
-  useEffect(() => {
-    try {
-      const sse = new EventSource(api("api/availability/subscribe"));
-      console.log(
-        "🔌 SSE listener initialized:",
-        api("api/availability/subscribe")
-      );
+useEffect(() => {
+  try {
+    const sse = new EventSource(api("api/availability/subscribe"));
+    console.log("🔌 SSE listener initialized:", api("api/availability/subscribe"));
 
-      sse.addEventListener("open", () => {
-        console.log("📡 SSE connection established ✅");
-      });
+    sse.addEventListener("open", () => {
+      console.log("📡 SSE connection established ✅");
+    });
 
-      sse.addEventListener("message", async (evt) => {
-        if (!evt?.data) return;
+    sse.addEventListener("message", async (evt) => {
+      if (!evt?.data) return;
 
-        try {
-          const payload = JSON.parse(evt.data);
-          if (!payload?.actId) return;
+      try {
+        const payload = JSON.parse(evt.data);
+        if (!payload?.actId) return;
 
-          console.log("📨 [SSE] Raw payload received:", payload);
+        console.log("📨 [SSE] Raw payload received:", payload);
 
-          /* ---------------------------------------------------------------------- */
-          /* 🟦 AVAILABILITY_BADGE_UPDATED                                          */
-          /* ---------------------------------------------------------------------- */
-          if (payload.type === "availability_badge_updated") {
-            console.log(
-              "🟦 [ShopContext] availability_badge_updated received:",
-              payload
-            );
+        /* ---------------------------------------------------------------------- */
+        /* 🟦 AVAILABILITY_BADGE_UPDATED                                          */
+        /* ---------------------------------------------------------------------- */
+        if (payload.type === "availability_badge_updated") {
+          console.log("🟦 [ShopContext] availability_badge_updated received:", payload);
 
-            // 🧹 Ignore explicit null clears (Act.jsx handles those)
-            if (payload.badge === null) {
-              console.log(
-                "🧹 [ShopContext] Ignoring badge:null to avoid overwrite"
-              );
-              return;
-            }
-
-            // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (refined)
-            if (payload.badge) {
-              const formattedDate = formatShortDate(payload.dateISO);
-              const actName = payload.actName || "the act";
-              let toastMsg = "";
-
-              if (
-                payload.badge.isDeputy &&
-                Array.isArray(payload.badge.deputies)
-              ) {
-                // 🔹 Pick the most recent deputy (sorted by setAt)
-                const sortedDeps = [...payload.badge.deputies].sort(
-                  (a, b) => new Date(b.setAt) - new Date(a.setAt)
-                );
-                const latestDep = sortedDeps[0];
-                const name =
-                  latestDep?.vocalistName?.split(" ")[0] ||
-                  latestDep?.name?.split(" ")[0] ||
-                  "Deputy";
-
-                toastMsg = `${name}, deputy vocalist for ${actName}, available for ${formattedDate}.`;
-              } else {
-                const name =
-                  payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
-                toastMsg = `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
-              }
-
-              toast.success(toastMsg);
-            }
-
-            console.log(
-              "♻️ Calling refreshActById for badge update:",
-              payload.actId
-            );
-            await refreshActById(payload.actId);
-            console.log("✅ Finished refreshActById for:", payload.actId);
+          // 🧹 Ignore explicit null clears (Act.jsx handles those)
+          if (payload.badge === null) {
+            console.log("🧹 [ShopContext] Ignoring badge:null to avoid overwrite");
             return;
           }
 
-          /* ---------------------------------------------------------------------- */
-          /* 🟢 NORMAL AVAILABILITY UPDATES (Lead / Deputy)                         */
-          /* ---------------------------------------------------------------------- */
-          const isLead =
-            payload.type === "availability_yes" || payload.type === "leadYes";
-          const isDeputy =
-            payload.type === "deputy_yes" || payload.isDeputy === true;
+         // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (improved)
+if (payload.badge) {
+  const formattedDate = formatShortDate(payload.dateISO);
+  const actName = payload.actName || "the act";
 
-          const shortDate = formatShortDate(payload.dateISO);
+  let toastMsg = "";
 
-          // 🧠 Build consistent toast message
-          let toastMsg;
-          if (isDeputy) {
-            toastMsg = `${payload.musicianName} is available to perform with ${payload.actName} on ${shortDate}.`;
-          } else {
-            toastMsg = `${payload.musicianName || "Lead vocalist"} from ${payload.actName} is available for ${shortDate}.`;
-          }
+  if (payload.badge.isDeputy && Array.isArray(payload.badge.deputies)) {
+   const deputyNames = payload.badge.deputies
+  .map((d) => (d.vocalistName || d.name || "Deputy").split(" ")[0])
+  .filter(Boolean)
+  .join(", ");
+    toastMsg = `${deputyNames}, deputy vocalist${payload.badge.deputies.length > 1 ? "s" : ""} for ${actName}, available for ${formattedDate}.`;
+  } else {
+    const name = payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
+    toastMsg = `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
+  }
 
-          console.log("🧠 Availability update message built:", toastMsg);
+  toast.success(toastMsg);
+}
 
-          // ✅ Update context state
-          setAvailabilityStatus((prev) => ({
-            ...prev,
-            [payload.actId]: {
-              status: isLead ? "lead" : "deputy",
-              musicianName: payload.musicianName,
-              dateISO: payload.dateISO,
-              message: toastMsg,
-            },
-          }));
-
-          // 🔔 Show success toast for specific events only
-          const showToast =
-            payload.type === "deputy_yes" ||
-            payload.type === "leadYes" ||
-            payload.type === "availability_yes";
-
-          if (showToast) {
-            toast(<CustomToast type="success" message={toastMsg} />);
-          }
-
-          // ♻️ Refresh Act data so UI updates live
-          console.log(
-            "♻️ Refreshing act after availability change:",
-            payload.actId
-          );
+          console.log("♻️ Calling refreshActById for badge update:", payload.actId);
           await refreshActById(payload.actId);
-          console.log("✅ Act refreshed:", payload.actId);
-        } catch (e) {
-          console.warn("⚠️ SSE parse error:", e, evt.data);
+          console.log("✅ Finished refreshActById for:", payload.actId);
+          return;
         }
-      });
 
-      sse.addEventListener("error", (err) => {
-        console.warn("⚠️ SSE connection error:", err);
-      });
+        /* ---------------------------------------------------------------------- */
+        /* 🟢 NORMAL AVAILABILITY UPDATES (Lead / Deputy)                         */
+        /* ---------------------------------------------------------------------- */
+        const isLead =
+          payload.type === "availability_yes" || payload.type === "leadYes";
+        const isDeputy =
+          payload.type === "deputy_yes" || payload.isDeputy === true;
 
-      return () => {
-        sse.close();
-        console.log("❌ SSE connection closed");
-      };
-    } catch (e) {
-      console.error("❌ Failed to initialize SSE:", e);
-    }
-  }, [backendUrl]);
+        const shortDate = formatShortDate(payload.dateISO);
 
-  // --- Auto-sync backend when both date + address are present ---
-  const handleDateOrAddressChange = debounce(async (actId) => {
-    try {
-      if (!selectedDate || !selectedAddress || !userId) return;
-
-      const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
-      console.log(
-        "📅 [ShopContext] Updating shortlist with date + address...",
-        {
-          actId,
-          dateISO,
-          selectedAddress,
-          userId,
+        // 🧠 Build consistent toast message
+        let toastMsg;
+        if (isDeputy) {
+          toastMsg = `${payload.musicianName} is available to perform with ${payload.actName} on ${shortDate}.`;
+        } else {
+          toastMsg = `${payload.musicianName || "Lead vocalist"} from ${payload.actName} is available for ${shortDate}.`;
         }
-      );
 
-      await fetch(`${backendUrl}/api/shortlist/update`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          actId,
-          dateISO,
-          formattedAddress: selectedAddress,
-          userId,
-        }),
-      });
+        console.log("🧠 Availability update message built:", toastMsg);
 
-      console.log("✅ [ShopContext] Shortlist update triggered successfully");
-    } catch (err) {
-      console.warn("⚠️ [ShopContext] Failed to update shortlist:", err.message);
-    }
-  }, 1000);
+        // ✅ Update context state
+        setAvailabilityStatus((prev) => ({
+          ...prev,
+          [payload.actId]: {
+            status: isLead ? "lead" : "deputy",
+            musicianName: payload.musicianName,
+            dateISO: payload.dateISO,
+            message: toastMsg,
+          },
+        }));
 
-  // --- Trigger when both date & address exist ---
-  useEffect(() => {
-    if (!selectedDate || !selectedAddress) return;
-    const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
-    shortlistedActs.forEach((actId) => {
-      handleDateOrAddressChange(actId, dateISO);
+        // 🔔 Show success toast for specific events only
+        const showToast =
+          payload.type === "deputy_yes" ||
+          payload.type === "leadYes" ||
+          payload.type === "availability_yes";
+
+        if (showToast) {
+          toast(<CustomToast type="success" message={toastMsg} />);
+        }
+
+        // ♻️ Refresh Act data so UI updates live
+        console.log("♻️ Refreshing act after availability change:", payload.actId);
+        await refreshActById(payload.actId);
+        console.log("✅ Act refreshed:", payload.actId);
+      } catch (e) {
+        console.warn("⚠️ SSE parse error:", e, evt.data);
+      }
     });
-  }, [selectedDate, selectedAddress]);
+
+    sse.addEventListener("error", (err) => {
+      console.warn("⚠️ SSE connection error:", err);
+    });
+
+    return () => {
+      sse.close();
+      console.log("❌ SSE connection closed");
+    };
+  } catch (e) {
+    console.error("❌ Failed to initialize SSE:", e);
+  }
+}, [backendUrl]);
+
+
+
+// --- Auto-sync backend when both date + address are present ---
+const handleDateOrAddressChange = debounce(async (actId) => {
+  try {
+    if (!selectedDate || !selectedAddress || !userId) return;
+
+    const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
+    console.log("📅 [ShopContext] Updating shortlist with date + address...", {
+      actId,
+      dateISO,
+      selectedAddress,
+      userId,
+    });
+
+    await fetch(`${backendUrl}/api/shortlist/update`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actId,
+        dateISO,
+        formattedAddress: selectedAddress,
+        userId,
+      }),
+    });
+
+    console.log("✅ [ShopContext] Shortlist update triggered successfully");
+  } catch (err) {
+    console.warn("⚠️ [ShopContext] Failed to update shortlist:", err.message);
+  }
+}, 1000);
+
+// --- Trigger when both date & address exist ---
+useEffect(() => {
+  if (!selectedDate || !selectedAddress) return;
+  const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
+  shortlistedActs.forEach((actId) => {
+    handleDateOrAddressChange(actId, dateISO);
+  });
+}, [selectedDate, selectedAddress]);
 
   // ============ Shortlist helpers ============
 
@@ -681,121 +621,79 @@ const ShopProvider = (props) => {
         setShortlistItems(ids);
         localStorage.setItem("shortlistItems", JSON.stringify(ids));
       }
-    } catch (err) {}
+    } catch (err) {
+    }
   };
 
   const navigate = useNavigate();
-  const location = useLocation();
+const location = useLocation();
 
-  // Small helper: nudge user to log in and remember where they were
-  const promptLogin = (
-    msg = "Please log in to save acts to your shortlist."
-  ) => {
-    try {
-      toast(<CustomToast type="info" message={msg} />);
-    } catch {}
-    // Remember current page to come back to after login
-    const next = `${location.pathname}${location.search || ""}`;
-    sessionStorage.setItem("postLoginNext", next);
-    navigate("/login");
-  };
+// Small helper: nudge user to log in and remember where they were
+const promptLogin = (msg = "Please log in to save acts to your shortlist.") => {
+  try {
+    toast(<CustomToast type="info" message={msg} />);
+  } catch {}
+  // Remember current page to come back to after login
+  const next = `${location.pathname}${location.search || ""}`;
+  sessionStorage.setItem("postLoginNext", next);
+  navigate("/login");
+};
 
   // Add to shortlist (uses toggle route + triggers availability if date/address present)
-  const addToShortlist = async (itemId, selectedLineup) => {
-    // keep signature for callers, but route through shortlistAct (toggle)
-    const storedUserRaw = localStorage.getItem("user");
-    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-    const u = storedUser?._id || userId;
-    if (!u) {
-      promptLogin("Please log in to save acts to your shortlist.");
-      return;
-    }
-    await shortlistAct(u, String(itemId));
-  };
+const addToShortlist = async (itemId, selectedLineup) => {
 
-  // Toggle shortlist via PATCH routes with optimistic UI
-const shortlistAct = async (uid, actId) => {
+  // keep signature for callers, but route through shortlistAct (toggle)
   const storedUserRaw = localStorage.getItem("user");
   const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-  const u = uid || userId;
-
-  if (!actId) return;
+  const u = storedUser?._id || userId;
   if (!u) {
-    promptLogin("Please log in to manage your shortlist.");
+    promptLogin("Please log in to save acts to your shortlist.");
     return;
   }
-
-  const idStr = String(actId);
-  const isShortlistedNow =
-    Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
-
-  // Optimistic update
-  const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
-  const next = isShortlistedNow
-    ? prev.filter((id) => id !== idStr)
-    : [...new Set([...prev, idStr])];
-
-  setShortlistedActs(next);
-  setShortlistItems(next);
-  try {
-    localStorage.setItem("shortlistItems", JSON.stringify(next));
-  } catch {}
-
-  try {
-    if (isShortlistedNow) {
-      // 🔵 Removing from shortlist
-      await axios.patch(
-        `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
-        { userId: u, clientEmail: storedUser?.email || "" }
-      );
-    } else {
-      // 🟢 Adding to shortlist
-      await axios.patch(
-        `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
-        {
-          userId: u,
-          updateTimesShortlisted: true,
-          clientEmail: storedUser?.email || "",
-        }
-      );
-
-      // 🟩 Trigger availability request if date & address already exist
-      if (selectedDate && selectedAddress && isActAllowed(idStr)) {
-        const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
-        console.log("📅 Triggering shortlist update → triggerAvailabilityRequest", {
-          actId: idStr,
-          dateISO,
-          selectedAddress,
-          userId: u,
-        });
-
-        await axios.patch(`${backendUrl}/api/shortlist/update`, {
-          actId: idStr,
-          dateISO,
-          formattedAddress: selectedAddress,
-          userId: u,
-          clientName: storedUser?.name || storedUser?.firstName || "",
-          clientEmail: storedUser?.email || "",
-        });
-
-        console.log("✅ Triggered availability request for shortlisted act");
-      }
-    }
-  } catch (err) {
-    // ❌ Revert on failure
-    console.error("❌ shortlistAct error:", err.message);
-    setShortlistedActs(prev);
-    setShortlistItems(prev);
-    try {
-      localStorage.setItem("shortlistItems", JSON.stringify(prev));
-    } catch {}
-    try {
-      toast(
-        <CustomToast type="error" message="Could not update shortlist." />
-      );
-    } catch {}
-  }
+  await shortlistAct(u, String(itemId));
 };
+
+  // Toggle shortlist via PATCH routes with optimistic UI
+  const shortlistAct = async (uid, actId) => {
+    const storedUserRaw = localStorage.getItem("user");
+const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+    const u = uid || userId;
+    if (!actId) return;
+    if (!u) {
+      promptLogin("Please log in to manage your shortlist.");
+      return;
+    }
+
+    const idStr = String(actId);
+    const isShortlistedNow = Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
+
+    // optimistic update
+    const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
+    const next = isShortlistedNow
+      ? prev.filter((id) => id !== idStr)
+      : [...new Set([...prev, idStr])];
+
+    setShortlistedActs(next);
+    setShortlistItems(next);
+    try { localStorage.setItem("shortlistItems", JSON.stringify(next)); } catch {}
+
+    try {
+      if (isShortlistedNow) {
+        await axios.patch(`${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`, { userId: u, clientEmail: storedUser?.email || "" });
+      } else {
+        await axios.patch(`${backendUrl}/api/availability/act/${idStr}/increment-shortlist`, { userId: u, updateTimesShortlisted: true, clientEmail: storedUser?.email || "" });
+        if (selectedDate && selectedAddress && isActAllowed(idStr)) {
+          await requestVocalistAvailability({ actId: idStr, lineupId: null });
+        }
+      }
+    } catch (err) {
+      // revert on failure
+      setShortlistedActs(prev);
+      setShortlistItems(prev);
+      try { localStorage.setItem("shortlistItems", JSON.stringify(prev)); } catch {}
+      try { toast(<CustomToast type="error" message="Could not update shortlist." />); } catch {}
+    }
+  };
 
   // ============ Invoicing helpers ============
   const computeBalanceDueDate = (eventISO) => {
@@ -822,15 +720,15 @@ const shortlistAct = async (uid, actId) => {
   const scheduleBalanceInvoice = async ({
     bookingId,
     actId,
-    customerId, // Stripe customer id or your internal id
-    eventDateISO, // event date (ISO)
-    currency = "GBP",
-    amountPence, // integer in pence for the remaining balance
+    customerId,     // Stripe customer id or your internal id
+    eventDateISO,   // event date (ISO)
+    currency = 'GBP',
+    amountPence,    // integer in pence for the remaining balance
     metadata = {},
   }) => {
     try {
       if (!bookingId || !eventDateISO || !amountPence) {
-        return { success: false, error: "missing_fields" };
+        return { success: false, error: 'missing_fields' };
       }
 
       const dueAtISO = computeBalanceDueDate(eventDateISO);
@@ -845,13 +743,10 @@ const shortlistAct = async (uid, actId) => {
         metadata,
       };
 
-      const res = await axios.post(
-        `${backendUrl}/api/invoices/schedule-balance`,
-        payload
-      );
+      const res = await axios.post(`${backendUrl}/api/invoices/schedule-balance`, payload);
       return res.data || { success: true };
     } catch (err) {
-      return { success: false, error: err?.message || "request_failed" };
+      return { success: false, error: err?.message || 'request_failed' };
     }
   };
 
@@ -888,20 +783,20 @@ const shortlistAct = async (uid, actId) => {
     const extrasInput = Array.isArray(selectedExtras)
       ? selectedExtras.filter(Boolean)
       : selectedExtras
-        ? [selectedExtras]
-        : [];
+      ? [selectedExtras]
+      : [];
 
     const afternoonInput = Array.isArray(selectedAfternoonSets)
       ? selectedAfternoonSets.filter(Boolean)
       : selectedAfternoonSets
-        ? [selectedAfternoonSets]
-        : [];
+      ? [selectedAfternoonSets]
+      : [];
 
     const suggestionsInput = Array.isArray(songSuggestions)
       ? songSuggestions.filter(Boolean)
       : songSuggestions
-        ? [songSuggestions]
-        : [];
+      ? [songSuggestions]
+      : [];
 
     // Clone cart
     const updated = structuredClone(cartItems || {});
@@ -925,11 +820,13 @@ const shortlistAct = async (uid, actId) => {
       [lineupKey]: {
         quantity: 1,
         selectedExtras: allSelectedExtras,
-        selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
+        selectedAfternoonSets: [
+          ...afternoonInput,
+          ...allAfternoonSets,
+        ],
         songSuggestions: suggestionsInput,
         dismissedExtras: [],
-        performance: {
-          // 👈 new
+        performance: {               // 👈 new
           arrivalTime: "",
           setupAndSoundcheckedBy: "",
           startTime: "",
@@ -957,12 +854,16 @@ const shortlistAct = async (uid, actId) => {
             actId: actKey,
             lineupId: lineupKey,
             selectedExtras: allSelectedExtras,
-            selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
+            selectedAfternoonSets: [
+              ...afternoonInput,
+              ...allAfternoonSets,
+            ],
             songSuggestions: suggestionsInput,
           },
           { headers: { token } }
         );
-      } catch (err) {}
+      } catch (err) {
+      }
     }
   };
 
@@ -1008,8 +909,8 @@ const shortlistAct = async (uid, actId) => {
       const extras = Array.isArray(rawExtras)
         ? rawExtras
         : rawExtras
-          ? [rawExtras]
-          : [];
+        ? [rawExtras]
+        : [];
 
       const exists = extras.find((e) => e.key === newExtra.key);
 
@@ -1048,7 +949,8 @@ const shortlistAct = async (uid, actId) => {
             },
             { headers: { token } }
           );
-        } catch (err) {}
+        } catch (err) {
+        }
       }
     }
   };
@@ -1069,9 +971,8 @@ const shortlistAct = async (uid, actId) => {
         } = cartItem;
 
         const lineup =
-          actData.lineups.find(
-            (l) => String(l.lineupId) === String(lineupId)
-          ) || actData.lineups.find((l) => String(l._id) === String(lineupId));
+          actData.lineups.find((l) => String(l.lineupId) === String(lineupId)) ||
+          actData.lineups.find((l) => String(l._id) === String(lineupId));
         if (!lineup) continue;
 
         const result = await calculateActPricing(
@@ -1083,10 +984,10 @@ const shortlistAct = async (uid, actId) => {
         );
 
         const basePrice = Number(result?.total || 0);
-        const extrasTotal = [
-          ...selectedExtras,
-          ...selectedAfternoonSets,
-        ].reduce((sum, e) => sum + (e.price || 0), 0);
+        const extrasTotal = [...selectedExtras, ...selectedAfternoonSets].reduce(
+          (sum, e) => sum + (e.price || 0),
+          0
+        );
         const itemTotal = (basePrice + extrasTotal) * (quantity || 1);
 
         totalAmount += itemTotal;
@@ -1097,11 +998,11 @@ const shortlistAct = async (uid, actId) => {
   };
 
   // Wrap the availability trigger in a debounce to avoid double-fire from rapid clicks or React rerenders
-  const debouncedRequestVocalistAvailability = debounce(
-    (params) => requestVocalistAvailability(params),
-    500, // wait 500ms before allowing another
-    { leading: true, trailing: false }
-  );
+const debouncedRequestVocalistAvailability = debounce(
+  (params) => requestVocalistAvailability(params),
+  500, // wait 500ms before allowing another
+  { leading: true, trailing: false }
+);
 
   // ============ Simple helpers ============
 
@@ -1133,6 +1034,8 @@ const shortlistAct = async (uid, actId) => {
     window.location.reload();
   };
 
+  
+
   const value = {
     // core
     acts,
@@ -1143,7 +1046,7 @@ const shortlistAct = async (uid, actId) => {
     showSearch,
     setShowSearch,
     backendUrl,
-    getActById,
+getActById,
     // cart
     cartItems,
     setCartItems,
@@ -1153,7 +1056,7 @@ const shortlistAct = async (uid, actId) => {
     removeFromCart,
     getCartCount,
     getCartAmount,
-    updatePerformance,
+updatePerformance,
     // location/date
     selectedAddress,
     setSelectedAddress,
@@ -1181,7 +1084,7 @@ const shortlistAct = async (uid, actId) => {
     // availability
     availabilityStatus,
     setAvailabilityStatus,
-    requestVocalistAvailability: debouncedRequestVocalistAvailability,
+requestVocalistAvailability: debouncedRequestVocalistAvailability,
     // auth
     token,
     setToken,
@@ -1192,12 +1095,11 @@ const shortlistAct = async (uid, actId) => {
     state,
     setState,
     logout,
-    computeBalanceDueDate,
+     computeBalanceDueDate,
     scheduleBalanceInvoice,
-    handleDateOrAddressChange,
+handleDateOrAddressChange,
     selectedVocalists,
-    selectVocalistForAct,
-    toggleVocalistForAct
+  selectVocalistForAct,
   };
 
   return (
@@ -1206,4 +1108,5 @@ const shortlistAct = async (uid, actId) => {
 };
 
 export default ShopProvider;
-// invoicing
+    // invoicing
+   
