@@ -107,97 +107,100 @@ const Cart = () => {
     );
   };
 
-  useEffect(() => {
-    // Don’t run until we have acts and cartItems
-    if (!acts || acts.length === 0) return;
-    if (!cartItems || Object.keys(cartItems).length === 0) {
-      setCartData([]); // keep it clean
-      return;
-    }
+useEffect(() => {
+  if (!Array.isArray(acts) || acts.length === 0) {
+    console.debug("🛒 No acts loaded yet — skipping cart data fetch");
+    return;
+  }
+  if (!cartItems || Object.keys(cartItems).length === 0) {
+    console.debug("🛒 Cart is empty — clearing data");
+    setCartData?.([]); // safe optional chaining
+    return;
+  }
 
-    const fetchCartData = async () => {
-      const tempData = [];
+  const fetchCartData = async () => {
+    const tempData = [];
 
-      for (const actId in cartItems) {
-        const actData = acts.find((act) => act._id === actId);
-        if (!actData) {
-          continue;
-        }
+    for (const actId in cartItems) {
+      const actData = acts.find((a) => a?._id === actId);
+      if (!actData) continue;
 
-        for (const lineupId in cartItems[actId]) {
-          const {
-            quantity,
-            selectedExtras = [],
-          
-          } = cartItems[actId][lineupId];
+      const actCart = cartItems[actId];
+      if (!actCart || typeof actCart !== "object") continue;
 
-          const lineup = actData.lineups.find(
-            (l) => String(l._id || l.lineupId) === String(lineupId)
-          );
-          if (!lineup) {
-            
-            continue;
-          }
+      for (const lineupId in actCart) {
+        const cartLine = actCart[lineupId];
+        if (!cartLine) continue;
 
-          const countyFromAddress =
-            selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
-          let adjustedTotal = 0;
+        const lineup = actData.lineups?.find(
+          (l) => String(l?._id || l?.lineupId) === String(lineupId)
+        );
+        if (!lineup) continue;
 
-          try {
-            const { total } = await calculateActPricing(
+        const countyFromAddress =
+          selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+
+        let adjustedTotal = 0;
+        if (typeof calculateActPricing !== "function") {
+  console.warn("⚠️ calculateActPricing not ready");
+  return;
+}
+        try {
+          const { total } =
+            (await calculateActPricing?.(
               actData,
               countyFromAddress,
               selectedAddress,
               selectedDate,
               lineup
-            );
-            adjustedTotal = Number(total) || 0;
-          } catch (error) {
-            // Silently handle pricing calculation errors - the UI will show £0 
-            console.debug('Price calculation failed:', error);
-          }
-
-          tempData.push({
-            _id: actId,
-            selectedLineup: lineupId,
-            quantity,
-            selectedExtras: Array.isArray(selectedExtras)
-              ? selectedExtras
-              : [selectedExtras],
-            dismissedExtras:
-              cartItems?.[actId]?.[lineupId]?.dismissedExtras || [],
-            adjustedTotal,
-            actData,
-            lineup,
-          });
+            )) || {};
+          adjustedTotal = Number(total) || 0;
+        } catch (err) {
+          console.warn("💸 Price calc failed:", err.message);
         }
+
+        tempData.push({
+          _id: actId,
+          selectedLineup: lineupId,
+          quantity: cartLine.quantity || 1,
+          selectedExtras: Array.isArray(cartLine.selectedExtras)
+            ? cartLine.selectedExtras
+            : cartLine.selectedExtras
+            ? [cartLine.selectedExtras]
+            : [],
+          dismissedExtras: cartLine.dismissedExtras || [],
+          adjustedTotal,
+          actData,
+          lineup,
+        });
       }
+    }
 
-      setCartData(tempData);
-    };
-
-    fetchCartData();
-  }, [cartItems, acts, selectedAddress, selectedDate, setCartData]);
-
-  const triggerSearch = () => {
-    setShowSearch(true);
-    navigate("/acts");
-    window.scrollTo(0, 0);
+    setCartData?.(tempData);
   };
+
+  fetchCartData();
+}, [acts, cartItems, selectedAddress, selectedDate, setCartData]);
+
+const triggerSearch = () => {
+  setShowSearch?.(true);
+  navigate?.("/acts");
+  window?.scrollTo?.(0, 0);
+};
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const clearFinishOverride = useCallback(
-    (actId) => {
-      setPerformancePlans((prev) => ({
-        ...prev,
-        [actId]: { ...prev[actId], finishTime: undefined },
-      }));
-    },
-    [setPerformancePlans]
-  );
+const clearFinishOverride = useCallback(
+  (actId) => {
+    setPerformancePlans?.((prev) => ({
+      ...prev,
+      [actId]: { ...prev?.[actId], finishTime: undefined },
+    }));
+  },
+  [setPerformancePlans]
+);
 
   const formatDate = (dateString) => {
     if (!dateString) return "No date selected";
@@ -1066,7 +1069,7 @@ const displayCartDetails = Array.isArray(cartDetails)
   ? cartDetails.filter((item) => !isActUnavailableForSelectedDate(item.actId))
   : [];
 
-
+if (!acts?.length || !cartItems || Object.keys(cartItems).length === 0) {
   return (
     <div className="border-t pt-14">
       <div className="text-2xl mb-3">
@@ -1979,7 +1982,18 @@ const displayCartDetails = Array.isArray(cartDetails)
 
         {/* Cart Summary and Button */}
         <div className="w-full sm:w-[450px]">
-          <CartTotal />
+          {cartDetails?.length > 0 ? (
+   cartDetails.map((item) => (
+    <CartTotal
+      key={`${item._id}-${item.selectedLineup}`}
+      act={item.actData}
+      lineup={item.lineup}
+      total={item.adjustedTotal}
+    />
+   ))
+) : (
+  <p className="text-gray-500">Your cart is empty.</p>
+)}
           <div className="w-full text-end">
            <button
   onClick={() => {
@@ -2073,5 +2087,5 @@ function useMergedUpdateExtras(cartItems, setCartItems) {
     [setCartItems]
   );
 }
-
+}
 export default Cart;
