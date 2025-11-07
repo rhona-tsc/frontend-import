@@ -545,7 +545,7 @@ const ShopProvider = (props) => {
                 toastMsg = `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
               }
 
-              toast.success(toastMsg);
+ toast(<CustomToast type="success" message={toastMsg} />);
             }
 
             console.log(
