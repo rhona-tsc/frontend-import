@@ -659,45 +659,45 @@ console.log("🟢 Render check", {
                     </svg>
                   </button>
                   <button
-                    onClick={async () => {
-                      // --- existing shortlist toggle logic ---
-                      try {
-                        await shortlistAct(userId, actData._id);
+                   onClick={async () => {
+  try {
+    // 🔹 Check if user is logged in before proceeding
+    if (!userId) {
+      toast(
+        <CustomToast
+          type="warning"
+          message="Please log in to manage your shortlist."
+        />,
+        { position: "top-right", autoClose: 2000 }
+      );
+      return; // ❌ stop here, don’t trigger shortlistAct
+    }
 
-                        toast(
-                          <CustomToast
-                            type="success"
-                            message={
-                              isShortlisted
-                                ? "Removed from shortlist."
-                                : "Added to shortlist!"
-                            }
-                          />,
-                          {
-                            position: "top-right",
-                            autoClose: 1600,
-                          }
-                        );
-                      } catch (e) {
-                        console.error("❌ Shortlist toggle failed", e);
-                        toast(
-                          <CustomToast
-                            type="error"
-                            message="Could not update shortlist."
-                          />,
-                          {
-                            position: "top-right",
-                            autoClose: 1600,
-                          }
-                        );
-                      }
-                    }}
-                    aria-pressed={isShortlisted}
-                    className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${
-                      isShortlisted
-                        ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
-                        : "bg-black text-white hover:bg-[#ff6667]"
-                    }`}
+    // 🔹 Proceed with shortlist toggle
+    await shortlistAct(userId, actData._id);
+
+    toast(
+      <CustomToast
+        type="success"
+        message={
+          isShortlisted
+            ? `${actData.tscName || actData.name} removed from your shortlist.`
+            : `${actData.tscName || actData.name} added to your shortlist!`
+        }
+      />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  } catch (e) {
+    console.error("❌ Shortlist toggle failed", e);
+    toast(
+      <CustomToast
+        type="error"
+        message="Could not update shortlist."
+      />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  }
+}}
                   >
                     {isShortlisted
                       ? "REMOVE FROM SHORTLIST"
@@ -1152,39 +1152,45 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row my-6 gap-6 ml-3">
               <button
-                onClick={async () => {
-                  // --- existing shortlist toggle logic ---
-                  try {
-                    await shortlistAct(userId, actData._id);
+              onClick={async () => {
+  try {
+    // 🔹 Check if user is logged in before proceeding
+    if (!userId) {
+      toast(
+        <CustomToast
+          type="warning"
+          message="Please log in to manage your shortlist."
+        />,
+        { position: "top-right", autoClose: 2000 }
+      );
+      return; // ❌ stop here, don’t trigger shortlistAct
+    }
 
-                    toast(
-                      <CustomToast
-                        type="success"
-                        message={
-                          isShortlisted
-                            ? "Removed from shortlist."
-                            : "Added to shortlist!"
-                        }
-                      />,
-                      {
-                        position: "top-right",
-                        autoClose: 1600,
-                      }
-                    );
-                  } catch (e) {
-                    console.error("❌ Shortlist toggle failed", e);
-                    toast(
-                      <CustomToast
-                        type="error"
-                        message="Could not update shortlist."
-                      />,
-                      {
-                        position: "top-right",
-                        autoClose: 1600,
-                      }
-                    );
-                  }
-                }}
+    // 🔹 Proceed with shortlist toggle
+    await shortlistAct(userId, actData._id);
+
+    toast(
+      <CustomToast
+        type="success"
+        message={
+          isShortlisted
+            ? `${actData.tscName || actData.name} removed from your shortlist.`
+            : `${actData.tscName || actData.name} added to your shortlist!`
+        }
+      />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  } catch (e) {
+    console.error("❌ Shortlist toggle failed", e);
+    toast(
+      <CustomToast
+        type="error"
+        message="Could not update shortlist."
+      />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  }
+}}
                 aria-pressed={isShortlisted}
                 className={`px-8 py-3 text-m rounded transition-colors ${
                   isShortlisted
