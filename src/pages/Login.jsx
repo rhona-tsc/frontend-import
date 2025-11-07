@@ -8,7 +8,7 @@ import CustomToast from "../components/CustomToast";
 const Login = () => {
   const navigate = useNavigate(); 
   const [currentState, setCurrentState] = useState('Login');
-  const { token, setToken, backendUrl, shortlistAct } = useContext(ShopContext);
+  const { token, setToken, backendUrl, shortlistAct, setUser } = useContext(ShopContext);
 
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
@@ -28,30 +28,35 @@ const Login = () => {
   };
 
   // ✅ Auto-shortlist logic: runs after a successful login
-  const handleAutoShortlist = async (userId) => {
-    const pendingActId = sessionStorage.getItem('pendingShortlistActId');
-    if (!pendingActId) return;
+const handleAutoShortlist = async (userId) => {
+  const pendingActId = sessionStorage.getItem("pendingShortlistActId");
+  const actName = sessionStorage.getItem("pendingShortlistActName");
+  if (!pendingActId) return;
 
-    try {
-      await shortlistAct(userId, pendingActId);
-      toast(
-        <CustomToast
-          type="success"
-          message="Act added to your shortlist!"
-        />
-      );
-    } catch (err) {
-      console.warn("⚠️ Failed to auto-shortlist after login:", err.message);
-      toast(
-        <CustomToast
-          type="error"
-          message="Couldn't add act to your shortlist automatically."
-        />
-      );
-    } finally {
-      sessionStorage.removeItem('pendingShortlistActId');
-    }
-  };
+  try {
+    await shortlistAct(userId, pendingActId);
+
+    // 🎉 Success toast with act name (if available)
+    toast(
+      <CustomToast
+        type="success"
+        message={`${actName || "Act"} added to your shortlist!`}
+      />
+    );
+  } catch (err) {
+    console.warn("⚠️ Failed to auto-shortlist after login:", err.message);
+    toast(
+      <CustomToast
+        type="error"
+        message="Couldn't add act to your shortlist automatically."
+      />
+    );
+  } finally {
+    // 🧹 Always clean up after
+    sessionStorage.removeItem("pendingShortlistActId");
+    sessionStorage.removeItem("pendingShortlistActName");
+  }
+};
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
@@ -68,10 +73,11 @@ const Login = () => {
           setToken(response.data.token);
           localStorage.setItem("token", response.data.token);
 
-          const user = {
-            _id: response.data.userId,
-            email: response.data.email,
-          };
+        const user = {
+  _id: response.data.userId,
+  email: response.data.email,
+};
+setUser(user); // 🆕 keeps context + localStorage in sync
           localStorage.setItem("user", JSON.stringify(user));
           localStorage.removeItem("shortlistItems");
 
@@ -90,10 +96,11 @@ const Login = () => {
           setToken(response.data.token);
           localStorage.setItem("token", response.data.token);
 
-          const user = {
-            _id: response.data.userId,
-            email: response.data.email,
-          };
+       const user = {
+  _id: response.data.userId,
+  email: response.data.email,
+};
+setUser(user); // 🆕 keeps context + localStorage in sync
           localStorage.setItem("user", JSON.stringify(user));
 
           await handleAutoShortlist(user._id); // 🆕 auto-shortlist if pending

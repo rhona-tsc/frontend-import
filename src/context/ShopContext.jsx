@@ -26,6 +26,12 @@ const ShopProvider = (props) => {
 
   // --- User / shortlist (single sources of truth) ---
   const [userId, setUserId] = useState(null);
+  const setUser = (userObj) => {
+  if (userObj?._id) {
+    setUserId(userObj._id);
+    localStorage.setItem("user", JSON.stringify(userObj));
+  }
+};
   const [shortlistedActs, setShortlistedActs] = useState([]); // array of actId strings
   const [shortlistItems, setShortlistItems] = useState([]); // legacy mirror (array of actId strings)
 
@@ -690,7 +696,8 @@ const ShopProvider = (props) => {
   // Small helper: nudge user to log in and remember where they were
 const promptLogin = (
   msg = "Please log in to save acts to your shortlist.",
-  actId = null
+  actId = null,
+  actName = null
 ) => {
   try {
     toast(<CustomToast type="info" message={msg} />);
@@ -699,8 +706,11 @@ const promptLogin = (
   const next = `${location.pathname}${location.search || ""}`;
   sessionStorage.setItem("postLoginNext", next);
 
-  // 🆕 Store act ID so we can auto-add after login
-  if (actId) sessionStorage.setItem("pendingShortlistActId", actId);
+  // 🪄 Store act info so we can auto-add and show act name in toast after login
+  if (actId) {
+    sessionStorage.setItem("pendingShortlistActId", actId);
+    if (actName) sessionStorage.setItem("pendingShortlistActName", actName);
+  }
 
   navigate("/login");
 };
@@ -720,6 +730,7 @@ const promptLogin = (
 
   // Toggle shortlist via PATCH routes with optimistic UI
 const shortlistAct = async (uid, actId) => {
+  if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
   const storedUserRaw = localStorage.getItem("user");
   const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
   const u = uid || userId;
@@ -1141,8 +1152,7 @@ await axios.patch(
     setSelectedDate("");
     setActs([]);
     setAvailabilityStatus({});
-
-    window.location.reload();
+navigate("/"); // clean redirect without reload
   };
 
   const value = {
@@ -1209,7 +1219,8 @@ await axios.patch(
     handleDateOrAddressChange,
     selectedVocalists,
     selectVocalistForAct,
-    toggleVocalistForAct
+    toggleVocalistForAct,
+    setUser,
   };
 
   return (
