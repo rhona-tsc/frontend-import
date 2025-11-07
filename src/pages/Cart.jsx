@@ -1069,7 +1069,6 @@ const displayCartDetails = Array.isArray(cartDetails)
   ? cartDetails.filter((item) => !isActUnavailableForSelectedDate(item.actId))
   : [];
 
-if (!acts?.length || !cartItems || Object.keys(cartItems).length === 0) {
   return (
     <div className="border-t pt-14">
       <div className="text-2xl mb-3">
@@ -2087,5 +2086,5 @@ function useMergedUpdateExtras(cartItems, setCartItems) {
     [setCartItems]
   );
 }
-}
+
 export default Cart;

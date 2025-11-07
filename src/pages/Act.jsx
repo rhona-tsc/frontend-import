@@ -110,17 +110,22 @@ useEffect(() => {
     }
   }, [location]);
 
-    const promptLogin = (
-    msg = "Please log in to save acts to your shortlist."
-  ) => {
-    try {
-      toast(<CustomToast type="info" message={msg} />);
-    } catch {}
-    // Remember current page to come back to after login
-    const next = `${location.pathname}${location.search || ""}`;
-    sessionStorage.setItem("postLoginNext", next);
-    navigate("/login");
-  };
+const promptLogin = (
+  msg = "Please log in to save acts to your shortlist.",
+  actId = null
+) => {
+  try {
+    toast(<CustomToast type="info" message={msg} />);
+  } catch {}
+
+  const next = `${location.pathname}${location.search || ""}`;
+  sessionStorage.setItem("postLoginNext", next);
+
+  // 🆕 Store act ID so we can auto-add after login
+  if (actId) sessionStorage.setItem("pendingShortlistActId", actId);
+
+  navigate("/login");
+};
 
 
 useEffect(() => {
@@ -672,10 +677,10 @@ console.log("🟢 Render check", {
   onClick={async () => {
     try {
       // 🔹 Check if user is logged in before proceeding
-      if (!userId) {
-        promptLogin("Please log in to save acts to your shortlist.");
-        return; // ✅ Stops here and redirects via promptLogin()
-      }
+     if (!userId) {
+  promptLogin("Please log in to save acts to your shortlist.", actData._id);
+  return;
+}
 
       // 🔹 Proceed with shortlist toggle
       await shortlistAct(userId, actData._id);
@@ -1169,10 +1174,10 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
   onClick={async () => {
     try {
       // 🔹 Check if user is logged in before proceeding
-      if (!userId) {
-        promptLogin("Please log in to save acts to your shortlist.");
-        return; // ✅ Stops here and redirects via promptLogin()
-      }
+    if (!userId) {
+  promptLogin("Please log in to save acts to your shortlist.", actData._id);
+  return;
+}
 
       // 🔹 Proceed with shortlist toggle
       await shortlistAct(userId, actData._id);
