@@ -110,7 +110,17 @@ useEffect(() => {
     }
   }, [location]);
 
-  
+    const promptLogin = (
+    msg = "Please log in to save acts to your shortlist."
+  ) => {
+    try {
+      toast(<CustomToast type="info" message={msg} />);
+    } catch {}
+    // Remember current page to come back to after login
+    const next = `${location.pathname}${location.search || ""}`;
+    sessionStorage.setItem("postLoginNext", next);
+    navigate("/login");
+  };
 
 
 useEffect(() => {
@@ -658,51 +668,55 @@ console.log("🟢 Render check", {
                       <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
                     </svg>
                   </button>
-                  <button
-                   onClick={async () => {
-  try {
-    // 🔹 Check if user is logged in before proceeding
-    if (!userId) {
+                 <button
+  onClick={async () => {
+    try {
+      // 🔹 Check if user is logged in before proceeding
+      if (!userId) {
+        promptLogin("Please log in to save acts to your shortlist.");
+        return; // ✅ Stops here and redirects via promptLogin()
+      }
+
+      // 🔹 Proceed with shortlist toggle
+      await shortlistAct(userId, actData._id);
+
       toast(
         <CustomToast
-          type="warning"
-          message="Please log in to manage your shortlist."
+          type="success"
+          message={
+            isShortlisted
+              ? `${actData.tscName || actData.name} removed from your shortlist.`
+              : `${actData.tscName || actData.name} added to your shortlist!`
+          }
         />,
-        { position: "top-right", autoClose: 2000 }
-      );
-      return; // ❌ stop here, don’t trigger shortlistAct
-    }
-
-    // 🔹 Proceed with shortlist toggle
-    await shortlistAct(userId, actData._id);
-
-    toast(
-      <CustomToast
-        type="success"
-        message={
-          isShortlisted
-            ? `${actData.tscName || actData.name} removed from your shortlist.`
-            : `${actData.tscName || actData.name} added to your shortlist!`
+        {
+          position: "top-right",
+          autoClose: 1600,
         }
-      />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  } catch (e) {
-    console.error("❌ Shortlist toggle failed", e);
-    toast(
-      <CustomToast
-        type="error"
-        message="Could not update shortlist."
-      />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  }
-}}
-                  >
-                    {isShortlisted
-                      ? "REMOVE FROM SHORTLIST"
-                      : "ADD TO SHORTLIST"}
-                  </button>
+      );
+    } catch (e) {
+      console.error("❌ Shortlist toggle failed", e);
+      toast(
+        <CustomToast
+          type="error"
+          message="Could not update shortlist."
+        />,
+        {
+          position: "top-right",
+          autoClose: 1600,
+        }
+      );
+    }
+  }}
+  aria-pressed={isShortlisted}
+  className={`px-8 py-3 text-m rounded transition-colors ${
+    isShortlisted
+      ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
+      : "bg-black text-white hover:bg-[#ff6667]"
+  }`}
+>
+  {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
+</button>
                   <button
                     onClick={async () => {
                       if (!selectedLineup) {
@@ -1151,55 +1165,55 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row my-6 gap-6 ml-3">
-              <button
-              onClick={async () => {
-  try {
-    // 🔹 Check if user is logged in before proceeding
-    if (!userId) {
+           <button
+  onClick={async () => {
+    try {
+      // 🔹 Check if user is logged in before proceeding
+      if (!userId) {
+        promptLogin("Please log in to save acts to your shortlist.");
+        return; // ✅ Stops here and redirects via promptLogin()
+      }
+
+      // 🔹 Proceed with shortlist toggle
+      await shortlistAct(userId, actData._id);
+
       toast(
         <CustomToast
-          type="warning"
-          message="Please log in to manage your shortlist."
+          type="success"
+          message={
+            isShortlisted
+              ? `${actData.tscName || actData.name} removed from your shortlist.`
+              : `${actData.tscName || actData.name} added to your shortlist!`
+          }
         />,
-        { position: "top-right", autoClose: 2000 }
-      );
-      return; // ❌ stop here, don’t trigger shortlistAct
-    }
-
-    // 🔹 Proceed with shortlist toggle
-    await shortlistAct(userId, actData._id);
-
-    toast(
-      <CustomToast
-        type="success"
-        message={
-          isShortlisted
-            ? `${actData.tscName || actData.name} removed from your shortlist.`
-            : `${actData.tscName || actData.name} added to your shortlist!`
+        {
+          position: "top-right",
+          autoClose: 1600,
         }
-      />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  } catch (e) {
-    console.error("❌ Shortlist toggle failed", e);
-    toast(
-      <CustomToast
-        type="error"
-        message="Could not update shortlist."
-      />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  }
-}}
-                aria-pressed={isShortlisted}
-                className={`px-8 py-3 text-m rounded transition-colors ${
-                  isShortlisted
-                    ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
-                    : "bg-black text-white hover:bg-[#ff6667]"
-                }`}
-              >
-                {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
-              </button>
+      );
+    } catch (e) {
+      console.error("❌ Shortlist toggle failed", e);
+      toast(
+        <CustomToast
+          type="error"
+          message="Could not update shortlist."
+        />,
+        {
+          position: "top-right",
+          autoClose: 1600,
+        }
+      );
+    }
+  }}
+  aria-pressed={isShortlisted}
+  className={`px-8 py-3 text-m rounded transition-colors ${
+    isShortlisted
+      ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
+      : "bg-black text-white hover:bg-[#ff6667]"
+  }`}
+>
+  {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
+</button>
 
               <button
                 onClick={async () => {

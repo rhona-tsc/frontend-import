@@ -688,17 +688,22 @@ const ShopProvider = (props) => {
   const location = useLocation();
 
   // Small helper: nudge user to log in and remember where they were
-  const promptLogin = (
-    msg = "Please log in to save acts to your shortlist."
-  ) => {
-    try {
-      toast(<CustomToast type="info" message={msg} />);
-    } catch {}
-    // Remember current page to come back to after login
-    const next = `${location.pathname}${location.search || ""}`;
-    sessionStorage.setItem("postLoginNext", next);
-    navigate("/login");
-  };
+const promptLogin = (
+  msg = "Please log in to save acts to your shortlist.",
+  actId = null
+) => {
+  try {
+    toast(<CustomToast type="info" message={msg} />);
+  } catch {}
+
+  const next = `${location.pathname}${location.search || ""}`;
+  sessionStorage.setItem("postLoginNext", next);
+
+  // 🆕 Store act ID so we can auto-add after login
+  if (actId) sessionStorage.setItem("pendingShortlistActId", actId);
+
+  navigate("/login");
+};
 
   // Add to shortlist (uses toggle route + triggers availability if date/address present)
   const addToShortlist = async (itemId, selectedLineup) => {

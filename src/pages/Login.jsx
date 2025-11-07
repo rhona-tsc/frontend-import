@@ -8,7 +8,7 @@ import CustomToast from "../components/CustomToast";
 const Login = () => {
   const navigate = useNavigate(); 
   const [currentState, setCurrentState] = useState('Login');
-  const { token, setToken, backendUrl } = useContext(ShopContext);
+  const { token, setToken, backendUrl, shortlistAct } = useContext(ShopContext);
 
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
@@ -16,7 +16,7 @@ const Login = () => {
   const [email,     setEmail]     = useState('');
   const [password,  setPassword]  = useState('');
 
-  // ✅ helper: send them to the page they wanted before login (or home)
+  // ✅ Helper – send them to the page they wanted before login (or home)
   const redirectAfterAuth = () => {
     const next = sessionStorage.getItem('postLoginNext');
     if (next) {
@@ -24,6 +24,32 @@ const Login = () => {
       navigate(next, { replace: true });
     } else {
       navigate('/', { replace: true });
+    }
+  };
+
+  // ✅ Auto-shortlist logic: runs after a successful login
+  const handleAutoShortlist = async (userId) => {
+    const pendingActId = sessionStorage.getItem('pendingShortlistActId');
+    if (!pendingActId) return;
+
+    try {
+      await shortlistAct(userId, pendingActId);
+      toast(
+        <CustomToast
+          type="success"
+          message="Act added to your shortlist!"
+        />
+      );
+    } catch (err) {
+      console.warn("⚠️ Failed to auto-shortlist after login:", err.message);
+      toast(
+        <CustomToast
+          type="error"
+          message="Couldn't add act to your shortlist automatically."
+        />
+      );
+    } finally {
+      sessionStorage.removeItem('pendingShortlistActId');
     }
   };
 
@@ -49,7 +75,7 @@ const Login = () => {
           localStorage.setItem("user", JSON.stringify(user));
           localStorage.removeItem("shortlistItems");
 
-          // ✅ smart redirect
+          await handleAutoShortlist(user._id); // 🆕 auto-shortlist if pending
           redirectAfterAuth();
         } else {
           toast(<CustomToast type="error" message={response.data.message} />);
@@ -70,7 +96,7 @@ const Login = () => {
           };
           localStorage.setItem("user", JSON.stringify(user));
 
-          // ✅ smart redirect
+          await handleAutoShortlist(user._id); // 🆕 auto-shortlist if pending
           redirectAfterAuth();
         } else {
           toast(<CustomToast type="error" message={response.data.message} />);
@@ -86,7 +112,6 @@ const Login = () => {
     }
   };
 
-  // ✅ Forgot password: uses email in the box to request a reset link
   const handleForgotPassword = async () => {
     const trimmed = String(email || "").trim();
     if (!trimmed) {
@@ -96,7 +121,6 @@ const Login = () => {
     try {
       await axios.post(`${backendUrl}/api/user/forgot-password`, { email: trimmed });
       toast(<CustomToast type="success" message="If that email exists, we’ve sent a reset link." />);
-      // optional: navigate('/check-email');
     } catch (err) {
       console.error('Forgot password error:', err?.response?.data || err?.message || err);
       toast(<CustomToast type="error" message="Couldn’t start password reset. Please try again." />);
@@ -110,18 +134,9 @@ const Login = () => {
     navigate("/");
   };
 
-  // Temporary logout button for testing
   useEffect(() => {
     window.logout = logout;
   }, []);
-
-  // ⚠️ Optional: if you keep this, don't auto-navigate to "/" (it can override the smart redirect).
-  // You can safely remove this whole effect, or leave it as a no-op.
-  // useEffect(() => {
-  //   if (token) {
-  //     // do nothing; redirect happens in onSubmitHandler
-  //   }
-  // }, [token]);
 
   return (
     <form
@@ -187,7 +202,7 @@ const Login = () => {
       <div className="w-full flex justify-between text-sm mt-[-8px]">
         <p
           className="cursor-pointer underline"
-          onClick={handleForgotPassword} // ✅ hook it up
+          onClick={handleForgotPassword}
           title="We’ll email you a reset link"
         >
           Forgot your password?
