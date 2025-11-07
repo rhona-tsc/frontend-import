@@ -20,8 +20,26 @@ const ShopProvider = (props) => {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [acts, setActs] = useState([]);
-  const [cartItems, setCartItems] = useState({});
-  const [token, setToken] = useState("");
+// --- CART STATE ---
+const [cartItems, setCartItems] = useState(() => {
+  try {
+    const stored = localStorage.getItem("cartItems");
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+});
+
+// --- Persist cart to localStorage whenever it changes ---
+useEffect(() => {
+  try {
+    localStorage.setItem("cartItems", JSON.stringify(cartItems));
+  } catch (err) {
+    console.warn("⚠️ Failed to persist cartItems:", err.message);
+  }
+}, [cartItems]);
+
+const [token, setToken] = useState("");
   const [selectedVocalists, setSelectedVocalists] = useState({});
 
   // --- User / shortlist (single sources of truth) ---
@@ -1142,6 +1160,7 @@ await axios.patch(
     localStorage.removeItem("shortlistItems");
     sessionStorage.removeItem("selectedAddress");
     sessionStorage.removeItem("selectedDate");
+  localStorage.removeItem("cartItems"); // 🧹 clear cart
 
     setToken("");
     setUserId(null);
