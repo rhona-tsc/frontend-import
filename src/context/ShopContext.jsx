@@ -750,11 +750,16 @@ const shortlistAct = async (uid, actId) => {
       );
     } else {
       // 🟢 Adding to shortlist (includes address + date)
-    await axios.patch(
+await axios.patch(
   `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
   {
     userId: u,
     clientEmail: storedUser?.email || "",
+    clientName:
+      storedUser?.firstName ||
+      storedUser?.name ||
+      storedUser?.surname ||
+      "",
     selectedDate: selectedDate || new Date().toISOString().slice(0, 10),
     selectedAddress: selectedAddress || "TBC",
   }
