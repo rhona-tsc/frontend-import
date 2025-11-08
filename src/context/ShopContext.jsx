@@ -754,6 +754,14 @@ const shortlistAct = async (uid, actId) => {
   const u = uid || userId;
 
   if (!actId) return;
+
+   console.log("🎬 [shortlistAct] START", {
+   uid,
+   actId,
+   selectedDate,
+   selectedAddress,
+   storedUser,
+ });
   if (!u) {
     promptLogin("Please log in to manage your shortlist.");
     return;
@@ -784,6 +792,15 @@ const shortlistAct = async (uid, actId) => {
       );
     } else {
       // 🟢 Adding to shortlist (includes address + date)
+           console.log("🚀 [shortlistAct] PATCH increment-shortlist payload →", {
+       url: `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
+       userId: u,
+       clientEmail: storedUser?.email,
+       clientName:
+         storedUser?.firstName || storedUser?.name || storedUser?.surname || "",
+       selectedDate,
+       selectedAddress,
+     });
 await axios.patch(
   `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
   {
