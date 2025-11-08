@@ -746,23 +746,38 @@ const promptLogin = (
     await shortlistAct(u, String(itemId));
   };
 
-  // Toggle shortlist via PATCH routes with optimistic UI
+// ✅ Toggle shortlist via PATCH routes with optimistic UI
 const shortlistAct = async (uid, actId) => {
   if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
+
   const storedUserRaw = localStorage.getItem("user");
   const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-  const u = uid || userId;
+  const userId = uid || storedUser?._id; // ✅ consistent naming
 
   if (!actId) return;
 
-   console.log("🎬 [shortlistAct] START", {
-   uid,
-   actId,
-   selectedDate,
-   selectedAddress,
-   storedUser,
- });
-  if (!u) {
+  const selectedDateFinal =
+    selectedDate || new Date().toISOString().slice(0, 10);
+  const selectedAddressFinal = selectedAddress || "TBC";
+
+  const clientPayload = {
+    userId,
+    clientEmail: storedUser?.email || "",
+    clientName:
+      storedUser?.firstName ||
+      storedUser?.name ||
+      storedUser?.surname ||
+      "",
+    selectedDate: selectedDateFinal,
+    selectedAddress: selectedAddressFinal,
+  };
+
+  console.log("🎬 [shortlistAct] START", {
+    ...clientPayload,
+    actId,
+  });
+
+  if (!userId) {
     promptLogin("Please log in to manage your shortlist.");
     return;
   }
@@ -786,53 +801,42 @@ const shortlistAct = async (uid, actId) => {
   try {
     if (isShortlistedNow) {
       // 🔵 Removing from shortlist
+      console.log("❎ [shortlistAct] Removing from shortlist", {
+        actId: idStr,
+        ...clientPayload,
+      });
+
       await axios.patch(
         `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
-        { userId: u, clientEmail: storedUser?.email || "" }
+        clientPayload
       );
     } else {
-      // 🟢 Adding to shortlist (includes address + date)
-           console.log("🚀 [shortlistAct] PATCH increment-shortlist payload →", {
-       url: `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
-       userId: u,
-       clientEmail: storedUser?.email,
-       clientName:
-         storedUser?.firstName || storedUser?.name || storedUser?.surname || "",
-       selectedDate,
-       selectedAddress,
-     });
-await axios.patch(
-  `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
-  {
-    userId: u,
-    clientEmail: storedUser?.email || "",
-    clientName:
-      storedUser?.firstName ||
-      storedUser?.name ||
-      storedUser?.surname ||
-      "",
-    selectedDate: selectedDate || new Date().toISOString().slice(0, 10),
-    selectedAddress: selectedAddress || "TBC",
-  }
-);
+      // 🟢 Adding to shortlist
+      console.log("🚀 [shortlistAct] Adding to shortlist", {
+        actId: idStr,
+        ...clientPayload,
+      });
+
+      await axios.patch(
+        `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
+        clientPayload
+      );
 
       // 🩵 Optional: force a shortlist sync to ensure frontend UI matches backend
-      if (selectedDate && selectedAddress && isActAllowed(idStr)) {
-        const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
+      if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
+        const dateISO = new Date(selectedDateFinal).toISOString().slice(0, 10);
         console.log("📅 [shortlistAct] Triggering shortlist sync", {
           actId: idStr,
           dateISO,
-          selectedAddress,
-          userId: u,
+          formattedAddress: selectedAddressFinal,
+          ...clientPayload,
         });
 
         await axios.patch(`${backendUrl}/api/shortlist/update`, {
           actId: idStr,
           dateISO,
-          formattedAddress: selectedAddress,
-          userId: u,
-          clientName: storedUser?.name || storedUser?.firstName || "",
-          clientEmail: storedUser?.email || "",
+          formattedAddress: selectedAddressFinal,
+          ...clientPayload,
         });
 
         console.log("✅ [shortlistAct] Synced shortlisted act with backend");
