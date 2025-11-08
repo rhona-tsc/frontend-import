@@ -252,8 +252,21 @@ export function VocalistFeaturedBadgeForCart({
     dateISO,
   });
 
-  if (!resolvedBadge) return null;
-
+if (!resolvedBadge) {
+  if (actId && dateISO) {
+    console.log("🎯 [BadgeDebug] No badge yet → attempting fetch directly");
+    fetch(`${BACKEND_URL}/api/availability/badge?actId=${actId}&date=${dateISO}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.success && data.badge) {
+          console.log("🎯 [BadgeDebug] Loaded badge lazily:", data.badge);
+          setResolvedBadge(data.badge);
+        }
+      })
+      .catch((err) => console.warn("🎯 [BadgeDebug] Lazy fetch failed", err));
+  }
+  return null;
+}
   const deputies = Array.isArray(resolvedBadge.deputies)
     ? resolvedBadge.deputies.slice(0, 3)
     : [];
@@ -300,11 +313,16 @@ export function VocalistFeaturedBadgeForCart({
       ? resolvedBadge.photoUrl
       : "";
 
-  console.log("🎯 [BadgeDebug] Rendering lead badge", {
-    leadMusId,
-    leadProfile,
-    leadImg,
-  });
+  console.log("🎤 CART VOCALIST DEBUG:", {
+  actId: item._id,
+  actName: item.tscName,
+  badge: item.availabilityBadge,
+  hasActive: item.availabilityBadge?.active,
+  deputiesCount: item.availabilityBadge?.deputies?.length,
+  selected,
+});
+
+  
 
   return (
     <FeaturedVocalistBadgeForCart

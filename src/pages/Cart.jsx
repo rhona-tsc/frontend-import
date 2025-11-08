@@ -19,7 +19,7 @@ import ExtrasCarousel from "../components/ExtrasCarousel";
 import { assets } from "../assets/assets";
 import { calculateExtraPrice } from "./utils/pricing";
 import { addMinutesHHMM } from "./utils/time";
-import { FeaturedVocalistBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
+import { FeaturedVocalistBadgeForCart, VocalistFeaturedBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
 
 const Cart = () => {
   const {
@@ -1242,59 +1242,47 @@ const displayCartDetails = Array.isArray(cartDetails)
                   <p className="text-2xl text-gray-700 font-medium">
                     {item.actName}
                   </p>
-                  {/* Availability badge */}
-                         <div className="mt-6">
-                          {(() => {
-  console.log("🎤 CART VOCALIST DEBUG:", {
-  actId: item.actId || item._id,
-  actName: item.actName,
-  badge: item.availabilityBadge || item.badge || null,
-  hasActive: item.availabilityBadge?.active,
-  deputiesCount: item.availabilityBadge?.deputies?.length || 0,
-  deputies: item.availabilityBadge?.deputies?.map((d) => ({
-    name: d.vocalistName || d.name,
-    musicianId: d.musicianId,
-    photoUrl: d.photoUrl,
-  })),
-  selected,
-});
-})()}
-      <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
-       <div className="flex gap-4 flex-wrap">
-                             
+           {/* Availability badge */}
+<div className="mt-6">
+  {(() => {
+    console.log("🎤 CART VOCALIST DEBUG:", {
+      actId: item.actId || item._id,
+      actName: item.actName,
+      badge: item.availabilityBadge || item.badge || null,
+      hasActive: item.availabilityBadge?.active,
+      deputiesCount: item.availabilityBadge?.deputies?.length || 0,
+      deputies: item.availabilityBadge?.deputies?.map((d) => ({
+        name: d.vocalistName || d.name,
+        musicianId: d.musicianId,
+        photoUrl: d.photoUrl,
+      })),
+      selected,
+    });
+  })()}
 
-        {item.availabilityBadge?.active ? (
-          <FeaturedVocalistBadgeForCart
-            imageUrl={item.availabilityBadge.photoUrl}
-            pictureSource={item.availabilityBadge}
-            musicianId={item.availabilityBadge.musicianId}
-            selectable
-            isSelected={selected.includes(item.availabilityBadge.musicianId)}
-            onSelect={(id) => toggleVocalistForAct(item._id, id)}
-          />
-        ) : (
-          item.availabilityBadge?.deputies?.map((dep) => (
-            <FeaturedVocalistBadgeForCart
-              key={dep.musicianId}
-              imageUrl={dep.photoUrl}
-              pictureSource={dep}
-              musicianId={dep.musicianId}
-              selectable
-              isSelected={selected.includes(dep.musicianId)} // ✅ your question line
-              onSelect={(id) => toggleVocalistForAct(item._id, id)} // ✅ toggles selection
-              variant="deputy"
-              size={120}
-            />
-          ))
-        )}
-      </div>
+  <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
 
-      {selected.length > 0 && (
-        <p className="mt-3 text-sm text-gray-700">
-          ✅ Selected {selected.length} vocalist{selected.length > 1 ? "s" : ""}.
-        </p>
-      )}
-    </div>
+  {item.availabilityBadge || selectedDate ? (
+    <VocalistFeaturedBadgeForCart
+      key={`${item._id}-${item.availabilityBadge?.setAt || ""}`}
+      badge={item.availabilityBadge || null}
+      actId={item._id}
+      dateISO={selectedDate}
+      className="flex gap-4 flex-wrap"
+      size={140}
+    />
+  ) : (
+    <p className="text-sm text-gray-500 italic">
+      Checking vocalist availability…
+    </p>
+  )}
+
+  {selected.length > 0 && (
+    <p className="mt-3 text-sm text-gray-700">
+      ✅ Selected {selected.length} vocalist{selected.length > 1 ? "s" : ""}.
+    </p>
+  )}
+</div>
 
                   {(() => {
                     const times = calculateAdjustedTimes(
