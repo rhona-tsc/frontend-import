@@ -1263,14 +1263,14 @@ const displayCartDetails = Array.isArray(cartDetails)
   <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
 
   {item.availabilityBadge || selectedDate ? (
-    <VocalistFeaturedBadgeForCart
-      key={`${item._id}-${item.availabilityBadge?.setAt || ""}`}
-      badge={item.availabilityBadge || null}
-      actId={item._id}
-      dateISO={selectedDate}
-      className="flex gap-4 flex-wrap"
-      size={140}
-    />
+   <VocalistFeaturedBadgeForCart
+  key={`${item._id}-${item.availabilityBadge?.setAt || ""}`}
+  badge={item.availabilityBadge || null}
+  actId={item._id || item.actId || ""}
+  dateISO={selectedDate}
+  className="flex gap-4 flex-wrap"
+  size={140}
+/>
   ) : (
     <p className="text-sm text-gray-500 italic">
       Checking vocalist availability…

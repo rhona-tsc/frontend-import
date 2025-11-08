@@ -313,14 +313,11 @@ if (!resolvedBadge) {
       ? resolvedBadge.photoUrl
       : "";
 
-  console.log("🎤 CART VOCALIST DEBUG:", {
-  actId: item._id,
-  actName: item.tscName,
-  badge: item.availabilityBadge,
-  hasActive: item.availabilityBadge?.active,
-  deputiesCount: item.availabilityBadge?.deputies?.length,
-  selected,
-});
+  console.log("🎯 [BadgeDebug] Rendering lead badge", {
+    leadMusId,
+    leadProfile,
+    leadImg,
+  });
 
   
 
