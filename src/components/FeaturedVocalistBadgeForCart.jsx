@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { assets } from "../assets/assets";
+
 const PUBLIC_SITE_BASE = import.meta?.env?.FRONTEND_URL;
 const BACKEND_URL =
   import.meta?.env?.VITE_BACKEND_URL || import.meta?.env?.BACKEND_URL;
 
-// Utility: pick valid image string
 const pickProfilePicture = (obj = {}) => {
   const v =
     obj && typeof obj.profilePicture === "string"
@@ -13,7 +13,9 @@ const pickProfilePicture = (obj = {}) => {
   return v && v.startsWith("http") ? v : "";
 };
 
-// 🎨 Single badge button
+// ---------------------------------------------------------------------------
+// 🎨 Single badge
+// ---------------------------------------------------------------------------
 export function FeaturedVocalistBadgeForCart({
   imageUrl,
   pictureSource = null,
@@ -32,30 +34,66 @@ export function FeaturedVocalistBadgeForCart({
 }) {
   const [enrichedBadge, setEnrichedBadge] = useState(badge);
 
-  // ✅ Enrich missing musician data
   useEffect(() => {
+    console.log("🎯 [BadgeDebug] useEffect → badge prop changed:", {
+      badge,
+      musicianId,
+      pictureSource,
+      BACKEND_URL,
+    });
+
     const fetchMusician = async () => {
-      if (!enrichedBadge) return;
-      if (enrichedBadge.photoUrl && enrichedBadge.musicianId) return;
+      if (!enrichedBadge) {
+        console.log("🎯 [BadgeDebug] No badge yet, skip enrich");
+        return;
+      }
+      if (enrichedBadge.photoUrl && enrichedBadge.musicianId) {
+        console.log(
+          "🎯 [BadgeDebug] Badge already has photo & ID, skipping enrich:",
+          enrichedBadge
+        );
+        return;
+      }
 
       try {
-        const id = enrichedBadge.musicianId || enrichedBadge.deputies?.[0]?.musicianId;
-        if (!id) return;
+        const id =
+          enrichedBadge.musicianId || enrichedBadge.deputies?.[0]?.musicianId;
+        if (!id) {
+          console.warn("🎯 [BadgeDebug] No musicianId found on badge", enrichedBadge);
+          return;
+        }
+
+        console.log("🎯 [BadgeDebug] Fetching musician for badge", {
+          id,
+          url: `${BACKEND_URL}/api/musician/${id}`,
+        });
 
         const res = await fetch(`${BACKEND_URL}/api/musician/${id}`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.warn(
+            "🎯 [BadgeDebug] Musician fetch failed with status",
+            res.status
+          );
+          return;
+        }
+
         const musician = await res.json();
+        console.log("🎯 [BadgeDebug] Musician fetched:", musician);
 
         setEnrichedBadge((prev) => ({
           ...prev,
-          photoUrl: musician.profilePicture || musician.photoUrl || prev.photoUrl,
+          photoUrl:
+            musician.profilePicture || musician.photoUrl || prev.photoUrl,
           profileUrl: `${PUBLIC_SITE_BASE}/musician/${id}`,
           musicianId: id,
         }));
 
-        console.log("🎨 Enriched badge on cart:", musician.firstName, musician.profilePicture);
+        console.log("🎯 [BadgeDebug] Enriched badge on cart:", {
+          firstName: musician.firstName,
+          photo: musician.profilePicture,
+        });
       } catch (err) {
-        console.warn("⚠️ Failed to enrich badge:", err.message);
+        console.warn("🎯 [BadgeDebug] Failed to enrich badge:", err.message);
       }
     };
 
@@ -68,15 +106,13 @@ export function FeaturedVocalistBadgeForCart({
       ? assets.Deputy_Vocalist_Available
       : assets.Featured_Vocalist_Available;
 
-const resolvedImageUrl =
-   imageUrl ||
-   pickProfilePicture(pictureSource || {}) ||
-   enrichedBadge?.photoUrl;
+  const resolvedImageUrl =
+    imageUrl || pickProfilePicture(pictureSource || {}) || enrichedBadge?.photoUrl;
 
- const hasValidUrl =
-   typeof resolvedImageUrl === "string" && resolvedImageUrl.startsWith("http");
+  const hasValidUrl =
+    typeof resolvedImageUrl === "string" && resolvedImageUrl.startsWith("http");
 
- const imgSrc = hasValidUrl ? resolvedImageUrl : "";
+  const imgSrc = hasValidUrl ? resolvedImageUrl : "";
 
   const initials =
     pictureSource?.vocalistName?.trim()?.slice(0, 2)?.toUpperCase() ||
@@ -85,9 +121,20 @@ const resolvedImageUrl =
 
   const handleClick = () => {
     if (selectable && typeof onSelect === "function") {
+      console.log("🎯 [BadgeDebug] onSelect clicked:", {
+        musicianId,
+        pictureSource,
+      });
       onSelect(musicianId || pictureSource?.musicianId || null);
     }
   };
+
+  console.log("🎯 [BadgeDebug] Render badge", {
+    variant,
+    imgSrc,
+    initials,
+    enrichedBadge,
+  });
 
   return (
     <button
@@ -103,11 +150,7 @@ const resolvedImageUrl =
       } ${className}`}
       style={{ width: size }}
     >
-      <div
-        className="relative select-none"
-        style={{ width: size, height: size }}
-      >
-        {/* 🧩 Fallback initials if no image */}
+      <div className="relative select-none" style={{ width: size, height: size }}>
         {!imgSrc && (
           <div
             className="absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-700 text-xl font-bold rounded-full shadow-sm"
@@ -122,8 +165,6 @@ const resolvedImageUrl =
             {initials}
           </div>
         )}
-
-        {/* 🎨 Actual image if available */}
         {imgSrc && (
           <img
             src={imgSrc}
@@ -138,7 +179,6 @@ const resolvedImageUrl =
             }}
           />
         )}
-
         <img
           src={ringSrc}
           alt=""
@@ -153,7 +193,9 @@ const resolvedImageUrl =
   );
 }
 
+// ---------------------------------------------------------------------------
 // 🎤 Wrapper — lead or deputy badges
+// ---------------------------------------------------------------------------
 export function VocalistFeaturedBadgeForCart({
   badge = null,
   size = 140,
@@ -164,25 +206,47 @@ export function VocalistFeaturedBadgeForCart({
 }) {
   const [resolvedBadge, setResolvedBadge] = useState(badge);
 
-  // 🧠 Auto-fetch badge if missing photoUrl
   useEffect(() => {
+    console.log("🎯 [BadgeDebug] useEffect → actId/dateISO change:", {
+      actId,
+      dateISO,
+      badge,
+    });
+
     const fetchBadgeIfMissing = async () => {
-      if (!resolvedBadge || resolvedBadge?.photoUrl || !actId || !dateISO) return;
+      if (!resolvedBadge || resolvedBadge?.photoUrl || !actId || !dateISO) {
+        console.log("🎯 [BadgeDebug] Skip rehydrate badge condition", {
+          hasBadge: !!resolvedBadge,
+          hasPhoto: !!resolvedBadge?.photoUrl,
+          actId,
+          dateISO,
+        });
+        return;
+      }
       try {
-        const res = await fetch(
-          `${BACKEND_URL}/api/availability/badge?actId=${actId}&date=${dateISO}`
-        );
+        const url = `${BACKEND_URL}/api/availability/badge?actId=${actId}&date=${dateISO}`;
+        console.log("🎯 [BadgeDebug] Fetching badge:", url);
+        const res = await fetch(url);
         const data = await res.json();
+        console.log("🎯 [BadgeDebug] Badge API response:", data);
         if (data.success && data.badge) {
-          console.log("🔄 Rehydrated badge with photoUrl:", data.badge);
+          console.log("🎯 [BadgeDebug] Rehydrated badge:", data.badge);
           setResolvedBadge(data.badge);
+        } else {
+          console.warn("🎯 [BadgeDebug] No badge returned from API");
         }
       } catch (err) {
-        console.warn("⚠️ Failed to fetch badge:", err.message);
+        console.warn("🎯 [BadgeDebug] Failed to fetch badge:", err.message);
       }
     };
     fetchBadgeIfMissing();
   }, [actId, dateISO, resolvedBadge]);
+
+  console.log("🎯 [BadgeDebug] Render VocalistFeaturedBadgeForCart", {
+    resolvedBadge,
+    actId,
+    dateISO,
+  });
 
   if (!resolvedBadge) return null;
 
@@ -191,8 +255,8 @@ export function VocalistFeaturedBadgeForCart({
     : [];
   const hasDeputies = deputies.length > 0;
 
-  // 🧩 Deputies view
   if (!resolvedBadge.active && hasDeputies) {
+    console.log("🎯 [BadgeDebug] Rendering deputy badges:", deputies);
     return (
       <div className={`flex gap-3 items-center ${className}`}>
         {deputies.map((d, i) => {
@@ -204,7 +268,6 @@ export function VocalistFeaturedBadgeForCart({
             typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http")
               ? d.photoUrl
               : "";
-
           return (
             <FeaturedVocalistBadgeForCart
               key={`dep-badge-${i}-${musId || "na"}`}
@@ -222,7 +285,7 @@ export function VocalistFeaturedBadgeForCart({
     );
   }
 
-  // 🧩 Lead vocalist view
+  // Lead view
   const leadMusId = String(resolvedBadge?.musicianId || "");
   const leadProfile =
     resolvedBadge?.profileUrl ||
@@ -232,6 +295,12 @@ export function VocalistFeaturedBadgeForCart({
     resolvedBadge.photoUrl.startsWith("http")
       ? resolvedBadge.photoUrl
       : "";
+
+  console.log("🎯 [BadgeDebug] Rendering lead badge", {
+    leadMusId,
+    leadProfile,
+    leadImg,
+  });
 
   return (
     <FeaturedVocalistBadgeForCart
