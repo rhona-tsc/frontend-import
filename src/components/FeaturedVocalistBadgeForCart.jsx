@@ -33,6 +33,10 @@ export function FeaturedVocalistBadgeForCart({
   badge = null,
 }) {
   const [enrichedBadge, setEnrichedBadge] = useState(badge);
+  console.log("🔥 FeaturedVocalistBadgeForCart mounted at runtime", {
+  BACKEND_URL,
+  PUBLIC_SITE_BASE,
+});
 
   useEffect(() => {
     console.log("🎯 [BadgeDebug] useEffect → badge prop changed:", {
