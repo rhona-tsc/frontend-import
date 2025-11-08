@@ -60,7 +60,7 @@ export function FeaturedVocalistBadgeForCart({
     };
 
     fetchMusician();
-  }, [enrichedBadge]);
+  }, [badge]);
 
   const inner = Math.round(size * photoScale);
   const ringSrc =
@@ -68,10 +68,15 @@ export function FeaturedVocalistBadgeForCart({
       ? assets.Deputy_Vocalist_Available
       : assets.Featured_Vocalist_Available;
 
-  const resolvedImageUrl = imageUrl || pickProfilePicture(pictureSource || {});
-  const hasValidUrl =
-    typeof resolvedImageUrl === "string" && resolvedImageUrl.startsWith("http");
-  const imgSrc = hasValidUrl ? resolvedImageUrl : "";
+const resolvedImageUrl =
+   imageUrl ||
+   pickProfilePicture(pictureSource || {}) ||
+   enrichedBadge?.photoUrl;
+
+ const hasValidUrl =
+   typeof resolvedImageUrl === "string" && resolvedImageUrl.startsWith("http");
+
+ const imgSrc = hasValidUrl ? resolvedImageUrl : "";
 
   const initials =
     pictureSource?.vocalistName?.trim()?.slice(0, 2)?.toUpperCase() ||
