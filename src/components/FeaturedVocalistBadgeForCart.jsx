@@ -272,10 +272,15 @@ useEffect(() => {
   }
 }, [actId, dateISO, resolvedBadge]);
 
-  const deputies = Array.isArray(resolvedBadge.deputies)
-    ? resolvedBadge.deputies.slice(0, 3)
-    : [];
-  const hasDeputies = deputies.length > 0;
+const deputies = Array.isArray(resolvedBadge?.deputies)
+  ? resolvedBadge.deputies.slice(0, 3)
+  : [];
+const hasDeputies = deputies.length > 0;
+
+if (!resolvedBadge) {
+  console.warn("🎯 [BadgeDebug] No resolvedBadge available yet");
+  return null;
+}
 
   if (!resolvedBadge.active && hasDeputies) {
     console.log("🎯 [BadgeDebug] Rendering deputy badges:", deputies);
