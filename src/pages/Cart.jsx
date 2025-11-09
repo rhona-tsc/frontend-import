@@ -1250,12 +1250,7 @@ const displayCartDetails = Array.isArray(cartDetails)
       actName: item.actName,
       badge: item.availabilityBadge || item.badge || null,
       hasActive: item.availabilityBadge?.active,
-      deputiesCount: item.availabilityBadge?.deputies?.length || 0,
-      deputies: item.availabilityBadge?.deputies?.map((d) => ({
-        name: d.vocalistName || d.name,
-        musicianId: d.musicianId,
-        photoUrl: d.photoUrl,
-      })),
+    
       selected,
     });
   })()}
