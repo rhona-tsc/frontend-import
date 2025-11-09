@@ -19,7 +19,7 @@ import ExtrasCarousel from "../components/ExtrasCarousel";
 import { assets } from "../assets/assets";
 import { calculateExtraPrice } from "./utils/pricing";
 import { addMinutesHHMM } from "./utils/time";
-import { FeaturedVocalistBadgeForCart, VocalistFeaturedBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
+import { VocalistFeaturedBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
 
 const Cart = () => {
   const {
@@ -1262,20 +1262,28 @@ const displayCartDetails = Array.isArray(cartDetails)
 
   <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
 
-  {item.availabilityBadge || selectedDate ? (
-   <VocalistFeaturedBadgeForCart
-  key={`${item._id}-${item.availabilityBadge?.setAt || ""}`}
-  badge={item.availabilityBadge || null}
-  actId={item._id || item.actId || ""}
-  dateISO={selectedDate}
-  className="flex gap-4 flex-wrap"
-  size={140}
-/>
-  ) : (
-    <p className="text-sm text-gray-500 italic">
-      Checking vocalist availability…
-    </p>
-  )}
+  {item.availabilityBadge ? (
+  <VocalistFeaturedBadgeForCart
+    key={`${item._id}-${item.availabilityBadge?.setAt || ""}`}
+    badge={item.availabilityBadge}
+    actId={item._id || item.actId || ""}
+    dateISO={selectedDate}
+    className="flex gap-4 flex-wrap"
+    size={140}
+  />
+) : selectedDate ? (
+  <VocalistFeaturedBadgeForCart
+    key={`${item._id}-fallback`}
+    actId={item._id || item.actId || ""}
+    dateISO={selectedDate}
+    className="flex gap-4 flex-wrap"
+    size={140}
+  />
+) : (
+  <p className="text-sm text-gray-500 italic">
+    Checking vocalist availability…
+  </p>
+)}
 
   {selected.length > 0 && (
     <p className="mt-3 text-sm text-gray-700">

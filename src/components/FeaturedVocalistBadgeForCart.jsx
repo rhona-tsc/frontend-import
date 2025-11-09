@@ -252,21 +252,26 @@ export function VocalistFeaturedBadgeForCart({
     dateISO,
   });
 
-if (!resolvedBadge) {
-  if (actId && dateISO) {
-    console.log("🎯 [BadgeDebug] No badge yet → attempting fetch directly");
-    fetch(`${BACKEND_URL}/api/availability/badge?actId=${actId}&date=${dateISO}`)
-      .then((r) => r.json())
-      .then((data) => {
+useEffect(() => {
+  if (!resolvedBadge && actId && dateISO) {
+    console.log("🎯 [BadgeDebug] Lazy badge fetch triggered:", { actId, dateISO });
+    (async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/availability/badge?actId=${actId}&date=${dateISO}`);
+        const data = await res.json();
         if (data?.success && data.badge) {
-          console.log("🎯 [BadgeDebug] Loaded badge lazily:", data.badge);
+          console.log("🎯 [BadgeDebug] Lazy badge loaded successfully:", data.badge);
           setResolvedBadge(data.badge);
+        } else {
+          console.warn("🎯 [BadgeDebug] No badge returned:", data);
         }
-      })
-      .catch((err) => console.warn("🎯 [BadgeDebug] Lazy fetch failed", err));
+      } catch (err) {
+        console.error("🎯 [BadgeDebug] Lazy badge fetch error:", err);
+      }
+    })();
   }
-  return null;
-}
+}, [actId, dateISO, resolvedBadge]);
+
   const deputies = Array.isArray(resolvedBadge.deputies)
     ? resolvedBadge.deputies.slice(0, 3)
     : [];
