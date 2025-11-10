@@ -534,13 +534,8 @@ const [token, setToken] = useState("");
               payload
             );
 
-            // 🧹 Ignore explicit null clears (Act.jsx handles those)
-            if (payload.badge === null) {
-              console.log(
-                "🧹 [ShopContext] Ignoring badge:null to avoid overwrite"
-              );
-              return;
-            }
+         // 🧹 Ignore explicit null clears (Act.jsx handles those)
+
 
             // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (refined)
             if (payload.badge) {
