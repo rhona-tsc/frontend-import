@@ -38,100 +38,73 @@ export function FeaturedVocalistBadgeForCart({
   PUBLIC_SITE_BASE,
 });
 
-  useEffect(() => {
-    console.log("🎯 [BadgeDebug] useEffect → badge prop changed:", {
-      badge,
-      musicianId,
-      pictureSource,
-      BACKEND_URL,
-    });
+useEffect(() => {
+  console.log("🎯 [BadgeDebug] useEffect → badge prop changed:", {
+    badge,
+    musicianId,
+    pictureSource,
+    BACKEND_URL,
+  });
 
-    const fetchMusician = async () => {
-      if (!enrichedBadge) {
-        console.log("🎯 [BadgeDebug] No badge yet, skip enrich");
-        return;
-      }
-      if (enrichedBadge.photoUrl && enrichedBadge.musicianId) {
-        console.log(
-          "🎯 [BadgeDebug] Badge already has photo & ID, skipping enrich:",
-          enrichedBadge
-        );
-        return;
-      }
+  if (!badge) {
+    console.log("🎯 [BadgeDebug] No badge yet, skip enrich");
+    return;
+  }
 
-      try {
-        const id =
-          enrichedBadge.musicianId || enrichedBadge.deputies?.[0]?.musicianId;
-        if (!id) {
-          console.warn("🎯 [BadgeDebug] No musicianId found on badge", enrichedBadge);
-          return;
-        }
+  // 🧠 Helper: fetch a musician by ID
+  const fetchMusicianById = async (id) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/musician/${id}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn("🎯 [BadgeDebug] Musician fetch failed:", id, err.message);
+      return null;
+    }
+  };
 
-        console.log("🎯 [BadgeDebug] Fetching musician for badge", {
-          id,
-          url: `${BACKEND_URL}/api/musician/${id}`,
-        });
+  const enrichBadge = async () => {
+    const leadId = badge.musicianId || badge.deputies?.[0]?.musicianId;
+    const leadMusician = leadId ? await fetchMusicianById(leadId) : null;
 
-        const res = await fetch(`${BACKEND_URL}/api/musician/${id}`);
-        if (!res.ok) {
-          console.warn(
-            "🎯 [BadgeDebug] Musician fetch failed with status",
-            res.status
-          );
-          return;
-        }
+    const enrichedDeps = Array.isArray(badge.deputies)
+      ? await Promise.all(
+          badge.deputies.map(async (dep) => {
+            if (!dep?.musicianId) {
+              console.warn("⚠️ Deputy missing musicianId:", dep?.name);
+              return dep;
+            }
+            const m = await fetchMusicianById(dep.musicianId);
+            if (!m) return dep;
+            return {
+              ...dep,
+              photoUrl: m.profilePicture || m.photoUrl || dep.photoUrl,
+              profileUrl: `${PUBLIC_SITE_BASE}/musician/${dep.musicianId}`,
+            };
+          })
+        )
+      : [];
 
-        const musician = await res.json();
-        console.log("🎯 [BadgeDebug] Musician fetched:", musician);
-
-        setEnrichedBadge((prev) => ({
-          ...prev,
-          photoUrl:
-            musician.profilePicture || musician.photoUrl || prev.photoUrl,
-          profileUrl: `${PUBLIC_SITE_BASE}/musician/${id}`,
-          musicianId: id,
-        }));
-
-        console.log("🎯 [BadgeDebug] Enriched badge on cart:", {
-          firstName: musician.firstName,
-          photo: musician.profilePicture,
-        });
-      } catch (err) {
-        console.warn("🎯 [BadgeDebug] Failed to enrich badge:", err.message);
-      }
+    const newBadge = {
+      ...badge,
+      photoUrl:
+        leadMusician?.profilePicture ||
+        leadMusician?.photoUrl ||
+        badge.photoUrl,
+      profileUrl: leadId
+        ? `${PUBLIC_SITE_BASE}/musician/${leadId}`
+        : badge.profileUrl,
+      musicianId: leadId,
+      deputies: enrichedDeps,
     };
 
-    fetchMusician();
+    console.log("🎯 [BadgeDebug] Enriched badge:", newBadge);
 
-    // Enrich deputy badges too
-if (Array.isArray(enrichedBadge?.deputies) && enrichedBadge.deputies.length > 0) {
-  console.log("🎯 [BadgeDebug] Enriching deputies:", enrichedBadge.deputies.length);
-  Promise.all(
-    enrichedBadge.deputies.map(async (dep) => {
-      const id = dep?.musicianId;
-      if (!id) return dep;
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/musician/${id}`);
-        if (!res.ok) return dep;
-        const m = await res.json();
-        return {
-          ...dep,
-          photoUrl: m.profilePicture || m.photoUrl || dep.photoUrl,
-          profileUrl: `${PUBLIC_SITE_BASE}/musician/${id}`,
-        };
-      } catch (err) {
-        console.warn("🎯 [BadgeDebug] Deputy enrich failed:", id, err.message);
-        return dep;
-      }
-    })
-  ).then((enrichedDeps) => {
-    setEnrichedBadge((prev) => ({
-      ...prev,
-      deputies: enrichedDeps,
-    }));
-  });
-}
-  }, [badge]);
+    setEnrichedBadge(newBadge);
+  };
+
+  enrichBadge();
+}, [badge]);
 
   
 
