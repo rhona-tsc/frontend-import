@@ -102,7 +102,38 @@ export function FeaturedVocalistBadgeForCart({
     };
 
     fetchMusician();
+
+    // Enrich deputy badges too
+if (Array.isArray(enrichedBadge?.deputies) && enrichedBadge.deputies.length > 0) {
+  console.log("🎯 [BadgeDebug] Enriching deputies:", enrichedBadge.deputies.length);
+  Promise.all(
+    enrichedBadge.deputies.map(async (dep) => {
+      const id = dep?.musicianId;
+      if (!id) return dep;
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/musician/${id}`);
+        if (!res.ok) return dep;
+        const m = await res.json();
+        return {
+          ...dep,
+          photoUrl: m.profilePicture || m.photoUrl || dep.photoUrl,
+          profileUrl: `${PUBLIC_SITE_BASE}/musician/${id}`,
+        };
+      } catch (err) {
+        console.warn("🎯 [BadgeDebug] Deputy enrich failed:", id, err.message);
+        return dep;
+      }
+    })
+  ).then((enrichedDeps) => {
+    setEnrichedBadge((prev) => ({
+      ...prev,
+      deputies: enrichedDeps,
+    }));
+  });
+}
   }, [badge]);
+
+  
 
   const inner = Math.round(size * photoScale);
   const ringSrc =
@@ -193,6 +224,16 @@ export function FeaturedVocalistBadgeForCart({
       <p className="text-sm text-center mt-2 font-medium">
         {pictureSource?.vocalistName || pictureSource?.name || "Vocalist"}
       </p>
+      {profileUrl && (
+  <a
+    href={profileUrl}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-xs text-[#ff6667] hover:underline mt-1"
+  >
+    View Profile
+  </a>
+)}
     </button>
   );
 }
