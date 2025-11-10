@@ -231,34 +231,31 @@ export function VocalistFeaturedBadgeForCart({
       badge,
     });
 
-    const fetchBadgeIfMissing = async () => {
-      if (!resolvedBadge || resolvedBadge?.photoUrl || !actId || !dateISO) {
-        console.log("🎯 [BadgeDebug] Skip rehydrate badge condition", {
-          hasBadge: !!resolvedBadge,
-          hasPhoto: !!resolvedBadge?.photoUrl,
-          actId,
-          dateISO,
-        });
-        return;
+   const fetchBadgeIfMissing = async () => {
+    if (!actId || !dateISO) return;
+    try {
+      const url = `${BACKEND_URL}/api/availability/badge?actId=${actId}&date=${dateISO}`;
+      console.log("🎯 [BadgeDebug] Fetching badge:", url);
+      const res = await fetch(url);
+      const data = await res.json();
+      console.log("🎯 [BadgeDebug] Badge API response:", data);
+      if (data.success && data.badge) {
+        console.log("🎯 [BadgeDebug] Rehydrated badge:", data.badge);
+        setResolvedBadge(data.badge);
+      } else {
+        console.warn("🎯 [BadgeDebug] No badge returned from API");
       }
-      try {
-        const url = `${BACKEND_URL}/api/availability/badge?actId=${actId}&date=${dateISO}`;
-        console.log("🎯 [BadgeDebug] Fetching badge:", url);
-        const res = await fetch(url);
-        const data = await res.json();
-        console.log("🎯 [BadgeDebug] Badge API response:", data);
-        if (data.success && data.badge) {
-          console.log("🎯 [BadgeDebug] Rehydrated badge:", data.badge);
-          setResolvedBadge(data.badge);
-        } else {
-          console.warn("🎯 [BadgeDebug] No badge returned from API");
-        }
-      } catch (err) {
-        console.warn("🎯 [BadgeDebug] Failed to fetch badge:", err.message);
-      }
-    };
+    } catch (err) {
+      console.warn("🎯 [BadgeDebug] Failed to fetch badge:", err.message);
+    }
+  };
+
+  // Fetch when badge not provided or missing
+  if (!badge && actId && dateISO) {
     fetchBadgeIfMissing();
-  }, [actId, dateISO, resolvedBadge]);
+  }
+}, [actId, dateISO, badge]);
+
 
   console.log("🎯 [BadgeDebug] Render VocalistFeaturedBadgeForCart", {
     resolvedBadge,
