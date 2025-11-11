@@ -11,7 +11,7 @@ import CustomToast from "../components/CustomToast";
 import { ShopContext } from "../context/ShopContext";
 import Title from "../components/Title";
 import CartTotal from "../components/CartTotal";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import calculateActPricing from "./utils/pricing";
 import CustomTimePicker from "../components/CustomTimePicker";
 import "keen-slider/keen-slider.min.css";
@@ -20,6 +20,9 @@ import { assets } from "../assets/assets";
 import { calculateExtraPrice } from "./utils/pricing";
 import { addMinutesHHMM } from "./utils/time";
 import { VocalistFeaturedBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
+import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
+import {  fetchBadgeForActAndDate } from "./utils/helpersforAct";
+
 
 const Cart = () => {
   const {
@@ -39,14 +42,207 @@ const Cart = () => {
   } = useContext(ShopContext);
 
   const changingLineupRef = useRef(false);
+  const { actId } = useParams();
 
   const [cartDetails, setCartDetails] = useState([]);
+  const [actData, setActData] = useState(null);
+  const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
+const [clearedBadges, setClearedBadges] = useState(new Set());
 
   const [selectedEventType, setSelectedEventType] = useState("Wedding");
   const [customEventType, setCustomEventType] = useState("");
   const [performancePlans, setPerformancePlans] = useState({});
 
   const navigate = useNavigate();
+
+      useEffect(() => {
+    if (actData) {
+      console.log("🎭 [Act.jsx] actData loaded:", {
+        name: actData.name,
+        numberOfSets: actData.numberOfSets,
+        lengthOfSets: actData.lengthOfSets,
+        lineups: actData.lineups?.length,
+      });
+    }
+  }, [actData]);
+
+  // ✅ Safe merge to prevent infinite loop
+  useEffect(() => {
+    if (!actData) return;
+  
+    setActData((prev) => {
+      if (!prev) return actData;
+  
+      // Compare shallowly — skip update if same object
+      const prevBadges = prev.availabilityBadges || {};
+      const newBadges = actData.availabilityBadges || {};
+  
+      // Skip if badge data hasn’t changed
+      if (JSON.stringify(prevBadges) === JSON.stringify(newBadges)) {
+        return prev;
+      }
+  
+      const merged = {
+        ...actData,
+        availabilityBadges: { ...newBadges },
+      };
+      clearedBadges.forEach((d) => {
+        delete merged.availabilityBadges?.[d];
+      });
+      return merged;
+    });
+  }, [clearedBadges]); // 👈 removed actData from deps
+
+  useEffect(() => {
+    const evtSource = new EventSource(
+      `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`
+    );
+  
+    evtSource.onmessage = async (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        console.log(`📡 SSE event received:`, data);
+  
+        // ✅ Only act on known badge-related event types
+        const validTypes = [
+          "availability_yes",
+          "availability_deputy_yes",
+          "availability_badge_updated",
+        ];
+  
+     if (!validTypes.includes(data.type)) return;
+  
+  // ✅ Only act on this act
+  if (String(data.actId) !== String(actId)) return;
+  
+  const cleanDate = data.dateISO?.slice(0, 10) || selectedDate?.slice(0, 10);
+  if (!cleanDate) return;
+  
+  // 🧹 Handle explicit null badge clears
+  if (data.type === "availability_badge_updated" && data.badge === null) {
+    console.log("🧹 Explicit badge clear received via SSE:", data);
+    setClearedBadges((prev) => new Set(prev).add(cleanDate));
+  
+    setActData((prev) => {
+      if (!prev) return prev;
+      const updatedBadges = { ...(prev.availabilityBadges || {}) };
+  
+      // 🔍 Delete both possible variants
+      delete updatedBadges[cleanDate];
+      delete updatedBadges[`${cleanDate}_tbc`];
+  
+      console.log("🗑️ Cleared badge keys from actData:", Object.keys(updatedBadges));
+      return { ...prev, availabilityBadges: updatedBadges };
+    });
+  
+    return;
+  }
+  
+  // 🧭 Otherwise fetch and update latest badge
+  const badge = await fetchBadgeForActAndDate(actId, cleanDate);
+  if (badge) {
+    console.log("♻️ Updated badge from SSE:", badge);
+    setActData((prev) => ({
+      ...prev,
+      availabilityBadges: {
+        ...(prev?.availabilityBadges || {}),
+        [cleanDate]: badge,
+      },
+    }));
+  } else {
+    console.log("🪶 No badge returned for SSE event.");
+  
+  }
+      } catch (err) {
+        console.error("⚠️ Error processing SSE message:", err);
+      }
+    };
+  
+    evtSource.onerror = (err) => {
+      console.warn("⚠️ SSE connection error", err);
+    };
+  
+    return () => evtSource.close();
+  }, [actId, selectedDate]);
+  
+    useEffect(() => {
+      if (!actId || !selectedDate) return;
+  
+      const cleanDate = selectedDate.slice(0, 10);
+      console.log("📡 Fetching badge for act/date:", { actId, cleanDate });
+  
+      fetchBadgeForActAndDate(actId, cleanDate).then((badge) => {
+        if (!badge) {
+          console.log("🪶 No badge returned for", cleanDate);
+          return;
+        }
+  
+        // Merge the badge into actData
+        setActData((prev) => {
+          const updatedBadges = {
+            ...(prev?.availabilityBadges || {}),
+            [cleanDate]: badge,
+          };
+          console.log("💾 Merged availabilityBadges:", updatedBadges);
+          return { ...prev, availabilityBadges: updatedBadges };
+        });
+      });
+    }, [actId, selectedDate]);
+  
+    // verify latest reply on this act+date (use stable actId to avoid stale state)
+    useEffect(() => {
+      let abort = false;
+      (async () => {
+        try {
+          if (!actId || !selectedDate) {
+            if (!abort) setIsYesForSelectedDate(null);
+            return;
+          }
+  
+          const base = (import.meta.env.VITE_BACKEND_URL || "").replace(
+            /\/+$/,
+            ""
+          );
+          const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
+  const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
+          u.searchParams.set("date", dateISO);
+          u.searchParams.set("actId", String(actId));
+  
+          const resp = await fetch(u.toString(), {
+            headers: { accept: "application/json" },
+          });
+          const text = await resp.text();
+          let j = {};
+          try {
+            j = text ? JSON.parse(text) : {};
+          } catch {
+            j = {};
+          }
+          if (!resp.ok) throw new Error(`availability ${resp.status}`);
+  
+          if (!abort) {
+            // tolerate different shapes; prefer explicit latestReply
+            const latest = j?.latestReply || j?.latest || j?.reply || null;
+            setIsYesForSelectedDate(
+              latest === "yes" ? true : latest === "no" ? false : null
+            );
+          }
+        } catch (e) {
+          if (!abort) setIsYesForSelectedDate(null);
+        }
+      })();
+      return () => {
+        abort = true;
+      };
+    }, [actId, selectedDate]);
+
+
+     useEffect(() => {
+        if (!actId || !selectedDate) return;
+        console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
+      }, [actData?.availabilityBadge]);
+
+
   const mergedUpdateExtras = useMergedUpdateExtras(cartItems, setCartItems);
 
 
@@ -1245,14 +1441,30 @@ const displayCartDetails = Array.isArray(cartDetails)
            {/* Availability badge */}
 <div className="mt-6">
   {(() => {
-    console.log("🎤 CART VOCALIST DEBUG:", {
-      actId: item.actId || item._id,
-      actName: item.actName,
-      badge: item.availabilityBadge || item.badge || null,
-      hasActive: item.availabilityBadge?.active,
-    
-      selected,
-    });
+    const badges = actData?.availabilityBadges || {};
+    const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
+    const matchedKey =
+      cleanDate &&
+      Object.keys(badges).find(
+        (key) =>
+          key === cleanDate ||
+          key.startsWith(`${cleanDate}_`) ||
+          key.includes(cleanDate)
+      );
+    const badgeForDate = matchedKey ? badges[matchedKey] : null;
+
+    if (!badgeForDate) return null;
+
+    return (
+      <VocalistFeaturedAvailable
+        badge={badgeForDate}
+        size={140}
+        cacheBuster={badgeForDate?.setAt}
+        className="mt-2"
+        actContext={actData?.tscName}
+        dateContext={selectedDate}
+      />
+    );
   })()}
 
   <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
