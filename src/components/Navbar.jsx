@@ -59,7 +59,7 @@ const Navbar = () => {
   }, [drawerOpen]);
 
   return (
-    <header className="w-full fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur shadow-sm">
+    <header className="w-full fixed top-0 left-0 right-0 z-[9999] bg-white/95 backdrop-blur shadow-sm">
       <nav className="h-16 w-full grid grid-cols-[auto_1fr_auto] items-center pl-2 pr-2 sm:px-4 bg-white">
                 {/* Logo:
            - <lg: Agent logo (small)
