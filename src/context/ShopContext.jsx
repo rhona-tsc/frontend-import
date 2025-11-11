@@ -506,7 +506,28 @@ const [token, setToken] = useState("");
               payload
             );
 
-         // 🧹 Ignore explicit null clears (Act.jsx handles those)
+            // 🧹 Handle explicit null badge clears (remove badge for this act/date)
+            if (payload.badge === null) {
+              setActs((prevActs) => {
+                if (!Array.isArray(prevActs)) return prevActs;
+                return prevActs.map((act) => {
+                  if (String(act._id) !== String(payload.actId)) return act;
+                  // Remove badge for the date key (payload.dateISO) from act.availabilityBadges if present
+                  if (!act.availabilityBadges || typeof act.availabilityBadges !== "object") return act;
+                  const dateKey = String(payload.dateISO).slice(0, 10);
+                  // Remove all keys matching this date (could be ISO or YYYY-MM-DD)
+                  const newBadges = { ...act.availabilityBadges };
+                  Object.keys(newBadges).forEach((k) => {
+                    if (k.slice(0, 10) === dateKey) {
+                      delete newBadges[k];
+                    }
+                  });
+                  return { ...act, availabilityBadges: newBadges };
+                });
+              });
+              console.log("🧹 Explicit badge clear received via SSE");
+              return;
+            }
 
 
             // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (refined)
