@@ -1381,7 +1381,7 @@ const displayCartDetails = Array.isArray(cartDetails)
                   <p className="text-2xl text-gray-700 font-medium">
                     {item.actName}
                   </p>
-         {/* Availability badge */}
+           {/* Availability badge */}
 <div className="mt-6">
   {(() => {
     const badges = actData?.availabilityBadges || {};
@@ -1401,27 +1401,52 @@ const displayCartDetails = Array.isArray(cartDetails)
     // 🎯 Only show heading if the lead is NOT available
     const showChooseHeading = badgeForDate?.isDeputy === true;
 
+const isSelected =
+  selectedVocalists?.[item.actId] ===
+  item.actData?.availabilityBadges?.[selectedDate.slice(0, 10)]?.musicianId;
+  
     return (
-      <>
+         <>
         {showChooseHeading && (
           <h3 className="text-lg font-semibold mb-2">
             Choose your vocalist
           </h3>
         )}
-      <FeaturedVocalistBadgeForCart
-  badge={badgeForDate}
-  size={140}
-  cacheBuster={badgeForDate?.setAt}
-  className="mt-2"
-  actContext={actData?.tscName}
-  dateContext={selectedDate}
-  isSelected={selectedVocalists?.[actData?._id] === badgeForDate?.musicianId}
-  onSelect={(musicianId) => toggleVocalistForAct(actData?._id, musicianId)}
+<div className="flex flex-col items-center">
+
+    <FeaturedVocalistBadgeForCart
+  imageUrl={item.actData?.availabilityBadges?.[selectedDate?.slice(0, 10)]?.photoUrl}
+  pictureSource={item.actData?.availabilityBadges?.[selectedDate?.slice(0, 10)]}
+  size={120}
+  variant={
+    item.actData?.availabilityBadges?.[selectedDate?.slice(0, 10)]?.isDeputy
+      ? "deputy"
+      : "lead"
+  }
+  musicianId={
+    item.actData?.availabilityBadges?.[selectedDate?.slice(0, 10)]?.musicianId
+  }
+  cacheBuster={
+    item.actData?.availabilityBadges?.[selectedDate?.slice(0, 10)]?.setAt
+  }
+  isSelected={
+    selectedVocalists?.[item.actId] ===
+    item.actData?.availabilityBadges?.[selectedDate?.slice(0, 10)]?.musicianId
+  }
+  onSelect={(musicianId) =>
+    toggleVocalistForAct(item.actId, musicianId)
+  }
 />
-      </>
+{isSelected && (
+    <span className="text-sm text-[#ff6667] font-semibold mt-1">
+      Selected
+    </span>
+  )}
+   
+  </div>
+  </>
     );
   })()}
-</div>
 
 
   
