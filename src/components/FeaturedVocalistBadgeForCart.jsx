@@ -97,7 +97,7 @@ console.log("🟢 Badge Click Bind:", {
     >
       <div
 className={`relative select-none rounded-md border shadow-md hover:shadow-lg p-2 transition-all
-  ${isSelected ? "brightness-110 border-[#ff6667] bg-[#ff6667]" : "border-gray-300 bg-white"}
+  ${isSelected ? "brightness-110 border-[#ff6667] bg-black" : "border-gray-300 bg-white"}
   ${scaleClass}`}        style={{
           width: size,
           height: size,
