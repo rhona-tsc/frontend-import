@@ -19,7 +19,7 @@ import ExtrasCarousel from "../components/ExtrasCarousel";
 import { assets } from "../assets/assets";
 import { calculateExtraPrice } from "./utils/pricing";
 import { addMinutesHHMM } from "./utils/time";
-import { VocalistFeaturedBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
+import { FeaturedVocalistBadgeForCart, VocalistFeaturedBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
 import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 import {  fetchBadgeForActAndDate } from "./utils/helpersforAct";
 
@@ -1381,9 +1381,8 @@ const displayCartDetails = Array.isArray(cartDetails)
                   <p className="text-2xl text-gray-700 font-medium">
                     {item.actName}
                   </p>
-           {/* Availability badge */}
+         {/* Availability badge */}
 <div className="mt-6">
-    <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
   {(() => {
     const badges = actData?.availabilityBadges || {};
     const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
@@ -1399,18 +1398,30 @@ const displayCartDetails = Array.isArray(cartDetails)
 
     if (!badgeForDate) return null;
 
-    return (
+    // 🎯 Only show heading if the lead is NOT available
+    const showChooseHeading = badgeForDate?.isDeputy === true;
 
-      <VocalistFeaturedAvailable
-        badge={badgeForDate}
-        size={140}
-        cacheBuster={badgeForDate?.setAt}
-        className="mt-2"
-        actContext={actData?.tscName}
-        dateContext={selectedDate}
-      />
+    return (
+      <>
+        {showChooseHeading && (
+          <h3 className="text-lg font-semibold mb-2">
+            Choose your vocalist
+          </h3>
+        )}
+      <FeaturedVocalistBadgeForCart
+  badge={badgeForDate}
+  size={140}
+  cacheBuster={badgeForDate?.setAt}
+  className="mt-2"
+  actContext={actData?.tscName}
+  dateContext={selectedDate}
+  isSelected={selectedVocalists?.[actData?._id] === badgeForDate?.musicianId}
+  onSelect={(musicianId) => toggleVocalistForAct(actData?._id, musicianId)}
+/>
+      </>
     );
   })()}
+</div>
 
 
   
