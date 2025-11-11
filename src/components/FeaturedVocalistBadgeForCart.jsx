@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export function FeaturedVocalistBadgeForCart({
   imageUrl,
   pictureSource = null,
