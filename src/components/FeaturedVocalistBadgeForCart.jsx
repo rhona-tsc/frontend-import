@@ -144,10 +144,16 @@ console.log("🟢 Badge Click Bind:", {
         </a>
       )}
 
-      {/* Center the Selected label if present */}
+      {/* Show tick icon below badge if selected */}
       {isSelected && (
-        <div className="mt-1 text-[13px] font-medium text-center text-[#ff6667] w-full">
-          Selected
+        <div className="flex justify-center w-full mt-2">
+          <img
+            src={assets.tick}
+            alt="Selected"
+            style={{ width: 20, height: 20 }}
+            className="mx-auto"
+            draggable={false}
+          />
         </div>
       )}
     </div>
