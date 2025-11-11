@@ -23,6 +23,10 @@ import { VocalistFeaturedBadgeForCart } from "../components/FeaturedVocalistBadg
 import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 import {  fetchBadgeForActAndDate } from "./utils/helpersforAct";
 
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
+  import.meta.env.BACKEND_URL?.replace(/\/$/, "") ||
+  "";
 
 const Cart = () => {
   const {
@@ -139,7 +143,7 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
   }
   
   // 🧭 Otherwise fetch and update latest badge
-  const badge = await fetchBadgeForActAndDate(actId, cleanDate);
+  const badge = await fetchBadgeForActAndDate(actId, cleanDate, BACKEND_URL);
   if (badge) {
     console.log("♻️ Updated badge from SSE:", badge);
     setActData((prev) => ({
@@ -188,6 +192,8 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
         });
       });
     }, [actId, selectedDate]);
+
+
   
     // verify latest reply on this act+date (use stable actId to avoid stale state)
     useEffect(() => {
@@ -1440,6 +1446,7 @@ const displayCartDetails = Array.isArray(cartDetails)
                   </p>
            {/* Availability badge */}
 <div className="mt-6">
+    <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
   {(() => {
     const badges = actData?.availabilityBadges || {};
     const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
@@ -1456,6 +1463,7 @@ const displayCartDetails = Array.isArray(cartDetails)
     if (!badgeForDate) return null;
 
     return (
+
       <VocalistFeaturedAvailable
         badge={badgeForDate}
         size={140}
@@ -1467,36 +1475,8 @@ const displayCartDetails = Array.isArray(cartDetails)
     );
   })()}
 
-  <h3 className="text-lg font-semibold mb-2">Choose your vocalist(s)</h3>
 
-  {item.availabilityBadge ? (
-  <VocalistFeaturedBadgeForCart
-    key={`${item._id}-${item.availabilityBadge?.setAt || ""}`}
-    badge={item.availabilityBadge}
-    actId={item._id || item.actId || ""}
-    dateISO={selectedDate}
-    className="flex gap-4 flex-wrap"
-    size={140}
-  />
-) : selectedDate ? (
-  <VocalistFeaturedBadgeForCart
-    key={`${item._id}-fallback`}
-    actId={item._id || item.actId || ""}
-    dateISO={selectedDate}
-    className="flex gap-4 flex-wrap"
-    size={140}
-  />
-) : (
-  <p className="text-sm text-gray-500 italic">
-    Checking vocalist availability…
-  </p>
-)}
-
-  {selected.length > 0 && (
-    <p className="mt-3 text-sm text-gray-700">
-      ✅ Selected {selected.length} vocalist{selected.length > 1 ? "s" : ""}.
-    </p>
-  )}
+  
 </div>
 
                   {(() => {
