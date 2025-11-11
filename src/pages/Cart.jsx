@@ -46,7 +46,6 @@ const Cart = () => {
   } = useContext(ShopContext);
 
   const changingLineupRef = useRef(false);
-  const { actId } = useParams();
 
   const [cartDetails, setCartDetails] = useState([]);
   const [actData, setActData] = useState(null);
@@ -97,156 +96,94 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
     });
   }, [clearedBadges]); // 👈 removed actData from deps
 
-  useEffect(() => {
-    const evtSource = new EventSource(
-      `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`
-    );
-  
-    evtSource.onmessage = async (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        console.log(`📡 SSE event received:`, data);
-  
-        // ✅ Only act on known badge-related event types
-        const validTypes = [
-          "availability_yes",
-          "availability_deputy_yes",
-          "availability_badge_updated",
-        ];
-  
-     if (!validTypes.includes(data.type)) return;
-  
-  // ✅ Only act on this act
-  if (String(data.actId) !== String(actId)) return;
-  
-  const cleanDate = data.dateISO?.slice(0, 10) || selectedDate?.slice(0, 10);
-  if (!cleanDate) return;
-  
-  // 🧹 Handle explicit null badge clears
-  if (data.type === "availability_badge_updated" && data.badge === null) {
-    console.log("🧹 Explicit badge clear received via SSE:", data);
-    setClearedBadges((prev) => new Set(prev).add(cleanDate));
-  
-    setActData((prev) => {
-      if (!prev) return prev;
-      const updatedBadges = { ...(prev.availabilityBadges || {}) };
-  
-      // 🔍 Delete both possible variants
-      delete updatedBadges[cleanDate];
-      delete updatedBadges[`${cleanDate}_tbc`];
-  
-      console.log("🗑️ Cleared badge keys from actData:", Object.keys(updatedBadges));
-      return { ...prev, availabilityBadges: updatedBadges };
-    });
-  
-    return;
-  }
-  
-  // 🧭 Otherwise fetch and update latest badge
-  const badge = await fetchBadgeForActAndDate(actId, cleanDate, BACKEND_URL);
-  if (badge) {
-    console.log("♻️ Updated badge from SSE:", badge);
-    setActData((prev) => ({
-      ...prev,
-      availabilityBadges: {
-        ...(prev?.availabilityBadges || {}),
-        [cleanDate]: badge,
-      },
-    }));
-  } else {
-    console.log("🪶 No badge returned for SSE event.");
-  
-  }
-      } catch (err) {
-        console.error("⚠️ Error processing SSE message:", err);
-      }
-    };
-  
-    evtSource.onerror = (err) => {
-      console.warn("⚠️ SSE connection error", err);
-    };
-  
-    return () => evtSource.close();
-  }, [actId, selectedDate]);
-  
-    useEffect(() => {
-      if (!actId || !selectedDate) return;
-  
-      const cleanDate = selectedDate.slice(0, 10);
-      console.log("📡 Fetching badge for act/date:", { actId, cleanDate });
-  
-      fetchBadgeForActAndDate(actId, cleanDate).then((badge) => {
-        if (!badge) {
-          console.log("🪶 No badge returned for", cleanDate);
-          return;
-        }
-  
-        // Merge the badge into actData
-        setActData((prev) => {
-          const updatedBadges = {
-            ...(prev?.availabilityBadges || {}),
-            [cleanDate]: badge,
-          };
-          console.log("💾 Merged availabilityBadges:", updatedBadges);
-          return { ...prev, availabilityBadges: updatedBadges };
-        });
-      });
-    }, [actId, selectedDate]);
+useEffect(() => {
+  const evtSource = new EventSource(`${BACKEND_URL}/api/availability/subscribe`);
 
+  evtSource.onmessage = async (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      console.log(`📡 SSE event received:`, data);
 
-  
-    // verify latest reply on this act+date (use stable actId to avoid stale state)
-    useEffect(() => {
-      let abort = false;
-      (async () => {
-        try {
-          if (!actId || !selectedDate) {
-            if (!abort) setIsYesForSelectedDate(null);
-            return;
-          }
-  
-          const base = (import.meta.env.VITE_BACKEND_URL || "").replace(
-            /\/+$/,
-            ""
-          );
-          const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
-  const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
-          u.searchParams.set("date", dateISO);
-          u.searchParams.set("actId", String(actId));
-  
-          const resp = await fetch(u.toString(), {
-            headers: { accept: "application/json" },
+      const validTypes = [
+        "availability_yes",
+        "availability_deputy_yes",
+        "availability_badge_updated",
+      ];
+      if (!validTypes.includes(data.type)) return;
+
+      const cleanDate = data.dateISO?.slice(0, 10) || selectedDate?.slice(0, 10);
+      if (!cleanDate) return;
+
+      // 🧠 For each act currently in cart
+      for (const actId of Object.keys(cartItems || {})) {
+        if (String(data.actId) !== String(actId)) continue;
+
+        // 🧹 Badge clear
+        if (data.type === "availability_badge_updated" && data.badge === null) {
+          console.log("🧹 Explicit badge clear:", data);
+          setClearedBadges((prev) => new Set(prev).add(cleanDate));
+          setActData((prev) => {
+            if (!prev) return prev;
+            const updated = { ...(prev.availabilityBadges || {}) };
+            delete updated[cleanDate];
+            delete updated[`${cleanDate}_tbc`];
+            return { ...prev, availabilityBadges: updated };
           });
-          const text = await resp.text();
-          let j = {};
-          try {
-            j = text ? JSON.parse(text) : {};
-          } catch {
-            j = {};
-          }
-          if (!resp.ok) throw new Error(`availability ${resp.status}`);
-  
-          if (!abort) {
-            // tolerate different shapes; prefer explicit latestReply
-            const latest = j?.latestReply || j?.latest || j?.reply || null;
-            setIsYesForSelectedDate(
-              latest === "yes" ? true : latest === "no" ? false : null
-            );
-          }
-        } catch (e) {
-          if (!abort) setIsYesForSelectedDate(null);
+          continue;
         }
-      })();
-      return () => {
-        abort = true;
-      };
-    }, [actId, selectedDate]);
+
+        // ♻️ Update latest badge
+        const badge = await fetchBadgeForActAndDate(actId, cleanDate, BACKEND_URL);
+        if (badge) {
+          console.log(`♻️ Updated badge via SSE for ${actId}:`, badge);
+          setActData((prev) => ({
+            ...prev,
+            availabilityBadges: {
+              ...(prev?.availabilityBadges || {}),
+              [cleanDate]: badge,
+            },
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("⚠️ SSE message error:", err);
+    }
+  };
+
+  evtSource.onerror = (err) => {
+    console.warn("⚠️ SSE connection error", err);
+  };
+
+  return () => evtSource.close();
+}, [cartItems, selectedDate]);
+  
+useEffect(() => {
+  if (!selectedDate || !cartItems) return;
+
+  const cleanDate = selectedDate.slice(0, 10);
+  console.log("📡 Fetching badges for all cart acts:", { cleanDate });
+
+  Object.keys(cartItems || {}).forEach((actId) => {
+    fetchBadgeForActAndDate(actId, cleanDate, BACKEND_URL).then((badge) => {
+      if (!badge) {
+        console.log(`🪶 No badge returned for ${actId}`);
+        return;
+      }
+
+      setActData((prev) => ({
+        ...prev,
+        availabilityBadges: {
+          ...(prev?.availabilityBadges || {}),
+          [cleanDate]: badge,
+        },
+      }));
+    });
+  });
+}, [cartItems, selectedDate]);
 
 
-     useEffect(() => {
-        if (!actId || !selectedDate) return;
-        console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
-      }, [actData?.availabilityBadge]);
+
+
 
 
   const mergedUpdateExtras = useMergedUpdateExtras(cartItems, setCartItems);
