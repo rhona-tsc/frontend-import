@@ -71,6 +71,22 @@ console.log("🟢 Badge Click Bind:", {
   // ✅ Grow effect but no circle outline
   const scaleClass = hover || isSelected ? "scale-105" : "scale-100";
 
+  // Helper to get first name + initial of surname
+  function getShortName(obj = {}) {
+    const fullName =
+      obj.vocalistName ||
+      obj.name ||
+      "";
+    if (!fullName) return "";
+    const parts = fullName.trim().split(" ");
+    if (parts.length === 0) return "";
+    const first = parts[0];
+    const lastInitial = parts.length > 1 ? parts[1][0] : "";
+    return lastInitial ? `${first} ${lastInitial}.` : first;
+  }
+
+  const vocalistDisplayName = getShortName(pictureSource || {});
+
   return (
     <div
       className={`inline-flex flex-col items-center ${className} cursor-pointer transition-transform duration-150 ${scaleClass}`}
@@ -81,7 +97,7 @@ console.log("🟢 Badge Click Bind:", {
     >
       <div
         className={`relative select-none rounded-full transition-all ${
-          isSelected ? "brightness-110 ring-4 ring-[#ff6667]/60" : ""
+          isSelected ? "brightness-110" : ""
         }`}
         style={{
           width: size,
@@ -114,6 +130,10 @@ console.log("🟢 Badge Click Bind:", {
         />
       </div>
 
+      {vocalistDisplayName && (
+        <div className="mt-2 text-[15px] font-semibold text-center w-full">{vocalistDisplayName}</div>
+      )}
+
       {effectiveProfileUrl && (
         <a
           href={effectiveProfileUrl}
@@ -124,6 +144,13 @@ console.log("🟢 Badge Click Bind:", {
         >
           View Profile
         </a>
+      )}
+
+      {/* Center the Selected label if present */}
+      {isSelected && (
+        <div className="mt-1 text-[13px] font-medium text-center text-[#ff6667] w-full">
+          Selected
+        </div>
       )}
     </div>
   );
