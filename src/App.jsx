@@ -1,6 +1,5 @@
 import React from "react";
 import { jwtDecode } from "jwt-decode";
-import { BrowserRouter } from "react-router-dom"; // Import BrowserRouter
 import { ToastContainer } from "react-toastify";
 import Navbar from "./components/Navbar";
 import SearchBox from "./components/SearchBox";
@@ -20,7 +19,6 @@ import Musician_Login from "./pages/Musician_Login";
 import Musician from "./pages/Musician";
 import PlaceBooking from "./pages/PlaceBooking";
 import Shortlist from "./pages/Shortlist";
-import ShopProvider from './context/ShopContext';
 import ViewEventSheet from "./pages/ViewEventSheet";
 import BookingSuccess from './pages/BookingSuccess';
 import BookingCancelled from './pages/BookingCancelled';
