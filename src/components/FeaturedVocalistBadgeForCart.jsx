@@ -1,5 +1,19 @@
+import { assets } from "../assets/assets"; // top-level import
+const PUBLIC_SITE_BASE =
+  import.meta.env.FRONTEND_URL || window.location.origin; // fallback to current site origin
+
+// Extract a valid http(s) URL from an object that may have profile fields.
+const pickProfilePicture = (obj = {}) => {
+  const v =
+    obj && typeof obj.profilePicture === "string"
+      ? obj.profilePicture.trim()
+      : "";
+  return v && v.startsWith("http") ? v : "";
+};
+
 import { useState } from "react";
 
+// 🎨 FeaturedVocalistBadge — single circular badge renderer
 export function FeaturedVocalistBadgeForCart({
   imageUrl,
   pictureSource = null,
