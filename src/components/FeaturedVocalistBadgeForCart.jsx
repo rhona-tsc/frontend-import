@@ -66,7 +66,9 @@ export function FeaturedVocalistBadgeForCart({
 
   return (
     <div
-      className={`inline-flex flex-col items-center ${className} cursor-pointer transition-all duration-150`}
+      className={`inline-flex flex-col items-center ${className} cursor-pointer transition-all duration-200 ease-in-out ${
+        isSelected ? "scale-105 bg-[#ffefef]" : "hover:scale-105"
+      }`}
       style={{ width: size, zIndex: 50, minHeight: size }}
       onClick={handleClick}
       onMouseEnter={() => setHover(true)}
