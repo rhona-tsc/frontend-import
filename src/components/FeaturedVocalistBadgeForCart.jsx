@@ -53,9 +53,20 @@ export function FeaturedVocalistBadgeForCart({
     profileUrl ||
     (musicianId ? `${PUBLIC_SITE_BASE}/musician/${musicianId}` : "");
 
-  const handleClick = () => {
-    if (onSelect) onSelect(musicianId);
-  };
+const handleClick = () => {
+  const id =
+    musicianId ||
+    pictureSource?.musicianId ||
+    pictureSource?.resolvedMusicianId ||
+    pictureSource?._id ||
+    "";
+  if (onSelect && id) onSelect(id);
+};
+
+console.log("🟢 Badge Click Bind:", {
+  musicianId,
+  resolvedFrom: pictureSource?.musicianId,
+});
 
   // ✅ Grow effect but no circle outline
   const scaleClass = hover || isSelected ? "scale-105" : "scale-100";
@@ -69,7 +80,9 @@ export function FeaturedVocalistBadgeForCart({
       onMouseLeave={() => setHover(false)}
     >
       <div
-        className="relative select-none rounded-full"
+        className={`relative select-none rounded-full transition-all ${
+          isSelected ? "brightness-110 ring-4 ring-[#ff6667]/60" : ""
+        }`}
         style={{
           width: size,
           height: size,

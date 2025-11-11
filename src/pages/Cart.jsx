@@ -1414,25 +1414,24 @@ const isSelected =
         )}
 <div className="flex flex-col items-left">
 
-    <FeaturedVocalistBadgeForCart
-      pictureSource={badgeForDate} // ✅ full badge object restored
-      imageUrl={badgeForDate.photoUrl || badgeForDate.profilePicture}
-      size={120}
-      variant={badgeForDate.isDeputy ? "deputy" : "lead"}
-      musicianId={badgeForDate.musicianId}
-      cacheBuster={badgeForDate.setAt}
-      isSelected={
-        selectedVocalists?.[item.actId] === badgeForDate.musicianId
-      }
-      onSelect={(musicianId) => toggleVocalistForAct(item.actId, musicianId)}
-      actContext={item.actData?.tscName}
-      dateContext={selectedDate}
-    />
-{isSelected && (
-    <span className="text-sm text-[#ff6667] font-semibold mt-1">
-      Selected
-    </span>
-  )}
+   <FeaturedVocalistBadgeForCart
+  pictureSource={badgeForDate}
+  imageUrl={badgeForDate.photoUrl || badgeForDate.profilePicture}
+  size={120}
+  variant={badgeForDate.isDeputy ? "deputy" : "lead"}
+  musicianId={badgeForDate.musicianId}
+  cacheBuster={badgeForDate.setAt}
+  isSelected={selectedVocalists?.[actData._id] === badgeForDate.musicianId}
+  onSelect={(musicianId) => toggleVocalistForAct(actData._id, musicianId)}
+  actContext={actData?.tscName}
+  dateContext={selectedDate}
+/>
+
+{selectedVocalists?.[actData._id] === badgeForDate.musicianId && (
+  <span className="text-sm text-[#ff6667] font-base mt-1">
+    Selected
+  </span>
+)}
    
   </div>
   </>
