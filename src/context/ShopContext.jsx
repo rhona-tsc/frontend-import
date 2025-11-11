@@ -530,35 +530,42 @@ const [token, setToken] = useState("");
             }
 
 
-            // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (refined)
-            if (payload.badge) {
-              const formattedDate = formatShortDate(payload.dateISO);
-              const actName = payload.actName || "the act";
-              let toastMsg = "";
+     // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (refined)
+if (payload.badge) {
+  const formattedDate = formatShortDate(payload.dateISO);
+  const actName = payload.actName || "the act";
+  let toastMsg = "";
 
-              if (
-                payload.badge.isDeputy &&
-                Array.isArray(payload.badge.deputies)
-              ) {
-                // 🔹 Pick the most recent deputy (sorted by setAt)
-                const sortedDeps = [...payload.badge.deputies].sort(
-                  (a, b) => new Date(b.setAt) - new Date(a.setAt)
-                );
-                const latestDep = sortedDeps[0];
-                const name =
-                  latestDep?.vocalistName?.split(" ")[0] ||
-                  latestDep?.name?.split(" ")[0] ||
-                  "Deputy";
+  if (payload.badge.isDeputy) {
+    // ✅ Prefer direct badge.vocalistName (the latest responder)
+    const name =
+      payload.badge.vocalistName?.split(" ")[0] ||
+      payload.badge.name?.split(" ")[0] ||
+      (() => {
+        // fallback to most recent from deputies
+        if (Array.isArray(payload.badge.deputies)) {
+          const sortedDeps = [...payload.badge.deputies].sort(
+            (a, b) => new Date(b.setAt) - new Date(a.setAt)
+          );
+          const latestDep = sortedDeps[0];
+          return (
+            latestDep?.vocalistName?.split(" ")[0] ||
+            latestDep?.name?.split(" ")[0] ||
+            "Deputy"
+          );
+        }
+        return "Deputy";
+      })();
 
-                toastMsg = `${name}, deputy vocalist for ${actName}, available for ${formattedDate}.`;
-              } else {
-                const name =
-                  payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
-                toastMsg = `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
-              }
+    toastMsg = `${name}, deputy vocalist for ${actName}, available for ${formattedDate}.`;
+  } else {
+    const name =
+      payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
+    toastMsg = `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
+  }
 
- toast(<CustomToast type="success" message={toastMsg} />);
-            }
+  toast(<CustomToast type="success" message={toastMsg} />);
+}
 
             console.log(
               "♻️ Calling refreshActById for badge update:",
