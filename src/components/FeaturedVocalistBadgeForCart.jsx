@@ -89,16 +89,14 @@ console.log("🟢 Badge Click Bind:", {
 
   return (
     <div
-      className={`inline-flex flex-col items-center ${className} cursor-pointer transition-transform duration-150 ${scaleClass}`}
+      className={`inline-flex flex-col items-center ${className} cursor-pointer transition-transform duration-150`}
       style={{ width: size, zIndex: 50, minHeight: size }}
       onClick={handleClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
       <div
-        className={`relative select-none rounded-full transition-all ${
-          isSelected ? "brightness-110" : ""
-        }`}
+        className={`relative select-none rounded-full transition-all ${isSelected ? "brightness-110" : ""} ${scaleClass}`}
         style={{
           width: size,
           height: size,
@@ -137,7 +135,7 @@ console.log("🟢 Badge Click Bind:", {
       {effectiveProfileUrl && (
         <a
           href={effectiveProfileUrl}
-          className="text-[14px] text-blue-600 underline block mt-1"
+          className="text-[13px] text-[#ff6667] text-center w-full underline block"
           target="_blank"
           rel="noreferrer"
           onClick={(e) => e.stopPropagation()}
