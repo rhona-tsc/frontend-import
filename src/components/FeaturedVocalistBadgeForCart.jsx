@@ -96,7 +96,7 @@ console.log("🟢 Badge Click Bind:", {
       onMouseLeave={() => setHover(false)}
     >
       <div
-        className={`relative select-none rounded-full transition-all ${isSelected ? "brightness-110" : ""} ${scaleClass}`}
+        className={`relative select-none rounded-md border-gray-200 transition-all ${isSelected ? "brightness-110" : ""} ${scaleClass}`}
         style={{
           width: size,
           height: size,
