@@ -1384,59 +1384,50 @@ const displayCartDetails = Array.isArray(cartDetails)
            {/* Availability badge */}
 <div className="mt-6">
   {(() => {
-    const badges = actData?.availabilityBadges || {};
-    const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
-    const matchedKey =
-      cleanDate &&
-      Object.keys(badges).find(
-        (key) =>
-          key === cleanDate ||
-          key.startsWith(`${cleanDate}_`) ||
-          key.includes(cleanDate)
-      );
-    const badgeForDate = matchedKey ? badges[matchedKey] : null;
-
-    if (!badgeForDate) return null;
-
-    // 🎯 Only show heading if the lead is NOT available
-    const showChooseHeading = badgeForDate?.isDeputy === true;
-
-const isSelected =
-  selectedVocalists?.[item.actId] ===
-  item.actData?.availabilityBadges?.[selectedDate.slice(0, 10)]?.musicianId;
-  
-    return (
-         <>
-        {showChooseHeading && (
-          <h3 className="text-lg font-semibold mb-2 text-gray-700">
-            Choose your vocalist
-          </h3>
-        )}
-<div className="flex flex-col items-left">
-
-   <FeaturedVocalistBadgeForCart
-  pictureSource={badgeForDate}
-  imageUrl={badgeForDate.photoUrl || badgeForDate.profilePicture}
-  size={120}
-  variant={badgeForDate.isDeputy ? "deputy" : "lead"}
-  musicianId={badgeForDate.musicianId}
-  cacheBuster={badgeForDate.setAt}
-  isSelected={selectedVocalists?.[actData._id] === badgeForDate.musicianId}
-  onSelect={(musicianId) => toggleVocalistForAct(actData._id, musicianId)}
-  actContext={actData?.tscName}
-  dateContext={selectedDate}
-/>
-
-{selectedVocalists?.[actData._id] === badgeForDate.musicianId && (
-  <span className="text-sm text-[#ff6667] font-base mt-1">
-    Selected
-  </span>
-)}
-   
-  </div>
-  </>
+  const badges = actData?.availabilityBadges || {};
+  const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
+  const matchedKey =
+    cleanDate &&
+    Object.keys(badges).find(
+      (key) =>
+        key === cleanDate ||
+        key.startsWith(`${cleanDate}_`) ||
+        key.includes(cleanDate)
     );
-  })()}
+  const badgeForDate = matchedKey ? badges[matchedKey] : null;
+
+  if (!badgeForDate) return null;
+  // 🧠 Hide everything if lead is available
+  if (badgeForDate?.isDeputy === false) return null;
+
+  // 🎯 Only show heading if the lead is NOT available
+  const showChooseHeading = badgeForDate?.isDeputy === true;
+
+
+  return (
+    <>
+      {showChooseHeading && (
+        <h3 className="text-lg font-semibold mb-2 text-gray-700">
+          Choose your vocalist
+        </h3>
+      )}
+      <div className="flex flex-col items-left">
+        <FeaturedVocalistBadgeForCart
+          pictureSource={badgeForDate}
+          imageUrl={badgeForDate.photoUrl || badgeForDate.profilePicture}
+          size={120}
+          variant={badgeForDate.isDeputy ? "deputy" : "lead"}
+          musicianId={badgeForDate.musicianId}
+          cacheBuster={badgeForDate.setAt}
+          isSelected={selectedVocalists?.[actData._id] === badgeForDate.musicianId}
+          onSelect={(musicianId) => toggleVocalistForAct(actData._id, musicianId)}
+          actContext={actData?.tscName}
+          dateContext={selectedDate}
+        />
+      </div>
+    </>
+  );
+})()}
 
 
   
