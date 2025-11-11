@@ -1383,56 +1383,60 @@ const displayCartDetails = Array.isArray(cartDetails)
                   </p>
            {/* Availability badge */}
 <div className="mt-6">
-  {(() => {
-    const badges = actData?.availabilityBadges || {};
-    const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
-    const matchedKey =
-      cleanDate &&
-      Object.keys(badges).find(
-        (key) =>
-          key === cleanDate ||
-          key.startsWith(`${cleanDate}_`) ||
-          key.includes(cleanDate)
-      );
-    const badgeForDate = matchedKey ? badges[matchedKey] : null;
+{(() => {
+  const badges = actData?.availabilityBadges || {};
+  const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
+  const matchedKey =
+    cleanDate &&
+    Object.keys(badges).find(
+      (key) =>
+        key === cleanDate ||
+        key.startsWith(`${cleanDate}_`) ||
+        key.includes(cleanDate)
+    );
+  const badgeForDate = matchedKey ? badges[matchedKey] : null;
 
-    if (!badgeForDate) return null;
-    // 🧠 Hide everything if lead is available
-    if (badgeForDate?.isDeputy === false) return null;
+  if (!badgeForDate) return null;
 
-    // 🎯 Only show heading if the lead is NOT available
-    const showChooseHeading = badgeForDate?.isDeputy === true;
-    const deputyList = Array.isArray(badgeForDate.deputies)
+  // 🧠 Hide everything if lead is available
+  if (badgeForDate?.isDeputy === false) return null;
+
+  const showChooseHeading = badgeForDate?.isDeputy === true;
+
+  // 🎤 Include all deputies that replied “yes/available”
+  const deputyList =
+    Array.isArray(badgeForDate.deputies) && badgeForDate.deputies.length
       ? badgeForDate.deputies
       : [badgeForDate];
 
-    return (
-      <>
-        {showChooseHeading && (
-          <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
-            Choose your vocalist:
-          </h3>
-        )}
-        <div className="flex flex-wrap gap-4 items-left">
-          {deputyList.map((dep, idx) => (
-            <FeaturedVocalistBadgeForCart
-              key={dep.musicianId || idx}
-              pictureSource={dep}
-              imageUrl={dep.photoUrl || dep.profilePicture}
-              size={120}
-              variant={dep.isDeputy ? "deputy" : "lead"}
-              musicianId={dep.musicianId}
-              cacheBuster={dep.setAt}
-              isSelected={selectedVocalists?.[actData._id] === dep.musicianId}
-              onSelect={(musicianId) => toggleVocalistForAct(actData._id, musicianId)}
-              actContext={actData?.tscName}
-              dateContext={selectedDate}
-            />
-          ))}
-        </div>
-      </>
-    );
-  })()}
+  return (
+    <>
+      {showChooseHeading && (
+        <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
+          Choose your vocalist:
+        </h3>
+      )}
+
+      <div className="flex flex-wrap gap-4 items-left">
+        {deputyList.map((dep, idx) => (
+          <FeaturedVocalistBadgeForCart
+            key={dep.musicianId || idx}
+            pictureSource={dep}
+            imageUrl={dep.photoUrl || dep.profilePicture}
+            size={120}
+            variant={dep.isDeputy ? "deputy" : "lead"}
+            musicianId={dep.musicianId}
+            cacheBuster={dep.setAt}
+            isSelected={selectedVocalists?.[actData._id] === dep.musicianId}
+            onSelect={(musicianId) => toggleVocalistForAct(actData._id, musicianId)}
+            actContext={actData?.tscName}
+            dateContext={selectedDate}
+          />
+        ))}
+      </div>
+    </>
+  );
+})()}
 
 
   
