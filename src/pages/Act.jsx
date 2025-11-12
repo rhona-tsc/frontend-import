@@ -383,21 +383,12 @@ useEffect(() => {
 const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
 useEffect(() => {
-  if (!shouldFetchPrice) return; // 🧤 prevents infinite loop
   if (!actData?._id || !selectedLineup?._id || !selectedDate || !selectedAddress) return;
 
   const fetchPrice = async () => {
-    const selectedCounty =
-      selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+    const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
     try {
-      console.log("🧾 calculateActPricing Debug", {
-        actId: actData._id,
-        lineupId: selectedLineup._id,
-        date: selectedDate,
-        county: selectedCounty,
-      });
-
       const result = await calculateActPricing(
         actData,
         selectedCounty,
@@ -407,8 +398,8 @@ useEffect(() => {
       );
 
       if (result) {
-        setFinalTravelPrice(result);
-        // ✅ After success, disable further fetches
+        setFinalTravelPrice(result); // optional, if needed elsewhere
+        setFormattedPrice(result.total); // ✅ render this instead
         setShouldFetchPrice(false);
       }
     } catch (error) {
@@ -423,25 +414,7 @@ useEffect(() => {
   const handleLineupChange = (lineup) => {
   setSelectedLineup(lineup);
 
-  if (actData) {
-    let basePrice = lineup?.base_fee?.[0]?.total_fee || 0;
 
-    const additionalEssentialRoles = (lineup?.bandMembers || []).flatMap((member) =>
-      (member?.additionalRoles || []).filter(
-        (r) => r?.isEssential && typeof r?.additionalFee === "number"
-      )
-    );
-
-    const additionalRolesTotal = additionalEssentialRoles.reduce(
-      (sum, role) => sum + (role?.additionalFee || 0),
-      0
-    );
-
-    basePrice += additionalRolesTotal;
-    const displayPrice = Math.ceil(basePrice / 0.67);
-    setFormattedPrice(displayPrice);
-  }
-};
 
   useEffect(() => {
     if (!actId || !selectedDate) return;
