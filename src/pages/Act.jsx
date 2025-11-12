@@ -411,10 +411,31 @@ useEffect(() => {
   fetchPrice();
 }, [shouldFetchPrice, actData?._id, selectedLineup?._id, selectedDate, selectedAddress]);
 
-  const handleLineupChange = (lineup) => {
+const handleLineupChange = async (lineup) => {
   setSelectedLineup(lineup);
-
-
+  // After selecting lineup, recalculate price
+  const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+  try {
+    const result = await calculateActPricing(
+      actData,
+      selectedCounty,
+      selectedAddress,
+      selectedDate,
+      lineup
+    );
+    console.log("🧮 [Act.jsx] calculateActPricing result:", {
+      selectedLineup: lineup?.actSize,
+      travelCounty: selectedCounty,
+      travelAddress: selectedAddress,
+      pricingResult: result,
+    });
+    if (result) {
+      setFinalTravelPrice(result);
+      setFormattedPrice(result.total);
+    }
+  } catch (error) {
+    console.error("❌ Error in price calculation (handleLineupChange):", error);
+  }
 };
 
   useEffect(() => {
@@ -768,10 +789,10 @@ console.log("🟢 Render check", {
               )}
               <p className="mt-5 text-3xl font-medium p-3">
                 {(() => {
-const baseFeeArray = Array.isArray(selectedLineup?.base_fee)
-  ? selectedLineup.base_fee
-  : [];
-let basePrice = baseFeeArray?.[0]?.total_fee || 0;
+                  const baseFeeArray = Array.isArray(selectedLineup?.base_fee)
+                    ? selectedLineup.base_fee
+                    : [];
+                  let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                   selectedLineup?.bandMembers?.forEach((member) => {
                     const essentialRoles = (
                       member.additionalRoles || []
@@ -784,19 +805,26 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                       0
                     );
                   });
-                  const displayPrice =
-                    basePrice > 0 ? Math.ceil(basePrice) : 0;
+                  const displayPrice = basePrice > 0 ? Math.ceil(basePrice) : 0;
+                  // --- LOG RENDERED PRICE BLOCK ---
+                  console.log("💷 [Act.jsx] render price block:", {
+                    formattedPrice,
+                    finalTravelPrice,
+                    actDataFormattedPrice: actData?.formattedPrice,
+                  });
+                  // --- REMOVE/COMMENT displayPrice fallback logic ---
                   if (finalTravelPrice) {
                     return finalTravelPrice.travelCalculated
                       ? `£${finalTravelPrice.total}`
                       : `from £${finalTravelPrice.total}`;
                   } else if (formattedPrice) {
                     return `from £${formattedPrice}`;
-                  } else if (displayPrice > 0) {
-                    return `from £${displayPrice}`;
-                  } else {
-                    return "Loading price...";
                   }
+                  // Commented out: fallback to displayPrice
+                  // else if (displayPrice > 0) {
+                  //   return `from £${displayPrice}`;
+                  // }
+                  return "Loading price...";
                 })()}
               </p>
               <div className="flex flex-col gap-4 my-2">
@@ -969,19 +997,22 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
 
         <p className="mt-5 text-3xl font-medium p-3">
   {(() => {
+    // --- LOG RENDERED PRICE BLOCK ---
     const rawTotal =
       actData?.formattedPrice?.total ?? finalTravelPrice?.total ?? formattedPrice ?? null;
-
     const cleanTotal = rawTotal != null
       ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
       : null;
-
+    console.log("💷 [Act.jsx] render price block:", {
+      formattedPrice,
+      finalTravelPrice,
+      actDataFormattedPrice: actData?.formattedPrice,
+    });
     if (cleanTotal != null) {
       return finalTravelPrice?.travelCalculated
         ? `£${cleanTotal}`
         : `from £${cleanTotal}`;
     }
-
     return "Loading price...";
   })()}
 </p>
