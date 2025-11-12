@@ -425,6 +425,7 @@ const handleLineupChange = async (lineup) => {
       console.log("🧾 calculateActPricing Debug (Act.jsx handleLineupChange) — returned:", result);
       setFinalTravelPrice(result);
       setFormattedPrice(result.total);
+      setPrice({ total: result.total, travelCalculated: result.travelCalculated });
     }
   } catch (error) {
     console.error("❌ Error in price calculation (handleLineupChange):", error);
@@ -436,7 +437,7 @@ const handleLineupChange = async (lineup) => {
     console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
   }, [actData?.availabilityBadge]);
 
-   useEffect(() => {
+  useEffect(() => {
     const calculateAndSetPrice = async () => {
       try {
         if (!actData?.lineups?.length) {
@@ -460,18 +461,32 @@ const handleLineupChange = async (lineup) => {
           lineup
         );
 
-        // Hard fallback if util returns nothing
-        if (!result || result.total == null) {
-          const base =
-            actData?.formattedPrice?.total ??
-            lineup?.base_fee?.[0]?.total_fee ??
-            null;
+        // 🎯 Log breakdown for debugging
+        console.group("🧾 calculateActPricing breakdown");
+        console.log("Lineup fee allocations:", lineup?.base_fee);
+        const essentialRoles = (lineup?.bandMembers || [])
+          .flatMap((member) => member.additionalRoles || [])
+          .filter((role) => role?.isEssential && typeof role?.additionalFee === "number");
+        const essentialTotal = essentialRoles.reduce((sum, r) => sum + (r.additionalFee || 0), 0);
+        console.log("Essential additional roles:", essentialRoles);
+        console.log("Essential additional total:", essentialTotal);
 
-          setPrice(base != null ? { total: base, travelCalculated: false } : null);
-          return;
-        }
+        const base =
+          actData?.formattedPrice?.total ??
+          lineup?.base_fee?.[0]?.total_fee ??
+          0;
 
-        setPrice(result);
+        const travel = result?.travel || 0;
+        const subtotal = base + essentialTotal + travel;
+        const total = Math.round(subtotal * 1.33);
+
+        console.log("Base:", base);
+        console.log("Travel:", travel);
+        console.log("Subtotal (pre-margin):", subtotal);
+        console.log("Total (with 33% margin):", total);
+        console.groupEnd();
+
+        setPrice({ total, travelCalculated: true });
       } catch (err) {
         console.error('❌ Failed to calculate price:', {
           err,
@@ -843,9 +858,14 @@ console.log("🟢 Render check", {
                 </div>
               )}
               <p className="mt-5 text-3xl font-medium p-3">
-                 {displayTotal !== null
-                ? (price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`)
-                : 'Loading price...'}
+                {(() => {
+                  if (formattedPrice !== null) {
+                    return finalTravelPrice?.travelCalculated
+                      ? `£${formattedPrice}`
+                      : `from £${formattedPrice}`;
+                  }
+                  return 'Loading price...';
+                })()}
               </p>
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">

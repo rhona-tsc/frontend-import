@@ -197,22 +197,11 @@ try {
       >
         <div className="overflow-hidden h-full w-full">
           {(() => {
-            // 🔍 Decide which image to show, with badge taking priority when it matches the selected date
-            const badge = actData?.availabilityBadge || {};
-            const selectedISO = selectedDate
-              ? new Date(selectedDate).toISOString().slice(0, 10)
-              : null;
-            const badgeDateISO = badge?.dateISO || null;
-            const badgeActive = Boolean(badge?.active);
-            const badgeHasPhoto = Boolean(badge?.photoUrl);
-            const badgeMatches = Boolean(
-              badgeActive && badgeDateISO && selectedISO && badgeDateISO === selectedISO
-            );
+           
+       
 
             const resolvedImage =
-              (badgeMatches && badgeHasPhoto
-                ? badge.photoUrl
-                : (actData?.profileImage?.[0]?.url || '/placeholder.jpg'));
+              (actData?.profileImage?.[0]?.url || '/placeholder.jpg');
 
             return (
               <img
