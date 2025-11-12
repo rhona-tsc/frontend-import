@@ -47,6 +47,12 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
       // Gallery Carousel logic
   const galleryRef = useRef(null);
   const reviewGalleryRef = useRef(null); // ✅ fix
+
+  console.log("🧠 Render check", {
+  actData: !!actData,
+  selectedLineup: !!selectedLineup,
+});
+
 const scrollGallery = (direction) => {
       if (galleryRef.current) {
         const scrollAmount = direction === "left" ? -400 : 400;
@@ -64,6 +70,8 @@ const scrollGallery = (direction) => {
     });
   }
 }, [actData]);
+
+
 
 const handleInputChange = (actId, date, address) => {
   // update local UI state first
