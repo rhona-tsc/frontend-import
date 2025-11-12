@@ -196,6 +196,12 @@ if (isTestAct) {
   const fee = perMemberFees.reduce((s, m) => s + (m.memberTotal || 0), 0);
   console.log("💸 Total base lineup fee:", fee);
 
+  console.log("💸 Base Fees:");
+  perMemberFees.forEach(m => {
+    console.log(`   - ${m.name} (${m.instrument}): £${m.memberTotal} (Base: £${m.baseFee}, Roles: £${m.rolesTotal})`);
+  });
+  console.log(`   → Subtotal base fee: £${fee}`);
+
   // ----- TRAVEL -----
   // County-fee path (per-member)
   const hasCountyTable = !!(act?.useCountyTravelFee && hasAnyCountyFees(act?.countyFees) && derivedCounty);
@@ -267,8 +273,16 @@ if (isTestAct) {
     travelCalculated = true;
   }
 
+  console.log(`🚐 Travel Fee: £${travelFee}`);
+
   // Gross with 33% margin
-  const totalPrice = Math.ceil((fee + travelFee) / 0.67);
+  const subtotalBeforeMargin = fee + travelFee;
+  console.log(`🧮 Subtotal before margin: £${subtotalBeforeMargin}`);
+
+  const totalPrice = Math.ceil(subtotalBeforeMargin / 0.67);
+  console.log(`➕ 33% margin applied: Total / 0.67`);
+  console.log(`✅ Final total price (rounded): £${totalPrice}`);
+
  console.log("✅ Final:", { fee, travelFee, marginApplied: 0.33, totalPrice, travelCalculated });
   console.groupEnd();
   return { total: totalPrice, travelCalculated };
