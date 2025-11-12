@@ -109,7 +109,7 @@ const CartTotal = () => {
           const baseFee = getSafeBaseFee(lineup);
           const essentialRoles = getEssentialRolesTotal(lineup);
           const rawBase = baseFee + essentialRoles;
-          const fallbackGross = rawBase > 0 ? Math.ceil(rawBase / 0.67) : 0;
+          const fallbackGross = rawBase > 0 ? Math.ceil(rawBase) : 0;
 
           // If calcTotal is valid and > 0, use it. Otherwise fallback.
           const subtotalWithMargin =
