@@ -193,14 +193,14 @@ if (isTestAct) {
     };
   });
 
-  const fee = perMemberFees.reduce((s, m) => s + (m.memberTotal || 0), 0);
-  console.log("💸 Total base lineup fee:", fee);
+  const baseFeeTotal = perMemberFees.reduce((s, m) => s + (m.memberTotal || 0), 0);
+  console.log("💸 Total base lineup fee:", baseFeeTotal);
 
   console.log("💸 Base Fees:");
   perMemberFees.forEach(m => {
     console.log(`   - ${m.name} (${m.instrument}): £${m.memberTotal} (Base: £${m.baseFee}, Roles: £${m.rolesTotal})`);
   });
-  console.log(`   → Subtotal base fee: £${fee}`);
+  console.log(`   → Subtotal base fee: £${baseFeeTotal}`);
 
   // ----- TRAVEL -----
   // County-fee path (per-member)
@@ -222,7 +222,7 @@ if (isTestAct) {
 
   // If county path didn't run and we don't have addr/date → return base+margin
   if (!travelCalculated && (!selectedAddress || !selectedDate)) {
-    const totalPrice = Math.ceil(fee / 0.67);
+    const totalPrice = Math.ceil(baseFeeTotal / 0.67);
         console.log("⚠️ No travel data → base + margin only", totalPrice);
     console.groupEnd();
 
@@ -273,19 +273,28 @@ if (isTestAct) {
     travelCalculated = true;
   }
 
-  console.log(`🚐 Travel Fee: £${travelFee}`);
+  const travelFeeTotal = travelFee;
+  console.log(`🚗 Travel fee total: £${travelFeeTotal}`);
+
+  // Sound engineer fee (if any)
+  const soundFee = Number(act.soundEngineerFee) || 0;
+  console.log("🎧 Sound engineer fee:", soundFee);
+
+  // Management fee (if any)
+  const managementFee = Number(act.managementFee) || 0;
+  console.log("🧑‍💼 Management fee:", managementFee);
 
   // Gross with 33% margin
-  const subtotalBeforeMargin = fee + travelFee;
-  console.log(`🧮 Subtotal before margin: £${subtotalBeforeMargin}`);
+  const subtotal = baseFeeTotal + soundFee + managementFee + travelFeeTotal;
+  console.log(`🧮 Subtotal before margin: £${subtotal}`);
 
-  const totalPrice = Math.ceil(subtotalBeforeMargin / 0.67);
-  console.log(`➕ 33% margin applied: Total / 0.67`);
-  console.log(`✅ Final total price (rounded): £${totalPrice}`);
+  const finalTotal = Math.round(subtotal / 0.67);
+  console.log("➕ 33% margin applied (divide by 0.67)");
+  console.log("✅ Final total price (rounded):", finalTotal);
 
- console.log("✅ Final:", { fee, travelFee, marginApplied: 0.33, totalPrice, travelCalculated });
+ console.log("✅ Final:", { baseFeeTotal, soundFee, managementFee, travelFeeTotal, marginApplied: 0.33, finalTotal, travelCalculated });
   console.groupEnd();
-  return { total: totalPrice, travelCalculated };
+  return { total: finalTotal, travelCalculated };
 };
 
 export default calculateActPricing;
