@@ -766,38 +766,23 @@ console.log("🟢 Render check", {
                 </div>
               )}
               <p className="mt-5 text-3xl font-medium p-3">
-                {(() => {
-const baseFeeArray = Array.isArray(selectedLineup?.base_fee)
-  ? selectedLineup.base_fee
-  : [];
-let basePrice = baseFeeArray?.[0]?.total_fee || 0;
-                  selectedLineup?.bandMembers?.forEach((member) => {
-                    const essentialRoles = (
-                      member.additionalRoles || []
-                    ).filter(
-                      (r) =>
-                        r.isEssential && typeof r.additionalFee === "number"
-                    );
-                    basePrice += essentialRoles.reduce(
-                      (sum, r) => sum + r.additionalFee,
-                      0
-                    );
-                  });
-                  const displayPrice =
-                    basePrice > 0 ? Math.ceil(basePrice) : 0;
-                  if (finalTravelPrice) {
-                    return finalTravelPrice.travelCalculated
-                      ? `£${finalTravelPrice.total}`
-                      : `from £${finalTravelPrice.total}`;
-                  } else if (formattedPrice) {
-                    return `from £${formattedPrice}`;
-                  } else if (displayPrice > 0) {
-                    return `from £${displayPrice}`;
-                  } else {
-                    return "Loading price...";
-                  }
-                })()}
-              </p>
+  {(() => {
+    const rawTotal =
+      actData?.formattedPrice?.total ?? finalTravelPrice?.total ?? formattedPrice ?? null;
+
+    const cleanTotal = rawTotal != null
+      ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
+      : null;
+
+    if (cleanTotal != null) {
+      return finalTravelPrice?.travelCalculated
+        ? `£${cleanTotal}`
+        : `from £${cleanTotal}`;
+    }
+
+    return "Loading price...";
+  })()}
+</p>
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">
                   {generateDescription(selectedLineup) || "Add a Linuep"}
