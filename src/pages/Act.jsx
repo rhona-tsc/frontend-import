@@ -415,6 +415,7 @@ useEffect(() => {
   setSelectedLineup(lineup);
 
 
+};
 
   useEffect(() => {
     if (!actId || !selectedDate) return;
@@ -766,23 +767,38 @@ console.log("🟢 Render check", {
                 </div>
               )}
               <p className="mt-5 text-3xl font-medium p-3">
-  {(() => {
-    const rawTotal =
-      actData?.formattedPrice?.total ?? finalTravelPrice?.total ?? formattedPrice ?? null;
-
-    const cleanTotal = rawTotal != null
-      ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
-      : null;
-
-    if (cleanTotal != null) {
-      return finalTravelPrice?.travelCalculated
-        ? `£${cleanTotal}`
-        : `from £${cleanTotal}`;
-    }
-
-    return "Loading price...";
-  })()}
-</p>
+                {(() => {
+const baseFeeArray = Array.isArray(selectedLineup?.base_fee)
+  ? selectedLineup.base_fee
+  : [];
+let basePrice = baseFeeArray?.[0]?.total_fee || 0;
+                  selectedLineup?.bandMembers?.forEach((member) => {
+                    const essentialRoles = (
+                      member.additionalRoles || []
+                    ).filter(
+                      (r) =>
+                        r.isEssential && typeof r.additionalFee === "number"
+                    );
+                    basePrice += essentialRoles.reduce(
+                      (sum, r) => sum + r.additionalFee,
+                      0
+                    );
+                  });
+                  const displayPrice =
+                    basePrice > 0 ? Math.ceil(basePrice) : 0;
+                  if (finalTravelPrice) {
+                    return finalTravelPrice.travelCalculated
+                      ? `£${finalTravelPrice.total}`
+                      : `from £${finalTravelPrice.total}`;
+                  } else if (formattedPrice) {
+                    return `from £${formattedPrice}`;
+                  } else if (displayPrice > 0) {
+                    return `from £${displayPrice}`;
+                  } else {
+                    return "Loading price...";
+                  }
+                })()}
+              </p>
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">
                   {generateDescription(selectedLineup) || "Add a Linuep"}
@@ -951,55 +967,24 @@ console.log("🟢 Render check", {
               <p className="pl-2">({actData?.reviews?.length || 0})</p>
             </div>
 
-            <p className="mt-5 text-3xl font-medium p-3">
-              {(() => {
-                let basePrice = selectedLineup?.base_fee?.[0]?.total_fee || 0;
+        <p className="mt-5 text-3xl font-medium p-3">
+  {(() => {
+    const rawTotal =
+      actData?.formattedPrice?.total ?? finalTravelPrice?.total ?? formattedPrice ?? null;
 
-                // Log members and essential roles for debug
-                selectedLineup?.bandMembers?.forEach((member, i) => {
-                  const name =
-                    `${member.firstName || ""} ${member.lastName || ""}`.trim() ||
-                    `Member ${i + 1}`;
-                  const coreFee = member.fee || 0;
-                  const essentialRoles = (member.additionalRoles || []).filter(
-                    (r) => r.isEssential && typeof r.additionalFee === "number"
-                  );
-                  const roleDetails = essentialRoles.map((r) => ({
-                    role: r.role || "Unnamed Role",
-                    fee: r.additionalFee,
-                  }));
-                });
+    const cleanTotal = rawTotal != null
+      ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
+      : null;
 
-                const additionalEssentialRoles =
-                  selectedLineup?.bandMembers?.flatMap((member) =>
-                    (member.additionalRoles || []).filter(
-                      (r) =>
-                        r.isEssential && typeof r.additionalFee === "number"
-                    )
-                  ) || [];
+    if (cleanTotal != null) {
+      return finalTravelPrice?.travelCalculated
+        ? `£${cleanTotal}`
+        : `from £${cleanTotal}`;
+    }
 
-                const additionalRolesTotal = additionalEssentialRoles.reduce(
-                  (sum, role) => sum + role.additionalFee,
-                  0
-                );
-
-                basePrice += additionalRolesTotal;
-                const displayPrice = Math.ceil(basePrice / 0.67);
-
-                // ✅ Use finalTravelPrice.total and .travelCalculated
-                if (finalTravelPrice) {
-                  return finalTravelPrice.travelCalculated
-                    ? `£${finalTravelPrice.total}`
-                    : `from £${finalTravelPrice.total}`;
-                } else if (formattedPrice) {
-                  return `from £${formattedPrice}`;
-                } else if (basePrice > 0) {
-                  return `from £${displayPrice}`;
-                } else {
-                  return "Loading price...";
-                }
-              })()}
-            </p>
+    return "Loading price...";
+  })()}
+</p>
 
             {/* ✅ Lineup Selection (Now Updates Price Instantly) */}
             <div className="flex flex-col gap-4 my-2">
