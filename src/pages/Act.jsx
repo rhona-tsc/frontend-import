@@ -859,12 +859,26 @@ console.log("🟢 Render check", {
               )}
               <p className="mt-5 text-3xl font-medium p-3">
                 {(() => {
-                  if (formattedPrice !== null) {
+                  const rawTotal = actData?.formattedPrice?.total ?? finalTravelPrice?.total ?? formattedPrice ?? null;
+                  const cleanTotal = rawTotal != null
+                    ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
+                    : null;
+
+                  console.log("💷 [Act.jsx] Rendered Price Debug:", {
+                    rawTotal,
+                    cleanTotal,
+                    formattedPrice,
+                    finalTravelPrice,
+                    actDataFormattedPrice: actData?.formattedPrice,
+                    priceFromState: price,
+                  });
+
+                  if (cleanTotal != null) {
                     return finalTravelPrice?.travelCalculated
-                      ? `£${formattedPrice}`
-                      : `from £${formattedPrice}`;
+                      ? `£${cleanTotal}`
+                      : `from £${cleanTotal}`;
                   }
-                  return 'Loading price...';
+                  return "Loading price...";
                 })()}
               </p>
               <div className="flex flex-col gap-4 my-2">
@@ -1036,26 +1050,29 @@ console.log("🟢 Render check", {
             </div>
 
         <p className="mt-5 text-3xl font-medium p-3">
-  {(() => {
-    // --- LOG RENDERED PRICE BLOCK ---
-    const rawTotal =
-      actData?.formattedPrice?.total ?? finalTravelPrice?.total ?? formattedPrice ?? null;
-    const cleanTotal = rawTotal != null
-      ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
-      : null;
-    console.log("💷 [Act.jsx] render price block:", {
-      formattedPrice,
-      finalTravelPrice,
-      actDataFormattedPrice: actData?.formattedPrice,
-    });
-    if (cleanTotal != null) {
-      return finalTravelPrice?.travelCalculated
-        ? `£${cleanTotal}`
-        : `from £${cleanTotal}`;
-    }
-    return "Loading price...";
-  })()}
-</p>
+          {(() => {
+            const rawTotal = actData?.formattedPrice?.total ?? finalTravelPrice?.total ?? formattedPrice ?? null;
+            const cleanTotal = rawTotal != null
+              ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
+              : null;
+
+            console.log("💷 [Act.jsx] Rendered Price Debug:", {
+              rawTotal,
+              cleanTotal,
+              formattedPrice,
+              finalTravelPrice,
+              actDataFormattedPrice: actData?.formattedPrice,
+              priceFromState: price,
+            });
+
+            if (cleanTotal != null) {
+              return finalTravelPrice?.travelCalculated
+                ? `£${cleanTotal}`
+                : `from £${cleanTotal}`;
+            }
+            return "Loading price...";
+          })()}
+        </p>
 
             {/* ✅ Lineup Selection (Now Updates Price Instantly) */}
             <div className="flex flex-col gap-4 my-2">
