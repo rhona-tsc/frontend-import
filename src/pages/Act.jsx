@@ -28,7 +28,7 @@ const Act = () => {
     return match ? match[1] : url;
   };
   const { actId } = useParams();
-  const { acts, getActById, addToCart, selectedDate, setSelectedDate, selectedAddress, setSelectedAddress, setShowSearch, userId, shortlistAct, shortlistedActs, cartItems, removeFromCart, handleDateOrAddressChange } = useContext(ShopContext);
+  const { acts, getActById, addToCart, selectedDate, setSelectedDate, selectedAddress, setSelectedAddress, setShowSearch, userId, shortlistAct, shortlistedActs, cartItems, removeFromCart, handleDateOrAddressChange, selectedCounty } = useContext(ShopContext);
   const [actData, setActData] = useState(null);
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
   const [selectedLineup, setSelectedLineup] = useState("");
