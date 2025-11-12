@@ -40,6 +40,7 @@ const Act = () => {
   const [finalTravelPrice, setFinalTravelPrice] = useState(null);
   // 🧹 Track locally cleared availability badges
 const [clearedBadges, setClearedBadges] = useState(new Set());
+  const [price, setPrice] = useState(null);
 
   const id = extractVideoId(video);
 
@@ -509,6 +510,66 @@ console.log("🟢 Render check", {
   hasSelectedLineup: !!selectedLineup,
 });
 
+
+  useEffect(() => {
+    const calculateAndSetPrice = async () => {
+      try {
+        if (!actData?.lineups?.length) {
+          console.warn('⚠️ Missing actData or lineups in ActItem:', actData);
+          return;
+        }
+
+        // Only use county travel if it’s actually configured
+        const hasCountyTable =
+          actData.useCountyTravelFee &&
+          actData.countyFees &&
+          Object.keys(actData.countyFees).length > 0;
+
+        const lineup = actData.lineups[0];
+
+        const result = await calculateActPricing(
+          actData,
+          hasCountyTable ? selectedCounty : null,
+          selectedAddress,
+          selectedDate,
+          lineup
+        );
+
+        // Hard fallback if util returns nothing
+        if (!result || result.total == null) {
+          const base =
+            actData?.formattedPrice?.total ??
+            lineup?.base_fee?.[0]?.total_fee ??
+            null;
+
+          setPrice(base != null ? { total: base, travelCalculated: false } : null);
+          return;
+        }
+
+        setPrice(result);
+      } catch (err) {
+        console.error('❌ Failed to calculate price:', {
+          err,
+          actId: actData?._id,
+          useCountyTravelFee: actData?.useCountyTravelFee,
+        });
+        // Last-resort fallback so UI never gets stuck
+        const lineup = actData.lineups?.[0];
+        const base =
+          actData?.formattedPrice?.total ??
+          lineup?.base_fee?.[0]?.total_fee ??
+          null;
+        setPrice(base != null ? { total: base, travelCalculated: false } : null);
+      }
+    };
+    calculateAndSetPrice();
+  }, [actData, selectedCounty, selectedAddress, selectedDate]);
+
+  const rawTotal = (actData?.formattedPrice?.total ?? price?.total);
+  const displayTotal =
+    rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
+
+
   return (
     <div className="p-4">
       {/* Top Navigation */}
@@ -810,44 +871,9 @@ console.log("🟢 Render check", {
                 </div>
               )}
               <p className="mt-5 text-3xl font-medium p-3">
-                {(() => {
-                  const baseFeeArray = Array.isArray(selectedLineup?.base_fee)
-                    ? selectedLineup.base_fee
-                    : [];
-                  let basePrice = baseFeeArray?.[0]?.total_fee || 0;
-                  selectedLineup?.bandMembers?.forEach((member) => {
-                    const essentialRoles = (
-                      member.additionalRoles || []
-                    ).filter(
-                      (r) =>
-                        r.isEssential && typeof r.additionalFee === "number"
-                    );
-                    basePrice += essentialRoles.reduce(
-                      (sum, r) => sum + r.additionalFee,
-                      0
-                    );
-                  });
-                  const displayPrice = basePrice > 0 ? Math.ceil(basePrice) : 0;
-                  // --- LOG RENDERED PRICE BLOCK ---
-                  console.log("💷 [Act.jsx] render price block:", {
-                    formattedPrice,
-                    finalTravelPrice,
-                    actDataFormattedPrice: actData?.formattedPrice,
-                  });
-                  // --- REMOVE/COMMENT displayPrice fallback logic ---
-                  if (finalTravelPrice) {
-                    return finalTravelPrice.travelCalculated
-                      ? `£${finalTravelPrice.total}`
-                      : `from £${finalTravelPrice.total}`;
-                  } else if (formattedPrice) {
-                    return `from £${formattedPrice}`;
-                  }
-                  // Commented out: fallback to displayPrice
-                  // else if (displayPrice > 0) {
-                  //   return `from £${displayPrice}`;
-                  // }
-                  return "Loading price...";
-                })()}
+                 {displayTotal !== null
+                ? (price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`)
+                : 'Loading price...'}
               </p>
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">
