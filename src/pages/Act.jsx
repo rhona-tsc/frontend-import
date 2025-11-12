@@ -389,6 +389,16 @@ useEffect(() => {
     const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
     try {
+      // 🧾 calculateActPricing Debug
+      console.log("🧾 calculateActPricing Debug (Act.jsx useEffect)");
+      console.log("🔹 actData:", actData);
+      console.log("🔹 selectedLineup:", selectedLineup);
+      console.log("🔹 selectedLineup.base_fee:", selectedLineup?.base_fee);
+      if (selectedLineup?.base_fee) {
+        selectedLineup.base_fee.forEach((fee, index) => {
+          console.log(`   💰 Role ${index + 1}:`, fee);
+        });
+      }
       const result = await calculateActPricing(
         actData,
         selectedCounty,
@@ -398,6 +408,7 @@ useEffect(() => {
       );
 
       if (result) {
+        console.log("🧾 calculateActPricing Debug (Act.jsx useEffect) — returned:", result);
         setFinalTravelPrice(result); // optional, if needed elsewhere
         setFormattedPrice(result.total); // ✅ render this instead
         setShouldFetchPrice(false);
@@ -416,6 +427,16 @@ const handleLineupChange = async (lineup) => {
   // After selecting lineup, recalculate price
   const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
   try {
+    // 🧾 calculateActPricing Debug
+    console.log("🧾 calculateActPricing Debug (Act.jsx handleLineupChange)");
+    console.log("🔹 actData:", actData);
+    console.log("🔹 selectedLineup:", lineup);
+    console.log("🔹 selectedLineup.base_fee:", lineup?.base_fee);
+    if (lineup?.base_fee) {
+      lineup.base_fee.forEach((fee, index) => {
+        console.log(`   💰 Role ${index + 1}:`, fee);
+      });
+    }
     const result = await calculateActPricing(
       actData,
       selectedCounty,
@@ -430,6 +451,7 @@ const handleLineupChange = async (lineup) => {
       pricingResult: result,
     });
     if (result) {
+      console.log("🧾 calculateActPricing Debug (Act.jsx handleLineupChange) — returned:", result);
       setFinalTravelPrice(result);
       setFormattedPrice(result.total);
     }
