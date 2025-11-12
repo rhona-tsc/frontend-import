@@ -125,7 +125,7 @@ function DjLiveSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtr
     (async () => {
       // if sax already in lineup → no extra travel
       if (hasSaxInLineup) {
-        const gross = Math.ceil(baseNet / 0.75);
+        const gross = Math.ceil(baseNet / 0.67);
         if (!cancelled) setDjSaxPrice(gross);
         return;
       }
@@ -184,14 +184,14 @@ function DjLiveSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtr
         }
       }
 
-      const gross = Math.ceil((baseNet + (travelNet || 0)) / 0.75);
+      const gross = Math.ceil((baseNet + (travelNet || 0)) / 67);
       if (!cancelled) setDjSaxPrice(gross);
     })();
     return () => { cancelled = true; };
   }, [hasSaxInLineup, baseNet, actData, selectedCounty, selectedAddress, selectedDate, selectedLineup]);
 
   const selected = safeSelectedExtras.find(e => e.key === "DJ_live_sax_3x30mins");
-  const displayPrice = djSaxPrice ?? Math.ceil(baseNet / 0.75);
+  const displayPrice = djSaxPrice ?? Math.ceil(baseNet / 0.67);
 
   return (
     <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
@@ -285,14 +285,14 @@ const navigate = useNavigate();
     if (!option) return 0;
     // Per band member
     const base = option.fee * lineupSize;
-    return Math.ceil(base / 0.75);
+    return Math.ceil(base / 0.67);
   };
 
   const getDjPrice = (selectedKey) => {
     const option = djLiveOptions.find((opt) => opt.key === selectedKey);
     if (!option) return 0;
     // Not multiplied by lineupSize (charge is for one band member)
-    return Math.ceil(option.fee / 0.75);
+    return Math.ceil(option.fee / 0.67);
   };
 
   // Toggle Add/Remove for Extra Performance
@@ -335,7 +335,7 @@ const navigate = useNavigate();
 const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => {
   const options = [];
   for (let i = minMinutes; i <= dynamicMaxMinutes; i += minMinutes) {
-    const price = Math.ceil(((basePrice / 60) * i * lineupSize) / 0.75);
+    const price = Math.ceil(((basePrice / 60) * i * lineupSize) / 0.67);
     
     // Format label as hours/mins
     let label;
@@ -546,7 +546,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     const per60Net = basePerMemberNet || 0; // already computed above from actData extras
     const members = lineupPerformers.length || 0; // performers only (management excluded)
     if (per60Net > 0 && members > 0 && typeof lateStayBandExtra.price === "number") {
-      const estimated = Math.round(((lateStayBandExtra.price * 0.75) / (per60Net * members)) * 60);
+      const estimated = Math.round(((lateStayBandExtra.price * 0.67) / (per60Net * members)) * 60);
       return Math.max(0, Math.min(180, estimated || 0));
     }
     return 0;
@@ -577,7 +577,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
 
   const minutesAfterMidnight = Math.max(0, Math.min(parseMins(effectiveFinish), 180));
   const deltaMins = Math.max(0, minutesAfterMidnight - bandLateMins); // charge only for PA beyond band finish
-  const priceGrossCalc = Math.ceil((basePerMemberNet * 2 * (deltaMins / 60)) / 0.75);
+  const priceGrossCalc = Math.ceil((basePerMemberNet * 2 * (deltaMins / 60)) / 0.67);
   const priceGross = typeof paLateStayExisting?.price === "number" && paLateStayExisting.price > 0
     ? paLateStayExisting.price
     : priceGrossCalc;
@@ -610,7 +610,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
         writeCartPaFinish("00:00");
         return;
       }
-      const newGross = Math.ceil((basePerMemberNet * 2 * (delta / 60)) / 0.75);
+      const newGross = Math.ceil((basePerMemberNet * 2 * (delta / 60)) / 0.67);
       updateExtras(actId, lineupId, {
         key: "pa_late_stay",
         name: `PA Late Stay to ${to12h(newFinish)}`,
@@ -628,7 +628,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     const mins = Math.max(0, Math.min(parseMins(effectiveFinish), 180));
     const delta = Math.max(0, mins - bandLateMins);
     if (delta === 0) return; // nothing to charge beyond band finish
-    const gross = Math.ceil((basePerMemberNet * 2 * (delta / 60)) / 0.75);
+    const gross = Math.ceil((basePerMemberNet * 2 * (delta / 60)) / 0.67);
     updateExtras(actId, lineupId, {
       key: "pa_late_stay",
       name: `PA Late Stay to ${to12h(effectiveFinish)}`,
@@ -794,7 +794,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     additionalPaRaw && typeof additionalPaRaw.price === "number"
       ? additionalPaRaw.price
       : 0;
-  const price = Math.ceil(basePrice / 0.75);
+  const price = Math.ceil(basePrice / 0.67);
 
 
   const selectedMic = safeSelectedExtras.find((e) => e.key === selectedMicType);
@@ -962,7 +962,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                   PA & Sound Engineering for an External Act
                 </p>
                 <p className="text-sm text-gray-600 text-center">
-                  £{Math.ceil(base / 0.75)}
+                  £{Math.ceil(base / 0.67)}
                 </p>
                 <button
                   onClick={() => {
@@ -971,7 +971,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                         e.key ===
                         "sound_engineering_for_another_act with your acts PA"
                     );
-                    const price = Math.ceil(base / 0.75);
+                    const price = Math.ceil(base / 0.67);
                     updateExtras(actId, lineupId, {
                       name: "PA Use For an External Act",
                       key: "sound_engineering_for_another_act with your acts PA",
@@ -1085,7 +1085,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    return Math.ceil(base / 0.75);
+                    return Math.ceil(base / 0.67);
                   })()}
                 </p>
                 <button
@@ -1102,7 +1102,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    const price = Math.ceil(base / 0.75);
+                    const price = Math.ceil(base / 0.67);
                     updateExtras(actId, lineupId, {
                       name: "Background Music Playlist",
                       key: "background_music_playlist",
@@ -1160,7 +1160,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    return Math.ceil(base / 0.75);
+                    return Math.ceil(base / 0.67);
                   })()}
                 </p>
                 <button
@@ -1177,7 +1177,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    const price = Math.ceil(base / 0.75);
+                    const price = Math.ceil(base / 0.67);
                     updateExtras(actId, lineupId, {
                       name: "Up to 3 Hours Manned Playlist",
                       key: "up_to_3_hours_manned_playlist",
@@ -1234,7 +1234,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    return Math.ceil(base / 0.75);
+                    return Math.ceil(base / 0.67);
                   })()}
                 </p>
                 <button
@@ -1251,7 +1251,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    const price = Math.ceil(base / 0.75);
+                    const price = Math.ceil(base / 0.67);
                     updateExtras(actId, lineupId, {
                       name: "Up to 3 Hours Band Member DJ",
                       key: "up_to_3_hours_band_member_DJ",
@@ -1297,7 +1297,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
             // Don’t render if base price is 0 or max hours <= 3
             if (!dj30Base || maxDjHours <= 3) return null;
 
-            const pricePer30 = Math.ceil(dj30Base / 0.75);
+            const pricePer30 = Math.ceil(dj30Base / 0.67);
 
             const selected = safeSelectedExtras.find(
               (e) => e.key === "extra DJing per 30 mins"
@@ -1401,7 +1401,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    return Math.ceil(base / 0.75);
+                    return Math.ceil(base / 0.67);
                   })()}
                 </p>
                 <button
@@ -1418,7 +1418,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    const price = Math.ceil(base / 0.75);
+                    const price = Math.ceil(base / 0.67);
                     updateExtras(actId, lineupId, {
                       name: "DJ Live Bongos (3x30mins)",
                       key: "DJ_live_bongos_3x30mins",
@@ -1475,7 +1475,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    return Math.ceil(base / 0.75);
+                    return Math.ceil(base / 0.67);
                   })()}
                 </p>
                 <button
@@ -1492,7 +1492,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    const price = Math.ceil(base / 0.75);
+                    const price = Math.ceil(base / 0.67);
                     updateExtras(actId, lineupId, {
                       name: "DJ Live Sax & Bongos (3x30mins)",
                       key: "DJ_live_sax_and_bongos_3x30mins",
@@ -1541,7 +1541,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                 } else if (typeof raw === "object" && raw !== null) {
                   base = raw.price || 0;
                 }
-                const total = Math.ceil((base * (lineupSize || 1)) / 0.75);
+                const total = Math.ceil((base * (lineupSize || 1)) / 0.67);
                 return { duration, key, base, total };
               })
               .filter((opt) => opt.base > 0);
@@ -1637,7 +1637,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                 } else if (typeof raw === "object" && raw !== null) {
                   base = raw.price || 0;
                 }
-                return { key, base, total: Math.ceil(base / 0.75) };
+                return { key, base, total: Math.ceil(base / 0.67) };
               })
               .filter((opt) => opt.base > 0);
 
@@ -1661,7 +1661,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
               } else if (typeof raw === "object" && raw !== null) {
                 base = raw.price || 0;
               }
-              displayPrice = Math.ceil((base / 0.75) * micQty);
+              displayPrice = Math.ceil((base / 0.67) * micQty);
             }
 
             return (
@@ -1708,7 +1708,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                       } else if (typeof raw === "object" && raw !== null) {
                         base = raw.price || 0;
                       }
-                      const price = Math.ceil(base / 0.75) * quantity;
+                      const price = Math.ceil(base / 0.67) * quantity;
                       setPendingMicExtra({
                         name: `Mic for Speeches - ${
                           selectedMicType.includes("wireless")
@@ -1793,7 +1793,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
             const options = [];
             for (let i = 1; i <= 30; i++) {
               const total = base * i * lineupSize;
-              const withMargin = Math.ceil(total / 0.75);
+              const withMargin = Math.ceil(total / 0.67);
               options.push({
                 value: i,
                 label: `${i} request${i > 1 ? "s" : ""}`,
@@ -1911,7 +1911,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    return Math.ceil(base / 0.75);
+                    return Math.ceil(base / 0.67);
                   })()}
                 </p>
                 <button
@@ -1934,7 +1934,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    const price = Math.ceil(base / 0.75);
+                    const price = Math.ceil(base / 0.67);
                     updateExtras(actId, lineupId, {
                       name: "Speedy Setup & Soundcheck (60mins)",
                       key: "speedy_setup (60mins) - roadie and engineer duties only (travel added on top later for additional team member)",
@@ -1995,7 +1995,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    return Math.ceil(base / 0.75);
+                    return Math.ceil(base / 0.67);
                   })()}
                 </p>
                 <button
@@ -2012,7 +2012,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
                     } else if (typeof raw === "object" && raw !== null) {
                       base = raw.price || 0;
                     }
-                    const price = Math.ceil(base / 0.75);
+                    const price = Math.ceil(base / 0.67);
                     updateExtras(actId, lineupId, {
                       name: "Israeli Dancing (20mins)",
                       key: "israeli_dancing",

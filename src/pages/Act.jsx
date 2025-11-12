@@ -438,7 +438,7 @@ useEffect(() => {
     );
 
     basePrice += additionalRolesTotal;
-    const displayPrice = Math.ceil(basePrice / 0.75);
+    const displayPrice = Math.ceil(basePrice / 0.67);
     setFormattedPrice(displayPrice);
   }
 };
@@ -811,7 +811,7 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                     );
                   });
                   const displayPrice =
-                    basePrice > 0 ? Math.ceil(basePrice / 0.75) : 0;
+                    basePrice > 0 ? Math.ceil(basePrice / 0.67) : 0;
                   if (finalTravelPrice) {
                     return finalTravelPrice.travelCalculated
                       ? `£${finalTravelPrice.total}`
@@ -1026,7 +1026,7 @@ let basePrice = baseFeeArray?.[0]?.total_fee || 0;
                 );
 
                 basePrice += additionalRolesTotal;
-                const displayPrice = Math.ceil(basePrice / 0.75);
+                const displayPrice = Math.ceil(basePrice / 0.67);
 
                 // ✅ Use finalTravelPrice.total and .travelCalculated
                 if (finalTravelPrice) {

@@ -188,7 +188,7 @@ const handleSubmit = async () => {
         } catch (e) {
           // fallback: use formatted/base figure if present
           total = Number(formattedPrice || 0);
-          fee = Math.round(total * 0.75);
+          fee = Math.round(total * 0.67);
           travel = Math.max(0, total - fee);
         }
 
@@ -346,7 +346,7 @@ const fullAmount = actsSummary.reduce((sum, item) => {
   return sum + perUnit * (item.quantity || 1);
 }, 0);
 
-// 25% deposit rule except for "Test Dancefloor Magic"
+// 33% deposit rule except for "Test Dancefloor Magic"
 const isTestDancefloorMagic = actsSummary.some(
   (a) =>
     String(a.actName || "")
@@ -354,11 +354,11 @@ const isTestDancefloorMagic = actsSummary.some(
       .includes("test dancefloor magic")
 );
 
-// base deposit logic: 25% deposit unless special case
+// base deposit logic: 33% deposit unless special case
 const calcDeposit = (gross) => {
   if (gross <= 0) return 0;
-  // your standard 25% rule — simple and clean
-  return Math.ceil(gross * 0.25);
+  // your standard 33% rule — simple and clean
+  return Math.ceil(gross / .67);
 };
 
 // decide deposit amount

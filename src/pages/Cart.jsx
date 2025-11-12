@@ -389,7 +389,7 @@ const clearFinishOverride = useCallback(
           );
           const adjustedTotal = Number(total) || 0;
 
-          let basePrice = Math.round(adjustedTotal * 0.75);
+          let basePrice = Math.round(adjustedTotal * 0.67);
         lineup.bandMembers.forEach(() => {});
 
           // Add fees for isEssential additionalRoles (only those with valid additionalFee)
@@ -524,7 +524,7 @@ const clearFinishOverride = useCallback(
         lineup
       );
       const priceWithMargin = Number(total) || 0;
-      const basePrice = Math.round(priceWithMargin * 0.75);
+      const basePrice = Math.round(priceWithMargin * 0.67);
 
       // 1) Move the node in cartItems (old key -> new key) FIRST so effects rebuild cartDetails reliably
       setCartItems((prev) => {
@@ -1041,7 +1041,7 @@ const lateBlocks = roundUpTo60(minutesPastMidnight);
             Number(item?.lineup?.lateStayFeePer60) || 0
           );
           const totalMins = lateBlocks * 60;
-          const price = Math.ceil((per60Net * members * lateBlocks) / 0.75);
+          const price = Math.ceil((per60Net * members * lateBlocks) / 0.67);
           setOrRemoveExtra("late_stay_60min_per_band_member", {
             name: `Late Stay - ${formatHoursLabel(totalMins)}`,
             quantity: 1,
@@ -1081,7 +1081,7 @@ const lateBlocks = roundUpTo60(minutesPastMidnight);
             Number(item?.lineup?.earlyArrivalFeePer60) || 0
           );
           const totalMins = earlyBlocks * 60;
-          const price = Math.ceil((per60Net * members * earlyBlocks) / 0.75);
+          const price = Math.ceil((per60Net * members * earlyBlocks) / 0.67);
           setOrRemoveExtra("early_arrival_60min_per_band_member", {
             name: `Early Arrival - ${formatHoursLabel(totalMins)}`,
             quantity: 1,
@@ -1313,7 +1313,7 @@ const displayCartDetails = Array.isArray(cartDetails)
               address: selectedAddress,
               date: selectedDate,
             });
-            const unitGross = Math.ceil(Number(unitNet || 0) / 0.75);
+            const unitGross = Math.ceil(Number(unitNet || 0) / 0.67);
             const qty = Math.max(1, Number(ex.quantity || 1));
             return { ...ex, price: unitGross * qty };
           });

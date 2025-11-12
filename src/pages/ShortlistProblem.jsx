@@ -301,11 +301,11 @@ const calculateActPricing = async (
   }
 
   // ---- gross with 25% margin ----
-  const totalPrice = Math.ceil((fee + travelFee) / 0.75);
+  const totalPrice = Math.ceil((fee + travelFee) / 0.67);
   console.log(`🧾 PRICING BREAKDOWN for ${act.name}`);
   console.log(`• Essential Fee Total: £${fee.toFixed(2)}`);
   console.log(`• Travel Fee Total: £${travelFee.toFixed(2)}`);
-  console.log(`• Margin (25%): £${((fee + travelFee) * 0.25).toFixed(2)}`);
+  console.log(`• Margin 33%): £${((fee + travelFee) / .67).toFixed(2)}`);
   console.log(`• Final Price: £${totalPrice}`);
 
   return `${totalPrice}`;
@@ -768,7 +768,7 @@ console.log("📦 shortlistData:", shortlistData);
     );
 
     basePrice += additionalRolesTotal;
-    const displayPrice = Math.ceil(basePrice / 0.75);
+    const displayPrice = Math.ceil(basePrice / 0.67);
 
     return basePrice > 0 ? `from £${displayPrice}` : "Loading price...";
   })()}
@@ -802,7 +802,7 @@ console.log("📦 shortlistData:", shortlistData);
           );
 
           basePrice += additionalRolesTotal;
-          const displayPrice = Math.ceil(basePrice / 0.75);
+          const displayPrice = Math.ceil(basePrice / 0.67);
           hoveredAct.setFormattedPrice(displayPrice);
         }
       };

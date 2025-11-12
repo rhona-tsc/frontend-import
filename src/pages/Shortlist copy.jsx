@@ -592,7 +592,7 @@ const extractYouTubeId = (url) => {
         return acc;
       }, []);
       const totalFee = essentialFees.reduce((sum, fee) => sum + fee, 0);
-      return totalFee ? Math.ceil(totalFee / 0.75) : null;
+      return totalFee ? Math.ceil(totalFee / 0.67) : null;
     };
 
   // ✅ Ensure price updates instantly when lineup changes

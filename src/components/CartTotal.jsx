@@ -109,7 +109,7 @@ const CartTotal = () => {
           const baseFee = getSafeBaseFee(lineup);
           const essentialRoles = getEssentialRolesTotal(lineup);
           const rawBase = baseFee + essentialRoles;
-          const fallbackGross = rawBase > 0 ? Math.ceil(rawBase / 0.75) : 0;
+          const fallbackGross = rawBase > 0 ? Math.ceil(rawBase / 0.67) : 0;
 
           // If calcTotal is valid and > 0, use it. Otherwise fallback.
           const subtotalWithMargin =
@@ -153,7 +153,7 @@ const CartTotal = () => {
   }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate]);
 
   // Same formula as server-side
-// 💰 Deposit = 25% unless it's "Test Dancefloor Magic"
+// 💰 Deposit = 33% unless it's "Test Dancefloor Magic"
 const isTestBooking = summaryItems.some(
   (item) =>
     item.tscName?.toLowerCase().includes("test dancefloor magic") ||
@@ -162,7 +162,7 @@ const isTestBooking = summaryItems.some(
 
 const deposit = isTestBooking
   ? 0
-  : Math.round(totalAmount * 0.25);
+  : Math.round(totalAmount * 0.33);
   return (
     <div className='w-full'>
       <div className='text-2xl mb-4'>
