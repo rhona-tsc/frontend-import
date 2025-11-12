@@ -157,7 +157,9 @@ const CartTotal = () => {
 const isTestBooking = summaryItems.some(
   (item) =>
     item.tscName?.toLowerCase().includes("test dancefloor magic") ||
-    item.actName?.toLowerCase().includes("test dancefloor magic")
+    item.actName?.toLowerCase().includes("test dancefloor magic") ||
+    item.tscName?.toLowerCase().includes("test soul allegiance") ||
+    item.actName?.toLowerCase().includes("test soul allegiance")
 );
 
 const deposit = isTestBooking

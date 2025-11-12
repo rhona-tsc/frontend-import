@@ -357,8 +357,7 @@ const isTestDancefloorMagic = actsSummary.some(
 // base deposit logic: 33% deposit unless special case
 const calcDeposit = (gross) => {
   if (gross <= 0) return 0;
-  // your standard 33% rule — simple and clean
-  return Math.ceil(gross / .67);
+  return Math.round(gross * 0.33); // ✅ 33% of total
 };
 
 // decide deposit amount
