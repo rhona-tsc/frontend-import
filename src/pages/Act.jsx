@@ -391,45 +391,7 @@ useEffect(() => {
 
 const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
-useEffect(() => {
-  if (!actData?._id || !selectedLineup?._id || !selectedDate || !selectedAddress) return;
 
-  const fetchPrice = async () => {
-    const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
-
-    try {
-      // 🧾 calculateActPricing Debug
-      console.log("🧾 calculateActPricing Debug (Act.jsx useEffect)");
-      console.log("🔹 actData:", actData);
-      console.log("🔹 selectedLineup:", selectedLineup);
-      console.log("🔹 selectedLineup.base_fee:", selectedLineup?.base_fee);
-      if (selectedLineup?.base_fee) {
-        selectedLineup.base_fee.forEach((fee, index) => {
-          console.log(`   💰 Role ${index + 1}:`, fee);
-        });
-      }
-      const result = await calculateActPricing(
-        actData,
-        selectedCounty,
-        selectedAddress,
-        selectedDate,
-        selectedLineup
-      );
-
-      if (result) {
-        console.log("🧾 calculateActPricing Debug (Act.jsx useEffect) — returned:", result);
-        setFinalTravelPrice(result); // optional, if needed elsewhere
-        setFormattedPrice(result.total); // ✅ render this instead
-        setShouldFetchPrice(false);
-      }
-    } catch (error) {
-      console.error("❌ Error in price calculation:", error);
-      setShouldFetchPrice(false);
-    }
-  };
-
-  fetchPrice();
-}, [shouldFetchPrice, actData?._id, selectedLineup?._id, selectedDate, selectedAddress]);
 
 const handleLineupChange = async (lineup) => {
   setSelectedLineup(lineup);
