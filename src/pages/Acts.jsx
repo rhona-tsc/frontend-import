@@ -858,6 +858,199 @@ const applyFilter = async () => {
     }
   }
 
+  if (wireless.length > 0) {
+  actsCopy = actsCopy.filter((item) => {
+    const wirelessInstruments = wireless; // e.g. ["Vocal", "Guitar"]
+
+    // Loop through all lineups and members
+    const hasWirelessMatch = item.lineups?.some((lineup) =>
+      lineup.bandMembers?.some((member) => {
+        // normalise instrument for matching
+        const instrument = (member.instrument || "").toLowerCase();
+
+        return wirelessInstruments.some((filterInstrument) => {
+          const f = filterInstrument.toLowerCase();
+
+          // ✅ match if instrument includes filterInstrument AND wireless is true
+          return instrument.includes(f) && member.wireless === true;
+        });
+      })
+    );
+
+    return hasWirelessMatch;
+  });
+}
+
+if (soundLimiters.length > 0) {
+  actsCopy = actsCopy.filter((act) => {
+    // 1️⃣ Check for non-decibel sound limiter options first (iems, remove_drums, etc.)
+    const hasNonDbOptions = soundLimiters.some((opt) => {
+      if (["electric_drums", "iems", "can_you_make_act_acoustic", "remove_drums"].includes(opt)) {
+        return (
+          act.lineups?.some((l) => {
+            // direct flags in lineup
+            if (l[opt] === true) return true;
+            // sometimes stored under hasDrums or similar
+            if (opt === "electric_drums" && Array.isArray(l.hasDrums) && l.hasDrums.includes("electric")) return true;
+            return false;
+          }) ||
+          act[opt] === true // fallback top-level flag
+        );
+      }
+      return false;
+    });
+
+    // 2️⃣ Handle dB options (e.g. "90db", "92db", "80-89db")
+    const dbOptions = soundLimiters
+      .map((v) => v.match(/\d+/)?.[0]) // extract the number part
+      .filter(Boolean)
+      .map(Number);
+
+    // If no numeric dB filters selected, just rely on non-dB options
+    if (dbOptions.length === 0) return hasNonDbOptions;
+
+    // 3️⃣ Determine selected dB threshold (use lowest one if multiple)
+    const selectedDb = Math.min(...dbOptions);
+
+    // 4️⃣ Find all dB values across this act’s lineups
+    const lineupDbs = (act.lineups || [])
+      .map((l) => {
+        const val = String(l.db || "").match(/\d+/)?.[0];
+        return val ? Number(val) : null;
+      })
+      .filter((v) => v !== null);
+
+    // 5️⃣ Determine minimum dB requirement across lineups
+    const minDbForAct = lineupDbs.length > 0 ? Math.min(...lineupDbs) : null;
+
+    // 6️⃣ If no dB info, keep act visible (safe fallback)
+    if (minDbForAct === null) return true;
+
+    // 7️⃣ ✅ Include only acts that can play at or below the selected dB
+    return minDbForAct <= selectedDb || hasNonDbOptions;
+  });
+}
+
+if (setupAndSoundcheck.length > 0) {
+  actsCopy = actsCopy.filter((act) => {
+    const setupFilters = setupAndSoundcheck;
+
+    // ---- 1️⃣ Handle "90min Setup & Soundcheck" ----
+    if (setupFilters.includes("setup_and_soundcheck_time_90min")) {
+      // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime >= 90
+      const has90 = act.lineups?.some(
+        (l) => Number(l.totalSetupAndSoundcheckTime) >= 90
+      );
+      return has90;
+    }
+
+    // ---- 2️⃣ Handle "60min Setup & Soundcheck" ----
+    if (setupFilters.includes("setup_and_soundcheck_time_60min")) {
+      // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime <= 60
+      const has60 = act.lineups?.some(
+        (l) => Number(l.totalSetupAndSoundcheckTime) <= 60
+      );
+      return has60;
+    }
+
+    // ---- 3️⃣ Handle "Speedy Setup (60min)" ----
+    if (setupFilters.includes("speedy_setup")) {
+      const speedy = act.extras?.["speedy_setup (60mins) – roadie and engineer duties only (travel added on top)"];
+      if (!speedy) return false;
+
+      const { price, complimentary } = speedy;
+      return price > 0 || complimentary === true;
+    }
+
+    return true; // default fallback
+  });
+}
+
+if (paAndLights.length > 0) {
+  actsCopy = actsCopy.filter((act) => {
+    const selected = paAndLights;
+
+    // --- PA System filters ---
+    const wantsSmallPA = selected.includes("small_pa_size");
+    const wantsMediumPA = selected.includes("medium_pa_size");
+    const wantsLargePA = selected.includes("large_pa_size");
+
+    // --- Lighting filters ---
+    const wantsSmallLight = selected.includes("small_light_size");
+    const wantsMediumLight = selected.includes("medium_light_size");
+    const wantsLargeLight = selected.includes("large_light_size");
+
+    // Normalise act fields
+    const pa = (act.paSystem || "").toLowerCase();
+    const light = (act.lightingSystem || "").toLowerCase();
+
+    // --- PA Matching logic ---
+    const paMatch =
+      (!wantsSmallPA && !wantsMediumPA && !wantsLargePA) ||
+      (wantsSmallPA && pa.includes("small")) ||
+      (wantsMediumPA && pa.includes("medium")) ||
+      (wantsLargePA && pa.includes("large"));
+
+    // --- Lighting Matching logic ---
+    const lightMatch =
+      (!wantsSmallLight && !wantsMediumLight && !wantsLargeLight) ||
+      (wantsSmallLight && light.includes("small")) ||
+      (wantsMediumLight && light.includes("medium")) ||
+      (wantsLargeLight && light.includes("large"));
+
+    // ✅ Return true if act matches both selected PA and lighting filters
+    return paMatch && lightMatch;
+  });
+}
+
+if (pli.length > 0) {
+  actsCopy = actsCopy.filter((act) => {
+    const actPliAmount = Number(act.pliAmount) || 0;
+    // show act if its PLI amount matches any selected checkbox exactly
+    return pli.includes(actPliAmount);
+  });
+}
+
+if (extraServices.length > 0) {
+  actsCopy = actsCopy.filter((act) => {
+    // normalize keys for flexible matching
+    const extras = act.extras || {};
+    const extraKeys = Object.keys(extras).map((k) => k.toLowerCase());
+
+    return extraServices.some((selected) => {
+      const normalized = selected.toLowerCase();
+
+      // define possible key fragments for each checkbox
+      const matchMap = {
+        ceremony_solo: "ceremony solo",
+        duo_ceremony: "ceremony duo",
+        trio_ceremony: "ceremony trio",
+        four_piece_ceremony: "ceremony 4",
+        afternoon_solo: "afternoon reception solo",
+        afternoon_duo: "afternoon reception duo",
+        afternoon_trio: "afternoon reception trio",
+        afternoon_4piece: "afternoon reception 4",
+        early_arrival: "early_arrival_60min_per_band_member",
+        late_stay: "late_stay_60min_per_band_member",
+        extra_song: "extra_song_request_per_band_member",
+        extra_sets: "extra_60min_performance_per_band_member",
+        add_another_vocalist: "add_another_vocalist",
+        sound_engineering_for_another_act:
+          "sound_engineering_for_another_act",
+        israeli_sets: "israeli_dancing_20mins_per_band_member",
+      };
+
+      // find a matching key within extras (partial or exact)
+      const matchKey = extraKeys.find((key) =>
+        key.includes(matchMap[normalized] || normalized)
+      );
+      if (!matchKey) return false;
+
+      const extra = extras[matchKey];
+      return extra && (extra.price > 0 || extra.complimentary === true);
+    });
+  });
+}
 
   // --- OTHER FILTERS (unchanged) -------------------------------------------
   if (showSearch && search) {
@@ -893,17 +1086,20 @@ const applyFilter = async () => {
     });
   }
 
-  if (djServices.length > 0) {
-    actsCopy = actsCopy.filter((item) =>
-      djServices.some((service) => {
-        const extra = item.extras?.[service];
-        if (!extra) return false;
-        if (extra.complimentary === true) return false;
-        if (!extra.price || extra.price <= 0) return false;
-        return true;
-      })
-    );
-  }
+if (djServices.length > 0) {
+  actsCopy = actsCopy.filter((item) =>
+    djServices.some((service) => {
+      const extra = item.extras?.[service];
+      if (!extra) return false;
+
+      // ✅ Include acts that either have a price OR are complimentary
+      return (
+        (extra.price && extra.price > 0) ||
+        extra.complimentary === true
+      );
+    })
+  );
+}
 
   if (instruments.length > 0) {
     actsCopy = actsCopy.filter((act) => {
@@ -2264,7 +2460,7 @@ if (initializing && acts.length === 0) {
                   type="checkbox"
                   value={1}
                   onChange={togglePli}
-                  checked={pli.some((value) => value >= 1)}
+checked={pli.includes(1)}
                 />{" "}
                 Up to £1m
               </label>
@@ -2274,8 +2470,7 @@ if (initializing && acts.length === 0) {
                   type="checkbox"
                   value={2}
                   onChange={togglePli}
-                  checked={pli.some((value) => value >= 2)}
-                />{" "}
+checked={pli.includes(2)}                />{" "}
                 Up to £2m
               </label>
               <label className="flex gap-2">
@@ -2284,8 +2479,7 @@ if (initializing && acts.length === 0) {
                   type="checkbox"
                   value={3}
                   onChange={togglePli}
-                  checked={pli.some((value) => value >= 3)}
-                />{" "}
+checked={pli.includes(3)}                />{" "}
                 Up to £3m
               </label>
               <label className="flex gap-2">
@@ -2294,8 +2488,7 @@ if (initializing && acts.length === 0) {
                   type="checkbox"
                   value={4}
                   onChange={togglePli}
-                  checked={pli.some((value) => value >= 4)}
-                />{" "}
+checked={pli.includes(4)}                />{" "}
                 Up to £4m
               </label>
               <label className="flex gap-2">
@@ -2304,8 +2497,7 @@ if (initializing && acts.length === 0) {
                   type="checkbox"
                   value={5}
                   onChange={togglePli}
-                  checked={pli.some((value) => value >= 5)}
-                />{" "}
+checked={pli.includes(5)}                />{" "}
                 Up to £5m
               </label>
               <label className="flex gap-2">
@@ -2314,8 +2506,7 @@ if (initializing && acts.length === 0) {
                   type="checkbox"
                   value={10}
                   onChange={togglePli}
-                  checked={pli.some((value) => value >= 10)}
-                />{" "}
+checked={pli.includes(10)}                />{" "}
                 Up to £10m
               </label>
               <label className="flex gap-2">
@@ -2324,8 +2515,7 @@ if (initializing && acts.length === 0) {
                   type="checkbox"
                   value={15}
                   onChange={togglePli}
-                  checked={pli.some((value) => value >= 15)}
-                />{" "}
+checked={pli.includes(15)}                />{" "}
                 Up to £15m
               </label>
               <label className="flex gap-2">
@@ -2334,8 +2524,7 @@ if (initializing && acts.length === 0) {
                   type="checkbox"
                   value={20}
                   onChange={togglePli}
-                  checked={pli.some((value) => value >= 20)}
-                />{" "}
+checked={pli.includes(20)}                />{" "}
                 Up to £20m
               </label>
             </div>
