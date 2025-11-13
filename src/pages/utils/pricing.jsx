@@ -134,18 +134,15 @@ if (isTestAct) {
 
 
   // Derive county (so we can use county travel & northern team)
-  const guessedFromAddress = guessCountyFromAddress(selectedAddress, act?.countyFees);
   const outcode = extractOutcode(selectedAddress);
   const guessedFromOutcode = countyFromOutcode(outcode);
-  const derivedCounty = selectedCounty || guessedFromAddress || guessedFromOutcode;
-  console.log("📍 County derived:", { guessedFromAddress, outcode, guessedFromOutcode, derivedCounty });
+  const derivedCounty = guessedFromOutcode;
+  console.log("📍 County derived:", { guessedFromOutcode, derivedCounty });
 // 🆕 Extra debug for county travel logic
 console.log("🌍 useCountyTravelFee:", act?.useCountyTravelFee === true);
 
 if (act?.useCountyTravelFee) {
   console.log("📦 County lookup sources:", {
-    selectedCounty,
-    guessedFromAddress,
     outcode,
     guessedFromOutcode,
     finalCountyUsed: derivedCounty
@@ -304,16 +301,11 @@ if (feePerMember != null && travelEligibleCount > 0) {
   const travelFeeTotal = travelFee;
   console.log(`🚗 Travel fee total: £${travelFeeTotal}`);
 
-  // Sound engineer fee (if any)
-  const soundFee = Number(act.soundEngineerFee) || 0;
-  console.log("🎧 Sound engineer fee:", soundFee);
 
-  // Management fee (if any)
-  const managementFee = Number(act.managementFee) || 0;
-  console.log("🧑‍💼 Management fee:", managementFee);
+
 
   // Gross with 25% margin
-  const subtotal = baseFeeTotal + soundFee + managementFee + travelFeeTotal;
+const subtotal = baseFeeTotal + travelFeeTotal;
   console.log(`🧮 Subtotal before margin: £${subtotal}`);
 
   const finalTotal = Math.round(subtotal / 0.75);
