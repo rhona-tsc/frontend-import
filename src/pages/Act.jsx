@@ -461,9 +461,6 @@ const handleLineupChange = async (lineup) => {
           lineup
         );
 
-        // 🧾 calculateActPricing Debug
-        console.log("🧾 calculateActPricing Debug", pricingResults);
-
         // 🎯 Log breakdown for debugging
         console.group("🧾 calculateActPricing breakdown");
         console.log("Lineup fee allocations:", lineup?.base_fee);
@@ -479,18 +476,24 @@ const handleLineupChange = async (lineup) => {
           lineup?.base_fee?.[0]?.total_fee ??
           0;
 
-        // Use travelFeeTotal if present for downstream
-        const finalTravelPrice = pricingResults?.travelFeeTotal ?? pricingResults?.travel ?? 0;
+        // Always prefer travelFeeTotal from pricing helper, fallback to 0
+        const finalTravelPrice = pricingResults?.travelFeeTotal ?? 0;
+        setFinalTravelPrice(pricingResults);
+
         const subtotal = base + essentialTotal + finalTravelPrice;
         const total = Math.round(subtotal * 1.33);
 
         console.log("Base:", base);
-        console.log("Travel:", finalTravelPrice);
+        console.log("Travel (travelFeeTotal):", finalTravelPrice);
         console.log("Subtotal (pre-margin):", subtotal);
         console.log("Total (with 33% margin):", total);
         console.groupEnd();
 
-        setPrice({ total, travelCalculated: true });
+        setPrice({
+          total: pricingResults.total,
+          travelCalculated: pricingResults.travelCalculated,
+          travelFeeTotal: pricingResults.travelFeeTotal
+        });
       } catch (err) {
         console.error('❌ Failed to calculate price:', {
           err,
@@ -509,7 +512,12 @@ const handleLineupChange = async (lineup) => {
     calculateAndSetPrice();
   }, [actData, selectedCounty, selectedAddress, selectedDate]);
 
-  const rawTotal = (actData?.formattedPrice?.total ?? price?.total);
+  // Calculate display price: prefer price?.total, then formattedPrice, then actData formattedPrice
+  const rawTotal =
+    price?.total ??
+    formattedPrice ??
+    actData?.formattedPrice?.total ??
+    null;
   const displayTotal =
     rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
 
@@ -863,32 +871,38 @@ console.log("🟢 Render check", {
               )}
               <p className="mt-5 text-3xl font-medium p-3">
                 {(() => {
-                  const rawTotal =
-                    price?.total ??
-                    finalTravelPrice?.total ??
-                    formattedPrice ??
-                    actData?.formattedPrice?.total ??
-                    null;
-                  const cleanTotal =
-                    rawTotal != null
-                      ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
-                      : null;
+              const rawTotal =
+                price?.total ??
+                formattedPrice ??
+                actData?.formattedPrice?.total ??
+                null;
+              const cleanTotal =
+                rawTotal != null
+                  ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
+                  : null;
 
-                  console.log("💷 [Act.jsx] Display Price Check", {
-                    priceState: price,
-                    finalTravelPrice,
-                    formattedPrice,
-                    actDataFormattedPrice: actData?.formattedPrice,
-                    rawTotal,
-                    cleanTotal,
-                  });
+              // Prefer travelFeeTotal in price breakdowns if available
+              const travelFeeDisplay =
+                price?.travelFeeTotal ??
+                finalTravelPrice?.travelFeeTotal ??
+                null;
 
-                  if (cleanTotal != null) {
-                    return finalTravelPrice?.travelCalculated
-                      ? `£${cleanTotal}`
-                      : `from £${cleanTotal}`;
-                  }
-                  return "Loading price...";
+              console.log("💷 [Act.jsx] Display Price Check", {
+                priceState: price,
+                finalTravelPrice,
+                formattedPrice,
+                actDataFormattedPrice: actData?.formattedPrice,
+                rawTotal,
+                cleanTotal,
+                travelFeeDisplay,
+              });
+
+              if (cleanTotal != null) {
+                return price?.travelCalculated || finalTravelPrice?.travelCalculated
+                  ? `£${cleanTotal}`
+                  : `from £${cleanTotal}`;
+              }
+              return "Loading price...";
                 })()}
               </p>
               <div className="flex flex-col gap-4 my-2">
@@ -1063,7 +1077,6 @@ console.log("🟢 Render check", {
           {(() => {
             const rawTotal =
               price?.total ??
-              finalTravelPrice?.total ??
               formattedPrice ??
               actData?.formattedPrice?.total ??
               null;
@@ -1072,6 +1085,12 @@ console.log("🟢 Render check", {
                 ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
                 : null;
 
+            // Prefer travelFeeTotal in price breakdowns if available
+            const travelFeeDisplay =
+              price?.travelFeeTotal ??
+              finalTravelPrice?.travelFeeTotal ??
+              null;
+
             console.log("💷 [Act.jsx] Display Price Check", {
               priceState: price,
               finalTravelPrice,
@@ -1079,10 +1098,11 @@ console.log("🟢 Render check", {
               actDataFormattedPrice: actData?.formattedPrice,
               rawTotal,
               cleanTotal,
+              travelFeeDisplay,
             });
 
             if (cleanTotal != null) {
-              return finalTravelPrice?.travelCalculated
+              return price?.travelCalculated || finalTravelPrice?.travelCalculated
                 ? `£${cleanTotal}`
                 : `from £${cleanTotal}`;
             }
