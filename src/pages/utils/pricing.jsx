@@ -139,7 +139,29 @@ if (isTestAct) {
   const guessedFromOutcode = countyFromOutcode(outcode);
   const derivedCounty = selectedCounty || guessedFromAddress || guessedFromOutcode;
   console.log("📍 County derived:", { guessedFromAddress, outcode, guessedFromOutcode, derivedCounty });
+// 🆕 Extra debug for county travel logic
+console.log("🌍 useCountyTravelFee:", act?.useCountyTravelFee === true);
 
+if (act?.useCountyTravelFee) {
+  console.log("📦 County lookup sources:", {
+    selectedCounty,
+    guessedFromAddress,
+    outcode,
+    guessedFromOutcode,
+    finalCountyUsed: derivedCounty
+  });
+
+  if (!derivedCounty) {
+    console.warn("⚠️ No county could be determined from postcode/address.");
+  }
+
+  const feeRaw = getCountyFeeFromMap(act.countyFees, derivedCounty);
+  console.log("💵 County fee lookup result:", {
+    county: derivedCounty,
+    rawValue: feeRaw,
+    parsedValue: Number(feeRaw) || 0
+  });
+}
   // Northern detection
   const northernCounties = new Set([
     "ceredigion","cheshire","cleveland","conway","cumbria","denbighshire","derbyshire","durham",
@@ -206,6 +228,14 @@ if (isTestAct) {
   // County-fee path (per-member)
   const hasCountyTable = !!(act?.useCountyTravelFee && hasAnyCountyFees(act?.countyFees) && derivedCounty);
   console.log("🗺️ Travel method:", hasCountyTable ? "County table" : act.costPerMile > 0 ? "Cost per mile" : "MU Rates");
+
+  if (hasCountyTable) {
+  console.log("🧭 Using county table because:", {
+    useCountyTravelFee: act.useCountyTravelFee,
+    hasCountyFees: hasAnyCountyFees(act?.countyFees),
+    derivedCounty,
+  });
+}
 
   if (hasCountyTable) {
     const feePerMemberRaw = getCountyFeeFromMap(act.countyFees, derivedCounty);
