@@ -625,14 +625,30 @@ const PlaceBooking = () => {
               <div>
                 Artist Name(/s): {bookedActs}
                 <br />
-                {actsSummaryState.map((a) => (
-                  <p key={a.lineupId}>
-                    Vocalist selected:{" "}
-                    {a.selectedVocalist
-                      ? `${a.selectedVocalist.firstName} ${a.selectedVocalist.lastNameInitial}.`
-                      : "TBC"}
-                  </p>
-                ))}
+               {actsSummaryState.map((a) => {
+  // Has the lineup *any* vocalists?
+  const hasVocalists =
+    Array.isArray(a.lineup?.bandMembers) &&
+    a.lineup.bandMembers.some((m) =>
+      (m.instrument || "").toLowerCase().includes("vocal")
+    );
+
+  // If NO vocalists → hide the line entirely
+  if (!hasVocalists) return null;
+
+  // If vocalist selected → show name
+  if (a.selectedVocalist) {
+    return (
+      <p key={a.lineupId}>
+        Vocalist selected:{" "}
+        {`${a.selectedVocalist.firstName} ${a.selectedVocalist.lastNameInitial}.`}
+      </p>
+    );
+  }
+
+  // If vocalists exist but none selected yet → hide the line
+  return null;
+})}
               </div>
             </p>
 
