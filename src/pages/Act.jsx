@@ -453,13 +453,16 @@ const handleLineupChange = async (lineup) => {
 
         const lineup = actData.lineups[0];
 
-        const result = await calculateActPricing(
+        const pricingResults = await calculateActPricing(
           actData,
           hasCountyTable ? selectedCounty : null,
           selectedAddress,
           selectedDate,
           lineup
         );
+
+        // 🧾 calculateActPricing Debug
+        console.log("🧾 calculateActPricing Debug", pricingResults);
 
         // 🎯 Log breakdown for debugging
         console.group("🧾 calculateActPricing breakdown");
@@ -476,12 +479,13 @@ const handleLineupChange = async (lineup) => {
           lineup?.base_fee?.[0]?.total_fee ??
           0;
 
-        const travel = result?.travel || 0;
-        const subtotal = base + essentialTotal + travel;
+        // Use travelFeeTotal if present for downstream
+        const finalTravelPrice = pricingResults?.travelFeeTotal ?? pricingResults?.travel ?? 0;
+        const subtotal = base + essentialTotal + finalTravelPrice;
         const total = Math.round(subtotal * 1.33);
 
         console.log("Base:", base);
-        console.log("Travel:", travel);
+        console.log("Travel:", finalTravelPrice);
         console.log("Subtotal (pre-margin):", subtotal);
         console.log("Total (with 33% margin):", total);
         console.groupEnd();
