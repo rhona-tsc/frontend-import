@@ -395,37 +395,35 @@ const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
 const handleLineupChange = async (lineup) => {
   setSelectedLineup(lineup);
-  // After selecting lineup, recalculate price
+
   const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+
   try {
-    // 🧾 calculateActPricing Debug
-    console.log("🧾 calculateActPricing Debug (Act.jsx handleLineupChange)");
-    console.log("🔹 actData:", actData);
-    console.log("🔹 selectedLineup:", lineup);
-    console.log("🔹 selectedLineup.base_fee:", lineup?.base_fee);
-    if (lineup?.base_fee) {
-      lineup.base_fee.forEach((fee, index) => {
-        console.log(`   💰 Role ${index + 1}:`, fee);
-      });
-    }
-    const result = await calculateActPricing(
-      actData,
-      selectedCounty,
-      selectedAddress,
-      selectedDate,
-      lineup
-    );
-    console.log("🧮 [Act.jsx] calculateActPricing result:", {
-      selectedLineup: lineup?.actSize,
-      travelCounty: selectedCounty,
-      travelAddress: selectedAddress,
-      pricingResult: result,
-    });
+    console.group("🧾 [Act.jsx] calculateActPricing Debug");
+    console.log("🔹 actData:", actData?.name);
+    console.log("🔹 selected lineup:", lineup?.actSize);
+    console.log("🔹 base fees:", lineup?.base_fee);
+    console.log("🔹 selectedCounty:", selectedCounty);
+    console.groupEnd();
+
+const result = await calculateActPricing(
+  actData,
+  selectedCounty,
+  selectedAddress,
+  selectedDate,
+  lineup
+);
+
+// ✅ Put this here
+console.group("🧮 [Act.jsx] Price Debug");
+console.log("Lineup used:", lineup?.actSize);
+console.log("calculateActPricing result:", result);
+console.groupEnd();
+
     if (result) {
-      console.log("🧾 calculateActPricing Debug (Act.jsx handleLineupChange) — returned:", result);
-      setFinalTravelPrice(result);
+      setPrice({ ...result, travelCalculated: result?.travelFeeTotal > 0 });
       setFormattedPrice(result.total);
-      setPrice({ total: result.total, travelCalculated: result.travelCalculated });
+      setFinalTravelPrice(result); // keep for fallback if needed
     }
   } catch (error) {
     console.error("❌ Error in price calculation (handleLineupChange):", error);
@@ -876,10 +874,7 @@ console.log("🟢 Render check", {
                 formattedPrice ??
                 actData?.formattedPrice?.total ??
                 null;
-              const cleanTotal =
-                rawTotal != null
-                  ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
-                  : null;
+            const cleanTotal = price?.total ?? finalTravelPrice?.total ?? actData?.formattedPrice ?? null;
 
               // Prefer travelFeeTotal in price breakdowns if available
               const travelFeeDisplay =
