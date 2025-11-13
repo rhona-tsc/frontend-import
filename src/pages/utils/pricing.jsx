@@ -210,14 +210,12 @@ if (isTestAct) {
   if (hasCountyTable) {
     const feePerMemberRaw = getCountyFeeFromMap(act.countyFees, derivedCounty);
     const feePerMember = Number(feePerMemberRaw) || 0;
-        console.log("📊 County travel fee per member:", feePerMember);
+console.log("📊 County travel fee per member (raw):", feePerMemberRaw, "Parsed:", feePerMember);
 
-    if (feePerMember > 0 && travelEligibleCount > 0) {
-      travelFee = feePerMember * travelEligibleCount;
-      travelCalculated = true;
-          console.log("🚗 Travel fee (county):", travelFee);
-
-    }
+if (feePerMember != null && travelEligibleCount > 0) {
+  travelFee = feePerMember * travelEligibleCount;
+  travelCalculated = true;
+}
   }
 
   // If county path didn't run and we don't have addr/date → return base+margin
