@@ -48,21 +48,6 @@ const calculateActPricing = async (act, selectedCounty, selectedAddress, selecte
     return Object.keys(feesMap || {}).length > 0;
   };
 
-  // Try to spot a county in the address by matching fee keys (case-insensitive)
-  const guessCountyFromAddress = (addr, feesMap) => {
-    if (!addr || !feesMap) return "";
-    const addrL = String(typeof addr === "string" ? addr : (addr?.address || addr?.postcode || "")).toLowerCase();
-    const entries =
-      typeof feesMap.forEach === "function"
-        ? (() => { const arr = []; feesMap.forEach((v, k) => arr.push([k, v])); return arr; })()
-        : Object.entries(feesMap);
-    for (const [key] of entries) {
-      const k = normalizeCounty(key);
-      if (k && addrL.includes(k)) return key; // return original key
-    }
-    return "";
-  };
-
   // Extract outward code (e.g., "SL6")
   const extractOutcode = (addr) => {
     const s = typeof addr === "string" ? addr : (addr?.postcode || addr?.address || "");
@@ -183,7 +168,6 @@ if (act?.useCountyTravelFee) {
     act.useDifferentTeamForNorthernGigs && isNorthernGig
       ? act.northernTeam || []
       : smallestLineup.bandMembers || [];
-  const lineupSizeCount = Array.isArray(bandMembers) ? bandMembers.length : 0;
 
   // Exclude band managers/non-performers from travel calculations
   const travelEligibleMembers = Array.isArray(bandMembers) ? bandMembers.filter((m) => !isManagerLike(m)) : [];
@@ -312,7 +296,7 @@ const subtotal = baseFeeTotal + travelFeeTotal;
   console.log("➕ 25% margin applied (divide by 0.75)");
   console.log("✅ Final total price (rounded):", finalTotal);
 
- console.log("✅ Final:", { baseFeeTotal, soundFee, managementFee, travelFeeTotal, marginApplied: 0.25, finalTotal, travelCalculated });
+ console.log("✅ Final:", { baseFeeTotal, travelFeeTotal, marginApplied: 0.25, finalTotal, travelCalculated });
   console.groupEnd();
   return { total: finalTotal, travelCalculated };
 };
