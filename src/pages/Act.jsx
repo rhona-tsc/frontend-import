@@ -411,7 +411,7 @@ const result = await calculateActPricing(
   selectedCounty,
   selectedAddress,
   selectedDate,
-  lineup
+  selectedLineup
 );
 
 // ✅ Put this here
