@@ -859,18 +859,24 @@ console.log("🟢 Render check", {
               )}
               <p className="mt-5 text-3xl font-medium p-3">
                 {(() => {
-                  const rawTotal = actData?.formattedPrice?.total ?? finalTravelPrice?.total ?? formattedPrice ?? null;
-                  const cleanTotal = rawTotal != null
-                    ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
-                    : null;
+                  const rawTotal =
+                    price?.total ??
+                    finalTravelPrice?.total ??
+                    formattedPrice ??
+                    actData?.formattedPrice?.total ??
+                    null;
+                  const cleanTotal =
+                    rawTotal != null
+                      ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
+                      : null;
 
-                  console.log("💷 [Act.jsx] Rendered Price Debug:", {
+                  console.log("💷 [Act.jsx] Display Price Check", {
+                    priceState: price,
+                    finalTravelPrice,
+                    formattedPrice,
+                    actDataFormattedPrice: actData?.formattedPrice,
                     rawTotal,
                     cleanTotal,
-                    formattedPrice,
-                    finalTravelPrice,
-                    actDataFormattedPrice: actData?.formattedPrice,
-                    priceFromState: price,
                   });
 
                   if (cleanTotal != null) {
@@ -1051,18 +1057,24 @@ console.log("🟢 Render check", {
 
         <p className="mt-5 text-3xl font-medium p-3">
           {(() => {
-            const rawTotal = actData?.formattedPrice?.total ?? finalTravelPrice?.total ?? formattedPrice ?? null;
-            const cleanTotal = rawTotal != null
-              ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
-              : null;
+            const rawTotal =
+              price?.total ??
+              finalTravelPrice?.total ??
+              formattedPrice ??
+              actData?.formattedPrice?.total ??
+              null;
+            const cleanTotal =
+              rawTotal != null
+                ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
+                : null;
 
-            console.log("💷 [Act.jsx] Rendered Price Debug:", {
+            console.log("💷 [Act.jsx] Display Price Check", {
+              priceState: price,
+              finalTravelPrice,
+              formattedPrice,
+              actDataFormattedPrice: actData?.formattedPrice,
               rawTotal,
               cleanTotal,
-              formattedPrice,
-              finalTravelPrice,
-              actDataFormattedPrice: actData?.formattedPrice,
-              priceFromState: price,
             });
 
             if (cleanTotal != null) {
