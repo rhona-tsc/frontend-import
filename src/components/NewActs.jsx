@@ -47,7 +47,7 @@ const NewActs = () => {
         return fees;
       });
       const total = essentialFees.reduce((s, f) => s + f, 0);
-      return total ? Math.ceil(total / 0.67) : null;
+      return total ? Math.ceil(total / 0.75) : null;
     };
 
     const updatedActs = approvedActs

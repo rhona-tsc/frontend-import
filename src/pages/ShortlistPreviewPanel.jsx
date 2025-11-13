@@ -453,7 +453,7 @@ const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
       );
 
       basePrice += additionalRolesTotal;
-      const displayPrice = Math.ceil(basePrice / 0.67);
+      const displayPrice = Math.ceil(basePrice / 0.75);
       setFormattedPrice(displayPrice);
     }
   };

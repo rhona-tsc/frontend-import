@@ -250,7 +250,7 @@ if (feePerMember != null && travelEligibleCount > 0) {
 
   // If county path didn't run and we don't have addr/date → return base+margin
   if (!travelCalculated && (!selectedAddress || !selectedDate)) {
-    const totalPrice = Math.ceil(baseFeeTotal / 0.67);
+    const totalPrice = Math.ceil(baseFeeTotal / 0.75);
         console.log("⚠️ No travel data → base + margin only", totalPrice);
     console.groupEnd();
 
@@ -312,15 +312,15 @@ if (feePerMember != null && travelEligibleCount > 0) {
   const managementFee = Number(act.managementFee) || 0;
   console.log("🧑‍💼 Management fee:", managementFee);
 
-  // Gross with 33% margin
+  // Gross with 25% margin
   const subtotal = baseFeeTotal + soundFee + managementFee + travelFeeTotal;
   console.log(`🧮 Subtotal before margin: £${subtotal}`);
 
-  const finalTotal = Math.round(subtotal / 0.67);
-  console.log("➕ 33% margin applied (divide by 0.67)");
+  const finalTotal = Math.round(subtotal / 0.75);
+  console.log("➕ 25% margin applied (divide by 0.75)");
   console.log("✅ Final total price (rounded):", finalTotal);
 
- console.log("✅ Final:", { baseFeeTotal, soundFee, managementFee, travelFeeTotal, marginApplied: 0.33, finalTotal, travelCalculated });
+ console.log("✅ Final:", { baseFeeTotal, soundFee, managementFee, travelFeeTotal, marginApplied: 0.25, finalTotal, travelCalculated });
   console.groupEnd();
   return { total: finalTotal, travelCalculated };
 };

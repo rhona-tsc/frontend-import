@@ -401,7 +401,7 @@ const [availLoading, setAvailLoading] = useState(false);
       }
     }
 
-    const totalPrice = Math.ceil((fee + travelFee) / 0.67);
+    const totalPrice = Math.ceil((fee + travelFee) / 0.75);
     return `${totalPrice}`;
   };
 

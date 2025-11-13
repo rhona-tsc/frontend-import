@@ -479,12 +479,12 @@ console.groupEnd();
         setFinalTravelPrice(pricingResults);
 
         const subtotal = base + essentialTotal + finalTravelPrice;
-        const total = Math.round(subtotal * 1.33);
+        const total = Math.round(subtotal * 1.25);
 
         console.log("Base:", base);
         console.log("Travel (travelFeeTotal):", finalTravelPrice);
         console.log("Subtotal (pre-margin):", subtotal);
-        console.log("Total (with 33% margin):", total);
+        console.log("Total (with 25% margin):", total);
         console.groupEnd();
 
         setPrice({
