@@ -1417,7 +1417,7 @@ const displayCartDetails = Array.isArray(cartDetails)
         </h3>
       )}
 
-      <div className="flex flex-wrap gap-4 items-left">
+      <div className="flex flex-wrap gap-4 items-left ml-4">
         {deputyList.map((dep, idx) => (
           <FeaturedVocalistBadgeForCart
             key={dep.musicianId || idx}

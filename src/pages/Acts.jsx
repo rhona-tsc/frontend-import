@@ -622,20 +622,19 @@ useEffect(() => {
     });
   };
 
-  const togglePli = (e) => {
-    const value = e.target.value;
+const togglePli = (e) => {
+  const value = Number(e.target.value);
 
-    setPli((prev) => {
-      const newPli = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
+  setPli((prev) => {
+    const newPli = prev.includes(value)
+      ? prev.filter((item) => item !== value)
+      : [...prev, value];
 
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsPliSelected(newPli.length > 0);
+    setIsPliSelected(newPli.length > 0);
 
-      return newPli;
-    });
-  };
+    return newPli;
+  });
+};
 
   const toggleExtraServices = (e) => {
     const value = e.target.value;
@@ -954,13 +953,19 @@ if (setupAndSoundcheck.length > 0) {
     }
 
     // ---- 3️⃣ Handle "Speedy Setup (60min)" ----
-    if (setupFilters.includes("speedy_setup")) {
-      const speedy = act.extras?.["speedy_setup (60mins) – roadie and engineer duties only (travel added on top)"];
-      if (!speedy) return false;
+if (setupFilters.includes("speedy_setup")) {
+  // Find the key inside act.extras that contains "speedy_setup"
+  const extraKey = Object.keys(act.extras || {}).find((k) =>
+    k.toLowerCase().includes("speedy_setup")
+  );
 
-      const { price, complimentary } = speedy;
-      return price > 0 || complimentary === true;
-    }
+  if (!extraKey) return false;
+
+  const speedy = act.extras[extraKey];
+  if (!speedy) return false;
+
+  return (Number(speedy.price) > 0) || speedy.complimentary === true;
+}
 
     return true; // default fallback
   });
@@ -1005,49 +1010,74 @@ if (paAndLights.length > 0) {
 
 if (pli.length > 0) {
   actsCopy = actsCopy.filter((act) => {
-    const actPliAmount = Number(act.pliAmount) || 0;
-    // show act if its PLI amount matches any selected checkbox exactly
-    return pli.includes(actPliAmount);
+    const amount = Number(act.pliAmount) || 0;
+
+    // Show if any selected PLI requirement is <= act's PLI
+    return pli.some(req => amount >= req);
   });
 }
 
 if (extraServices.length > 0) {
   actsCopy = actsCopy.filter((act) => {
-    // normalize keys for flexible matching
     const extras = act.extras || {};
-    const extraKeys = Object.keys(extras).map((k) => k.toLowerCase());
+    const extraKeys = Object.keys(extras).map(k => k.toLowerCase());
 
     return extraServices.some((selected) => {
-      const normalized = selected.toLowerCase();
+      const selectedKey = selected.toLowerCase();
 
-      // define possible key fragments for each checkbox
-      const matchMap = {
-        ceremony_solo: "ceremony solo",
-        duo_ceremony: "ceremony duo",
-        trio_ceremony: "ceremony trio",
-        four_piece_ceremony: "ceremony 4",
-        afternoon_solo: "afternoon reception solo",
-        afternoon_duo: "afternoon reception duo",
-        afternoon_trio: "afternoon reception trio",
-        afternoon_4piece: "afternoon reception 4",
-        early_arrival: "early_arrival_60min_per_band_member",
-        late_stay: "late_stay_60min_per_band_member",
-        extra_song: "extra_song_request_per_band_member",
-        extra_sets: "extra_60min_performance_per_band_member",
-        add_another_vocalist: "add_another_vocalist",
-        sound_engineering_for_another_act:
-          "sound_engineering_for_another_act",
-        israeli_sets: "israeli_dancing_20mins_per_band_member",
+      const fragmentMap = {
+        sound_engineering_for_another_act: "sound_engineering_for_another_act",
+        add_another_vocalist: "anotherVocalist",
+        ceremony_solo: "solo",
+        duo_ceremony: "duo",
+        trio_ceremony: "trio",
+        four_piece_ceremony: "fourpiece",
+        afternoon_solo: "solo",
+        afternoon_duo: "duo",
+        afternoon_trio: "trio",
+        afternoon_4piece: "fourpiece",
+        early_arrival: "early_arrival",
+        late_stay: "late_stay",
+        extra_song: "extra_song_request",
+        extra_sets: "performance",
+        israeli_sets: "israeli_dancing"
       };
 
-      // find a matching key within extras (partial or exact)
-      const matchKey = extraKeys.find((key) =>
-        key.includes(matchMap[normalized] || normalized)
-      );
-      if (!matchKey) return false;
+      const fragment = fragmentMap[selectedKey];
+      if (!fragment) return false;
 
-      const extra = extras[matchKey];
-      return extra && (extra.price > 0 || extra.complimentary === true);
+      // ----------------------
+      // 1️⃣ MATCH EXTRAS KEYS
+      // ----------------------
+      const matchedExtraKey = extraKeys.find(k => k.includes(fragment));
+      if (matchedExtraKey) {
+        const extra = extras[matchedExtraKey];
+        return extra && (extra.price > 0 || extra.complimentary === true);
+      }
+
+      // ----------------------
+      // 2️⃣ MATCH LINEUP FIELDS
+      // ----------------------
+      const lineups = act.lineups || [];
+
+      // Add another vocalist
+      if (selectedKey === "add_another_vocalist") {
+        return lineups.some(l => l.anotherVocalist === true);
+      }
+
+      // Ceremony & afternoon
+      if (["ceremony", "afternoon"].some(k => selectedKey.includes(k))) {
+        const type = selectedKey.includes("ceremony") ? "ceremonySets" : "afternoonSets";
+        const piece = fragment; // solo, duo, trio, fourpiece
+
+        return lineups.some(l =>
+          l[type]?.[piece] &&
+          Array.isArray(l[type][piece].amplified) &&
+          l[type][piece].amplified.length > 0
+        );
+      }
+
+      return false;
     });
   });
 }
