@@ -151,18 +151,24 @@ const CartTotal = () => {
 
     loadTotal();
   }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate]);
-
-  const isTestBooking = summaryItems.some(
-  (item) =>
-    item.tscName?.toLowerCase().includes("test dancefloor magic") ||
-    item.tscName?.toLowerCase().includes("test soul allegiance") ||
-    item.tscName?.toLowerCase().includes("test motown magic") ||
-    item.actName?.toLowerCase().includes("test dancefloor magic") ||
-    item.actName?.toLowerCase().includes("test soul allegiance") ||
-    item.actName?.toLowerCase().includes("test motown magic")
+const isTestBooking = summaryItems.some(
+  (item) => {
+    const name = (item.tscName || item.actName || "").toLowerCase();
+    return (
+      name.includes("test dancefloor magic") ||
+      name.includes("test soul allegiance") ||
+      name.includes("test motown magic")
+    );
+  }
 );
 
-const deposit = isTestBooking ? totalAmount : totalAmount * 0.25;
+// Force minimum £0.50 for test acts
+let deposit;
+if (isTestBooking) {
+  deposit = Math.max(totalAmount, 0.50);
+} else {
+  deposit = totalAmount * 0.25;
+}
 
   return (
     <div className='w-full'>
