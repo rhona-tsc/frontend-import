@@ -152,7 +152,7 @@ const CartTotal = () => {
     loadTotal();
   }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate]);
 
-const deposit = Math.round(totalAmount * 0.25);
+const deposit = totalAmount * 0.25;
 
   return (
     <div className='w-full'>

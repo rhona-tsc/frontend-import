@@ -388,7 +388,7 @@ const PlaceBooking = () => {
 if (clientWantsFull) {
   depositAmount = fullAmount;         // event < 28 days
 } else {
-  depositAmount = Math.round(fullAmount * 0.25);   // standard rule
+  depositAmount = fullAmount * 0.25;   // standard rule
 }
 
       const signatureImage = signaturePad

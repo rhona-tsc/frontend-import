@@ -1020,10 +1020,16 @@ if (pli.length > 0) {
 if (extraServices.length > 0) {
   actsCopy = actsCopy.filter((act) => {
     const extras = act.extras || {};
-    const extraKeys = Object.keys(extras).map(k => k.toLowerCase());
 
-    return extraServices.some((selected) => {
-      const selectedKey = selected.toLowerCase();
+    // Normaliser: remove spaces, symbols, underscores etc.
+    const normalize = (str) =>
+      String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    const extraKeys = Object.keys(extras);
+    const extraKeysNorm = extraKeys.map(k => normalize(k));
+
+    return extraServices.some((selectedKeyRaw) => {
+      const selectedKey = selectedKeyRaw.toLowerCase();
 
       const fragmentMap = {
         sound_engineering_for_another_act: "sound_engineering_for_another_act",
@@ -1040,41 +1046,57 @@ if (extraServices.length > 0) {
         late_stay: "late_stay",
         extra_song: "extra_song_request",
         extra_sets: "performance",
-        israeli_sets: "israeli_dancing"
+        israeli_sets: "israeli_dancing",
       };
 
       const fragment = fragmentMap[selectedKey];
       if (!fragment) return false;
 
-      // ----------------------
-      // 1️⃣ MATCH EXTRAS KEYS
-      // ----------------------
-      const matchedExtraKey = extraKeys.find(k => k.includes(fragment));
-      if (matchedExtraKey) {
-        const extra = extras[matchedExtraKey];
+      // --- 1) NORMALIZED MATCHING FOR EXTRAS KEYS ---
+      const fragmentNorm = normalize(fragment);
+      const selectedNorm = normalize(selectedKey);
+
+      const index = extraKeysNorm.findIndex((k) =>
+        k.includes(fragmentNorm)
+      );
+
+      if (index !== -1) {
+        const originalKey = extraKeys[index];
+        const extra = extras[originalKey];
         return extra && (extra.price > 0 || extra.complimentary === true);
       }
 
-      // ----------------------
-      // 2️⃣ MATCH LINEUP FIELDS
-      // ----------------------
+      // --- 2) CEREMONY + AFTERNOON LOGIC (same object) ---
       const lineups = act.lineups || [];
 
-      // Add another vocalist
-      if (selectedKey === "add_another_vocalist") {
-        return lineups.some(l => l.anotherVocalist === true);
+      if (
+        [
+          "ceremony_solo",
+          "duo_ceremony",
+          "trio_ceremony",
+          "four_piece_ceremony",
+          "afternoon_solo",
+          "afternoon_duo",
+          "afternoon_trio",
+          "afternoon_4piece",
+        ].includes(selectedKey)
+      ) {
+        const piece = fragment; // solo/duo/trio/fourpiece
+        const type = "ceremonySets"; // shared for both
+
+        return lineups.some((l) => {
+          const block = l[type]?.[piece];
+          return (
+            block &&
+            Array.isArray(block.amplified) &&
+            block.amplified.length > 0
+          );
+        });
       }
 
-      // Ceremony & afternoon
-      if (["ceremony", "afternoon"].some(k => selectedKey.includes(k))) {
-        const type = selectedKey.includes("ceremony") ? "ceremonySets" : "afternoonSets";
-        const piece = fragment; // solo, duo, trio, fourpiece
-
-        return lineups.some(l =>
-          l[type]?.[piece] &&
-          Array.isArray(l[type][piece].amplified) &&
-          l[type][piece].amplified.length > 0
-        );
+      // --- 3) another vocalist ---
+      if (selectedKey === "add_another_vocalist") {
+        return lineups.some((l) => l.anotherVocalist === true);
       }
 
       return false;
