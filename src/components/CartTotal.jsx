@@ -152,7 +152,17 @@ const CartTotal = () => {
     loadTotal();
   }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate]);
 
-const deposit = totalAmount * 0.25;
+  const isTestBooking = summaryItems.some(
+  (item) =>
+    item.tscName?.toLowerCase().includes("test dancefloor magic") ||
+    item.tscName?.toLowerCase().includes("test soul allegiance") ||
+    item.tscName?.toLowerCase().includes("test motown magic") ||
+    item.actName?.toLowerCase().includes("test dancefloor magic") ||
+    item.actName?.toLowerCase().includes("test soul allegiance") ||
+    item.actName?.toLowerCase().includes("test motown magic")
+);
+
+const deposit = isTestBooking ? totalAmount : totalAmount * 0.25;
 
   return (
     <div className='w-full'>
