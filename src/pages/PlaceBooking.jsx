@@ -379,34 +379,17 @@ const PlaceBooking = () => {
         return sum + perUnit * (item.quantity || 1);
       }, 0);
 
-      // 25% deposit rule except for "Test Dancefloor Magic"
-      const isTestDancefloorMagic = actsSummary.some((a) =>
-        String(a.actName || "")
-          .toLowerCase()
-          .includes("test dancefloor magic")
-      );
+  
 
-      // base deposit logic: 25% deposit unless special case
-      const calcDeposit = (gross) => {
-        if (gross <= 0) return 0;
-        return Math.round(gross * 0.25); // ✅ 25% of total
-      };
 
-      // decide deposit amount
-      let depositAmount;
-      if (isTestDancefloorMagic) {
-        // 💡 No deposit for test act
-        depositAmount = fullAmount;
-      } else {
-        depositAmount = clientWantsFull ? fullAmount : calcDeposit(fullAmount);
-      }
 
-      console.log("💰 Amounts:", {
-        fullAmount,
-        depositAmount,
-        isTestDancefloorMagic,
-        clientWantsFull,
-      });
+  let depositAmount;
+
+if (clientWantsFull) {
+  depositAmount = fullAmount;         // event < 28 days
+} else {
+  depositAmount = Math.round(fullAmount * 0.25);   // standard rule
+}
 
       const signatureImage = signaturePad
         .getTrimmedCanvas()
