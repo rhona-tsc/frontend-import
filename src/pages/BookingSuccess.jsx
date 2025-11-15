@@ -2,12 +2,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { useContext } from "react";
+import { ShopContext } from "../context/ShopContext";
+
 
 const BookingSuccess = () => {
   const location = useLocation();
   const [booking, setBooking] = useState(null);
   const [eventSheetDue, setEventSheetDue] = useState(null);
   const [balanceDue, setBalanceDue] = useState(null);
+  const { setCartItems } = useContext(ShopContext);
 
   // 1) One-shot server finalize (guarded + cleans URL)
   useEffect(() => {
@@ -35,6 +39,11 @@ const BookingSuccess = () => {
       }
     })();
   }, []);
+
+  useEffect(() => {
+  setCartItems({});
+  localStorage.removeItem("cart");
+}, []);
 
   // 2) Load the newest booking for the logged-in user (or by ref in state)
   useEffect(() => {
