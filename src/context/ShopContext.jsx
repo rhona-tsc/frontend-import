@@ -937,6 +937,7 @@ const addToCart = async (
 ) => {
   if (!actId || !lineupId) return;
 
+  // 🔥 Your entire addToCart logic begins HERE
   const actKey = String(actId);
   const lineupKey = String(lineupId);
 
@@ -944,34 +945,26 @@ const addToCart = async (
   const userEmail = user?.email;
   const userName = user?.firstName;
 
-  // Normalise
+  // --- Normalise arrays ---
   const extrasInput = Array.isArray(selectedExtras)
     ? selectedExtras.filter(Boolean)
-    : selectedExtras
-    ? [selectedExtras]
-    : [];
+    : selectedExtras ? [selectedExtras] : [];
 
   const afternoonInput = Array.isArray(selectedAfternoonSets)
     ? selectedAfternoonSets.filter(Boolean)
-    : selectedAfternoonSets
-    ? [selectedAfternoonSets]
-    : [];
+    : selectedAfternoonSets ? [selectedAfternoonSets] : [];
 
   const suggestionsInput = Array.isArray(songSuggestions)
     ? songSuggestions.filter(Boolean)
-    : songSuggestions
-    ? [songSuggestions]
-    : [];
+    : songSuggestions ? [songSuggestions] : [];
 
-  // Clone cart
+  // --- Clone cart ---
   const updated = structuredClone(cartItems || {});
 
-  // Only one lineup per act — delete old one
-  if (updated[actKey]) {
-    delete updated[actKey];
-  }
+  // --- Replace lineup for this act ---
+  delete updated[actKey];
 
-  // Split extras
+  // --- Split extras ---
   const allSelectedExtras = [];
   const allAfternoonSets = [];
 
@@ -983,7 +976,6 @@ const addToCart = async (
     }
   });
 
-  // Save new entry
   updated[actKey] = {
     [lineupKey]: {
       quantity: 1,
@@ -1003,26 +995,21 @@ const addToCart = async (
     },
   };
 
-  // WRITE TO LOCAL CART
+  // 🔥 Persist to state + localStorage
   setCartItems(updated);
+  localStorage.setItem("cartItems", JSON.stringify(updated));
 
-  // AVAILABILITY REQUEST (only once)
-  if (selectedDate && selectedAddress && isActAllowed(actKey)) {
-    try {
-      console.log("📤 Triggering availability request from addToCart");
-      requestVocalistAvailability({ actId: actKey, lineupId: lineupKey });
-    } catch (err) {
-      console.warn("⚠️ availability request failed:", err.message);
-    }
-  }
+  // 🔥 This makes navbar update instantly
+  setCartUpdated(true);
+  setTimeout(() => setCartUpdated(false), 800);
 
-  // STOP RIGHT HERE FOR GUEST USERS — DO NOT CALL BACKEND
+  // 🔥 Guest cart = STOP HERE
   if (!userId) {
-    console.log("User not logged in — storing cart only in localStorage");
+    console.log("👜 Guest cart — not syncing to backend");
     return;
   }
 
-  // SYNC CART TO BACKEND
+  // 🔥 Sync logged-in user cart
   try {
     await axios.post(
       `${backendUrl}/api/cart/add`,
@@ -1039,7 +1026,7 @@ const addToCart = async (
       { headers: { token } }
     );
   } catch (err) {
-    console.warn("Backend cart sync failed:", err.message);
+    console.warn("Cart sync failed:", err.message);
   }
 };
 
