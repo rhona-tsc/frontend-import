@@ -5,15 +5,16 @@ import { ShopContext } from '../context/ShopContext';
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const {
-    setShowSearch,
-    getCartCount,
-    getShortlistCount,
-    cartUpdated,
-    token,
-    setToken,
-    setCartItems,
-  } = useContext(ShopContext);
+const {
+  setShowSearch,
+  getCartCount,
+  getShortlistCount,
+  cartUpdated,
+  token,
+  setToken,
+  setCartItems,
+  cartItems
+} = useContext(ShopContext);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
