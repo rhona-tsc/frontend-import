@@ -941,6 +941,10 @@ const shortlistAct = async (uid, actId) => {
     const actKey = String(actId);
     const lineupKey = String(lineupId);
 
+    const userId = user?._id;
+const userEmail = user?.email;
+const userName = user?.firstName;
+
     // Normalize inputs: accept a single object or an array
     const extrasInput = Array.isArray(selectedExtras)
       ? selectedExtras.filter(Boolean)
@@ -999,6 +1003,33 @@ const shortlistAct = async (uid, actId) => {
     };
 
     setCartItems(updated);
+
+    // Trigger availability request just like shortlist does
+if (selectedDate && selectedAddress && isActAllowed(actKey)) {
+  try {
+    const dateISO = selectedDate;
+    const address = selectedAddress;
+
+    console.log("📤 Triggering availability request from addToCart:", {
+      actId: actKey,
+      lineupId: lineupKey,
+      dateISO,
+      address,
+      userId,
+      userEmail,
+      clientName: userName,
+    });
+
+// Trigger availability (gated) if we have date+address
+if (selectedDate && selectedAddress && isActAllowed(actKey)) {
+  requestVocalistAvailability({ actId: actKey, lineupId: lineupKey });
+}
+
+    console.log("✅ Availability request triggered from addToCart");
+  } catch (err) {
+    console.warn("⚠️ addToCart availability request failed:", err?.message);
+  }
+}
 
     // Trigger availability (gated) if we have date+address
     if (selectedDate && selectedAddress && isActAllowed(actKey)) {
