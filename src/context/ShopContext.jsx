@@ -29,6 +29,7 @@ const [cartItems, setCartItems] = useState(() => {
     return {};
   }
 });
+const [cartUpdated, setCartUpdated] = useState(false);
 
 // --- Persist cart to localStorage whenever it changes ---
 useEffect(() => {
@@ -39,7 +40,7 @@ useEffect(() => {
   }
 }, [cartItems]);
 
-const [token, setToken] = useState("");
+const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [selectedVocalists, setSelectedVocalists] = useState({});
 
   // --- User / shortlist (single sources of truth) ---
@@ -941,9 +942,18 @@ const addToCart = async (
   const actKey = String(actId);
   const lineupKey = String(lineupId);
 
-  const userId = user?._id;
-  const userEmail = user?.email;
-  const userName = user?.firstName;
+// --- 🔐 Resolve user from state OR localStorage ---
+const storedUser = (() => {
+  try {
+    return JSON.parse(localStorage.getItem("user")) || {};
+  } catch {
+    return {};
+  }
+})();
+
+const resolvedUserId = userId || storedUser._id || null;
+const resolvedEmail = storedUser.email || null;
+const resolvedName = storedUser.firstName || storedUser.name || null;
 
   // --- Normalise arrays ---
   const extrasInput = Array.isArray(selectedExtras)
@@ -1004,27 +1014,34 @@ const addToCart = async (
   setTimeout(() => setCartUpdated(false), 800);
 
   // 🔥 Guest cart = STOP HERE
-  if (!userId) {
-    console.log("👜 Guest cart — not syncing to backend");
-    return;
-  }
+if (!resolvedUserId) {
+  console.log("👜 Guest cart — not syncing to backend");
+  return;
+}
+  
+console.log("🛒 Calling backend /add with:", {
+  userId,
+  actKey,
+  lineupKey,
+  token
+});
 
   // 🔥 Sync logged-in user cart
   try {
     await axios.post(
-      `${backendUrl}/api/cart/add`,
-      {
-        userId,
-        actId: actKey,
-        lineupId: lineupKey,
-        selectedExtras: allSelectedExtras,
-        selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
-        songSuggestions: suggestionsInput,
-        performance: updated[actKey][lineupKey].performance,
-        dismissedExtras: updated[actKey][lineupKey].dismissedExtras,
-      },
-      { headers: { token } }
-    );
+  `${backendUrl}/api/cart/add`,
+  {
+    userId: resolvedUserId,
+    actId: actKey,
+    lineupId: lineupKey,
+    selectedExtras: allSelectedExtras,
+    selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
+    songSuggestions: suggestionsInput,
+    performance: updated[actKey][lineupKey].performance,
+    dismissedExtras: updated[actKey][lineupKey].dismissedExtras,
+  },
+  { headers: { token } }
+);
   } catch (err) {
     console.warn("Cart sync failed:", err.message);
   }
