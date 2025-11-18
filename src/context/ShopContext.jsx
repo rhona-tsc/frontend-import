@@ -930,122 +930,99 @@ const shortlistAct = async (uid, actId) => {
 
   // Accepts: actId, lineupId, selectedExtras, selectedAfternoonSets, songSuggestions
 const addToCart = async (
-  actId,
-  lineupId,
-  selectedExtras = [],
-  selectedAfternoonSets = [],
-  songSuggestions = []
-) => {
-  if (!actId || !lineupId) return;
-
-  // 🔥 Your entire addToCart logic begins HERE
-  const actKey = String(actId);
-  const lineupKey = String(lineupId);
-
-// --- 🔐 Resolve user from state OR localStorage ---
-const storedUser = (() => {
-  try {
-    return JSON.parse(localStorage.getItem("user")) || {};
-  } catch {
-    return {};
-  }
-})();
-
-const resolvedUserId = userId || storedUser._id || null;
-const resolvedEmail = storedUser.email || null;
-const resolvedName = storedUser.firstName || storedUser.name || null;
-
-  // --- Normalise arrays ---
-  const extrasInput = Array.isArray(selectedExtras)
-    ? selectedExtras.filter(Boolean)
-    : selectedExtras ? [selectedExtras] : [];
-
-  const afternoonInput = Array.isArray(selectedAfternoonSets)
-    ? selectedAfternoonSets.filter(Boolean)
-    : selectedAfternoonSets ? [selectedAfternoonSets] : [];
-
-  const suggestionsInput = Array.isArray(songSuggestions)
-    ? songSuggestions.filter(Boolean)
-    : songSuggestions ? [songSuggestions] : [];
-
-  // --- Clone cart ---
-  const updated = structuredClone(cartItems || {});
-
-  // --- Replace lineup for this act ---
-  delete updated[actKey];
-
-  // --- Split extras ---
-  const allSelectedExtras = [];
-  const allAfternoonSets = [];
-
-  extrasInput.forEach((item) => {
-    if (["ceremony", "afternoon", "both"].includes(item?.type)) {
-      allAfternoonSets.push(item);
-    } else {
-      allSelectedExtras.push(item);
+    actId,
+    lineupId,
+    selectedExtras = [],
+    selectedAfternoonSets = [],
+    songSuggestions = []
+  ) => {
+    if (!actId || !lineupId) {
+      return;
     }
-  });
+    const actKey = String(actId);
+    const lineupKey = String(lineupId);
 
-  updated[actKey] = {
-    [lineupKey]: {
-      quantity: 1,
-      selectedExtras: allSelectedExtras,
-      selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
-      songSuggestions: suggestionsInput,
-      dismissedExtras: [],
-      performance: {
-        arrivalTime: "",
-        setupAndSoundcheckedBy: "",
-        startTime: "",
-        finishTime: "",
-        finishDayOffset: 0,
-        paLightsFinishTime: "",
-        paLightsFinishDayOffset: 0,
+    // Normalize inputs: accept a single object or an array
+    const extrasInput = Array.isArray(selectedExtras)
+      ? selectedExtras.filter(Boolean)
+      : selectedExtras
+        ? [selectedExtras]
+        : [];
+
+    const afternoonInput = Array.isArray(selectedAfternoonSets)
+      ? selectedAfternoonSets.filter(Boolean)
+      : selectedAfternoonSets
+        ? [selectedAfternoonSets]
+        : [];
+
+    const suggestionsInput = Array.isArray(songSuggestions)
+      ? songSuggestions.filter(Boolean)
+      : songSuggestions
+        ? [songSuggestions]
+        : [];
+
+    // Clone cart
+    const updated = structuredClone(cartItems || {});
+    // single-lineup-per-act model: clear existing
+    if (updated[actKey]) {
+      delete updated[actKey];
+    }
+
+    // Split extras vs ceremony/afternoon sets
+    const allSelectedExtras = [];
+    const allAfternoonSets = [];
+    extrasInput.forEach((item) => {
+      if (["ceremony", "afternoon", "both"].includes(item?.type)) {
+        allAfternoonSets.push(item);
+      } else {
+        allSelectedExtras.push(item);
+      }
+    });
+
+    updated[actKey] = {
+      [lineupKey]: {
+        quantity: 1,
+        selectedExtras: allSelectedExtras,
+        selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
+        songSuggestions: suggestionsInput,
+        dismissedExtras: [],
+        performance: {
+          // 👈 new
+          arrivalTime: "",
+          setupAndSoundcheckedBy: "",
+          startTime: "",
+          finishTime: "",
+          finishDayOffset: 0,
+          paLightsFinishTime: "",
+          paLightsFinishDayOffset: 0,
+        },
       },
-    },
+    };
+
+    setCartItems(updated);
+
+    // Trigger availability (gated) if we have date+address
+    if (selectedDate && selectedAddress && isActAllowed(actKey)) {
+      requestVocalistAvailability({ actId: actKey, lineupId: lineupKey });
+    }
+
+    // Optional: sync cart to backend
+    if (token) {
+      try {
+        await axios.post(
+          `${backendUrl}/api/cart/add`,
+          {
+            actId: actKey,
+            lineupId: lineupKey,
+            selectedExtras: allSelectedExtras,
+            selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
+            songSuggestions: suggestionsInput,
+          },
+          { headers: { token } }
+        );
+      } catch (err) {}
+    }
   };
-
-  // 🔥 Persist to state + localStorage
-  setCartItems(updated);
-  localStorage.setItem("cartItems", JSON.stringify(updated));
-
-  // 🔥 This makes navbar update instantly
-  setCartUpdated(true);
-  setTimeout(() => setCartUpdated(false), 800);
-
-  // 🔥 Guest cart = STOP HERE
-if (!resolvedUserId) {
-  console.log("👜 Guest cart — not syncing to backend");
-  return;
-}
-  
-console.log("🛒 Calling backend /add with:", {
-  userId,
-  actKey,
-  lineupKey,
-  token
-});
-
-  // 🔥 Sync logged-in user cart
-  try {
-    await axios.post(
-  `${backendUrl}/api/cart/add`,
-  {
-    userId: resolvedUserId,
-    actId: actKey,
-    lineupId: lineupKey,
-    selectedExtras: allSelectedExtras,
-    selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
-    songSuggestions: suggestionsInput,
-    performance: updated[actKey][lineupKey].performance,
-    dismissedExtras: updated[actKey][lineupKey].dismissedExtras,
-  },
-  { headers: { token } }
-);
-  } catch (err) {
-    console.warn("Cart sync failed:", err.message);
-  }
-};
 
   const getCartCount = () => {
     return Object.values(cartItems).reduce((total, act) => {
