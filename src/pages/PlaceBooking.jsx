@@ -414,6 +414,11 @@ if (clientWantsFull) {
         cartDetails: validItems, // Stripe line_items (if needed)
         actsSummary, // rich snapshot persisted in DB
         // 🔝 send top-level performance block too
+          lineupId: actsSummary[0]?.lineupId,   // <-- add this
+            lineupIds: actsSummary.map(a => a.lineupId),  // optional useful array
+
+actId: actsSummary[0]?.actId,
+actIds: actsSummary.map(a => a.actId),
         performanceTimes: performanceTimesTop || undefined,
         selectedVocalists,
         eventType,
