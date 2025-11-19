@@ -171,6 +171,17 @@ export function VocalistFeaturedAvailable({
   });
   console.log("🎤 [VFA] PUBLIC_SITE_BASE:", PUBLIC_SITE_BASE);
 
+  // NEW: Extract vocalist details from the first slot
+const slot = Array.isArray(badge?.slots) && badge.slots.length > 0
+  ? badge.slots[0]
+  : null;
+
+const effectiveBadge = {
+  ...badge,
+  ...(slot || {}),           // flatten slot data into badge-level shape
+  deputies: slot?.deputies || badge.deputies || [], 
+};
+
   if (!badge) {
     console.log("🎤 [VFA] ❗ badge prop was falsy (undefined/null) from parent");
     console.group("🛑 [VFA] Badge Debug");
@@ -182,20 +193,20 @@ export function VocalistFeaturedAvailable({
   }
 
   console.log("🎤 [VFA] Full badge object:", badge);
-  if (!badge.photoUrl && !badge.profilePicture) {
+  if (!effectiveBadge.photoUrl && !effectiveBadge.profilePicture) {
     console.group("🛑 [VFA] Badge Debug");
     console.warn("🎤 [VFA] ❌ badge missing photoUrl/profilePicture", badge);
     console.groupEnd();
   }
 
-const deputies = Array.isArray(badge.deputies) ? badge.deputies.slice(0, 3) : [];
+const deputies = Array.isArray(effectiveBadge.deputies) ? effectiveBadge.deputies.slice(0, 3) : [];
 const hasDeputies = Array.isArray(deputies) && deputies.length > 0;
 
   console.log("🎤 [VFA] Derived variables:", {
     deputies,
     hasDeputies,
-    badgeActive: badge.active,
-    badgeIsDeputy: badge.isDeputy,
+    badgeActive: effectiveBadge.active,
+    badgeIsDeputy: effectiveBadge.isDeputy,
   });
 
   // --- Deputies branch
@@ -253,21 +264,32 @@ if (badge?.isDeputy && Array.isArray(deputies) && deputies.length > 0) {
   // --- Lead or Deputy-Lead branch
 console.group("🎤 [VFA] ⭐ Lead/Deputy badge branch");
 
-const leadMusId = String(badge?.musicianId || badge?.deputies?.[0]?.musicianId || "");
+const leadMusId = String(
+  effectiveBadge.musicianId ||
+  (effectiveBadge.deputies?.[0]?.musicianId || "")
+);
 const leadProfile =
-  (badge?.profileUrl && String(badge.profileUrl)) ||
+  (effectiveBadge.profileUrl && String(effectiveBadge.profileUrl)) ||
   (leadMusId ? `${PUBLIC_SITE_BASE}/musician/${leadMusId}` : "") ||
-  (badge?.deputies?.[0]?.profileUrl ?? "");
+  (effectiveBadge.deputies?.[0]?.profileUrl ?? "");
 
 const leadImg =
-  // ✅ 1. Direct badge photo
-  (typeof badge?.photoUrl === "string" && badge.photoUrl.startsWith("http") && badge.photoUrl) ||
-  // ✅ 2. Badge-level profilePicture
-  (typeof badge?.profilePicture === "string" && badge.profilePicture.startsWith("http") && badge.profilePicture) ||
-  // ✅ 3. Deputy photo fallback (from backend-resolved getDeputyDisplayBits)
-  (badge?.deputies?.[0]?.photoUrl && badge.deputies[0].photoUrl.startsWith("http") && badge.deputies[0].photoUrl) ||
-  // ✅ 4. Deputy profilePicture fallback
-  (badge?.deputies?.[0]?.profilePicture && badge.deputies[0].profilePicture.startsWith("http") && badge.deputies[0].profilePicture) ||
+  (typeof effectiveBadge.photoUrl === "string" &&
+    effectiveBadge.photoUrl.startsWith("http") &&
+    effectiveBadge.photoUrl) ||
+
+  (typeof effectiveBadge.profilePicture === "string" &&
+    effectiveBadge.profilePicture.startsWith("http") &&
+    effectiveBadge.profilePicture) ||
+
+  (effectiveBadge.deputies?.[0]?.photoUrl &&
+    effectiveBadge.deputies[0].photoUrl.startsWith("http") &&
+    effectiveBadge.deputies[0].photoUrl) ||
+
+  (effectiveBadge.deputies?.[0]?.profilePicture &&
+    effectiveBadge.deputies[0].profilePicture.startsWith("http") &&
+    effectiveBadge.deputies[0].profilePicture) ||
+
   "";
 
 if (!leadImg) {
@@ -294,17 +316,17 @@ console.log("🎤 [VFA] Rendering FeaturedVocalistBadge with:", {
 
 const badgeDom = (
   <FeaturedVocalistBadge
-    imageUrl={leadImg || undefined}
-    pictureSource={badge}
-    variant={badge?.isDeputy ? "deputy" : "lead"}
-    size={size}
-    cacheBuster={badge?.setAt || cacheBuster || ""}
-    className={className}
-    musicianId={leadMusId}
-    profileUrl={leadProfile}
-    actContext={actContext}
-    dateContext={dateContext}
-  />
+  imageUrl={leadImg}
+  pictureSource={effectiveBadge}
+  variant={effectiveBadge.isDeputy ? "deputy" : "lead"}
+  size={size}
+  cacheBuster={effectiveBadge.setAt || cacheBuster}
+  className={className}
+  musicianId={effectiveBadge.musicianId}
+  profileUrl={effectiveBadge.profileUrl}
+  actContext={actContext}
+  dateContext={dateContext}
+/>
 );
 
 console.log("🎤 [VFA] ✅ Rendered lead/deputy badge successfully");
