@@ -1649,7 +1649,7 @@ React.useEffect(() => {
       };
 
       // 1) If scheduler has no finish yet, seed from the card’s performance block
-      if (!answers[timeKey("finish")]) {
+      if (answers[timeKey("finish")] === undefined) {
         const fromCard = ensureFinish(perfCard.finishTime, perfCard.finishDayOffset);
 
         // 2) If card didn’t have it, use the wider search across booking shapes
@@ -1674,7 +1674,7 @@ React.useEffect(() => {
       }
 
       // 3) Final fallback: top-level booking.performanceTimes (if still blank)
-      if (!answers[timeKey("finish")] && booking?.performanceTimes?.finishTime) {
+      if (answers[timeKey("finish")] === undefined && booking?.performanceTimes?.finishTime) {
         ensureFinish(
           booking.performanceTimes.finishTime,
           booking.performanceTimes.finishDayOffset
@@ -1705,7 +1705,7 @@ React.useEffect(() => {
         (arrival
           ? addMinutes(arrival, setupMins + soundcheckMins + changeMins)
           : "");
-      if (!answers[timeKey("set_1")] && candidate) {
+      if (answers[timeKey("set_1")] === undefined && candidate) {
         handleAnswer(timeKey("set_1"), candidate);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1718,14 +1718,14 @@ React.useEffect(() => {
 
     React.useEffect(() => {
       if (!ceremonyTime) return;
-      if (!answers[timeKey("ceremony_setup")])
+      if (answers[timeKey("ceremony_setup")] === undefined)
         handleAnswer(timeKey("ceremony_setup"), addMinutes(ceremonyTime, -60));
-      if (!answers[timeKey("ceremony_soundcheck")])
+      if (answers[timeKey("ceremony_soundcheck")] === undefined)
         handleAnswer(
           timeKey("ceremony_soundcheck"),
           addMinutes(ceremonyTime, -30)
         );
-      if (!answers[timeKey("ceremony")])
+      if (answers[timeKey("ceremony")] === undefined)
         handleAnswer(timeKey("ceremony"), ceremonyTime);
       // ceremony lunch only if no afternoon cluster
       if (!afternoonInfo && !answers[timeKey("ceremony_lunch")]) {
