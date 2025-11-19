@@ -118,6 +118,7 @@ const isReadOnlyParam = searchParams.get("ro") === "1" || searchParams.get("read
 const isReadOnlyRoute = /readonly/i.test(String(params?.mode || params?.view || ""));
 const READ_ONLY = isReadOnlyParam || isReadOnlyRoute;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+const userHasEditedRef = React.useRef(false);
 
   React.useEffect(() => {
     (async () => {
@@ -1261,7 +1262,10 @@ if (READ_ONLY) {
         dayOffset={enableOffset ? dayOffset : 0}
         onDayOffsetChange={(v) => enableOffset && handleAnswer(offsetKey(k), v)}
         minuteStep={5}
-        onChange={(newHHMM) => handleAnswer(timeKey(k), newHHMM)}
+     onChange={(newHHMM) => {
+    userHasEditedRef.current = true;
+    handleAnswer(timeKey(k), newHHMM);
+}}
       />
     );
   }
@@ -1479,65 +1483,48 @@ if (READ_ONLY) {
     );
 
 
-    // Seed finish directly from the card we display (only if empty)
-// ✅ Extra-safe seeding from the booking card's performance block
-React.useEffect(() => {
-  if (!booking) return;
-  if (answers[timeKey("finish")]) {
-    console.debug("[ScheduleEditor] finish already set →", answers[timeKey("finish")]);
-    return; // already set
-  }
+    // Seed finish directly from the card we display (only if user hasn't edited and only if empty)
+    useEffect(() => {
+      if (userHasEditedRef.current) return;
+      if (!booking) return;
 
-  const perfCard = (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]?.performance) || {};
-  console.debug("[ScheduleEditor] perfCard.finishTime raw:", perfCard?.finishTime, "offset:", perfCard?.finishDayOffset);
+      if (answers[timeKey("finish")]) return;
 
-  const raw = perfCard?.finishTime;
-  if (!raw) {
-    console.debug("[ScheduleEditor] no raw finishTime in perfCard");
-    return;
-  }
+      const perfCard = (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]?.performance) || {};
+      const raw = perfCard?.finishTime;
+      if (!raw) return;
 
-  const norm = normalizeFinishLike(raw);
-  console.debug("[ScheduleEditor] normalizeFinishLike(raw) →", norm);
+      const norm = normalizeFinishLike(raw);
+      if (!norm?.hhmm) return;
 
-  if (!norm?.hhmm) {
-    console.debug("[ScheduleEditor] normalizeFinishLike failed for", raw);
-    return;
-  }
+      handleAnswer(timeKey("finish"), norm.hhmm);
 
-  // Write HH:MM
-  handleAnswer(timeKey("finish"), norm.hhmm);
-  console.debug("[ScheduleEditor] seeded finish →", norm.hhmm);
-
-  // Day offset: prefer the card value if present, else 0
-  if (answers[offKey("finish")] == null) {
-    const off = Number.isFinite(Number(perfCard?.finishDayOffset))
-      ? Number(perfCard.finishDayOffset)
-      : 0;
-    handleAnswer(offKey("finish"), off);
-    console.debug("[ScheduleEditor] seeded finish offset →", off);
-  }
-}, [booking, answers[timeKey("finish")]]);
+      if (answers[offKey("finish")] == null) {
+        const off = Number.isFinite(Number(perfCard?.finishDayOffset))
+          ? Number(perfCard.finishDayOffset)
+          : 0;
+        handleAnswer(offKey("finish"), off);
+      }
+    }, [booking]);
 
 // If finish is an AM time that should be next-day (00:00–03:59), flip the day offset to 1
-React.useEffect(() => {
+useEffect(() => {
+  if (userHasEditedRef.current) return;
+
   const v = answers[`schedule_time_finish`];
   if (!v || !v.includes(":")) return;
 
   const [hStr] = v.split(":");
   const h = parseInt(hStr, 10);
+
   const off = Number(answers[`schedule_dayOffset_finish`] || 0);
 
-  // 00:00–03:59 must be "Next day" for our picker to show valid AM hours
-  if (off === 0 && h >= 0 && h <= 3) {
+  if (off === 0 && h >= 0 && h <= 3)
     handleAnswer(`schedule_dayOffset_finish`, 1);
-  }
 
-  // (Optional) if someone later changes to a PM/late evening hour, snap back to Event day
-  if (off === 1 && h >= 9) {
+  if (off === 1 && h >= 9)
     handleAnswer(`schedule_dayOffset_finish`, 0);
-  }
-}, [answers[`schedule_time_finish`], answers[`schedule_dayOffset_finish`]]);
+}, [booking]);
 
     // ===== Evening Live set options =====
     const optionsRaw = getSetOptionsFromAct(acts, booking) || [];
@@ -1596,38 +1583,48 @@ React.useEffect(() => {
     const saxKeys = ["sax_1", "sax_2", "sax_3"];
 
     // ✅ Extra-safe seeding from the booking card's performance block
-    React.useEffect(() => {
-      // Only act if the scheduler doesn't already have a finish time
-      if (answers[timeKey("finish")]) return;
+  useEffect(() => {
+  if (!booking) return;
+  if (userHasEditedRef.current) return;
 
-      const perfCard = (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]?.performance) || {};
-      const raw = perfCard?.finishTime;
-      if (!raw) return;
+  if (answers[timeKey("finish")]) return;
 
-      const norm = normalizeFinishLike(raw);
-      if (!norm?.hhmm) return;
+  const perfCard =
+    (Array.isArray(booking?.actsSummary) &&
+      booking.actsSummary[0]?.performance) ||
+    {};
 
-      // Write HH:MM
-      handleAnswer(timeKey("finish"), norm.hhmm);
+  const raw = perfCard?.finishTime;
+  if (!raw) return;
 
-      // Day offset: prefer the card value if present, else 0
-      if (answers[offKey("finish")] == null) {
-        const off = Number.isFinite(Number(perfCard?.finishDayOffset))
-          ? Number(perfCard.finishDayOffset)
-          : 0;
-        handleAnswer(offKey("finish"), off);
-      }
-    }, [booking, answers[timeKey("finish")]]);
+  const norm = normalizeFinishLike(raw);
+  if (!norm?.hhmm) return;
+
+  handleAnswer(timeKey("finish"), norm.hhmm);
+
+  const hasOffset = Number.isFinite(Number(perfCard?.finishDayOffset));
+  handleAnswer(
+    offKey("finish"),
+    hasOffset ? Number(perfCard.finishDayOffset) : norm.dayOffset || 0
+  );
+}, [booking]);
 
     // ====== Seeding times (robust) ======
-    React.useEffect(() => {
+    useEffect(() => {
+      if (userHasEditedRef.current) return;
       // Pull the exact card source first (what the booking card shows)
       const perfCard = (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]?.performance) || {};
 
       // ARRIVAL (unchanged from your logic)
-      if (perf.arrivalTime && !answers[timeKey("arrival")]) {
-        const normArr = normalizeFinishLike(perf.arrivalTime);
-        if (normArr?.hhmm) handleAnswer(timeKey("arrival"), normArr.hhmm);
+      if (!booking) return;
+      if (userHasEditedRef.current) return;
+
+      if (!perf.arrivalTime) return;
+      if (answers[timeKey("arrival")]) return;
+
+      const norm = normalizeFinishLike(perf.arrivalTime);
+      if (norm?.hhmm) {
+        handleAnswer(timeKey("arrival"), norm.hhmm);
       }
 
       // FINISH — try the card source first, then the other finders
@@ -1638,9 +1635,7 @@ React.useEffect(() => {
         handleAnswer(timeKey("finish"), norm.hhmm);
         const dbOffset = Number.isFinite(Number(offsetRaw))
           ? Number(offsetRaw)
-          : Number.isFinite(Number(perf?.finishDayOffset))
-            ? Number(perf.finishDayOffset)
-            : answers[offKey("finish")];
+          : answers[offKey("finish")];
         handleAnswer(
           offKey("finish"),
           Number.isFinite(dbOffset) ? Number(dbOffset) : norm.dayOffset || 0
@@ -1648,11 +1643,8 @@ React.useEffect(() => {
         return true;
       };
 
-      // 1) If scheduler has no finish yet, seed from the card’s performance block
       if (answers[timeKey("finish")] === undefined) {
         const fromCard = ensureFinish(perfCard.finishTime, perfCard.finishDayOffset);
-
-        // 2) If card didn’t have it, use the wider search across booking shapes
         if (!fromCard) {
           const found = findFinishFromBooking(booking, perf, first);
           if (found?.hhmm) {
@@ -1673,7 +1665,6 @@ React.useEffect(() => {
         handleAnswer(offKey("finish"), Number(perf.finishDayOffset));
       }
 
-      // 3) Final fallback: top-level booking.performanceTimes (if still blank)
       if (answers[timeKey("finish")] === undefined && booking?.performanceTimes?.finishTime) {
         ensureFinish(
           booking.performanceTimes.finishTime,
@@ -1681,7 +1672,6 @@ React.useEffect(() => {
         );
       }
 
-      // Helpful debug while we iron this out
       console.debug("[ScheduleEditor] seed finish", {
         fromCard: perfCard.finishTime,
         fromPerf: perf.finishTime,
@@ -1698,48 +1688,44 @@ React.useEffect(() => {
       first,
     ]);
 
-    React.useEffect(() => {
-      const arrival = answers[timeKey("arrival")] || perf.arrivalTime;
-      const candidate =
-        perf.startTime ||
-        (arrival
-          ? addMinutes(arrival, setupMins + soundcheckMins + changeMins)
-          : "");
-      if (answers[timeKey("set_1")] === undefined && candidate) {
-        handleAnswer(timeKey("set_1"), candidate);
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-      answers[timeKey("arrival")],
-      setupMins,
-      soundcheckMins,
-      perf.startTime,
-    ]);
+useEffect(() => {
+  if (userHasEditedRef.current) return;
 
-    React.useEffect(() => {
-      if (!ceremonyTime) return;
-      if (answers[timeKey("ceremony_setup")] === undefined)
-        handleAnswer(timeKey("ceremony_setup"), addMinutes(ceremonyTime, -60));
-      if (answers[timeKey("ceremony_soundcheck")] === undefined)
-        handleAnswer(
-          timeKey("ceremony_soundcheck"),
-          addMinutes(ceremonyTime, -30)
-        );
-      if (answers[timeKey("ceremony")] === undefined)
-        handleAnswer(timeKey("ceremony"), ceremonyTime);
-      // ceremony lunch only if no afternoon cluster
-      if (!afternoonInfo && !answers[timeKey("ceremony_lunch")]) {
-        handleAnswer(timeKey("ceremony_lunch"), addMinutes(ceremonyTime, 60));
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [ceremonyTime, afternoonInfo]);
+  const arrival = answers[timeKey("arrival")] || perf.arrivalTime;
+  if (!arrival) return;
 
-    React.useEffect(() => {
-      if (afternoonInfo?.hhmm && !answers[timeKey("afternoon_set_1")]) {
-        handleAnswer(timeKey("afternoon_set_1"), afternoonInfo.hhmm);
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [afternoonInfo?.hhmm]);
+  const candidate =
+    perf.startTime ||
+    addMinutes(arrival, setupMins + soundcheckMins + changeMins);
+
+  if (!answers[timeKey("set_1")] && candidate)
+    handleAnswer(timeKey("set_1"), candidate);
+}, [booking]);
+
+  useEffect(() => {
+  if (userHasEditedRef.current) return;
+  if (!ceremonyTime) return;
+
+  if (!answers[timeKey("ceremony_setup")])
+    handleAnswer(timeKey("ceremony_setup"), addMinutes(ceremonyTime, -60));
+
+  if (!answers[timeKey("ceremony_soundcheck")])
+    handleAnswer(timeKey("ceremony_soundcheck"), addMinutes(ceremonyTime, -30));
+
+  if (!answers[timeKey("ceremony")])
+    handleAnswer(timeKey("ceremony"), ceremonyTime);
+
+  if (!afternoonInfo && !answers[timeKey("ceremony_lunch")])
+    handleAnswer(timeKey("ceremony_lunch"), addMinutes(ceremonyTime, 60));
+}, [ceremonyTime, afternoonInfo]);
+
+useEffect(() => {
+  if (userHasEditedRef.current) return;
+  if (!afternoonInfo?.hhmm) return;
+
+  if (!answers[timeKey("afternoon_set_1")])
+    handleAnswer(timeKey("afternoon_set_1"), afternoonInfo.hhmm);
+}, [afternoonInfo?.hhmm]);
 
     // ===== Canonical base (initial layout only) =====
     const base = [];
@@ -2094,7 +2080,10 @@ className={`select-none text-gray-400 ${(isFixed(k) || readOnly) ? "cursor-not-a
               onDayOffsetChange={(v) =>
                 k === "finish" && handleAnswer(offKey("finish"), v)
               }
-              onChange={(newHHMM) => handleAnswer(timeKey(k), newHHMM)}
+              onChange={(newHHMM) => {
+    userHasEditedRef.current = true;
+    handleAnswer(timeKey(k), newHHMM);
+}}
               {...(placeholderRows.has(k)
                 ? {
                     hourPlaceholder: "Select",
@@ -2422,7 +2411,10 @@ className={`select-none text-gray-400 ${(isFixed(k) || readOnly) ? "cursor-not-a
                       minuteStep={5}
                       enableDayOffset={false}
                       dayOffset={0}
-                      onChange={(newHHMM) => handleAnswer(timeKey(k), newHHMM)}
+                     onChange={(newHHMM) => {
+    userHasEditedRef.current = true;
+    handleAnswer(timeKey(k), newHHMM);
+}}
                       hourPlaceholder="Select"
                       minutePlaceholder="--"
                       defaultPeriod="PM"
@@ -2535,7 +2527,10 @@ className={`select-none text-gray-400 ${(isFixed(k) || readOnly) ? "cursor-not-a
                       minuteStep={5}
                       enableDayOffset={false}
                       dayOffset={0}
-                      onChange={(newHHMM) => handleAnswer(timeKey(k), newHHMM)}
+                      onChange={(newHHMM) => {
+    userHasEditedRef.current = true;
+    handleAnswer(timeKey(k), newHHMM);
+}}
                       hourPlaceholder="Select"
                       minutePlaceholder="--"
                       defaultPeriod="PM"
@@ -2657,7 +2652,10 @@ className={`select-none text-gray-400 ${(isFixed(k) || readOnly) ? "cursor-not-a
                       minuteStep={5}
                       enableDayOffset={false}
                       dayOffset={0}
-                      onChange={(newHHMM) => handleAnswer(timeKey(k), newHHMM)}
+                      onChange={(newHHMM) => {
+    userHasEditedRef.current = true;
+    handleAnswer(timeKey(k), newHHMM);
+}}
                       hourPlaceholder="Select"
                       minutePlaceholder="--"
                       defaultPeriod="PM"
