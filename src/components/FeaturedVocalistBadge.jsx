@@ -1,4 +1,5 @@
 import { assets } from "../assets/assets"; // top-level import
+import { useState } from "react";
 const PUBLIC_SITE_BASE =
   import.meta.env.FRONTEND_URL || window.location.origin; // fallback to current site origin
 
@@ -26,6 +27,10 @@ export function FeaturedVocalistBadge({
   actContext = null,
   dateContext = null,
 }) {
+  const [photoLoaded, setPhotoLoaded] = useState(false);
+  const [ringLoaded, setRingLoaded] = useState(false);
+  const ready = photoLoaded && ringLoaded;
+
   console.groupCollapsed(`🎨 [FeaturedVocalistBadge] BEGIN (variant: ${variant})`);
   console.log("🎨 [FV] Props received:", {
     imageUrl,
@@ -91,60 +96,68 @@ export function FeaturedVocalistBadge({
   });
 
   // --- Render
-console.log("🎨 [FV] ✅ Rendering badge DOM (image + ring)...");
+  console.log("🎨 [FV] ✅ Rendering badge DOM (image + ring)...");
 
-const badgeDom = (
-  
-  <div
-    className={`inline-flex flex-col items-center ${className}`}
-    style={{
-      width: size,
-      zIndex: 50,
-      minHeight: size, // ✅ ensures it doesn’t collapse visually
-    }}
-  >
+  const badgeDom = (
+    
     <div
-      className="relative select-none"
+      className={`inline-flex flex-col items-center ${className}`}
       style={{
         width: size,
-        height: size,
-        minHeight: size,
-        position: "relative",
+        zIndex: 50,
+        minHeight: size, // ✅ ensures it doesn’t collapse visually
       }}
-      aria-label="Vocalist featured & available"
     >
-      <img        
-        src={imgSrc}
-        alt=""
-        className="absolute rounded-full object-cover shadow-sm"
+      <div
+        className="relative select-none"
         style={{
-          width: inner,
-          height: inner,
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${photoOffsetY}px))`,
+          width: size,
+          height: size,
+          minHeight: size,
+          position: "relative",
         }}
-        draggable={false}
-      />
-      <img
-        src={ringSrc}
-        alt=""
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        draggable={false}
-      />
-    </div>
-    {effectiveProfileUrl && (
-      <a
-        href={effectiveProfileUrl}
-        className="text-[14px] text-blue-600 underline block mt-1"
-        target="_blank"
-        rel="noreferrer"
+        aria-label="Vocalist featured & available"
       >
-        View Profile
-      </a>
-    )}
-  </div>
-);
+        <img        
+          src={imgSrc}
+          alt=""
+          className="absolute rounded-full object-cover shadow-sm"
+          style={{
+            width: inner,
+            height: inner,
+            left: "50%",
+            top: "50%",
+            transform: `translate(-50%, calc(-50% + ${photoOffsetY}px))`,
+          }}
+          draggable={false}
+          onLoad={() => setPhotoLoaded(true)}
+        />
+        <img
+          src={ringSrc}
+          alt=""
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          draggable={false}
+          onLoad={() => setRingLoaded(true)}
+        />
+      </div>
+      {effectiveProfileUrl && (
+        <a
+          href={effectiveProfileUrl}
+          className="text-[14px] text-blue-600 underline block mt-1"
+          target="_blank"
+          rel="noreferrer"
+        >
+          View Profile
+        </a>
+      )}
+    </div>
+  );
+
+  if (!ready) {
+    return (
+      <div style={{ width: size, height: size }} className={className}></div>
+    );
+  }
 
   console.log("🎨 [FV] ✅ Rendered successfully with imgSrc:", imgSrc);
   console.groupEnd();
