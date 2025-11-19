@@ -1013,16 +1013,21 @@ console.log("🟢 Render check", {
 
     if (!badgeForDate) return null;
 
-    return (
+  return (
+  <div className="flex items-center gap-3 mt-2 flex-wrap">
+    {badgeForDate?.slots?.map((slot) => (
       <VocalistFeaturedAvailable
-        badge={badgeForDate}
+        key={slot.slotIndex}
+        badge={slot}
         size={140}
-        cacheBuster={badgeForDate?.setAt}
+        cacheBuster={slot?.setAt}
         className="mt-2"
         actContext={actData?.tscName}
         dateContext={selectedDate}
       />
-    );
+    ))}
+  </div>
+);
   })()}
 </div>
             </div>

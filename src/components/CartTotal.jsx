@@ -129,19 +129,31 @@ const CartTotal = () => {
 
           const combinedExtrasTotal = extrasTotal + afternoonExtrasTotal;
           const lineTotal = (subtotalWithMargin + combinedExtrasTotal) * quantity;
+// 🔥 TEST ACT OVERRIDE — force price to 50p regardless of calculated totals
+const actLower = (act.tscName || act.name || "").toLowerCase();
+const isTestAct =
+  actLower.includes("test dancefloor magic") ||
+  actLower.includes("test soul allegiance") ||
+  actLower.includes("test motown magic");
 
+let finalLineTotal = lineTotal;
+
+if (isTestAct) {
+  finalLineTotal = 0.50;        // <--- force 50p price
+  subtotalWithMargin = 0.50;    // <--- show summary item base price as 50p
+}
   
 
-          grand += lineTotal;
+     grand += finalLineTotal;
 
-          summary.push({
-            actName: act.name,
-            tscName: act.tscName,
-            lineupName: lineup.actSize,
-            basePrice: subtotalWithMargin,
-            extras: selectedExtras,
-            quantity,
-          });
+summary.push({
+  actName: act.name,
+  tscName: act.tscName,
+  lineupName: lineup.actSize,
+  basePrice: subtotalWithMargin,   // now shows 50p for test acts
+  extras: selectedExtras,
+  quantity,
+});
         }
       }
 
