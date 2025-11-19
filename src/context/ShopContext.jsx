@@ -580,10 +580,11 @@ if (payload.badge) {
           /* ---------------------------------------------------------------------- */
           /* 🟢 NORMAL AVAILABILITY UPDATES (Lead / Deputy)                         */
           /* ---------------------------------------------------------------------- */
-          const isLead =
-            payload.type === "availability_yes" || payload.type === "leadYes";
-          const isDeputy =
-            payload.type === "deputy_yes" || payload.isDeputy === true;
+         const isLead =
+  payload.type === "availability_yes" || payload.type === "leadYes";
+
+const isDeputy =
+  payload.type === "availability_deputy_yes" || payload.isDeputy === true;
 
           const shortDate = formatShortDate(payload.dateISO);
 
@@ -610,9 +611,9 @@ if (payload.badge) {
 
           // 🔔 Show success toast for specific events only
           const showToast =
-            payload.type === "deputy_yes" ||
-            payload.type === "leadYes" ||
-            payload.type === "availability_yes";
+  payload.type === "availability_deputy_yes" ||
+  payload.type === "leadYes" ||
+  payload.type === "availability_yes";
 
           if (showToast) {
             toast(<CustomToast type="success" message={toastMsg} />);
