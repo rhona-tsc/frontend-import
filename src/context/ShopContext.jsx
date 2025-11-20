@@ -477,172 +477,189 @@ const [token, setToken] = useState(localStorage.getItem("token") || "");
   }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
 
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
-  useEffect(() => {
-    try {
-      const sse = new EventSource(api("api/availability/subscribe"));
-      console.log(
-        "🔌 SSE listener initialized:",
-        api("api/availability/subscribe")
-      );
+ useEffect(() => {
+  try {
+    const url = api("api/availability/subscribe");
+    const sse = new EventSource(url);
 
-      sse.addEventListener("open", () => {
-        console.log("📡 SSE connection established ✅");
-      });
+    console.log("🔌 [SSE] Initialized:", url);
 
-      sse.addEventListener("message", async (evt) => {
-        if (!evt?.data) return;
+    /* -------------------------------------------------------------------------- */
+    /* 🔵 Open                                                                    */
+    /* -------------------------------------------------------------------------- */
+    sse.addEventListener("open", () => {
+      console.log("📡 [SSE] Connection established");
+    });
 
-        try {
-          const payload = JSON.parse(evt.data);
-          if (!payload?.actId) return;
+    /* -------------------------------------------------------------------------- */
+    /* 📨 Message received                                                        */
+    /* -------------------------------------------------------------------------- */
+    sse.addEventListener("message", async (evt) => {
+      if (!evt?.data) {
+        console.log("⚪ [SSE] Empty message event received");
+        return;
+      }
 
-          console.log("📨 [SSE] Raw payload received:", payload);
+      let payload = null;
+      try {
+        payload = JSON.parse(evt.data);
+      } catch (err) {
+        console.warn("⚠️ [SSE] JSON parse failed:", err, evt.data);
+        return;
+      }
 
-          /* ---------------------------------------------------------------------- */
-          /* 🟦 AVAILABILITY_BADGE_UPDATED                                          */
-          /* ---------------------------------------------------------------------- */
-          if (payload.type === "availability_badge_updated") {
-            console.log(
-              "🟦 [ShopContext] availability_badge_updated received:",
-              payload
-            );
+      console.log("📨 [SSE] RAW PAYLOAD:", payload);
 
-            // 🧹 Handle explicit null badge clears (remove badge for this act/date)
-            if (payload.badge === null) {
-              setActs((prevActs) => {
-                if (!Array.isArray(prevActs)) return prevActs;
-                return prevActs.map((act) => {
-                  if (String(act._id) !== String(payload.actId)) return act;
-                  // Remove badge for the date key (payload.dateISO) from act.availabilityBadges if present
-                  if (!act.availabilityBadges || typeof act.availabilityBadges !== "object") return act;
-                  const dateKey = String(payload.dateISO).slice(0, 10);
-                  // Remove all keys matching this date (could be ISO or YYYY-MM-DD)
-                  const newBadges = { ...act.availabilityBadges };
-                  Object.keys(newBadges).forEach((k) => {
-                    if (k.slice(0, 10) === dateKey) {
-                      delete newBadges[k];
-                    }
-                  });
-                  return { ...act, availabilityBadges: newBadges };
-                });
+      if (!payload?.actId) {
+        console.log("⚪ [SSE] Ignored payload (no actId)", payload);
+        return;
+      }
+
+      /* ---------------------------------------------------------------------- */
+      /* 🟦 AVAILABILITY_BADGE_UPDATED                                          */
+      /* ---------------------------------------------------------------------- */
+      if (payload.type === "availability_badge_updated") {
+        console.log("🟦 [SSE] BADGE_UPDATED fired:", {
+          actId: payload.actId,
+          dateISO: payload.dateISO,
+          badgeExists: payload.badge !== null,
+          badge: payload.badge
+        });
+
+        // 🔬 Deep badge integrity debugging
+        if (payload.badge) {
+          console.log("🔍 [SSE Badge Debug]", {
+            isDeputy: payload.badge.isDeputy,
+            isLead: payload.badge.isLead,
+            vocalistName: payload.badge.vocalistName,
+            musicianId: payload.badge.musicianId,
+            photoUrl: payload.badge.photoUrl,
+            profileUrl: payload.badge.profileUrl,
+            deputyCount: payload.badge.deputies?.length ?? 0,
+            deputies: payload.badge.deputies?.map((d) => ({
+              name: d.vocalistName,
+              id: d.musicianId,
+              photo: d.photoUrl
+            })),
+            slotCount: Array.isArray(payload.badge.slots)
+              ? payload.badge.slots.length
+              : "N/A",
+            slots: payload.badge.slots
+          });
+        }
+
+        /* --------------------------------------------- */
+        /* 🧹 Handle badge=null clears                     */
+        /* --------------------------------------------- */
+        if (payload.badge === null) {
+          console.log("🧹 [SSE] Badge CLEAR triggered for date:", payload.dateISO);
+
+          setActs((prev) => {
+            if (!Array.isArray(prev)) return prev;
+            return prev.map((act) => {
+              if (String(act._id) !== String(payload.actId)) return act;
+
+              const newBadges = { ...(act.availabilityBadges || {}) };
+              const keyDate = payload.dateISO.slice(0, 10);
+
+              Object.keys(newBadges).forEach((k) => {
+                if (k.startsWith(keyDate)) delete newBadges[k];
               });
-              console.log("🧹 Explicit badge clear received via SSE");
-              return;
-            }
 
+              console.log("🧹 [SSE] Cleared badge keys:", newBadges);
+              return { ...act, availabilityBadges: newBadges };
+            });
+          });
 
-     // 💬 Dynamic “Lead Vocalist / Deputy Vocalist” toast (refined)
-if (payload.badge) {
-  const formattedDate = formatShortDate(payload.dateISO);
-  const actName = payload.actName || "the act";
-  let toastMsg = "";
-
-  if (payload.badge.isDeputy) {
-    // ✅ Prefer direct badge.vocalistName (the latest responder)
-    const name =
-      payload.badge.vocalistName?.split(" ")[0] ||
-      payload.badge.name?.split(" ")[0] ||
-      (() => {
-        // fallback to most recent from deputies
-        if (Array.isArray(payload.badge.deputies)) {
-          const sortedDeps = [...payload.badge.deputies].sort(
-            (a, b) => new Date(b.setAt) - new Date(a.setAt)
-          );
-          const latestDep = sortedDeps[0];
-          return (
-            latestDep?.vocalistName?.split(" ")[0] ||
-            latestDep?.name?.split(" ")[0] ||
-            "Deputy"
-          );
+          return;
         }
-        return "Deputy";
-      })();
 
-    toastMsg = `${name}, deputy vocalist for ${actName}, available for ${formattedDate}.`;
-  } else {
-    const name =
-      payload.badge.vocalistName?.split(" ")[0] || "Vocalist";
-    toastMsg = `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
+        /* --------------------------------------------- */
+        /* 🔔 Toast for badge                             */
+        /* --------------------------------------------- */
+        if (payload.badge) {
+          const formattedDate = formatShortDate(payload.dateISO);
+          const actName = payload.actName || "the act";
+
+          let name =
+            payload.badge.vocalistName?.split(" ")[0] ||
+            payload.badge.deputies?.[0]?.vocalistName?.split(" ")[0] ||
+            "Vocalist";
+
+          const message = payload.badge.isDeputy
+            ? `${name}, deputy vocalist for ${actName}, available for ${formattedDate}.`
+            : `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
+
+          console.log("🔔 [SSE] Badge Toast Message:", message);
+
+          toast(<CustomToast type="success" message={message} />);
+        }
+
+        /* --------------------------------------------- */
+        /* ♻️ Refresh Act                                 */
+        /* --------------------------------------------- */
+        console.log("♻️ [SSE] refreshActById START:", payload.actId);
+        await refreshActById(payload.actId);
+        console.log("♻️ [SSE] refreshActById COMPLETE:", payload.actId);
+
+        return;
+      }
+
+      /* ---------------------------------------------------------------------- */
+      /* 🟩 NORMAL YES EVENTS (lead or deputy)                                   */
+      /* ---------------------------------------------------------------------- */
+      const isLead =
+        payload.type === "availability_yes" ||
+        payload.type === "leadYes";
+
+      const isDeputy =
+        payload.type === "availability_deputy_yes" ||
+        payload.isDeputy === true;
+
+      console.log("🟩 [SSE] Standard availability event:", {
+        type: payload.type,
+        isLead,
+        isDeputy,
+        actId: payload.actId,
+        musicianName: payload.musicianName,
+      });
+
+      const shortDate = formatShortDate(payload.dateISO);
+      const toastMsg = isDeputy
+        ? `${payload.musicianName} is available to perform with ${payload.actName} on ${shortDate}.`
+        : `${payload.musicianName || "Lead vocalist"} from ${payload.actName} is available for ${shortDate}.`;
+
+      console.log("🔔 [SSE] Standard Toast Message:", toastMsg);
+
+      const showToast =
+        payload.type === "availability_deputy_yes" ||
+        payload.type === "leadYes" ||
+        payload.type === "availability_yes";
+
+      if (showToast) {
+        toast(<CustomToast type="success" message={toastMsg} />);
+      }
+
+      console.log("♻️ [SSE] Refreshing ACT:", payload.actId);
+      await refreshActById(payload.actId);
+      console.log("♻️ [SSE] Finished ACT refresh:", payload.actId);
+    });
+
+    /* -------------------------------------------------------------------------- */
+    /* ❌ Error                                                                    */
+    /* -------------------------------------------------------------------------- */
+    sse.addEventListener("error", (err) => {
+      console.warn("❌ [SSE] ERROR:", err);
+    });
+
+    return () => {
+      sse.close();
+      console.log("❌ [SSE] Connection CLOSED");
+    };
+  } catch (e) {
+    console.error("❌ [SSE] Initialization FAILED:", e);
   }
-
-  toast(<CustomToast type="success" message={toastMsg} />);
-}
-
-            console.log(
-              "♻️ Calling refreshActById for badge update:",
-              payload.actId
-            );
-            await refreshActById(payload.actId);
-            console.log("✅ Finished refreshActById for:", payload.actId);
-            return;
-          }
-
-          /* ---------------------------------------------------------------------- */
-          /* 🟢 NORMAL AVAILABILITY UPDATES (Lead / Deputy)                         */
-          /* ---------------------------------------------------------------------- */
-         const isLead =
-  payload.type === "availability_yes" || payload.type === "leadYes";
-
-const isDeputy =
-  payload.type === "availability_deputy_yes" || payload.isDeputy === true;
-
-          const shortDate = formatShortDate(payload.dateISO);
-
-          // 🧠 Build consistent toast message
-          let toastMsg;
-          if (isDeputy) {
-            toastMsg = `${payload.musicianName} is available to perform with ${payload.actName} on ${shortDate}.`;
-          } else {
-            toastMsg = `${payload.musicianName || "Lead vocalist"} from ${payload.actName} is available for ${shortDate}.`;
-          }
-
-          console.log("🧠 Availability update message built:", toastMsg);
-
-          // ✅ Update context state
-          setAvailabilityStatus((prev) => ({
-            ...prev,
-            [payload.actId]: {
-              status: isLead ? "lead" : "deputy",
-              musicianName: payload.musicianName,
-              dateISO: payload.dateISO,
-              message: toastMsg,
-            },
-          }));
-
-          // 🔔 Show success toast for specific events only
-          const showToast =
-  payload.type === "availability_deputy_yes" ||
-  payload.type === "leadYes" ||
-  payload.type === "availability_yes";
-
-          if (showToast) {
-            toast(<CustomToast type="success" message={toastMsg} />);
-          }
-
-          // ♻️ Refresh Act data so UI updates live
-          console.log(
-            "♻️ Refreshing act after availability change:",
-            payload.actId
-          );
-          await refreshActById(payload.actId);
-          console.log("✅ Act refreshed:", payload.actId);
-        } catch (e) {
-          console.warn("⚠️ SSE parse error:", e, evt.data);
-        }
-      });
-
-      sse.addEventListener("error", (err) => {
-        console.warn("⚠️ SSE connection error:", err);
-      });
-
-      return () => {
-        sse.close();
-        console.log("❌ SSE connection closed");
-      };
-    } catch (e) {
-      console.error("❌ Failed to initialize SSE:", e);
-    }
-  }, [backendUrl]);
+}, [backendUrl]);
 
   // --- Auto-sync backend when both date + address are present ---
   const handleDateOrAddressChange = debounce(async (actId) => {
