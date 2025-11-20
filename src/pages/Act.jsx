@@ -1016,15 +1016,18 @@ console.log("🟢 Render check", {
   return (
   <div className="flex items-center gap-3 mt-2 flex-wrap">
     {badgeForDate?.slots?.map((slot) => (
-      <VocalistFeaturedAvailable
-        key={slot.slotIndex}
-        badge={slot}
-        size={140}
-        cacheBuster={slot?.setAt}
-        className="mt-2"
-        actContext={actData?.tscName}
-        dateContext={selectedDate}
-      />
+     <VocalistFeaturedAvailable
+  key={slot.slotIndex}
+  badge={{
+    ...badgeForDate, // full badge
+    ...slot          // slot overrides (photoUrl, musicianId, setAt, isDeputy)
+  }}
+  size={140}
+  cacheBuster={slot?.setAt}
+  className="mt-2"
+  actContext={actData?.tscName}
+  dateContext={selectedDate}
+/>
     ))}
   </div>
 );
