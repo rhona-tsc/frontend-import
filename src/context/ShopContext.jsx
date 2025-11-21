@@ -574,26 +574,6 @@ const [token, setToken] = useState(localStorage.getItem("token") || "");
           return;
         }
 
-        /* --------------------------------------------- */
-        /* 🔔 Toast for badge                             */
-        /* --------------------------------------------- */
-        if (payload.badge) {
-          const formattedDate = formatShortDate(payload.dateISO);
-          const actName = payload.actName || "the act";
-
-          let name =
-            payload.badge.vocalistName?.split(" ")[0] ||
-            payload.badge.deputies?.[0]?.vocalistName?.split(" ")[0] ||
-            "Vocalist";
-
-          const message = payload.badge.isDeputy
-            ? `${name}, deputy vocalist for ${actName}, available for ${formattedDate}.`
-            : `${name}, lead vocalist for ${actName}, available for ${formattedDate}.`;
-
-          console.log("🔔 [SSE] Badge Toast Message:", message);
-
-          toast(<CustomToast type="success" message={message} />);
-        }
 
         /* --------------------------------------------- */
         /* ♻️ Refresh Act                                 */
