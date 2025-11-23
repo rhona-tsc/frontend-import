@@ -548,31 +548,7 @@ const [token, setToken] = useState(localStorage.getItem("token") || "");
           });
         }
 
-        /* --------------------------------------------- */
-        /* 🧹 Handle badge=null clears                     */
-        /* --------------------------------------------- */
-        if (payload.badge === null) {
-          console.log("🧹 [SSE] Badge CLEAR triggered for date:", payload.dateISO);
 
-          setActs((prev) => {
-            if (!Array.isArray(prev)) return prev;
-            return prev.map((act) => {
-              if (String(act._id) !== String(payload.actId)) return act;
-
-              const newBadges = { ...(act.availabilityBadges || {}) };
-              const keyDate = payload.dateISO.slice(0, 10);
-
-              Object.keys(newBadges).forEach((k) => {
-                if (k.startsWith(keyDate)) delete newBadges[k];
-              });
-
-              console.log("🧹 [SSE] Cleared badge keys:", newBadges);
-              return { ...act, availabilityBadges: newBadges };
-            });
-          });
-
-          return;
-        }
 
 
         /* --------------------------------------------- */
