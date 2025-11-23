@@ -2,15 +2,6 @@ import { assets } from "../assets/assets"; // top-level import
 const PUBLIC_SITE_BASE =
   import.meta.env.FRONTEND_URL || window.location.origin; // fallback to current site origin
 
-// Extract a valid http(s) URL from an object that may have profile fields.
-const pickProfilePicture = (obj = {}) => {
-  const v =
-    obj && typeof obj.profilePicture === "string"
-      ? obj.profilePicture.trim()
-      : "";
-  return v && v.startsWith("http") ? v : "";
-};
-
 // 🎨 FeaturedVocalistBadge — single circular badge renderer
 export function FeaturedVocalistBadge({
   imageUrl,
@@ -23,231 +14,124 @@ export function FeaturedVocalistBadge({
   className = "",
   musicianId = "",
   profileUrl = "",
-  actContext = null,
-  dateContext = null,
 }) {
-  console.groupCollapsed(`🎨 [FeaturedVocalistBadge] BEGIN (variant: ${variant})`);
-  console.log("🎨 [FV] Props received:", {
-    imageUrl,
-    pictureSource,
-    musicianId,
-    profileUrl,
-  });
-  console.log("🎨 [FV] Size/photoScale/photoOffsetY:", {
-    size,
-    photoScale,
-    photoOffsetY,
-  });
-  console.log("🎨 [FV] PUBLIC_SITE_BASE:", PUBLIC_SITE_BASE);
-  console.log("🎨 [FV] Context:", { actContext, dateContext });
-
   const inner = Math.round(size * photoScale);
   const ringSrc =
     variant === "deputy"
       ? assets.Deputy_Vocalist_Available
       : assets.Featured_Vocalist_Available;
-  console.log("🎨 [FV] Ring image used:", ringSrc);
-
-  const resolvedImageUrl = imageUrl || pickProfilePicture(pictureSource || {});
-  console.log("🎨 [FV] resolvedImageUrl:", resolvedImageUrl);
-
-  const hasValidUrl =
-    typeof resolvedImageUrl === "string" &&
-    resolvedImageUrl.trim().startsWith("http");
-  console.log("🎨 [FV] hasValidUrl:", hasValidUrl);
 
   const imgSrc =
-    hasValidUrl && cacheBuster
-      ? `${resolvedImageUrl}${
-          resolvedImageUrl.includes("?") ? "&" : "?"
-        }v=${encodeURIComponent(cacheBuster)}`
-      : hasValidUrl
-      ? resolvedImageUrl
-      : "";
-  console.log("🎨 [FV] imgSrc:", imgSrc);
+    imageUrl && cacheBuster
+      ? `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}v=${cacheBuster}`
+      : imageUrl;
 
-  const sourceProfileUrl =
-    pictureSource && typeof pictureSource.profileUrl === "string"
-      ? pictureSource.profileUrl.trim()
-      : "";
-  const sourceMusicianUrl =
-    pictureSource && pictureSource.musicianId
-      ? `${PUBLIC_SITE_BASE}/musician/${pictureSource.musicianId}`
-      : "";
-  const effectiveProfileUrl =
-    (profileUrl || "").trim() ||
-    (musicianId ? `${PUBLIC_SITE_BASE}/musician/${musicianId}` : "") ||
-    sourceProfileUrl ||
-    sourceMusicianUrl;
-  console.log("🎨 [FV] effectiveProfileUrl:", effectiveProfileUrl);
+  const resolvedProfile =
+    profileUrl ||
+    (musicianId ? `${window.location.origin}/musician/${musicianId}` : "");
 
-  console.log("🎨 [FV] Rendering state summary:", {
-    resolvedImageUrl,
-    imgSrc,
-    hasValidUrl,
-    effectiveProfileUrl,
-    ringSrc,
-    inner,
-  });
-
-  // --- Render
-console.log("🎨 [FV] ✅ Rendering badge DOM (image + ring)...");
-
-const badgeDom = (
-  
-  <div
-    className={`inline-flex flex-col items-center ${className}`}
-    style={{
-      width: size,
-      zIndex: 50,
-      minHeight: size, // ✅ ensures it doesn’t collapse visually
-    }}
-  >
+  return (
     <div
-      className="relative select-none"
-      style={{
-        width: size,
-        height: size,
-        minHeight: size,
-        position: "relative",
-      }}
-      aria-label="Vocalist featured & available"
+      className={`inline-flex flex-col items-center ${className}`}
+      style={{ width: size, minHeight: size }}
     >
-      <img        
-        src={imgSrc}
-        alt=""
-        className="absolute rounded-full object-cover shadow-sm"
-        style={{
-          width: inner,
-          height: inner,
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${photoOffsetY}px))`,
-        }}
-        draggable={false}
-      />
-      <img
-        src={ringSrc}
-        alt=""
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        draggable={false}
-      />
-    </div>
-    {effectiveProfileUrl && (
-      <a
-        href={effectiveProfileUrl}
-        className="text-[14px] text-blue-600 underline block mt-1"
-        target="_blank"
-        rel="noreferrer"
+      <div
+        className="relative select-none"
+        style={{ width: size, height: size }}
       >
-        View Profile
-      </a>
-    )}
-  </div>
-);
+        <img
+          src={imgSrc}
+          alt=""
+          className="absolute rounded-full object-cover shadow-sm"
+          style={{
+            width: inner,
+            height: inner,
+            left: "50%",
+            top: "50%",
+            transform: `translate(-50%, calc(-50% + ${photoOffsetY}px))`,
+          }}
+          draggable={false}
+        />
 
-  console.log("🎨 [FV] ✅ Rendered successfully with imgSrc:", imgSrc);
-  console.groupEnd();
-  return badgeDom;
+        <img
+          src={ringSrc}
+          alt=""
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          draggable={false}
+        />
+      </div>
+
+      {resolvedProfile && (
+        <a
+          href={resolvedProfile}
+          className="text-[14px] text-blue-600 underline block mt-1"
+          target="_blank"
+          rel="noreferrer"
+        >
+          View Profile
+        </a>
+      )}
+    </div>
+  );
 }
 
-// 🎤 VocalistFeaturedAvailable — wrapper for lead + deputies
+// 🎤 SLOT-AWARE Vocalist Badge Wrapper
 export function VocalistFeaturedAvailable({
-  badge = null,
+  badge,
   size = 140,
   cacheBuster = "",
   className = "",
   actContext = null,
-  dateContext = null,
+  dateContext = null
 }) {
-  console.group("🎤 [VocalistFeaturedAvailable] BEGIN");
-  console.log("🎤 [VFA] Props:", {
-    badge,
-    size,
-    cacheBuster,
-    className,
-    actContext,
-    dateContext,
-  });
-  console.log("🎤 [VFA] PUBLIC_SITE_BASE:", PUBLIC_SITE_BASE);
-
-  // NEW: Extract vocalist details from the first slot
-const slot = Array.isArray(badge?.slots) && badge.slots.length > 0
-  ? badge.slots[0]
-  : null;
-
-const effectiveBadge = {
-  ...badge,
-  ...(slot || {}),           // flatten slot data into badge-level shape
-  deputies: slot?.deputies || badge.deputies || [], 
-};
+  console.group("🎤 [VFA] BEGIN (slot-aware)");
+  console.log("🎤 [VFA] Incoming merged badge:", badge);
 
   if (!badge) {
-    console.log("🎤 [VFA] ❗ badge prop was falsy (undefined/null) from parent");
-    console.group("🛑 [VFA] Badge Debug");
-    console.warn("🎤 [VFA] ❌ No badge prop received – skipping render");
-    console.log("🎤 [VFA] Context:", { actContext, dateContext });
-    console.groupEnd();
+    console.warn("🎤 [VFA] No badge provided — nothing to render");
     console.groupEnd();
     return null;
   }
 
-  console.log("🎤 [VFA] Full badge object:", badge);
-  if (!effectiveBadge.photoUrl && !effectiveBadge.profilePicture) {
-    console.group("🛑 [VFA] Badge Debug");
-    console.warn("🎤 [VFA] ❌ badge missing photoUrl/profilePicture", badge);
-    console.groupEnd();
-  }
+  // ————————————————————————————————
+  // Extract slot fields ONLY
+  // ————————————————————————————————
+  const {
+    musicianId,
+    photoUrl,
+    profileUrl,
+    isDeputy,
+    setAt
+  } = badge;
 
-const deputies = Array.isArray(effectiveBadge.deputies) ? effectiveBadge.deputies.slice(0, 3) : [];
-const hasDeputies = Array.isArray(deputies) && deputies.length > 0;
+  const deputies = Array.isArray(badge.deputies) ? badge.deputies : [];
 
-  console.log("🎤 [VFA] Derived variables:", {
-    deputies,
-    hasDeputies,
-    badgeActive: effectiveBadge.active,
-    badgeIsDeputy: effectiveBadge.isDeputy,
-  });
+  // 🔥 Deputies branch — when multiple deputies reply
+  if (Array.isArray(deputies) && deputies.length > 0 && !musicianId) {
+    return (
+      <div className={`flex gap-3 flex-wrap ${className}`}>
+        {deputies.map((d, i) => {
+          const depId = d.musicianId ? String(d.musicianId) : "";
+          const depImg =
+            d.photoUrl && d.photoUrl.startsWith("http") ? d.photoUrl : "";
+          const depProfile =
+            d.profileUrl && d.profileUrl.startsWith("http")
+              ? d.profileUrl
+              : `${window.location.origin}/musician/${depId}`;
 
-  // --- Deputies branch
-if (badge?.isDeputy && Array.isArray(deputies) && deputies.length > 0) {
-        console.group("🎤 [VFA] 🎭 Deputies branch");
-    console.log("🎤 [VFA] Rendering deputies...");
-    const deputiesDom = (
-      <div className={`flex gap-3 items-center ${className}`}>
-        {Array.isArray(deputies) &&
-  deputies.map((d, i) => {
-          const musId = String(d?.musicianId || "");
-          const profile =
-            (d?.profileUrl && String(d.profileUrl)) ||
-            (musId ? `${PUBLIC_SITE_BASE}/musician/${musId}` : "");
-          const img =
-            typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http")
-              ? d.photoUrl
-              : "";
-          if (!img && (!d?.profilePicture || !d?.profilePicture.startsWith("http"))) {
-            console.group(`🛑 [VFA] Deputy #${i + 1} Debug`);
-            console.warn("🎤 [VFA] ❌ Deputy badge missing photoUrl/profilePicture", d);
-            console.groupEnd();
-          }
-          console.groupCollapsed(`🎤 [VFA] 🎵 Deputy #${i + 1}`);
-          console.log({
-            vocalistName: d?.vocalistName || d?.name,
-            musicianId: musId,
-            photoUrl: img,
-            profileUrl: profile,
-          });
-          console.groupEnd();
+          if (!depId || !depImg) return null;
+
           return (
             <FeaturedVocalistBadge
-              key={`dep-badge-${i}-${musId || "na"}`}
-              imageUrl={img || undefined}
+              key={`deputy-${i}-${depId}`}
+              imageUrl={depImg}
               pictureSource={d}
               variant="deputy"
               size={Math.round(size * 0.86)}
-              cacheBuster={d?.setAt || cacheBuster || ""}
-              musicianId={musId}
-              profileUrl={profile}
+              cacheBuster={d.setAt || cacheBuster}
+              className={className}
+              musicianId={depId}
+              profileUrl={depProfile}
               actContext={actContext}
               dateContext={dateContext}
             />
@@ -255,82 +139,120 @@ if (badge?.isDeputy && Array.isArray(deputies) && deputies.length > 0) {
         })}
       </div>
     );
-    console.groupEnd();
-    console.groupEnd();
-    console.log("🎤 [VFA] ✅ Rendered deputies successfully");
-    return deputiesDom;
   }
 
-  // --- Lead or Deputy-Lead branch
-console.group("🎤 [VFA] ⭐ Lead/Deputy badge branch");
+  const image = (photoUrl && photoUrl.startsWith("http")) ? photoUrl : "";
 
-const leadMusId = String(
-  effectiveBadge.musicianId ||
-  (effectiveBadge.deputies?.[0]?.musicianId || "")
-);
-const leadProfile =
-  (effectiveBadge.profileUrl && String(effectiveBadge.profileUrl)) ||
-  (leadMusId ? `${PUBLIC_SITE_BASE}/musician/${leadMusId}` : "") ||
-  (effectiveBadge.deputies?.[0]?.profileUrl ?? "");
+  if (!musicianId || !image) {
+    console.warn("🎤 [VFA] Missing musicianId or photoUrl, skipping render:", {
+      musicianId,
+      photoUrl
+    });
+    console.groupEnd();
+    return null;
+  }
 
-const leadImg =
-  (typeof effectiveBadge.photoUrl === "string" &&
-    effectiveBadge.photoUrl.startsWith("http") &&
-    effectiveBadge.photoUrl) ||
-
-  (typeof effectiveBadge.profilePicture === "string" &&
-    effectiveBadge.profilePicture.startsWith("http") &&
-    effectiveBadge.profilePicture) ||
-
-  (effectiveBadge.deputies?.[0]?.photoUrl &&
-    effectiveBadge.deputies[0].photoUrl.startsWith("http") &&
-    effectiveBadge.deputies[0].photoUrl) ||
-
-  (effectiveBadge.deputies?.[0]?.profilePicture &&
-    effectiveBadge.deputies[0].profilePicture.startsWith("http") &&
-    effectiveBadge.deputies[0].profilePicture) ||
-
-  "";
-
-if (!leadImg) {
-  console.warn("🎤 [VFA] ❌ No valid image for lead/deputy badge; skipping render");
-  console.table({
-    badgePhotoUrl: badge?.photoUrl,
-    badgeProfilePicture: badge?.profilePicture,
-    deputyPhotoUrl: badge?.deputies?.[0]?.photoUrl,
-    deputyProfilePicture: badge?.deputies?.[0]?.profilePicture,
-    badge,
+  console.log("🎤 [VFA] Rendering vocalist badge:", {
+    musicianId,
+    image,
+    isDeputy,
+    setAt
   });
+
+  const resolvedProfile =
+    profileUrl && profileUrl.startsWith("http")
+      ? profileUrl
+      : `${window.location.origin}/musician/${musicianId}`;
+
+  const variant = isDeputy ? "deputy" : "lead";
+
+  const dom = (
+    <FeaturedVocalistBadge
+      imageUrl={image}
+      pictureSource={badge}
+      variant={variant}
+      size={size}
+      cacheBuster={setAt || cacheBuster || ""}
+      className={className}
+      musicianId={musicianId}
+      profileUrl={resolvedProfile}
+      actContext={actContext}
+      dateContext={dateContext}
+    />
+  );
+
   console.groupEnd();
-  console.groupEnd();
-  return null;
+  return dom;
 }
 
-console.log("🎤 [VFA] Rendering FeaturedVocalistBadge with:", {
-  imageUrl: leadImg,
-  pictureSource: badge,
-  variant: badge?.isDeputy ? "deputy" : "lead",
-  musicianId: leadMusId,
-  profileUrl: leadProfile,
-});
+export function FeaturedVocalistBadge({
+  imageUrl,
+  pictureSource = null,
+  size = 140,
+  photoScale = 0.74,
+  photoOffsetY = -4,
+  variant = "lead",
+  cacheBuster = "",
+  className = "",
+  musicianId = "",
+  profileUrl = "",
+}) {
+  const inner = Math.round(size * photoScale);
+  const ringSrc =
+    variant === "deputy"
+      ? assets.Deputy_Vocalist_Available
+      : assets.Featured_Vocalist_Available;
 
-const badgeDom = (
-  <FeaturedVocalistBadge
-  imageUrl={leadImg}
-  pictureSource={effectiveBadge}
-  variant={effectiveBadge.isDeputy ? "deputy" : "lead"}
-  size={size}
-  cacheBuster={effectiveBadge.setAt || cacheBuster}
-  className={className}
-  musicianId={effectiveBadge.musicianId}
-  profileUrl={effectiveBadge.profileUrl}
-  actContext={actContext}
-  dateContext={dateContext}
-/>
-);
+  const imgSrc =
+    imageUrl && cacheBuster
+      ? `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}v=${cacheBuster}`
+      : imageUrl;
 
-console.log("🎤 [VFA] ✅ Rendered lead/deputy badge successfully");
-console.groupEnd();
-console.groupEnd();
-return badgeDom;
+  const resolvedProfile =
+    profileUrl ||
+    (musicianId ? `${window.location.origin}/musician/${musicianId}` : "");
+
+  return (
+    <div
+      className={`inline-flex flex-col items-center ${className}`}
+      style={{ width: size, minHeight: size }}
+    >
+      <div
+        className="relative select-none"
+        style={{ width: size, height: size }}
+      >
+        <img
+          src={imgSrc}
+          alt=""
+          className="absolute rounded-full object-cover shadow-sm"
+          style={{
+            width: inner,
+            height: inner,
+            left: "50%",
+            top: "50%",
+            transform: `translate(-50%, calc(-50% + ${photoOffsetY}px))`,
+          }}
+          draggable={false}
+        />
+
+        <img
+          src={ringSrc}
+          alt=""
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          draggable={false}
+        />
+      </div>
+
+      {resolvedProfile && (
+        <a
+          href={resolvedProfile}
+          className="text-[14px] text-blue-600 underline block mt-1"
+          target="_blank"
+          rel="noreferrer"
+        >
+          View Profile
+        </a>
+      )}
+    </div>
+  );
 }
