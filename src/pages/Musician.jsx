@@ -389,7 +389,7 @@ useEffect(() => {
       {/* Date & Venue Selection */}
       <div>
         {selectedDate ? (
-          <div className="text-sm mt-3 p-2 text-gray-500">
+          <div className="text-sm mt-3 p-2 text-gray-500 visability:hidden">
             <span>Availability for </span>
             <span className="text-gray-700">{formatDate(selectedDate)}</span>
             {isYesForSelectedDate === true && (
