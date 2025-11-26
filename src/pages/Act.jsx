@@ -1001,14 +1001,9 @@ console.log("🟢 Render check", {
   {(() => {
     const badges = actData?.availabilityBadges || {};
     const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
-    const matchedKey =
-      cleanDate &&
-      Object.keys(badges).find(
-        (key) =>
-          key === cleanDate ||
-          key.startsWith(`${cleanDate}_`) ||
-          key.includes(cleanDate)
-      );
+   const matchedKey =
+  cleanDate &&
+  Object.keys(badges).find(key => key.includes(cleanDate));
     const badgeForDate = matchedKey ? badges[matchedKey] : null;
 
     if (!badgeForDate) return null;
@@ -1019,9 +1014,12 @@ console.log("🟢 Render check", {
      <VocalistFeaturedAvailable
  key={`${selectedDate.slice(0,10)}_slot_${slot.slotIndex}`}
   badge={{
-    ...badgeForDate, // full badge
-    ...slot          // slot overrides (photoUrl, musicianId, setAt, isDeputy)
-  }}
+  ...slot, 
+  ...badgeForDate,
+  musicianId: slot.musicianId,
+  photoUrl: slot.photoUrl,
+  setAt: slot.setAt || badgeForDate.setAt
+}}
   size={140}
   cacheBuster={slot?.setAt}
   className="mt-2"
