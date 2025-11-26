@@ -1006,23 +1006,22 @@ console.log("🟢 Render check", {
 
   return (
   <div className="flex items-center gap-3 mt-2 flex-wrap">
-    {badgeForDate?.slots?.map((slot) => (
-     <VocalistFeaturedAvailable
- key={`${selectedDate.slice(0,10)}_slot_${slot.slotIndex}`}
+   <VocalistFeaturedAvailable
+  key={`${matchedKey}_slot_${slot.slotIndex}`}
   badge={{
-  ...slot, 
-  ...badgeForDate,
-  musicianId: slot.musicianId,
-  photoUrl: slot.photoUrl,
-  setAt: slot.setAt || badgeForDate.setAt
-}}
+    ...badgeForDate,
+    ...slot,
+    slotIndex: slot.slotIndex,        // ✅ FIX — explicit slot index
+    musicianId: slot.musicianId,      // ✅ ensure slot overrides
+    photoUrl: slot.photoUrl,
+    setAt: slot.setAt,
+  }}
   size={140}
   cacheBuster={slot?.setAt}
   className="mt-2"
   actContext={actData?.tscName}
   dateContext={selectedDate}
 />
-    ))}
   </div>
 );
   })()}
@@ -1205,29 +1204,54 @@ console.log("🟢 Render check", {
             {/* move this block ABOVE or BELOW the .block sm:hidden */}
 <div className="my-3 mt-5 flex justify-left z-10">
   {(() => {
-    const badges = actData?.availabilityBadges || {};
+      const badges = actData?.availabilityBadges || {};
     const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
+
+    // ✅ Match any badge key that contains the date (e.g. "2026-01-03_tbc")
     const matchedKey =
       cleanDate &&
-      Object.keys(badges).find(
-        (key) =>
-          key === cleanDate ||
-          key.startsWith(`${cleanDate}_`) ||
-          key.includes(cleanDate)
-      );
-    const badgeForDate = matchedKey ? badges[matchedKey] : null;
+      Object.keys(badges).find((key) => key.includes(cleanDate));
 
+    const badgeForDate = matchedKey ? badges[matchedKey] : null;
     if (!badgeForDate) return null;
 
-    return (
-      <VocalistFeaturedAvailable
-        badge={badgeForDate}
-        size={140}
-        cacheBuster={badgeForDate?.setAt}
-        className="mt-2"
-        actContext={actData?.tscName}
-        dateContext={selectedDate}
-      />
+    // ✅ Determine which slot is active (first valid musician slot wins)
+    const activeSlot =
+      badgeForDate.slots.find((s) => s.musicianId && s.photoUrl?.startsWith("http")) ||
+      badgeForDate.slots.find((s) => s.musicianId) ||
+      null;
+
+    if (!activeSlot) {
+      console.warn("🎤 No valid active slot found for date:", cleanDate);
+      return null;
+    }
+
+     return (
+      <div className="flex items-center gap-3 mt-2 flex-wrap">
+        
+        <VocalistFeaturedAvailable
+          key={`${matchedKey}_slot_${activeSlot.slotIndex}`} // ✅ no undefined key
+          badge={{
+            active: true,
+            dateISO: cleanDate,
+            address: badgeForDate.address,
+            inPromo: badgeForDate.inPromo,
+            isDeputy: activeSlot.isDeputy,
+            musicianId: String(activeSlot.musicianId),
+            photoUrl: String(activeSlot.photoUrl),
+            profileUrl: activeSlot.profileUrl,
+            setAt: activeSlot.setAt,
+            slotIndex: activeSlot.slotIndex, // ✅ explicitly passed
+            slots: badgeForDate.slots, // intact for wrapper use
+            deputies: badgeForDate.deputies || [] // intact if needed
+          }}
+          size={140}
+          cacheBuster={activeSlot.setAt}
+          className="mt-2"
+          actContext={actData?.tscName}
+          dateContext={selectedDate}
+        />
+      </div>
     );
   })()}
 </div>
