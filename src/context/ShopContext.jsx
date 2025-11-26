@@ -510,6 +510,14 @@ const [token, setToken] = useState(localStorage.getItem("token") || "");
 
       console.log("📨 [SSE] RAW PAYLOAD:", payload);
 
+
+if (payload?.type === "availability_badge_updated" && !payload.badge) {
+  console.log("🧹 Frontend SSE: Ignoring null badge update", payload);
+  return; // ✅ STOP – protects UI state
+}
+
+// continue with your slot toasting + refresh logic...
+
       if (!payload?.actId) {
         console.log("⚪ [SSE] Ignored payload (no actId)", payload);
         return;

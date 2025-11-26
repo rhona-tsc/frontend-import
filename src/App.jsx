@@ -14,7 +14,6 @@
   import Client_Dashboard from "./pages/Client_Dashboard";
   import Contact from "./pages/Contact";
   import Login from "./pages/Login";
-  import MusicianDashboard from "./pages/MusicianDashboard";
   import Musician_Login from "./pages/Musician_Login";
   import Musician from "./pages/Musician";
   import PlaceBooking from "./pages/PlaceBooking";
@@ -134,7 +133,7 @@
 
               <Route path="/login" element={<Login />} />
               <Route path="/musician/:musicianId" element={<Musician />} />
-              <Route path="/musician-dashboard" element={<MusicianDashboard />} />
+            
               <Route path="/booking-success" element={<BookingSuccess />} />
     <Route path="/booking-cancelled" element={<BookingCancelled />} />
               <Route path="/musician-login" element={<Musician_Login />} />
