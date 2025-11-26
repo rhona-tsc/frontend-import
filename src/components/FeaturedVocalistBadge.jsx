@@ -86,7 +86,7 @@ export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "",
     return null;
   }
 
-  // ✅ Pull ONLY from the active slot
+  // ✅ Pull the correct active slot
   const slot = badge.slots.find(s => s.slotIndex === badge.slotIndex);
   if (!slot) {
     console.warn("🎤 [VFA] No matching slot entry for slotIndex:", badge.slotIndex);
@@ -101,12 +101,8 @@ export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "",
 
   const image = (photoUrl && photoUrl.startsWith("http")) ? photoUrl : "";
 
-  // ✅ This check now validates slot data, NOT old empty fields
   if (!musicianId || !image) {
-    console.warn("🎤 [VFA] Missing musicianId or photoUrl in ACTIVE SLOT, skipping render:", {
-      musicianId,
-      photoUrl
-    });
+    console.warn("🎤 [VFA] Missing musicianId or photoUrl in ACTIVE SLOT, skipping render");
     console.groupEnd();
     return null;
   }
@@ -123,7 +119,7 @@ export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "",
     : `${window.location.origin}/musician/${musicianId}`;
 
   const variant = isDeputy ? "deputy" : "lead";
-  
+
   const dom = (
     <FeaturedVocalistBadge
       imageUrl={image}
