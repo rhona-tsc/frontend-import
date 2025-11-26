@@ -1017,7 +1017,7 @@ console.log("🟢 Render check", {
   <div className="flex items-center gap-3 mt-2 flex-wrap">
     {badgeForDate?.slots?.map((slot) => (
      <VocalistFeaturedAvailable
-  key={slot.slotIndex}
+ key={`${selectedDate.slice(0,10)}_slot_${slot.slotIndex}`}
   badge={{
     ...badgeForDate, // full badge
     ...slot          // slot overrides (photoUrl, musicianId, setAt, isDeputy)
