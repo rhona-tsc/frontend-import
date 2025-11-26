@@ -76,75 +76,34 @@ export function FeaturedVocalistBadge({
 }
 
 // 🎤 SLOT-AWARE Vocalist Badge Wrapper
-export function VocalistFeaturedAvailable({
-  badge,
-  size = 140,
-  cacheBuster = "",
-  className = "",
-  actContext = null,
-  dateContext = null
-}) {
+export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "", className = "" }) {
   console.group("🎤 [VFA] BEGIN (slot-aware)");
   console.log("🎤 [VFA] Incoming merged badge:", badge);
 
-  if (!badge) {
-    console.warn("🎤 [VFA] No badge provided — nothing to render");
+  if (!badge?.slots?.length) {
+    console.warn("🎤 [VFA] No slots in badge — nothing to render");
     console.groupEnd();
     return null;
   }
 
-  // ————————————————————————————————
-  // Extract slot fields ONLY
-  // ————————————————————————————————
-  const {
-    musicianId,
-    photoUrl,
-    profileUrl,
-    isDeputy,
-    setAt
-  } = badge;
-
-  const deputies = Array.isArray(badge.deputies) ? badge.deputies : [];
-
-  // 🔥 Deputies branch — when multiple deputies reply
-  if (Array.isArray(deputies) && deputies.length > 0 && !musicianId) {
-    return (
-      <div className={`flex gap-3 flex-wrap ${className}`}>
-        {deputies.map((d, i) => {
-          const depId = d.musicianId ? String(d.musicianId) : "";
-          const depImg =
-            d.photoUrl && d.photoUrl.startsWith("http") ? d.photoUrl : "";
-          const depProfile =
-            d.profileUrl && d.profileUrl.startsWith("http")
-              ? d.profileUrl
-              : `${window.location.origin}/musician/${depId}`;
-
-          if (!depId || !depImg) return null;
-
-          return (
-            <FeaturedVocalistBadge
-              key={`deputy-${i}-${depId}`}
-              imageUrl={depImg}
-              pictureSource={d}
-              variant="deputy"
-              size={Math.round(size * 0.86)}
-              cacheBuster={d.setAt || cacheBuster}
-              className={className}
-              musicianId={depId}
-              profileUrl={depProfile}
-              actContext={actContext}
-              dateContext={dateContext}
-            />
-          );
-        })}
-      </div>
-    );
+  // ✅ Pull ONLY from the active slot
+  const slot = badge.slots.find(s => s.slotIndex === badge.slotIndex);
+  if (!slot) {
+    console.warn("🎤 [VFA] No matching slot entry for slotIndex:", badge.slotIndex);
+    console.groupEnd();
+    return null;
   }
+
+  const musicianId = String(slot.musicianId || "");
+  const photoUrl = String(slot.photoUrl || "");
+  const setAt = slot.setAt;
+  const isDeputy = slot.isDeputy;
 
   const image = (photoUrl && photoUrl.startsWith("http")) ? photoUrl : "";
 
+  // ✅ This check now validates slot data, NOT old empty fields
   if (!musicianId || !image) {
-    console.warn("🎤 [VFA] Missing musicianId or photoUrl, skipping render:", {
+    console.warn("🎤 [VFA] Missing musicianId or photoUrl in ACTIVE SLOT, skipping render:", {
       musicianId,
       photoUrl
     });
@@ -152,32 +111,27 @@ export function VocalistFeaturedAvailable({
     return null;
   }
 
-  console.log("🎤 [VFA] Rendering vocalist badge:", {
+  console.log("🎤 [VFA] Rendering vocalist badge from ACTIVE SLOT:", {
     musicianId,
     image,
     isDeputy,
     setAt
   });
 
-  const resolvedProfile =
-    profileUrl && profileUrl.startsWith("http")
-      ? profileUrl
-      : `${window.location.origin}/musician/${musicianId}`;
+  const resolvedProfile = badge.profileUrl?.startsWith("http")
+    ? badge.profileUrl
+    : `${window.location.origin}/musician/${musicianId}`;
 
   const variant = isDeputy ? "deputy" : "lead";
-
+  
   const dom = (
     <FeaturedVocalistBadge
       imageUrl={image}
-      pictureSource={badge}
-      variant={variant}
       size={size}
-      cacheBuster={setAt || cacheBuster || ""}
+      cacheBuster={setAt || cacheBuster}
       className={className}
       musicianId={musicianId}
       profileUrl={resolvedProfile}
-      actContext={actContext}
-      dateContext={dateContext}
     />
   );
 
