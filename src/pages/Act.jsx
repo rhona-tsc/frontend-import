@@ -430,10 +430,6 @@ console.groupEnd();
   }
 };
 
-  useEffect(() => {
-    if (!actId || !selectedDate) return;
-    console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
-  }, [actData?.availabilityBadge]);
 
   useEffect(() => {
     const calculateAndSetPrice = async () => {
