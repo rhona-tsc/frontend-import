@@ -547,7 +547,6 @@ if (!actData || !selectedLineup) {
   return <div className="p-4 text-gray-500">Loading act details...</div>;
 }
 
-  console.log("🧩 Parent passing badge:", actData?.availabilityBadge);
 
   console.group("🔍 Act Debug");
 console.log("actData.numberOfSets", actData?.numberOfSets);
@@ -996,34 +995,50 @@ console.log("🟢 Render check", {
 <div className="my-3 mt-5 flex justify-left">
   {(() => {
     const badges = actData?.availabilityBadges || {};
-    const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
-   const matchedKey =
-  cleanDate &&
-  Object.keys(badges).find(key => key.includes(cleanDate));
-    const badgeForDate = matchedKey ? badges[matchedKey] : null;
+    if (!selectedDate) return null;
 
-    if (!badgeForDate) return null;
+    const cleanDate = selectedDate.slice(0, 10);
 
-  return (
-  <div className="flex items-center gap-3 mt-2 flex-wrap">
-   <VocalistFeaturedAvailable
-  key={`${matchedKey}_slot_${slot.slotIndex}`}
-  badge={{
-    ...badgeForDate,
-    ...slot,
-    slotIndex: slot.slotIndex,        // ✅ FIX — explicit slot index
-    musicianId: slot.musicianId,      // ✅ ensure slot overrides
-    photoUrl: slot.photoUrl,
-    setAt: slot.setAt,
-  }}
-  size={140}
-  cacheBuster={slot?.setAt}
-  className="mt-2"
-  actContext={actData?.tscName}
-  dateContext={selectedDate}
-/>
-  </div>
-);
+    // ✅ Find the stored badge key that contains the date (e.g. "2026-01-03_tbc")
+    const badgeKey = Object.keys(badges).find(key => key.includes(cleanDate));
+    if (!badgeKey) return null;
+
+    const badgeForDate = badges[badgeKey];
+    if (!badgeForDate?.slots?.length) return null;
+
+    return (
+      <div className="flex items-center gap-3 mt-2 flex-wrap">
+        {badgeForDate.slots.map(slot => {
+          const musicianId = slot.musicianId && String(slot.musicianId);
+          const photoUrl = slot.photoUrl && String(slot.photoUrl);
+
+          // ✅ Only attempt render if slot actually has real Cloudinary data
+          if (!musicianId || !photoUrl?.startsWith("http")) {
+            console.warn("Skipping blank slot:", slot.slotIndex);
+            return null;
+          }
+
+          return (
+            <VocalistFeaturedAvailable
+              key={`${cleanDate}_slot_${slot.slotIndex}`} // ✅ slot is now defined!
+              badge={{
+                ...badgeForDate,          // base badge
+                ...slot,                 // active slot overrides
+                slotIndex: slot.slotIndex,   // ✅ explicit index from slot
+                musicianId,                  // ✅ explicitly set
+                photoUrl: photoUrl,          // ✅ explicitly set
+                setAt: slot.setAt || null,
+              }}
+              size={140}
+              cacheBuster={slot.setAt}
+              className="mt-2"
+              actContext={actData?.tscName}
+              dateContext={selectedDate}
+            />
+          );
+        })}
+      </div>
+    );
   })()}
 </div>
             </div>

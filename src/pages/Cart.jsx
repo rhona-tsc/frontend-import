@@ -19,8 +19,7 @@ import ExtrasCarousel from "../components/ExtrasCarousel";
 import { assets } from "../assets/assets";
 import { calculateExtraPrice } from "./utils/pricing";
 import { addMinutesHHMM } from "./utils/time";
-import { FeaturedVocalistBadgeForCart, VocalistFeaturedBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
-import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
+import { FeaturedVocalistBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
 import {  fetchBadgeForActAndDate } from "./utils/helpersforAct";
 
 const BACKEND_URL =
