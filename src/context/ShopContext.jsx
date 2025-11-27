@@ -476,11 +476,13 @@ const [token, setToken] = useState(localStorage.getItem("token") || "");
     })();
   }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
 
-  // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
- useEffect(() => {
+// 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
+useEffect(() => {
+  let sse;
+
   try {
     const url = api("api/availability/subscribe");
-    const sse = new EventSource(url);
+    sse = new EventSource(url);
 
     console.log("🔌 [SSE] Initialized:", url);
 
@@ -510,54 +512,59 @@ const [token, setToken] = useState(localStorage.getItem("token") || "");
 
       console.log("📨 [SSE] RAW PAYLOAD:", payload);
 
-
-if (payload?.type === "availability_badge_updated" && !payload.badge) {
-  console.log("🧹 Frontend SSE: Ignoring null badge update", payload);
-  return; // ✅ STOP – protects UI state
-}
-
-// continue with your slot toasting + refresh logic...
-
       if (!payload?.actId) {
         console.log("⚪ [SSE] Ignored payload (no actId)", payload);
         return;
       }
 
       /* ---------------------------------------------------------------------- */
-      /* 🟦 AVAILABILITY_BADGE_UPDATED                                          */
+      /* 🟦 AVAILABILITY_BADGE_UPDATED (slot-based badge)                        */
       /* ---------------------------------------------------------------------- */
       if (payload.type === "availability_badge_updated") {
+        const badge = payload.badge;
+
+        // ✅ Check if ANY slot contains a real singer before doing anything
+        const slotHasValidSinger = badge?.slots?.some(
+          (s) => s.musicianId && s.photoUrl?.startsWith("http")
+        );
+
+        console.log(
+          "🧠 [SSE Badge Debug] Slot has valid lead/deputy singer?",
+          slotHasValidSinger
+        );
+
+        if (!slotHasValidSinger) {
+          console.log(
+            "🧹 [SSE] Ignoring badge broadcast with no valid singers in slots[]",
+            payload
+          );
+          return;
+        }
+
+        // 🔬 Deep slot-level debugging
+        if (badge?.slots?.length) {
+          badge.slots.forEach((s) => {
+            console.log("🧩 [SSE Slot Debug]", {
+              slotIndex: s.slotIndex,
+              vocalistName: s.vocalistName,
+              musicianId: s.musicianId,
+              photoUrl: s.photoUrl,
+              isDeputy: s.isDeputy,
+              setAt: s.setAt,
+            });
+          });
+        } else {
+          console.warn(
+            "🧹 [SSE] ❌ No slots[] array found in badge broadcast"
+          );
+        }
+
         console.log("🟦 [SSE] BADGE_UPDATED fired:", {
           actId: payload.actId,
           dateISO: payload.dateISO,
-          badgeExists: payload.badge !== null,
-          badge: payload.badge
+          badgeExists: !!badge,
+          badge,
         });
-
-        // 🔬 Deep badge integrity debugging
-        if (payload.badge) {
-          console.log("🔍 [SSE Badge Debug]", {
-            isDeputy: payload.badge.isDeputy,
-            isLead: payload.badge.isLead,
-            vocalistName: payload.badge.vocalistName,
-            musicianId: payload.badge.musicianId,
-            photoUrl: payload.badge.photoUrl,
-            profileUrl: payload.badge.profileUrl,
-            deputyCount: payload.badge.deputies?.length ?? 0,
-            deputies: payload.badge.deputies?.map((d) => ({
-              name: d.vocalistName,
-              id: d.musicianId,
-              photo: d.photoUrl
-            })),
-            slotCount: Array.isArray(payload.badge.slots)
-              ? payload.badge.slots.length
-              : "N/A",
-            slots: payload.badge.slots
-          });
-        }
-
-
-
 
         /* --------------------------------------------- */
         /* ♻️ Refresh Act                                 */
@@ -566,15 +573,14 @@ if (payload?.type === "availability_badge_updated" && !payload.badge) {
         await refreshActById(payload.actId);
         console.log("♻️ [SSE] refreshActById COMPLETE:", payload.actId);
 
-        return;
+        return; // ✅ done handling badge update
       }
 
       /* ---------------------------------------------------------------------- */
       /* 🟩 NORMAL YES EVENTS (lead or deputy)                                   */
       /* ---------------------------------------------------------------------- */
       const isLead =
-        payload.type === "availability_yes" ||
-        payload.type === "leadYes";
+        payload.type === "availability_yes" || payload.type === "leadYes";
 
       const isDeputy =
         payload.type === "availability_deputy_yes" ||
@@ -591,7 +597,9 @@ if (payload?.type === "availability_badge_updated" && !payload.badge) {
       const shortDate = formatShortDate(payload.dateISO);
       const toastMsg = isDeputy
         ? `${payload.musicianName} is available to perform with ${payload.actName} on ${shortDate}.`
-        : `${payload.musicianName || "Lead vocalist"} from ${payload.actName} is available for ${shortDate}.`;
+        : `${
+            payload.musicianName || "Lead vocalist"
+          } from ${payload.actName} is available for ${shortDate}.`;
 
       console.log("🔔 [SSE] Standard Toast Message:", toastMsg);
 
@@ -615,15 +623,17 @@ if (payload?.type === "availability_badge_updated" && !payload.badge) {
     sse.addEventListener("error", (err) => {
       console.warn("❌ [SSE] ERROR:", err);
     });
-
-    return () => {
-      sse.close();
-      console.log("❌ [SSE] Connection CLOSED");
-    };
   } catch (e) {
     console.error("❌ [SSE] Initialization FAILED:", e);
   }
-}, [backendUrl]);
+
+  return () => {
+    if (sse) {
+      sse.close();
+      console.log("❌ [SSE] Connection CLOSED");
+    }
+  };
+}, []); // ✅ run once on mount
 
   // --- Auto-sync backend when both date + address are present ---
   const handleDateOrAddressChange = debounce(async (actId) => {

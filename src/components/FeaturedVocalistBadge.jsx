@@ -76,57 +76,45 @@ export function FeaturedVocalistBadge({
 }
 
 // 🎤 SLOT-AWARE Vocalist Badge Wrapper
-export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "", className = "" }) {
+export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "", className = "", slotIndex }) {
   console.group("🎤 SLOT AWARE COMPONENT");
-
-  console.log("🐊 [VFA] Full badge received as prop:", JSON.parse(JSON.stringify(badge)));
+  console.log("🐊 [VFA] Badge received:", JSON.parse(JSON.stringify(badge)));
 
   if (!badge?.slots?.length) {
-    console.warn("🐊 [VFA] ❌ badge.slots[] is empty or missing");
+    console.warn("🐊 [VFA] ❌ No slots[] array in badge!");
     console.groupEnd();
     return null;
   }
 
-  console.log("🐊 [VFA] badge.slots[] array exists:", badge.slots);
+  console.log("🐊 [VFA] badge.slots[] exists:", badge.slots);
 
-  console.log("🐊 [VFA] badge.slotIndex we are trying to match:", badge.slotIndex);
+  // ✅ If parent passed `slotIndex` separately, use it — otherwise fallback to 0
+  const indexToUse = Number.isFinite(slotIndex) ? slotIndex : 0;
+  console.log("🐊 [VFA] slotIndex we will use:", indexToUse);
 
-  const activeSlot = badge.slots.find(s => s.slotIndex === badge.slotIndex);
-  console.log("🐊 [VFA] Slot matched using badge.slotIndex:", activeSlot);
+  const slot = badge.slots.find(s => s.slotIndex === indexToUse);
+  console.log("🐊 [VFA] Active slot found:", slot);
 
-  const leadSlots = badge.slots.filter(s => !s.isDeputy && s.musicianId && s.photoUrl?.startsWith("http"));
-  console.log("🐊 [VFA] Lead slots detected (should be 1–2–3+ leads, not deputies):", leadSlots);
+  if (!slot?.musicianId || !slot?.photoUrl?.startsWith("http")) {
+    console.warn("🐊 [VFA] ❌ Active slot missing singer data, skipping");
+    console.groupEnd();
+    return null;
+  }
 
-  const deputySlots = badge.slots.filter(s => s.isDeputy);
-  console.log("🐊 [VFA] Deputy slots present in badge.slots[]:", deputySlots);
+  const musicianId = String(slot.musicianId);
+  const photoUrl = String(slot.photoUrl);
 
-  badge.slots.forEach(s => {
-    console.log(`🧩 [VFA] Slot index ${s.slotIndex} contents:`, {
-      musicianId: s.musicianId,
-      photoUrl: s.photoUrl,
-      profileUrl: s.profileUrl,
-      setAt: s.setAt,
-      isDeputy: s.isDeputy,
-      deputies: s.deputies
-    });
-  });
+  console.log("🐊 [VFA] Singer slot VALID ✅ → rendering", { slotIndex: indexToUse, musicianId, photoUrl });
 
   console.groupEnd();
-
-  // don't change the rest of your component render logic for now — logs only
   return (
-    <div className={`flex gap-3 flex-wrap ${className}`}>
-      {leadSlots.map(slot => (
-        <FeaturedVocalistBadge
-          key={`${badge.dateISO}_slot_${slot.slotIndex}`}
-          imageUrl={slot.photoUrl}
-          size={140}
-          cacheBuster={slot.setAt || cacheBuster}
-          musicianId={slot.musicianId}
-          profileUrl={slot.profileUrl}
-          className={className}
-        />
-      ))}
-    </div>
+    <[FeaturedVocalistBadge](chatgpt://generic-entity?number=0)
+      imageUrl={photoUrl}
+      size={size}
+      cacheBuster={cacheBuster}
+      className={className}
+      musicianId={musicianId}
+      profileUrl={slot.profileUrl}
+    />
   );
 }
