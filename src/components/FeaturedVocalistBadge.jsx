@@ -76,45 +76,57 @@ export function FeaturedVocalistBadge({
 }
 
 // 🎤 SLOT-AWARE Vocalist Badge Wrapper
-export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "", className = "", slotIndex }) {
+// 🎤 SLOT-AWARE Vocalist Badge Wrapper (tolerant of both shapes)
+export function VocalistFeaturedAvailable({
+  badge,            // either the full badge { slots: [...] }
+  slot: slotProp,   // OR pass a single slot directly
+  slotIndex,        // used when a full badge is provided
+  size = 140,
+  cacheBuster = "",
+  className = "",
+}) {
   console.group("🎤 SLOT AWARE COMPONENT");
-  console.log("🐊 [VFA] Badge received:", JSON.parse(JSON.stringify(badge)));
+  console.log("🐊 [VFA] raw prop:", JSON.parse(JSON.stringify(badge || slotProp || {})));
 
-  if (!badge?.slots?.length) {
-    console.warn("🐊 [VFA] ❌ No slots[] array in badge!");
+  // If caller passed a slot explicitly, use it.
+  let slot = slotProp || null;
+
+  // If caller passed a full badge, pick the right slot by index.
+  if (!slot && badge?.slots?.length) {
+    const indexToUse = Number.isFinite(slotIndex) ? slotIndex : 0;
+    slot = badge.slots.find((s) => s.slotIndex === indexToUse) ?? badge.slots[0];
+  }
+
+  // If caller actually passed a slot in the `badge` prop by mistake, accept it.
+  if (!slot && badge && !badge?.slots && (badge.photoUrl || badge.musicianId)) {
+    slot = badge;
+  }
+
+  if (!slot) {
+    console.warn("🐊 [VFA] ❌ No usable slot found.");
     console.groupEnd();
     return null;
   }
 
-  console.log("🐊 [VFA] badge.slots[] exists:", badge.slots);
-
-  // ✅ If parent passed `slotIndex` separately, use it — otherwise fallback to 0
-  const indexToUse = Number.isFinite(slotIndex) ? slotIndex : 0;
-  console.log("🐊 [VFA] slotIndex we will use:", indexToUse);
-
-  const slot = badge.slots.find(s => s.slotIndex === indexToUse);
-  console.log("🐊 [VFA] Active slot found:", slot);
-
-  if (!slot?.musicianId || !slot?.photoUrl?.startsWith("http")) {
-    console.warn("🐊 [VFA] ❌ Active slot missing singer data, skipping");
+  const { musicianId, photoUrl, profileUrl, isDeputy } = slot || {};
+  if (!photoUrl?.startsWith("http")) {
+    console.warn("🐊 [VFA] ❌ Slot missing/invalid photoUrl.");
     console.groupEnd();
     return null;
   }
 
-  const musicianId = String(slot.musicianId);
-  const photoUrl = String(slot.photoUrl);
-
-  console.log("🐊 [VFA] Singer slot VALID ✅ → rendering", { slotIndex: indexToUse, musicianId, photoUrl });
-
+  console.log("🐊 [VFA] ✅ Rendering slot:", { slotIndex: slot?.slotIndex, musicianId, photoUrl });
   console.groupEnd();
+
   return (
     <FeaturedVocalistBadge
       imageUrl={photoUrl}
       size={size}
       cacheBuster={cacheBuster}
       className={className}
-      musicianId={musicianId}
-      profileUrl={slot.profileUrl}
+      musicianId={String(musicianId || "")}
+      profileUrl={profileUrl}
+      variant={isDeputy ? "deputy" : "lead"}
     />
   );
 }
