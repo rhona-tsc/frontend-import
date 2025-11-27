@@ -962,45 +962,43 @@ if (!actData || !selectedLineup) {
 <div className="my-3 mt-5 flex justify-left z-10">
   {(() => {
     const allBadges = actData?.availabilityBadges;
-    console.log("🐊 [Lookup] availabilityBadges map from actData:", allBadges);
+    console.log("🐊 [Lookup] All badges:", allBadges);
 
     if (!allBadges || !selectedDate) {
-      console.warn("🐊 [Lookup] ❌ No availabilityBadges or selectedDate not set");
+      console.warn("🐊 [Lookup] Missing badges or date");
       return null;
     }
 
     const cleanDate = selectedDate.slice(0,10);
-    console.log("🐊 [Lookup] Clean date extracted:", cleanDate);
+    console.log("🐊 [Lookup] Clean date:", cleanDate);
 
     const matchedKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
-    console.log("🐊 [Lookup] Matched badge key containing date:", matchedKey);
+    console.log("🐊 [Lookup] matchedKey:", matchedKey);
 
     if (!matchedKey) {
-      console.warn("🐊 [Lookup] ❌ No badge key matched the date");
+      console.warn("🐊 [Lookup] No badge matched date");
       return null;
     }
 
     const badgeForDate = allBadges[matchedKey];
-    console.log("🐊 [Lookup] Badge object for matched date:", badgeForDate);
+    console.log("🐊 [Lookup] badgeForDate.slots:", badgeForDate?.slots);
 
-    if (!badgeForDate?.slots?.length) {
-      console.warn("🐊 [Lookup] ❌ Matched badge contains no slots array");
-      return null;
-    }
-
-    console.log("🐊 [Lookup] slots[] that will be interrogated:", badgeForDate.slots);
+    if (!badgeForDate?.slots?.length) return null;
 
     return (
-      <div className="mt-2">
-        <VocalistFeaturedAvailable
-          key={matchedKey}
-          badge={badgeForDate}
-          size={140}
-          cacheBuster={Date.now()}
-          className="mt-2"
-          actContext={actData?.tscName}
-          dateContext={selectedDate}
-        />
+      <div className="flex items-center gap-3 mt-2 flex-wrap">
+        {badgeForDate.slots.map(slot => (
+          <VocalistFeaturedAvailable
+            key={`${cleanDate}_slot_${slot.slotIndex}`}
+            badge={badgeForDate}         // ✅ send full badge intact
+            size={140}
+            cacheBuster={Date.now()}
+            className="mt-2"
+            actContext={actData?.tscName}
+            dateContext={cleanDate}
+            slotIndex={slot.slotIndex}   // ✅ pass index separately if you want (optional)
+          />
+        ))}
       </div>
     );
   })()}
