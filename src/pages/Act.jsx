@@ -1189,74 +1189,61 @@ if (!actData || !selectedLineup) {
     if (!allBadges || !selectedDate) return null;
 
     const cleanDate = selectedDate.slice(0, 10);
-
-    // ✅ Pick the badge entry for this date
     const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
     if (!badgeKey) return null;
 
     const badgeForDate = allBadges[badgeKey];
-    if (!badgeForDate?.slots?.length) return null;
+    const slots = badgeForDate?.slots || [];
+    if (!slots.length) return null;
 
-    // ✅ Gather all slots that have a responsive vocalist (lead or deputy)
-    const responsiveSlots = badgeForDate.slots;
-
-    // ✅ Now separate LEAD singers (not deputies) from real deputies
-    const leadSlots = responsiveSlots.filter(slot =>
-      slot.musicianId && slot.photoUrl?.startsWith("http") && !slot.isDeputy
-    );
-
-    if (!leadSlots.length) {
-      console.warn("🎤 No valid lead vocalist slots for date:", cleanDate);
-      return null;
-    }
+    const isHttp = (u) => typeof u === "string" && u.startsWith("http");
 
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
-        {/* Render all lead singers as lead (even if 3+ exist) */}
-        {leadSlots.map(slot => (
-          <VocalistFeaturedAvailable
-            key={`${cleanDate}_lead_slot_${slot.slotIndex}`}
-            badge={{
-              slotIndex: slot.slotIndex,
-              musicianId: String(slot.musicianId),
-              photoUrl: String(slot.photoUrl),
-              profileUrl: slot.profileUrl?.startsWith("http") ? slot.profileUrl : "",
-              setAt: slot.setAt,
-            }}
-            size={140}
-            cacheBuster={slot.setAt}
-            className="mt-2"
-            actContext={actData?.tscName}
-            dateContext={selectedDate}
-          />
-        ))}
+        {slots.map((slot) => {
+          const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
 
-        {/* Render deputies ONLY if they are marked as deputies */}
-        {responsiveSlots
-          .filter(slot => slot.isDeputy) // only slots that are deputies
-          .map(slot => (
-            <div key={`${cleanDate}_deputies_${slot.slotIndex}`}>
-              {slot.deputies
-                .filter(dep => dep?.musicianId && dep?.photoUrl?.startsWith("http"))
-                .map((dep, i) => (
-                  <VocalistFeaturedAvailable
-                    key={`${cleanDate}_slot_${slot.slotIndex}_deputy_${i}_${dep.musicianId}`}
-                    badge={{
-                      slotIndex: slot.slotIndex,
-                      musicianId: String(dep.musicianId),
-                      photoUrl: String(dep.photoUrl),
-                      profileUrl: dep.profileUrl?.startsWith("http") ? dep.profileUrl : "",
-                      setAt: dep.setAt,
-                    }}
-                    size={120} 
-                    cacheBuster={dep.setAt}
-                    className="mt-2"
-                    actContext={actData?.tscName}
-                    dateContext={selectedDate}
-                  />
-                ))}
-            </div>
-          ))}
+          // 1) covering deputy who said YES
+          const covering =
+            deps.find(d => d?.state === "yes" && isHttp(d?.photoUrl));
+
+          // 2) lead with a photo (even if lead is unavailable)
+          const leadHasPhoto = isHttp(slot?.photoUrl) ? {
+            musicianId: slot.musicianId,
+            photoUrl: slot.photoUrl,
+            profileUrl: slot.profileUrl,
+            setAt: slot.setAt,
+            isDeputy: false,
+          } : null;
+
+          // after leadHasPhoto
+const leadIsUnavailable = slot?.state === "unavailable";
+const leadCandidate = (!leadIsUnavailable && leadHasPhoto) ? leadHasPhoto : null;
+// then use leadCandidate in place of leadHasPhoto in the primary selection
+
+          // 3) any deputy with a photo (fallback)
+          const firstDepWithPhoto =
+            deps.find(d => isHttp(d?.photoUrl)) || null;
+
+          const primary = covering
+            ? { ...covering, isDeputy: true }
+            : (leadCandidate || (firstDepWithPhoto ? { ...firstDepWithPhoto, isDeputy: true } : null));
+
+          if (!primary) return null;
+
+          return (
+            <FeaturedVocalistBadge
+              key={`${badgeKey}_slot_${slot.slotIndex}_primary`}
+              imageUrl={primary.photoUrl}
+              size={140}
+              cacheBuster={primary.setAt || slot.setAt || badgeForDate.setAt || ""}
+              className="mt-2"
+              musicianId={String(primary.musicianId || "")}
+              profileUrl={primary.profileUrl}
+              variant={primary.isDeputy ? "deputy" : "lead"}
+            />
+          );
+        })}
       </div>
     );
   })()}
