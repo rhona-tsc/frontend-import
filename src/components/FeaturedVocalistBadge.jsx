@@ -86,51 +86,72 @@ export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "",
     return null;
   }
 
-  // ✅ Pull the correct active slot
-  const slot = badge.slots.find(s => s.slotIndex === badge.slotIndex);
-  if (!slot) {
-    console.warn("🎤 [VFA] No matching slot entry for slotIndex:", badge.slotIndex);
+  const leadSlots = badge.slots.filter(s => !s.isDeputy && s.musicianId && s.photoUrl?.startsWith("http"));
+
+  if (leadSlots.length <= 2) {
+    console.log(`🎤 [VFA] ${leadSlots.length} lead vocalists found — rendering as leads`);
+  }
+
+  if (!leadSlots.length) {
+    console.warn("🎤 [VFA] No valid lead vocalists in slots[], skipping");
     console.groupEnd();
     return null;
   }
 
-  const musicianId = String(slot.musicianId || "");
-  const photoUrl = String(slot.photoUrl || "");
-  const setAt = slot.setAt;
-  const isDeputy = slot.isDeputy;
+  return (
+    <div className={`flex gap-3 flex-wrap ${className}`}>
+      {leadSlots.map(slot => {
+        const musicianId = String(slot.musicianId || "");
+        const photoUrl = String(slot.photoUrl || "");
+        const setAt = slot.setAt;
+        const isDeputy = slot.isDeputy;
 
-  const image = (photoUrl && photoUrl.startsWith("http")) ? photoUrl : "";
+        const image = (photoUrl && photoUrl.startsWith("http")) ? photoUrl : "";
+        if (!musicianId || !image) return null;
 
-  if (!musicianId || !image) {
-    console.warn("🎤 [VFA] Missing musicianId or photoUrl in ACTIVE SLOT, skipping render");
-    console.groupEnd();
-    return null;
-  }
+        const resolvedProfile = slot.profileUrl?.startsWith("http")
+          ? slot.profileUrl
+          : `${window.location.origin}/musician/${musicianId}`;
 
-  console.log("🎤 [VFA] Rendering vocalist badge from ACTIVE SLOT:", {
-    musicianId,
-    image,
-    isDeputy,
-    setAt
-  });
+        return (
+          <>
+            {/* ✅ Lead singers always render */}
+            <FeaturedVocalistBadge
+              key={`${badge.dateISO}_lead_${slot.slotIndex}`}
+              imageUrl={image}
+              size={140}
+              cacheBuster={setAt || cacheBuster}
+              className={className}
+              musicianId={musicianId}
+              profileUrl={resolvedProfile}
+            />
 
-  const resolvedProfile = badge.profileUrl?.startsWith("http")
-    ? badge.profileUrl
-    : `${window.location.origin}/musician/${musicianId}`;
+            {/* ✅ Deputies render ONLY if a slot has deputies[] inside it */}
+            {badge.slots?.[slot.slotIndex]?.deputies?.length > 0 && badge.slots[slot.slotIndex].deputies.map((dep,i) => {
+              const depId = dep.musicianId && String(dep.musicianId);
+              const depUrl = dep.photoUrl && String(dep.photoUrl);
+              if (!depId || !depUrl?.startsWith("http")) return null;
 
-  const variant = isDeputy ? "deputy" : "lead";
+              const depProfile = dep.profileUrl?.startsWith("http")
+                ? dep.profileUrl
+                : `${window.location.origin}/musician/${depId}`;
 
-  const dom = (
-    <FeaturedVocalistBadge
-      imageUrl={image}
-      size={size}
-      cacheBuster={setAt || cacheBuster}
-      className={className}
-      musicianId={musicianId}
-      profileUrl={resolvedProfile}
-    />
+              return (
+                <FeaturedVocalistBadge
+                  key={`${badge.dateISO}_slot_${slot.slotIndex}_dep_${i}`}
+                  imageUrl={depUrl}
+                  size={120}
+                  pictureSource={dep}
+                  variant="deputy"
+                  cacheBuster={dep.setAt || cacheBuster}
+                  musicianId={depId}
+                  profileUrl={depProfile}
+                />
+              );
+            })}
+          </>
+        );
+      })}
+    </div>
   );
-
-  console.groupEnd();
-  return dom;
 }
