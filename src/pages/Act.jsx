@@ -14,7 +14,7 @@ import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import AcousticExtrasSelector from "../components/AcousticExtrasSelector";
 import ActPerformanceOverview from "../components/ActPerformanceOverview";
-import { VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
+import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 import { paMap, lightMap, generateDescription, numberToWords, formatDate, fetchBadgeForActAndDate, calculateAverageRating } from "./utils/helpersforAct";
 
 const Act = () => {
@@ -987,18 +987,30 @@ if (!actData || !selectedLineup) {
 
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
-        {badgeForDate.slots.map(slot => (
-          <VocalistFeaturedAvailable
-            key={`${cleanDate}_slot_${slot.slotIndex}`}
-            badge={badgeForDate}         // ✅ send full badge intact
-            size={140}
-            cacheBuster={Date.now()}
-            className="mt-2"
-            actContext={actData?.tscName}
-            dateContext={cleanDate}
-            slotIndex={slot.slotIndex}   // ✅ pass index separately if you want (optional)
-          />
-        ))}
+       {badgeForDate.slots.map(slot => (
+  <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
+    <VocalistFeaturedAvailable
+      badge={badgeForDate}
+      slotIndex={slot.slotIndex}
+      size={140}
+      cacheBuster={slot.setAt || badgeForDate.setAt || ""}
+      className="mt-2"
+    />
+
+    {Array.isArray(slot.deputies) && slot.deputies.map((dep, i) => (
+      <FeaturedVocalistBadge
+        key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
+        imageUrl={dep.photoUrl}
+        size={120}
+        cacheBuster={dep.setAt}
+        className="mt-2"
+        musicianId={dep.musicianId}
+        profileUrl={dep.profileUrl}
+        variant="deputy"          // 👈 deputy ring
+      />
+    ))}
+  </React.Fragment>
+))}
       </div>
     );
   })()}
