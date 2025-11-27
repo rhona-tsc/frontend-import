@@ -77,81 +77,56 @@ export function FeaturedVocalistBadge({
 
 // 🎤 SLOT-AWARE Vocalist Badge Wrapper
 export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "", className = "" }) {
-  console.group("🎤 [VFA] BEGIN (slot-aware)");
-  console.log("🎤 [VFA] Incoming merged badge:", badge);
+  console.group("🎤 SLOT AWARE COMPONENT");
+
+  console.log("🐊 [VFA] Full badge received as prop:", JSON.parse(JSON.stringify(badge)));
 
   if (!badge?.slots?.length) {
-    console.warn("🎤 [VFA] No slots in badge — nothing to render");
+    console.warn("🐊 [VFA] ❌ badge.slots[] is empty or missing");
     console.groupEnd();
     return null;
   }
+
+  console.log("🐊 [VFA] badge.slots[] array exists:", badge.slots);
+
+  console.log("🐊 [VFA] badge.slotIndex we are trying to match:", badge.slotIndex);
+
+  const activeSlot = badge.slots.find(s => s.slotIndex === badge.slotIndex);
+  console.log("🐊 [VFA] Slot matched using badge.slotIndex:", activeSlot);
 
   const leadSlots = badge.slots.filter(s => !s.isDeputy && s.musicianId && s.photoUrl?.startsWith("http"));
+  console.log("🐊 [VFA] Lead slots detected (should be 1–2–3+ leads, not deputies):", leadSlots);
 
-  if (leadSlots.length <= 2) {
-    console.log(`🎤 [VFA] ${leadSlots.length} lead vocalists found — rendering as leads`);
-  }
+  const deputySlots = badge.slots.filter(s => s.isDeputy);
+  console.log("🐊 [VFA] Deputy slots present in badge.slots[]:", deputySlots);
 
-  if (!leadSlots.length) {
-    console.warn("🎤 [VFA] No valid lead vocalists in slots[], skipping");
-    console.groupEnd();
-    return null;
-  }
+  badge.slots.forEach(s => {
+    console.log(`🧩 [VFA] Slot index ${s.slotIndex} contents:`, {
+      musicianId: s.musicianId,
+      photoUrl: s.photoUrl,
+      profileUrl: s.profileUrl,
+      setAt: s.setAt,
+      isDeputy: s.isDeputy,
+      deputies: s.deputies
+    });
+  });
 
+  console.groupEnd();
+
+  // don't change the rest of your component render logic for now — logs only
   return (
     <div className={`flex gap-3 flex-wrap ${className}`}>
-      {leadSlots.map(slot => {
-        const musicianId = String(slot.musicianId || "");
-        const photoUrl = String(slot.photoUrl || "");
-        const setAt = slot.setAt;
-        const isDeputy = slot.isDeputy;
-
-        const image = (photoUrl && photoUrl.startsWith("http")) ? photoUrl : "";
-        if (!musicianId || !image) return null;
-
-        const resolvedProfile = slot.profileUrl?.startsWith("http")
-          ? slot.profileUrl
-          : `${window.location.origin}/musician/${musicianId}`;
-
-        return (
-          <>
-            {/* ✅ Lead singers always render */}
-            <FeaturedVocalistBadge
-              key={`${badge.dateISO}_lead_${slot.slotIndex}`}
-              imageUrl={image}
-              size={140}
-              cacheBuster={setAt || cacheBuster}
-              className={className}
-              musicianId={musicianId}
-              profileUrl={resolvedProfile}
-            />
-
-            {/* ✅ Deputies render ONLY if a slot has deputies[] inside it */}
-            {badge.slots?.[slot.slotIndex]?.deputies?.length > 0 && badge.slots[slot.slotIndex].deputies.map((dep,i) => {
-              const depId = dep.musicianId && String(dep.musicianId);
-              const depUrl = dep.photoUrl && String(dep.photoUrl);
-              if (!depId || !depUrl?.startsWith("http")) return null;
-
-              const depProfile = dep.profileUrl?.startsWith("http")
-                ? dep.profileUrl
-                : `${window.location.origin}/musician/${depId}`;
-
-              return (
-                <FeaturedVocalistBadge
-                  key={`${badge.dateISO}_slot_${slot.slotIndex}_dep_${i}`}
-                  imageUrl={depUrl}
-                  size={120}
-                  pictureSource={dep}
-                  variant="deputy"
-                  cacheBuster={dep.setAt || cacheBuster}
-                  musicianId={depId}
-                  profileUrl={depProfile}
-                />
-              );
-            })}
-          </>
-        );
-      })}
+      {leadSlots.map(slot => (
+        <FeaturedVocalistBadge
+          key={`${badge.dateISO}_slot_${slot.slotIndex}`}
+          imageUrl={slot.photoUrl}
+          size={140}
+          cacheBuster={slot.setAt || cacheBuster}
+          musicianId={slot.musicianId}
+          profileUrl={slot.profileUrl}
+          className={className}
+        />
+      ))}
     </div>
   );
 }
