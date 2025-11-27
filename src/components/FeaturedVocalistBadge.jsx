@@ -102,20 +102,35 @@ export function VocalistFeaturedAvailable({
     slot = badge;
   }
 
+  // Prefer a covering deputy who replied "yes" and has a usable photo
+  let renderData = slot;
+  if (slot && Array.isArray(slot.deputies) && slot.deputies.length) {
+    const covering = slot.deputies.find((d) => d?.state === "yes" && typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http"));
+    if (covering) {
+      renderData = { ...covering, isDeputy: true };
+    } else {
+      // If lead has no photo but any deputy does, pick the first deputy with a photo to render something
+      const firstWithPhoto = slot.deputies.find((d) => typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http"));
+      if (firstWithPhoto) {
+        renderData = { ...firstWithPhoto, isDeputy: true };
+      }
+    }
+  }
+
   if (!slot) {
     console.warn("🐊 [VFA] ❌ No usable slot found.");
     console.groupEnd();
     return null;
   }
 
-  const { musicianId, photoUrl, profileUrl, isDeputy } = slot || {};
+  const { musicianId, photoUrl, profileUrl, isDeputy } = renderData || {};
   if (!photoUrl?.startsWith("http")) {
-    console.warn("🐊 [VFA] ❌ Slot missing/invalid photoUrl.");
+    console.warn("🐊 [VFA] ❌ Render data missing/invalid photoUrl.");
     console.groupEnd();
     return null;
   }
 
-  console.log("🐊 [VFA] ✅ Rendering slot:", { slotIndex: slot?.slotIndex, musicianId, photoUrl });
+  console.log("🐊 [VFA] ✅ Rendering renderData:", { slotIndex: renderData?.slotIndex, musicianId, photoUrl, isDeputy });
   console.groupEnd();
 
   return (
