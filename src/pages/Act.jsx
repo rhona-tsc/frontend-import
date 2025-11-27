@@ -992,51 +992,29 @@ console.log("🟢 Render check", {
                 </ul>
               </div>
               {/* move this block ABOVE or BELOW the .block sm:hidden */}
-<div className="my-3 mt-5 flex justify-left">
+<div className="my-3 mt-5 flex justify-left z-10">
   {(() => {
-    const badges = actData?.availabilityBadges || {};
-    if (!selectedDate) return null;
+    const badges = actData?.availabilityBadges;
+    if (!badges || !selectedDate) return null;
 
-    const cleanDate = selectedDate.slice(0, 10);
+    const cleanDate = selectedDate.slice(0,10);
+    const matchedKey = Object.keys(badges).find(k => k.includes(cleanDate));
+    if (!matchedKey) return null;
 
-    // ✅ Find the stored badge key that contains the date (e.g. "2026-01-03_tbc")
-    const badgeKey = Object.keys(badges).find(key => key.includes(cleanDate));
-    if (!badgeKey) return null;
-
-    const badgeForDate = badges[badgeKey];
+    const badgeForDate = badges[matchedKey];
     if (!badgeForDate?.slots?.length) return null;
 
     return (
-      <div className="flex items-center gap-3 mt-2 flex-wrap">
-        {badgeForDate.slots.map(slot => {
-          const musicianId = slot.musicianId && String(slot.musicianId);
-          const photoUrl = slot.photoUrl && String(slot.photoUrl);
-
-          // ✅ Only attempt render if slot actually has real Cloudinary data
-          if (!musicianId || !photoUrl?.startsWith("http")) {
-            console.warn("Skipping blank slot:", slot.slotIndex);
-            return null;
-          }
-
-          return (
-            <VocalistFeaturedAvailable
-              key={`${cleanDate}_slot_${slot.slotIndex}`} // ✅ slot is now defined!
-              badge={{
-                ...badgeForDate,          // base badge
-                ...slot,                 // active slot overrides
-                slotIndex: slot.slotIndex,   // ✅ explicit index from slot
-                musicianId,                  // ✅ explicitly set
-                photoUrl: photoUrl,          // ✅ explicitly set
-                setAt: slot.setAt || null,
-              }}
-              size={140}
-              cacheBuster={slot.setAt}
-              className="mt-2"
-              actContext={actData?.tscName}
-              dateContext={selectedDate}
-            />
-          );
-        })}
+      <div className="mt-2">
+        <VocalistFeaturedAvailable
+          key={matchedKey}
+          badge={badgeForDate} // ✅ The wrapper will now handle slot rendering
+          size={140}
+          cacheBuster={Date.now()} // stable cache key
+          className="mt-2"
+          actContext={actData?.tscName}
+          dateContext={selectedDate}
+        />
       </div>
     );
   })()}
