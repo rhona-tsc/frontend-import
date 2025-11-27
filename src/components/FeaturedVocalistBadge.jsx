@@ -108,7 +108,7 @@ export function VocalistFeaturedAvailable({ badge, size = 140, cacheBuster = "",
 
   console.groupEnd();
   return (
-    <[FeaturedVocalistBadge](chatgpt://generic-entity?number=0)
+    <FeaturedVocalistBadge
       imageUrl={photoUrl}
       size={size}
       cacheBuster={cacheBuster}
