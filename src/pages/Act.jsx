@@ -548,18 +548,6 @@ if (!actData || !selectedLineup) {
 }
 
 
-  console.group("🔍 Act Debug");
-console.log("actData.numberOfSets", actData?.numberOfSets);
-console.log("actData.lengthOfSets", actData?.lengthOfSets);
-console.log("selectedLineup.base_fee", selectedLineup?.base_fee);
-console.groupEnd();
-
-console.log("🟢 Render check", {
-  hasAct: !!actData,
-  hasLineups: Array.isArray(actData?.lineups),
-  hasSelectedLineup: !!selectedLineup,
-});
-
 
  
   return (
@@ -877,15 +865,7 @@ console.log("🟢 Render check", {
                 finalTravelPrice?.travelFeeTotal ??
                 null;
 
-              console.log("💷 [Act.jsx] Display Price Check", {
-                priceState: price,
-                finalTravelPrice,
-                formattedPrice,
-                actDataFormattedPrice: actData?.formattedPrice,
-                rawTotal,
-                cleanTotal,
-                travelFeeDisplay,
-              });
+     
 
               if (cleanTotal != null) {
                 return price?.travelCalculated || finalTravelPrice?.travelCalculated
@@ -1080,15 +1060,7 @@ console.log("🟢 Render check", {
               finalTravelPrice?.travelFeeTotal ??
               null;
 
-            console.log("💷 [Act.jsx] Display Price Check", {
-              priceState: price,
-              finalTravelPrice,
-              formattedPrice,
-              actDataFormattedPrice: actData?.formattedPrice,
-              rawTotal,
-              cleanTotal,
-              travelFeeDisplay,
-            });
+
 
             if (cleanTotal != null) {
               return price?.travelCalculated || finalTravelPrice?.travelCalculated
