@@ -1219,53 +1219,78 @@ console.log("🟢 Render check", {
             {/* move this block ABOVE or BELOW the .block sm:hidden */}
 <div className="my-3 mt-5 flex justify-left z-10">
   {(() => {
-      const badges = actData?.availabilityBadges || {};
-    const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
+    const allBadges = actData?.availabilityBadges;
+    if (!allBadges || !selectedDate) return null;
 
-    // ✅ Match any badge key that contains the date (e.g. "2026-01-03_tbc")
-    const matchedKey =
-      cleanDate &&
-      Object.keys(badges).find((key) => key.includes(cleanDate));
+    const cleanDate = selectedDate.slice(0, 10);
 
-    const badgeForDate = matchedKey ? badges[matchedKey] : null;
-    if (!badgeForDate) return null;
+    // ✅ Pick the badge entry for this date
+    const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
+    if (!badgeKey) return null;
 
-    // ✅ Determine which slot is active (first valid musician slot wins)
-    const activeSlot =
-      badgeForDate.slots.find((s) => s.musicianId && s.photoUrl?.startsWith("http")) ||
-      badgeForDate.slots.find((s) => s.musicianId) ||
-      null;
+    const badgeForDate = allBadges[badgeKey];
+    if (!badgeForDate?.slots?.length) return null;
 
-    if (!activeSlot) {
-      console.warn("🎤 No valid active slot found for date:", cleanDate);
+    // ✅ Gather all slots that have a responsive vocalist (lead or deputy)
+    const responsiveSlots = badgeForDate.slots;
+
+    // ✅ Now separate LEAD singers (not deputies) from real deputies
+    const leadSlots = responsiveSlots.filter(slot =>
+      slot.musicianId && slot.photoUrl?.startsWith("http") && !slot.isDeputy
+    );
+
+    if (!leadSlots.length) {
+      console.warn("🎤 No valid lead vocalist slots for date:", cleanDate);
       return null;
     }
 
-     return (
+    return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
-        
-        <VocalistFeaturedAvailable
-          key={`${matchedKey}_slot_${activeSlot.slotIndex}`} // ✅ no undefined key
-          badge={{
-            active: true,
-            dateISO: cleanDate,
-            address: badgeForDate.address,
-            inPromo: badgeForDate.inPromo,
-            isDeputy: activeSlot.isDeputy,
-            musicianId: String(activeSlot.musicianId),
-            photoUrl: String(activeSlot.photoUrl),
-            profileUrl: activeSlot.profileUrl,
-            setAt: activeSlot.setAt,
-            slotIndex: activeSlot.slotIndex, // ✅ explicitly passed
-            slots: badgeForDate.slots, // intact for wrapper use
-            deputies: badgeForDate.deputies || [] // intact if needed
-          }}
-          size={140}
-          cacheBuster={activeSlot.setAt}
-          className="mt-2"
-          actContext={actData?.tscName}
-          dateContext={selectedDate}
-        />
+        {/* Render all lead singers as lead (even if 3+ exist) */}
+        {leadSlots.map(slot => (
+          <VocalistFeaturedAvailable
+            key={`${cleanDate}_lead_slot_${slot.slotIndex}`}
+            badge={{
+              slotIndex: slot.slotIndex,
+              musicianId: String(slot.musicianId),
+              photoUrl: String(slot.photoUrl),
+              profileUrl: slot.profileUrl?.startsWith("http") ? slot.profileUrl : "",
+              setAt: slot.setAt,
+            }}
+            size={140}
+            cacheBuster={slot.setAt}
+            className="mt-2"
+            actContext={actData?.tscName}
+            dateContext={selectedDate}
+          />
+        ))}
+
+        {/* Render deputies ONLY if they are marked as deputies */}
+        {responsiveSlots
+          .filter(slot => slot.isDeputy) // only slots that are deputies
+          .map(slot => (
+            <div key={`${cleanDate}_deputies_${slot.slotIndex}`}>
+              {slot.deputies
+                .filter(dep => dep?.musicianId && dep?.photoUrl?.startsWith("http"))
+                .map((dep, i) => (
+                  <VocalistFeaturedAvailable
+                    key={`${cleanDate}_slot_${slot.slotIndex}_deputy_${i}_${dep.musicianId}`}
+                    badge={{
+                      slotIndex: slot.slotIndex,
+                      musicianId: String(dep.musicianId),
+                      photoUrl: String(dep.photoUrl),
+                      profileUrl: dep.profileUrl?.startsWith("http") ? dep.profileUrl : "",
+                      setAt: dep.setAt,
+                    }}
+                    size={120} 
+                    cacheBuster={dep.setAt}
+                    className="mt-2"
+                    actContext={actData?.tscName}
+                    dateContext={selectedDate}
+                  />
+                ))}
+            </div>
+          ))}
       </div>
     );
   })()}
