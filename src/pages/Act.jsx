@@ -1197,9 +1197,7 @@ if (!actData || !selectedLineup) {
     if (!slots.length) return null;
 
     const isHttp = (u) => typeof u === "string" && u.startsWith("http");
-    const isYes = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
-
-    // small helpers
+    const isYes  = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
     const uniqBy = (arr, getKey) => {
       const seen = new Set();
       const out = [];
@@ -1212,51 +1210,56 @@ if (!actData || !selectedLineup) {
       return out;
     };
 
+    // OPTIONAL: if you want "lead-first across all slots", use sortedSlots instead of slots below
+    const sortedSlots = [...slots].sort((a, b) => {
+      const aLead = (a?.state === "yes" && isHttp(a?.photoUrl)) ? 1 : 0;
+      const bLead = (b?.state === "yes" && isHttp(b?.photoUrl)) ? 1 : 0;
+      return bLead - aLead; // any slot with a lead-YES comes first
+    });
+
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
-        {slots.map((slot) => {
+        {(sortedSlots /* or slots */).map((slot) => {
           const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
 
-          // sort YES deputies by most recent reply
+          // 1) lead (featured) item IF available and has photo – always prepend
+          const leadIsAvailable = slot?.state === "yes";
+          const leadHasPhoto    = isHttp(slot?.photoUrl);
+          const leadItem = (leadIsAvailable && leadHasPhoto)
+            ? {
+                isDeputy: false,
+                musicianId: slot.musicianId,
+                photoUrl: slot.photoUrl,
+                profileUrl: slot.profileUrl,
+                setAt: slot.setAt,
+              }
+            : null;
+
+          // 2) server primary only if it's a deputy (but lead still goes first)
+          const primaryDep = (slot?.primary && slot.primary.isDeputy && isHttp(slot.primary.photoUrl))
+            ? slot.primary
+            : null;
+
+          // 3) YES deputies (newest first)
           const yesDeps = deps
             .filter(d => isYes(d) && isHttp(d?.photoUrl))
             .sort((a, b) => new Date(b.repliedAt || b.setAt || 0) - new Date(a.repliedAt || a.setAt || 0));
 
-          // when LEAD is available, show the lead only (keeps UI clean)
-          const leadIsAvailable = slot?.state === "yes";
-          const leadHasPhoto = isHttp(slot?.photoUrl);
+          // Build render list: lead first if present → primary deputy → other YES deputies
+          const combined = [
+            ...(leadItem ? [leadItem] : []),
+            ...(primaryDep ? [primaryDep] : []),
+            ...yesDeps.filter(d => !primaryDep || String(d.musicianId) !== String(primaryDep.musicianId)),
+          ];
 
-          let renderList = [];
+          // de-dupe by musicianId, cap to 3
+          let renderList = uniqBy(combined, d => String(d.musicianId)).slice(0, 3);
 
-          if (leadIsAvailable && leadHasPhoto) {
-            // show lead only
-            renderList = [{
-              isDeputy: false,
-              musicianId: slot.musicianId,
-              photoUrl: slot.photoUrl,
-              profileUrl: slot.profileUrl,
-              setAt: slot.setAt,
-            }];
-          } else {
-            // lead unavailable or no lead photo → show up to 3 YES deputies
-            // prefer server-chosen primary if it's a deputy, then add other yes-deps
-            const primary = (slot?.primary && slot.primary.isDeputy && isHttp(slot.primary.photoUrl))
-              ? slot.primary
-              : null;
-
-            const combined = [
-              ...(primary ? [primary] : []),
-              ...yesDeps.filter(d => !primary || String(d.musicianId) !== String(primary.musicianId)),
-            ];
-
-            // de-dupe by musicianId, cap to 3
-            renderList = uniqBy(combined, d => String(d.musicianId)).slice(0, 3);
-
-            // fallback: if nobody said YES but there is any deputy with a photo, show the first one
-            if (!renderList.length) {
-              const firstWithPhoto = deps.find(d => isHttp(d?.photoUrl));
-              if (firstWithPhoto) renderList = [{ ...firstWithPhoto, isDeputy: true }];
-            }
+          // fallback: if nothing to show, pick first deputy with any photo
+          if (!renderList.length) {
+            const firstWithPhoto = deps.find(d => isHttp(d?.photoUrl));
+            if (firstWithPhoto) renderList = [{ ...firstWithPhoto, isDeputy: true }];
+            // (intentionally not showing lead when unavailable)
           }
 
           if (!renderList.length) return null;
