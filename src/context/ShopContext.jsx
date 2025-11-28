@@ -5,13 +5,47 @@ import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
 import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
-import debounce from "lodash.debounce";
+import rawDebounce from "lodash.debounce";
+// --- safe debounce wrapper (handles CJS/ESM default interop) ---
+const debounce =
+  typeof rawDebounce === "function"
+    ? rawDebounce
+    : (rawDebounce && typeof rawDebounce.default === "function"
+        ? rawDebounce.default
+        : (fn, wait = 0, opts = {}) => {
+            let t;
+            const leading = !!opts.leading;
+            const trailing = opts.trailing !== false;
+            return (...args) => {
+              const callLeading = leading && !t;
+              clearTimeout(t);
+              t = setTimeout(() => {
+                if (trailing) fn(...args);
+                t = null;
+              }, wait);
+              if (callLeading) fn(...args);
+            };
+          });
+
+console.log("[diag] debounce type:", typeof debounce);
+
+// --- safe structuredClone fallback ---
+const safeClone = (obj) => {
+  try {
+    return typeof structuredClone === "function"
+      ? structuredClone(obj)
+      : JSON.parse(JSON.stringify(obj));
+  } catch {
+    return Array.isArray(obj) ? [...obj] : { ...(obj || {}) };
+  }
+};
 
 export const ShopContext = createContext();
 
 const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
 
 const ShopProvider = (props) => {
+  console.log("[diag] ShopContext loaded");
   const currency = "£";
   const delivery_fee = 10;
   // Normalise backend base; empty string means "use relative URLs" (dev proxy)
@@ -323,7 +357,7 @@ const toggleVocalistForAct = useCallback((actId, musicianId) => {
   // inside ShopProvider, near other cart helpers
   const updatePerformance = (actId, lineupId, patch) => {
     setCartItems((prev) => {
-      const next = structuredClone(prev || {});
+      const next = safeClone(prev || {});
       if (!next[actId] || !next[actId][lineupId]) return prev; // nothing to update
 
       const current = next[actId][lineupId].performance || {
@@ -926,7 +960,7 @@ const shortlistAct = async (uid, actId) => {
   // ============ Cart helpers ============
 
   const removeFromCart = (actId, lineupId) => {
-    const updated = structuredClone(cartItems);
+    const updated = safeClone(cartItems);
 
     if (updated[actId]) {
       delete updated[actId][lineupId];
@@ -972,7 +1006,7 @@ const addToCart = async (
         : [];
 
     // Clone cart
-    const updated = structuredClone(cartItems || {});
+    const updated = safeClone(cartItems || {});
     // single-lineup-per-act model: clear existing
     if (updated[actKey]) {
       delete updated[actKey];
@@ -1047,7 +1081,7 @@ const addToCart = async (
   };
 
   const updateQuantity = (actId, lineupId, quantity) => {
-    const updated = structuredClone(cartItems);
+    const updated = safeClone(cartItems);
 
     if (quantity > 0) {
       if (!updated[actId]) updated[actId] = {};
@@ -1069,7 +1103,7 @@ const addToCart = async (
   };
 
   const updateExtras = async (actId, lineupId, newExtra) => {
-    const updated = structuredClone(cartItems);
+    const updated = safeClone(cartItems);
 
     if (updated[actId] && updated[actId][lineupId]) {
       const rawExtras = updated[actId][lineupId].selectedExtras;
