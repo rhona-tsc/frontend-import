@@ -1382,92 +1382,86 @@ const displayCartDetails = Array.isArray(cartDetails)
                   </p>
            {/* Availability badge */}
 <div className="mt-6">
-{showChooseHeading && (
-  <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
-    Choose your vocalist:
-  </h3>
-)}
 
 <div className="flex flex-wrap gap-4 items-left ml-4">
-  {(() => {
-    const allBadges = actData?.availabilityBadges;
-    if (!allBadges || !selectedDate) return null;
+{(() => {
+  // ——— helpers
+  const isHttp = (u) => typeof u === "string" && u.startsWith("http");
+  const isYes  = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
 
-    const cleanDate = selectedDate.slice(0, 10);
-    const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
-    if (!badgeKey) return null;
+  // source
+  const allBadges   = actData?.availabilityBadges || {};
+  const cleanDate   = (selectedDate || "").slice(0, 10);
+  const badgeKey    = Object.keys(allBadges).find(k => k.includes(cleanDate));
+  const badge       = badgeKey ? allBadges[badgeKey] : null;
+  const slots       = Array.isArray(badge?.slots) ? badge.slots : [];
 
-    const badgeForDate = allBadges[badgeKey];
-    const slots = badgeForDate?.slots || [];
-    if (!slots.length) return null;
+  // lead (prefer a lead with a photo and NOT unavailable)
+  const leadSlot = slots.find(s => s?.state !== "unavailable" && isHttp(s?.photoUrl)) || null;
+  const leadItem = leadSlot ? {
+    isDeputy: false,
+    musicianId: String(leadSlot.musicianId || ""),
+    photoUrl: leadSlot.photoUrl,
+    profileUrl: leadSlot.profileUrl || (leadSlot.musicianId ? `${window.location.origin}/musician/${leadSlot.musicianId}` : ""),
+    setAt: leadSlot.setAt || null,
+    vocalistName: leadSlot.vocalistName || "",
+  } : null;
 
-    const isHttp = (u) => typeof u === "string" && u.startsWith("http");
-    const isYes  = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
-    const uniqBy = (arr, getKey) => {
-      const seen = new Set();
-      const out = [];
-      for (const item of arr) {
-        const key = getKey(item);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        out.push(item);
-      }
-      return out;
-    };
+  // deputies who said YES with a photo (any slot)
+  const depYes = slots.flatMap(s => (Array.isArray(s.deputies) ? s.deputies : []))
+    .filter(d => isYes(d) && isHttp(d?.photoUrl))
+    .map(d => ({
+      ...d,
+      isDeputy: true,
+      musicianId: String(d.musicianId || ""),
+      profileUrl: d.profileUrl || (d.musicianId ? `${window.location.origin}/musician/${d.musicianId}` : ""),
+      setAt: d.setAt || d.repliedAt || null,
+      vocalistName: d.vocalistName || d.resolvedName || "",
+    }));
 
-    // Lead-first per slot, then deputy YES (newest first), cap 3 per slot
-    const items = slots.flatMap((slot) => {
-      const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
+  // selection order: lead first (if any), then deputies; cap to 3
+  const selection = [leadItem, ...depYes].filter(Boolean).slice(0, 3);
 
-      // Lead only if AVAILABLE and has a photo
-      const leadIsAvailable = slot?.state === "yes";
-      const leadHasPhoto    = isHttp(slot?.photoUrl);
-      const leadItem = (leadIsAvailable && leadHasPhoto)
-        ? {
-            isDeputy: false,
-            musicianId: slot.musicianId,
-            photoUrl: slot.photoUrl,
-            profileUrl: slot.profileUrl,
-            setAt: slot.setAt,
-            vocalistName: slot.vocalistName || "",
-            slotIndex: slot.slotIndex,
-          }
-        : null;
+  console.log("🛒 [CartChooser] badgeKey:", badgeKey, "cleanDate:", cleanDate, {
+    slots: slots.length,
+    leadPicked: !!leadItem,
+    deputiesYes: depYes.length,
+    selectionCount: selection.length
+  });
 
-      // YES deputies with photos (newest first)
-      const yesDeps = deps
-        .filter(d => isYes(d) && isHttp(d?.photoUrl))
-        .sort((a, b) => new Date(b.repliedAt || b.setAt || 0) - new Date(a.repliedAt || a.setAt || 0))
-        .map(d => ({ ...d, isDeputy: true, slotIndex: slot.slotIndex }));
+  // optional heading
+  const showChooseHeading = selection.length > 0;
 
-      const combined = [
-        ...(leadItem ? [leadItem] : []),
-        ...yesDeps,
-      ];
+  if (!selection.length) return null;
 
-      // De-dupe per slot by musicianId and cap to 3
-      return uniqBy(combined, x => String(x.musicianId)).slice(0, 3);
-    });
+  return (
+    <>
+      {showChooseHeading && (
+        <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
+          Choose your vocalist:
+        </h3>
+      )}
 
-    if (!items.length) return null;
-
-    return items.map((it, idx) => (
-      <FeaturedVocalistBadgeForCart
-        key={`${badgeKey}_${it.slotIndex}_${String(it.musicianId || idx)}`}
-        pictureSource={it}
-        imageUrl={it.photoUrl || it.profilePicture}
-        size={120}
-        variant={it.isDeputy ? "deputy" : "lead"}
-        musicianId={it.musicianId}
-        cacheBuster={it.setAt}
-        // ✅ Only deputies are selectable (buttons)
-        onSelect={it.isDeputy ? (musicianId) => toggleVocalistForAct(actData._id, musicianId) : null}
-        isSelected={it.isDeputy && selectedVocalists?.[actData._id] === it.musicianId}
-        actContext={actData?.tscName}
-        dateContext={selectedDate}
-      />
-    ));
-  })()}
+      <div className="flex flex-wrap gap-4 items-left ml-4">
+        {selection.map((item, idx) => (
+          <FeaturedVocalistBadgeForCart
+            key={item.musicianId || idx}
+            pictureSource={item}
+            imageUrl={item.photoUrl}
+            size={120}
+            variant={item.isDeputy ? "deputy" : "lead"}
+            musicianId={item.musicianId}
+            cacheBuster={item.setAt}
+            isSelected={selectedVocalists?.[actData._id] === item.musicianId}
+            onSelect={(musicianId) => toggleVocalistForAct(actData._id, musicianId)}
+            actContext={actData?.tscName}
+            dateContext={selectedDate}
+          />
+        ))}
+      </div>
+    </>
+  );
+})()}
 </div>
 
 
