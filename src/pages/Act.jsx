@@ -43,6 +43,7 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
   const [price, setPrice] = useState(null);
 
   const id = extractVideoId(video);
+const shop = useContext(ShopContext);
 
       // Gallery Carousel logic
   const galleryRef = useRef(null);
@@ -57,7 +58,11 @@ const scrollGallery = (direction) => {
     };
 
 
-
+const displayName =
+  item.selectedVocalistName ||
+  item.vocalistName ||
+  item.resolvedName ||           // if you already map this from the badge controller
+  item.name || "";
 
 
 const handleInputChange = (actId, date, address) => {
@@ -1005,12 +1010,17 @@ if (!actData || !selectedLineup) {
     {Array.isArray(slot.deputies) && slot.deputies.map((dep, i) => (
       <FeaturedVocalistBadge
         key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
+        displayName={displayName}
         imageUrl={dep.photoUrl}
         size={120}
         cacheBuster={dep.setAt}
         className="mt-2"
         musicianId={dep.musicianId}
         profileUrl={dep.profileUrl}
+         onSelect={(musicianId) => {
+   CustomToast.success(`${displayName || "Vocalist"} selected as one of your singers ✨`);
+    shop.setSelectedVocalistForAct(actId, { musicianId, name: displayName });
+  }}
         variant="deputy"          // 👈 deputy ring
       />
     ))}
