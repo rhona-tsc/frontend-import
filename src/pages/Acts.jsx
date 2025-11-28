@@ -60,22 +60,6 @@ const approvedActs = acts.filter((act) => {
   const isTest =
     looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
 
-  // 🧠 Debug log for clarity
-  console.log(
-    "🔍 Act:",
-    act.tscName || act.name,
-    "| isTest:",
-    isTest,
-    "| status:",
-    act.status,
-    "| userRole:",
-    effectiveUserRole,
-    "| userId:",
-    effectiveUserId,
-    "| isAgent:",
-    isAgent
-  );
-
   // 🧩 Agents see all approved acts
   if (isAgent) return isApproved;
 

@@ -58,11 +58,25 @@ const scrollGallery = (direction) => {
     };
 
 
-const displayName =
-  item.selectedVocalistName ||
-  item.vocalistName ||
-  item.resolvedName ||           // if you already map this from the badge controller
-  item.name || "";
+
+// 🔎 Resolve a human‑friendly vocalist name from any slot/deputy object
+const resolveDisplayName = (x = {}) => {
+  try {
+    return (
+      x.selectedVocalistName ||
+      x.vocalistName ||
+      x.musicianName ||
+      [x.firstName, x.lastName].filter(Boolean).join(" ") ||
+      x.name ||
+      x.resolvedName ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+};
+
+console.log("🧩 [Act.jsx] resolveDisplayName helper ready");
 
 
 const handleInputChange = (actId, date, address) => {
@@ -137,7 +151,9 @@ useEffect(() => {
   evtSource.onmessage = async (e) => {
     try {
       const data = JSON.parse(e.data);
-      console.log(`📡 SSE event received:`, data);
+      console.groupCollapsed("📡 [SSE] Event");
+      console.log(data);
+      console.groupEnd();
 
       // ✅ Only act on known badge-related event types
       const validTypes = [
@@ -386,6 +402,8 @@ const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
 
 const handleLineupChange = async (lineup) => {
+  console.group("🎭 [Act.jsx] handleLineupChange");
+  console.log({ lineup, actName: actData?.name, actId });
   setSelectedLineup(lineup);
 
   const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
@@ -997,7 +1015,13 @@ if (!actData || !selectedLineup) {
 
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
-       {badgeForDate.slots.map(slot => (
+       {badgeForDate.slots.map(slot => {
+         console.log("🎛️ [BadgeRender] slot", {
+           slotIndex: slot.slotIndex,
+           leadYes: slot?.state === "yes",
+           deputies: Array.isArray(slot.deputies) ? slot.deputies.length : 0,
+         });
+         return (
   <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
     <VocalistFeaturedAvailable
       badge={badgeForDate}
@@ -1010,22 +1034,31 @@ if (!actData || !selectedLineup) {
     {Array.isArray(slot.deputies) && slot.deputies.map((dep, i) => (
       <FeaturedVocalistBadge
         key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
-        displayName={displayName}
+        displayName={resolveDisplayName(dep)}
         imageUrl={dep.photoUrl}
         size={120}
         cacheBuster={dep.setAt}
         className="mt-2"
         musicianId={dep.musicianId}
         profileUrl={dep.profileUrl}
-         onSelect={(musicianId) => {
-   CustomToast.success(`${displayName || "Vocalist"} selected as one of your singers ✨`);
-    shop.setSelectedVocalistForAct(actId, { musicianId, name: displayName });
-  }}
-        variant="deputy"          // 👈 deputy ring
+        onSelect={(musicianId) => {
+          const name = resolveDisplayName(dep);
+          console.log("✅ [Act.jsx] Deputy selected", {
+            actId,
+            slotIndex: slot.slotIndex,
+            musicianId,
+            name,
+            dep,
+          });
+          CustomToast.success(`${name || "Vocalist"} selected as one of your singers ✨`);
+          shop.setSelectedVocalistForAct(actId, { musicianId, name });
+        }}
+        variant="deputy"
       />
     ))}
   </React.Fragment>
-))}
+         );
+       })}
       </div>
     );
   })()}
@@ -1225,6 +1258,11 @@ if (!actData || !selectedLineup) {
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
         {(sortedSlots /* or slots */).map((slot) => {
+          console.log("🎛️ [BadgeRender] slot", {
+            slotIndex: slot.slotIndex,
+            leadYes: slot?.state === "yes",
+            deputies: Array.isArray(slot.deputies) ? slot.deputies.length : 0,
+          });
           const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
 
           // 1) lead (featured) item IF available and has photo – always prepend
@@ -1276,7 +1314,35 @@ if (!actData || !selectedLineup) {
                 const prof =
                   item.profileUrl ||
                   (item.musicianId ? `${window.location.origin}/musician/${item.musicianId}` : "");
-
+                // Defensive: if deputy, allow selection and show name
+                if (item.isDeputy) {
+                  return (
+                    <FeaturedVocalistBadge
+                      key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}
+                      displayName={resolveDisplayName(item)}
+                      imageUrl={item.photoUrl}
+                      size={140}
+                      cacheBuster={cache}
+                      className="mt-2"
+                      musicianId={String(item.musicianId || "")}
+                      profileUrl={prof}
+                      onSelect={(musicianId) => {
+                        const name = resolveDisplayName(item);
+                        console.log("✅ [Act.jsx] Deputy selected", {
+                          actId,
+                          slotIndex: slot.slotIndex,
+                          musicianId,
+                          name,
+                          dep: item,
+                        });
+                        CustomToast.success(`${name || "Vocalist"} selected as one of your singers ✨`);
+                        shop.setSelectedVocalistForAct(actId, { musicianId, name });
+                      }}
+                      variant="deputy"
+                    />
+                  );
+                }
+                // Lead badge (not selectable)
                 return (
                   <FeaturedVocalistBadge
                     key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}

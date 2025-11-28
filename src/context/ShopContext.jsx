@@ -77,6 +77,7 @@ const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
  // Set/toggle a vocalist for an act and remember their display name
  const setSelectedVocalistForAct = useCallback((actId, { musicianId, name }) => {
    if (!actId || !musicianId) return;
+   console.log("[CTX.setSelectedVocalistForAct]", { actId, musicianId, name });
    setSelectedVocalists(prev => {
      const s = new Set(toArray(prev?.[actId]));
      s.add(String(musicianId));
@@ -90,12 +91,37 @@ const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
   const api = (path) =>
     `${backendUrl}${path.startsWith("/") ? path : `/${path}`}`;
 
-  const selectVocalistForAct = (actId, musicianId) => {
-    setSelectedVocalists((prev) => ({
-      ...prev,
-      [actId]: musicianId,
-    }));
-  };
+  const selectVocalistForAct = useCallback((actId, musicianId, name) => {
+    if (!actId || !musicianId) return;
+    setSelectedVocalists(prev => {
+      const s = new Set(toArray(prev?.[actId]));
+      s.add(String(musicianId));
+      const after = Array.from(s);
+      console.log("[CTX.selectVocalistForAct] add", { actId, musicianId, name, after });
+      return { ...prev, [actId]: after };
+    });
+    if (name) {
+      setSelectedVocalistNames(prev => ({ ...prev, [String(musicianId)]: name }));
+    }
+  }, []);
+
+  // Resolve a single vocalist name by musicianId
+  const getSelectedVocalistNameById = useCallback(
+    (musicianId) => selectedVocalistNames?.[String(musicianId)] || null,
+    [selectedVocalistNames]
+  );
+
+  // Convenience: get [{id, name}] for an act's selected vocalists
+  const getSelectedVocalistDisplayNamesForAct = useCallback(
+    (actId) => {
+      const ids = getSelectedVocalistsForAct(actId);
+      return ids.map((id) => ({
+        id: String(id),
+        name: selectedVocalistNames?.[String(id)] || null,
+      }));
+    },
+    [getSelectedVocalistsForAct, selectedVocalistNames]
+  );
 
   const ensureLeadIncluded = useCallback((actId, leadId) => {
   setSelectedVocalists(prev => {
@@ -1026,12 +1052,18 @@ const addToCart = async (
         },
         // carry vocalist choices through to cart
         selectedVocalists: getSelectedVocalistsForAct(actKey),
-        selectedVocalistNames: getSelectedVocalistsForAct(actKey).map(id => ({
-          id,
-          name: selectedVocalistNames?.[id] || null,
-        })),
+        selectedVocalistNames: getSelectedVocalistDisplayNamesForAct(actKey),
       },
     };
+
+    // Debug log for cart add
+    console.groupCollapsed("🛒 [ShopContext.addToCart]");
+    console.log("actId:", actKey, "lineupId:", lineupKey);
+    console.log("selectedVocalists:", getSelectedVocalistsForAct(actKey));
+    console.log("selectedVocalistNames:", getSelectedVocalistDisplayNamesForAct(actKey));
+    console.log("extras:", allSelectedExtras);
+    console.log("afternoonSets:", [...afternoonInput, ...allAfternoonSets]);
+    console.groupEnd();
 
     setCartItems(updated);
 
@@ -1052,10 +1084,7 @@ const addToCart = async (
             selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
             songSuggestions: suggestionsInput,
             selectedVocalists: getSelectedVocalistsForAct(actKey),
-          selectedVocalistNames: getSelectedVocalistsForAct(actKey).map(id => ({
-            id,
-            name: selectedVocalistNames?.[id] || null,
-          })),
+            selectedVocalistNames: getSelectedVocalistDisplayNamesForAct(actKey),
           },
           { headers: { token } }
         );
@@ -1300,6 +1329,8 @@ navigate("/"); // clean redirect without reload
     setSelectedVocalistForAct,
   getSelectedVocalistsForAct,
     setUser,
+    getSelectedVocalistNameById,
+    getSelectedVocalistDisplayNamesForAct,
   };
 
   return (
