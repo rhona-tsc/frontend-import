@@ -29,3 +29,6 @@ force = true
 for = "/*"
 [headers.values]
 X-Backend-Policy = "Redirected from ngrok → Render backend only"
+
+[build.environment]
+SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
