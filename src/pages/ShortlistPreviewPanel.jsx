@@ -18,7 +18,7 @@ const ShortlistPreviewPanel = ({ hoveredAct, removeFromCart }) => {
   const [video, setVideo] = useState("");
   const [selectedLineup, setSelectedLineup] = useState("");
   const [price, setPrice] = useState(null);
-  const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
+const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
 
   const {
     actId,
@@ -34,6 +34,20 @@ const ShortlistPreviewPanel = ({ hoveredAct, removeFromCart }) => {
   // Helper to migrate the lineup in the cart when user selects a different lineup
 
   const [badgeMusicianId, setBadgeMusicianId] = useState("");
+
+  // Normalise calculateActPricing output so UI logic is stable
+const normalisePricing = (res) => {
+  const totalNum = Number(res?.total ?? 0);
+  const travelFeeNum = Number(res?.travelFeeTotal ?? 0);
+  const hasInputs = !!selectedDate && !!selectedAddress;
+  return {
+    ...res,
+    total: totalNum,
+    travelFeeTotal: travelFeeNum,
+    // If the util didn't set this, infer from presence of date+address inputs
+    travelCalculated: res?.travelCalculated ?? hasInputs,
+  };
+};
 
   useEffect(() => {
   if (!selectedDate || !actData) return;
@@ -206,8 +220,7 @@ const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
           selectedDate,
           selectedLineup || actData.lineups[0]
         );
-        setPrice(result);
-      } catch (err) {
+setPrice(normalisePricing(result));      } catch (err) {
         console.error("❌ Failed to calculate price:", err);
       }
     };
@@ -435,28 +448,28 @@ const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
     return `${count}: ${instrumentsStr}${rolesStr}`;
   };
 
-  const handleLineupChange = (lineup) => {
-    console.log("🎭 Lineup Button Clicked:", lineup);
+const handleLineupChange = async (lineup) => {
+  try {
     setSelectedLineup(lineup);
 
-    if (actData) {
-      let basePrice = lineup?.base_fee?.[0]?.total_fee || 0;
-
-      const additionalEssentialRoles = lineup.bandMembers.flatMap((member) =>
-        (member.additionalRoles || []).filter(
-          (r) => r.isEssential && typeof r.additionalFee === "number"
-        )
-      );
-      const additionalRolesTotal = additionalEssentialRoles.reduce(
-        (sum, role) => sum + role.additionalFee,
-        0
-      );
-
-      basePrice += additionalRolesTotal;
-      const displayPrice = Math.ceil(basePrice / 0.75);
-      setFormattedPrice(displayPrice);
+    // If this act is already in the cart, immediately migrate the lineup key
+    if (actData?._id) {
+      migrateCartLineup(actData._id, lineup._id);
     }
-  };
+
+    // Always use the central pricing util for accuracy
+    const res = await calculateActPricing(
+      actData,
+      selectedCounty,
+      selectedAddress,
+      selectedDate,
+      lineup
+    );
+    setPrice(normalisePricing(res));
+  } catch (e) {
+    console.error("❌ handleLineupChange pricing error:", e);
+  }
+};
 
   
   
@@ -522,29 +535,7 @@ const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
               return (
                 <button
                   key={`${lineup._id || "lineup"}-${index}`}
-                  onClick={async () => {
-                    setSelectedLineup(lineup);
-
-                    // If this act is already in the cart, immediately migrate the lineup key
-                    // so the Cart dropdown shows the newly-picked lineup by default.
-                    if (actData?._id) {
-                      migrateCartLineup(actData._id, lineup._id);
-                    }
-
-                    try {
-                      // Re-use your central pricing util instead of duplicating the fee logic
-                      const newPrice = await calculateActPricing(
-                        actData,
-                        selectedCounty,
-                        selectedAddress,
-                        selectedDate,
-                        lineup
-                      );
-                      setPrice(newPrice);
-                    } catch (err) {
-                      console.error("❌ Failed to recalculate price for lineup:", err);
-                    }
-                  }}
+                onClick={() => handleLineupChange(lineup)}
                   className={`border py-2 px-4 rounded text-sm ${
                     isSelected
                       ? "bg-black text-white  hover:bg-[#ff6667]"
