@@ -1468,108 +1468,139 @@ const displayCartDetails = Array.isArray(cartDetails)
   const isHttp = (u) => typeof u === "string" && u.startsWith("http");
   const isYes  = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
 
-          // Availability badge chooser — per-item, using per-act badges map
-          const allBadges = (availabilityBadgesByAct?.[item.actId]) || (item.actData?.availabilityBadges) || {};
-          const cleanDate = (selectedDate || "").slice(0, 10);
-          const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
-          const badge = badgeKey ? allBadges[badgeKey] : null;
-          const slots = Array.isArray(badge?.slots) ? badge.slots : [];
+  // Availability badge chooser — per-item, using per-act badges map
+  const allBadges = (availabilityBadgesByAct?.[item.actId]) || (item.actData?.availabilityBadges) || {};
+  const cleanDate = (selectedDate || "").slice(0, 10);
+  const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
+  const badge = badgeKey ? allBadges[badgeKey] : null;
+  const slots = Array.isArray(badge?.slots) ? badge.slots : [];
 
-          // lead card (render info)
-          const leadSlot = slots.find(s => s?.state !== "unavailable" && isHttp(s?.photoUrl)) || null;
-          const leadItem = leadSlot ? {
-            isDeputy: false,
-            musicianId: String(leadSlot.musicianId || ""),
-            photoUrl: leadSlot.photoUrl,
-            profileUrl: leadSlot.profileUrl || (leadSlot.musicianId ? `${window.location.origin}/musician/${leadSlot.musicianId}` : ""),
-            setAt: leadSlot.setAt || null,
-            vocalistName: leadSlot.vocalistName || "",
-          } : null;
-
-          // deputies who said YES with a photo (any slot)
-          const depYes = slots.flatMap(s => (Array.isArray(s.deputies) ? s.deputies : []))
-            .filter(d => isYes(d) && isHttp(d?.photoUrl))
-            .map(d => ({
-              ...d,
-              isDeputy: true,
-              musicianId: String(d.musicianId || ""),
-              profileUrl: d.profileUrl || (d.musicianId ? `${window.location.origin}/musician/${d.musicianId}` : ""),
-              setAt: d.setAt || d.repliedAt || null,
-              vocalistName: d.vocalistName || d.resolvedName || "",
-            }));
-
-          // order: lead first (if any), then deputies
-          const selection = [leadItem, ...depYes].filter(Boolean);
-
-       // Prefer badge slot count (each slot = a vocalist position), fallback to lineup-based detection
-const slotCount = Array.isArray(slots) ? slots.length : 0;
-const requiredVocalCount = Math.max(1, slotCount || getRequiredVocalCount(item.actData, item.lineup));
-
-const leadIdForDate = getLeadIdForDate(item.actData, selectedDate, allBadges);
-
-          // Per-act selection for this item
-          const actSel = toArray(selectedVocalists?.[item.actId]);
-          const chosenCount = actSel.length;
-          const titlePlural = requiredVocalCount > 1 ? "vocalists" : "vocalist";
-
-          // click handler that enforces max & keeps lead locked
-          const handlePick = (musicianId, isSelected, isLocked) => {
-            if (isLocked) return; // lead is locked
-            const lockedIds = leadIdForDate ? new Set([leadIdForDate]) : new Set();
-            const selectedSet = new Set(actSel);
-            lockedIds.forEach((id) => selectedSet.add(id));
-
-            const selecting = !isSelected;
-            const willHave = new Set(selectedSet);
-            if (selecting) {
-              willHave.add(musicianId);
-              if (willHave.size > requiredVocalCount) {
-                toast?.info?.(`You can choose up to ${requiredVocalCount} ${titlePlural}.`);
-                return;
-              }
-            }
-            toggleVocalistForAct(item.actId, musicianId);
-          };
-
-          if (!selection.length) return null;
-
-          return (
-            <>
-              <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
-                Choose your {titlePlural}
-                {requiredVocalCount > 1 && (
-                  <span className="ml-1 text-gray-500 font-normal">
-                    ({Math.min(chosenCount, requiredVocalCount)}/{requiredVocalCount} selected)
-                  </span>
-                )}
-              </h3>
-
-              <div className="flex flex-wrap gap-4 items-left ml-4">
-                {selection.slice(0, 8).map((person, idx) => {
-  const isLeadLocked = person.musicianId === leadIdForDate;
-  const isSelected = isLeadLocked ? true : actSel.includes(person.musicianId);
-
-  return (
-    <FeaturedVocalistBadgeForCart
-      key={`${(selectedDate || "").slice(0,10)}_${person.musicianId || idx}`}
-      pictureSource={person}
-      imageUrl={person.photoUrl}
-      size={120}
-      variant={person.isDeputy ? "deputy" : "lead"}
-      musicianId={person.musicianId}
-      cacheBuster={person.setAt}
-      isSelected={isSelected}
-      disabled={isLeadLocked}
-      onSelect={isLeadLocked ? undefined : (id) => handlePick(id, isSelected, isLeadLocked)}
-      actContext={item.actName}           // ✅ was undefined before due to shadowing
-      dateContext={selectedDate}
-    />
+  // --- DEBUG GROUP LOGS ---
+  console.groupCollapsed(
+    `%c[VOCAL-UI]%c ${item.actName} (${item.actId}) – ${cleanDate}`,
+    'color:#8b5cf6;font-weight:bold',
+    'color:inherit'
   );
-})}
-              </div>
-            </>
+  console.log('[raw badges]', {
+    actId: item.actId,
+    cleanDate,
+    keys: Object.keys(allBadges || {}),
+    badgeKey,
+    hasBadge: !!badge,
+    slotsCount: slots.length,
+  });
+
+  // lead card (render info)
+  const leadSlot = slots.find(s => s?.state !== "unavailable" && isHttp(s?.photoUrl)) || null;
+  const leadItem = leadSlot ? {
+    isDeputy: false,
+    musicianId: String(leadSlot.musicianId || ""),
+    photoUrl: leadSlot.photoUrl,
+    profileUrl: leadSlot.profileUrl || (leadSlot.musicianId ? `${window.location.origin}/musician/${leadSlot.musicianId}` : ""),
+    setAt: leadSlot.setAt || null,
+    vocalistName: leadSlot.vocalistName || "",
+  } : null;
+  console.log('[leadSlot]', leadSlot ? { musicianId: leadItem?.musicianId, hasPhoto: !!leadItem?.photoUrl } : null);
+
+  // deputies who said YES with a photo (any slot)
+  const depYes = slots.flatMap(s => (Array.isArray(s.deputies) ? s.deputies : []))
+    .filter(d => isYes(d) && isHttp(d?.photoUrl))
+    .map(d => ({
+      ...d,
+      isDeputy: true,
+      musicianId: String(d.musicianId || ""),
+      profileUrl: d.profileUrl || (d.musicianId ? `${window.location.origin}/musician/${d.musicianId}` : ""),
+      setAt: d.setAt || d.repliedAt || null,
+      vocalistName: d.vocalistName || d.resolvedName || "",
+    }));
+  console.log('[depYes]', depYes.map(d => ({ id: d.musicianId, hasPhoto: !!d.photoUrl })));
+
+  // order: lead first (if any), then deputies
+  const selection = [leadItem, ...depYes].filter(Boolean);
+  console.log('[selection]', selection.map(p => ({ id: p.musicianId, type: p.isDeputy ? 'deputy' : 'lead' })));
+
+  // Prefer badge slot count (each slot = a vocalist position), fallback to lineup-based detection
+  const slotCount = Array.isArray(slots) ? slots.length : 0;
+  const requiredVocalCount = Math.max(1, slotCount || getRequiredVocalCount(item.actData, item.lineup));
+  const leadIdForDate = getLeadIdForDate(item.actData, selectedDate, allBadges);
+  console.log('[caps]', { slotCount, requiredVocalCount, leadIdForDate });
+
+  // Per-act selection for this item
+  const actSel = toArray(selectedVocalists?.[item.actId]);
+  const chosenCount = actSel.length;
+  const titlePlural = requiredVocalCount > 1 ? "vocalists" : "vocalist";
+  console.log('[state]', { actSel, chosenCount, titlePlural });
+
+  // click handler that enforces max & keeps lead locked
+  const handlePick = (musicianId, isSelected, isLocked) => {
+    console.log('[pick:init]', { musicianId, isSelected, isLocked, requiredVocalCount });
+    if (isLocked) {
+      console.warn('[pick] blocked: lead is locked');
+      return; // lead is locked
+    }
+    const lockedIds = leadIdForDate ? new Set([leadIdForDate]) : new Set();
+    const selectedSet = new Set(actSel);
+    lockedIds.forEach((id) => selectedSet.add(id));
+    console.log('[pick:before]', { selectedSet: Array.from(selectedSet) });
+
+    const selecting = !isSelected;
+    const willHave = new Set(selectedSet);
+    if (selecting) {
+      willHave.add(musicianId);
+      console.log('[pick:willHave]', { willHave: Array.from(willHave) });
+      if (willHave.size > requiredVocalCount) {
+        console.warn('[pick] blocked by cap', { cap: requiredVocalCount, attemptedId: musicianId });
+        toast?.info?.(`You can choose up to ${requiredVocalCount} ${titlePlural}.`);
+        return;
+      }
+    }
+    console.log('[pick:toggle]', { actId: item.actId, musicianId });
+    toggleVocalistForAct(item.actId, musicianId);
+  };
+
+  if (!selection.length) {
+    console.log('⚪ no selection available — nothing to render');
+    console.groupEnd();
+    return null;
+  }
+
+  console.groupEnd();
+  return (
+    <>
+      <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
+        Choose your {titlePlural}
+        {requiredVocalCount > 1 && (
+          <span className="ml-1 text-gray-500 font-normal">
+            ({Math.min(chosenCount, requiredVocalCount)}/{requiredVocalCount} selected)
+          </span>
+        )}
+      </h3>
+
+      <div className="flex flex-wrap gap-4 items-left ml-4">
+        {selection.slice(0, 8).map((person, idx) => {
+          const isLeadLocked = person.musicianId === leadIdForDate;
+          const isSelected = isLeadLocked ? true : actSel.includes(person.musicianId);
+          return (
+            <FeaturedVocalistBadgeForCart
+              key={`${(selectedDate || "").slice(0,10)}_${person.musicianId || idx}`}
+              pictureSource={person}
+              imageUrl={person.photoUrl}
+              size={120}
+              variant={person.isDeputy ? "deputy" : "lead"}
+              musicianId={person.musicianId}
+              cacheBuster={person.setAt}
+              isSelected={isSelected}
+              disabled={isLeadLocked}
+              onSelect={isLeadLocked ? undefined : (id) => { console.log('[click:onSelect]', { id, isLeadLocked, isSelected }); handlePick(id, isSelected, isLeadLocked); }}
+              actContext={item.actName}
+              dateContext={selectedDate}
+            />
           );
-        })()}
+        })}
+      </div>
+    </>
+  );
+})()}
 </div>
 
 
