@@ -43,7 +43,6 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
   const [price, setPrice] = useState(null);
 
   const id = extractVideoId(video);
-const shop = useContext(ShopContext);
 
       // Gallery Carousel logic
   const galleryRef = useRef(null);
@@ -59,24 +58,6 @@ const scrollGallery = (direction) => {
 
 
 
-// 🔎 Resolve a human‑friendly vocalist name from any slot/deputy object
-const resolveDisplayName = (x = {}) => {
-  try {
-    return (
-      x.selectedVocalistName ||
-      x.vocalistName ||
-      x.musicianName ||
-      [x.firstName, x.lastName].filter(Boolean).join(" ") ||
-      x.name ||
-      x.resolvedName ||
-      ""
-    );
-  } catch {
-    return "";
-  }
-};
-
-console.log("🧩 [Act.jsx] resolveDisplayName helper ready");
 
 
 const handleInputChange = (actId, date, address) => {
@@ -151,9 +132,7 @@ useEffect(() => {
   evtSource.onmessage = async (e) => {
     try {
       const data = JSON.parse(e.data);
-      console.groupCollapsed("📡 [SSE] Event");
-      console.log(data);
-      console.groupEnd();
+      console.log(`📡 SSE event received:`, data);
 
       // ✅ Only act on known badge-related event types
       const validTypes = [
@@ -402,8 +381,6 @@ const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
 
 const handleLineupChange = async (lineup) => {
-  console.group("🎭 [Act.jsx] handleLineupChange");
-  console.log({ lineup, actName: actData?.name, actId });
   setSelectedLineup(lineup);
 
   const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
@@ -416,34 +393,24 @@ const handleLineupChange = async (lineup) => {
     console.log("🔹 selectedCounty:", selectedCounty);
     console.groupEnd();
 
-    const result = await calculateActPricing(
-      actData,
-      selectedCounty,
-      selectedAddress,
-      selectedDate,
-      lineup
-    );
+const result = await calculateActPricing(
+  actData,
+  selectedCounty,
+  selectedAddress,
+  selectedDate,
+  lineup
+);
 
-    // ✅ Normalise total to a number and mark whether travel was actually computed
-    const numericTotal = Number(String(result?.total ?? 0).replace(/[^0-9.+-]/g, ""));
-    const travelWasComputed =
-      (result?.travelCalculated === true) ||
-      Boolean(selectedDate && selectedAddress);
-
-    console.group("🧮 [Act.jsx] Price Debug");
-    console.log("Lineup used:", lineup?.actSize);
-    console.log("calculateActPricing result:", result);
-    console.log("numericTotal:", numericTotal, "travelWasComputed:", travelWasComputed);
-    console.groupEnd();
+// ✅ Put this here
+console.group("🧮 [Act.jsx] Price Debug");
+console.log("Lineup used:", lineup?.actSize);
+console.log("calculateActPricing result:", result);
+console.groupEnd();
 
     if (result) {
-      setPrice({
-        ...result,
-        total: numericTotal,
-        travelCalculated: travelWasComputed,
-      });
-      setFormattedPrice(numericTotal);
-      setFinalTravelPrice({ ...result, total: numericTotal, travelCalculated: travelWasComputed });
+      setPrice({ ...result, travelCalculated: result?.travelFeeTotal > 0 });
+      setFormattedPrice(result.total);
+      setFinalTravelPrice(result); // keep for fallback if needed
     }
   } catch (error) {
     console.error("❌ Error in price calculation (handleLineupChange):", error);
@@ -465,7 +432,7 @@ const handleLineupChange = async (lineup) => {
           actData.countyFees &&
           Object.keys(actData.countyFees).length > 0;
 
-        const lineup = selectedLineup || actData.lineups[0];
+        const lineup = actData.lineups[0];
 
         const pricingResults = await calculateActPricing(
           actData,
@@ -504,10 +471,8 @@ const handleLineupChange = async (lineup) => {
         console.groupEnd();
 
         setPrice({
-          total: Number(String(pricingResults.total ?? 0).replace(/[^0-9.+-]/g, "")),
-          travelCalculated:
-            (pricingResults.travelCalculated === true) ||
-            Boolean(selectedDate && selectedAddress),
+          total: pricingResults.total,
+          travelCalculated: pricingResults.travelCalculated,
           travelFeeTotal: pricingResults.travelFeeTotal
         });
       } catch (err) {
@@ -526,7 +491,7 @@ const handleLineupChange = async (lineup) => {
       }
     };
     calculateAndSetPrice();
-  }, [actData, selectedCounty, selectedAddress, selectedDate, selectedLineup]);
+  }, [actData, selectedCounty, selectedAddress, selectedDate]);
 
   // Calculate display price: prefer price?.total, then formattedPrice, then actData formattedPrice
   const rawTotal =
@@ -874,20 +839,27 @@ if (!actData || !selectedLineup) {
               )}
               <p className="mt-5 text-3xl font-medium p-3">
                 {(() => {
-                  const totalCandidate =
-                    price?.total ??
-                    finalTravelPrice?.total ??
-                    actData?.formattedPrice?.total ??
-                    null;
+              const rawTotal =
+                price?.total ??
+                formattedPrice ??
+                actData?.formattedPrice?.total ??
+                null;
+            const cleanTotal = price?.total ?? finalTravelPrice?.total ?? actData?.formattedPrice ?? null;
 
-                  if (totalCandidate == null) return "Loading price...";
+              // Prefer travelFeeTotal in price breakdowns if available
+              const travelFeeDisplay =
+                price?.travelFeeTotal ??
+                finalTravelPrice?.travelFeeTotal ??
+                null;
 
-                  const numeric = Number(String(totalCandidate).replace(/[^0-9.+-]/g, ""));
-                  const isFinal =
-                    (price?.travelCalculated ?? finalTravelPrice?.travelCalculated) ??
-                    Boolean(selectedDate && selectedAddress);
+     
 
-                  return isFinal ? `£${numeric}` : `from £${numeric}`;
+              if (cleanTotal != null) {
+                return price?.travelCalculated || finalTravelPrice?.travelCalculated
+                  ? `£${cleanTotal}`
+                  : `from £${cleanTotal}`;
+              }
+              return "Loading price...";
                 })()}
               </p>
               <div className="flex flex-col gap-4 my-2">
@@ -1015,13 +987,7 @@ if (!actData || !selectedLineup) {
 
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
-       {badgeForDate.slots.map(slot => {
-         console.log("🎛️ [BadgeRender] slot", {
-           slotIndex: slot.slotIndex,
-           leadYes: slot?.state === "yes",
-           deputies: Array.isArray(slot.deputies) ? slot.deputies.length : 0,
-         });
-         return (
+       {badgeForDate.slots.map(slot => (
   <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
     <VocalistFeaturedAvailable
       badge={badgeForDate}
@@ -1034,31 +1000,17 @@ if (!actData || !selectedLineup) {
     {Array.isArray(slot.deputies) && slot.deputies.map((dep, i) => (
       <FeaturedVocalistBadge
         key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
-        displayName={resolveDisplayName(dep)}
         imageUrl={dep.photoUrl}
         size={120}
         cacheBuster={dep.setAt}
         className="mt-2"
         musicianId={dep.musicianId}
         profileUrl={dep.profileUrl}
-        onSelect={(musicianId) => {
-          const name = resolveDisplayName(dep);
-          console.log("✅ [Act.jsx] Deputy selected", {
-            actId,
-            slotIndex: slot.slotIndex,
-            musicianId,
-            name,
-            dep,
-          });
-          CustomToast.success(`${name || "Vocalist"} selected as one of your singers ✨`);
-          shop.setSelectedVocalistForAct(actId, { musicianId, name });
-        }}
-        variant="deputy"
+        variant="deputy"          // 👈 deputy ring
       />
     ))}
   </React.Fragment>
-         );
-       })}
+))}
       </div>
     );
   })()}
@@ -1108,20 +1060,30 @@ if (!actData || !selectedLineup) {
 
         <p className="mt-5 text-3xl font-medium p-3">
           {(() => {
-            const totalCandidate =
+            const rawTotal =
               price?.total ??
-              finalTravelPrice?.total ??
+              formattedPrice ??
               actData?.formattedPrice?.total ??
               null;
+            const cleanTotal =
+              rawTotal != null
+                ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
+                : null;
 
-            if (totalCandidate == null) return "Loading price...";
+            // Prefer travelFeeTotal in price breakdowns if available
+            const travelFeeDisplay =
+              price?.travelFeeTotal ??
+              finalTravelPrice?.travelFeeTotal ??
+              null;
 
-            const numeric = Number(String(totalCandidate).replace(/[^0-9.+-]/g, ""));
-            const isFinal =
-              (price?.travelCalculated ?? finalTravelPrice?.travelCalculated) ??
-              Boolean(selectedDate && selectedAddress);
 
-            return isFinal ? `£${numeric}` : `from £${numeric}`;
+
+            if (cleanTotal != null) {
+              return price?.travelCalculated || finalTravelPrice?.travelCalculated
+                ? `£${cleanTotal}`
+                : `from £${cleanTotal}`;
+            }
+            return "Loading price...";
           })()}
         </p>
 
@@ -1258,11 +1220,6 @@ if (!actData || !selectedLineup) {
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
         {(sortedSlots /* or slots */).map((slot) => {
-          console.log("🎛️ [BadgeRender] slot", {
-            slotIndex: slot.slotIndex,
-            leadYes: slot?.state === "yes",
-            deputies: Array.isArray(slot.deputies) ? slot.deputies.length : 0,
-          });
           const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
 
           // 1) lead (featured) item IF available and has photo – always prepend
@@ -1314,35 +1271,7 @@ if (!actData || !selectedLineup) {
                 const prof =
                   item.profileUrl ||
                   (item.musicianId ? `${window.location.origin}/musician/${item.musicianId}` : "");
-                // Defensive: if deputy, allow selection and show name
-                if (item.isDeputy) {
-                  return (
-                    <FeaturedVocalistBadge
-                      key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}
-                      displayName={resolveDisplayName(item)}
-                      imageUrl={item.photoUrl}
-                      size={140}
-                      cacheBuster={cache}
-                      className="mt-2"
-                      musicianId={String(item.musicianId || "")}
-                      profileUrl={prof}
-                      onSelect={(musicianId) => {
-                        const name = resolveDisplayName(item);
-                        console.log("✅ [Act.jsx] Deputy selected", {
-                          actId,
-                          slotIndex: slot.slotIndex,
-                          musicianId,
-                          name,
-                          dep: item,
-                        });
-                        CustomToast.success(`${name || "Vocalist"} selected as one of your singers ✨`);
-                        shop.setSelectedVocalistForAct(actId, { musicianId, name });
-                      }}
-                      variant="deputy"
-                    />
-                  );
-                }
-                // Lead badge (not selectable)
+
                 return (
                   <FeaturedVocalistBadge
                     key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}

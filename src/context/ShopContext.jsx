@@ -42,7 +42,6 @@ useEffect(() => {
 
 const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [selectedVocalists, setSelectedVocalists] = useState({});
-  const [selectedVocalistNames, setSelectedVocalistNames] = useState({});
 const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
 
   // --- User / shortlist (single sources of truth) ---
@@ -68,60 +67,17 @@ const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
     sessionStorage.getItem("selectedDate") || ""
   );
 
-// Return selected vocalist IDs for an act (always an array)
- const getSelectedVocalistsForAct = useCallback(
-   (actId) => toArray(selectedVocalists?.[actId]),
-   [selectedVocalists]
- );
 
- // Set/toggle a vocalist for an act and remember their display name
- const setSelectedVocalistForAct = useCallback((actId, { musicianId, name }) => {
-   if (!actId || !musicianId) return;
-   console.log("[CTX.setSelectedVocalistForAct]", { actId, musicianId, name });
-   setSelectedVocalists(prev => {
-     const s = new Set(toArray(prev?.[actId]));
-     s.add(String(musicianId));
-     return { ...prev, [actId]: Array.from(s) };
-   });
-   if (name) {
-     setSelectedVocalistNames(prev => ({ ...prev, [String(musicianId)]: name }));
-   }
- }, []);
   // Always build absolute API URLs
   const api = (path) =>
     `${backendUrl}${path.startsWith("/") ? path : `/${path}`}`;
 
-  const selectVocalistForAct = useCallback((actId, musicianId, name) => {
-    if (!actId || !musicianId) return;
-    setSelectedVocalists(prev => {
-      const s = new Set(toArray(prev?.[actId]));
-      s.add(String(musicianId));
-      const after = Array.from(s);
-      console.log("[CTX.selectVocalistForAct] add", { actId, musicianId, name, after });
-      return { ...prev, [actId]: after };
-    });
-    if (name) {
-      setSelectedVocalistNames(prev => ({ ...prev, [String(musicianId)]: name }));
-    }
-  }, []);
-
-  // Resolve a single vocalist name by musicianId
-  const getSelectedVocalistNameById = useCallback(
-    (musicianId) => selectedVocalistNames?.[String(musicianId)] || null,
-    [selectedVocalistNames]
-  );
-
-  // Convenience: get [{id, name}] for an act's selected vocalists
-  const getSelectedVocalistDisplayNamesForAct = useCallback(
-    (actId) => {
-      const ids = getSelectedVocalistsForAct(actId);
-      return ids.map((id) => ({
-        id: String(id),
-        name: selectedVocalistNames?.[String(id)] || null,
-      }));
-    },
-    [getSelectedVocalistsForAct, selectedVocalistNames]
-  );
+  const selectVocalistForAct = (actId, musicianId) => {
+    setSelectedVocalists((prev) => ({
+      ...prev,
+      [actId]: musicianId,
+    }));
+  };
 
   const ensureLeadIncluded = useCallback((actId, leadId) => {
   setSelectedVocalists(prev => {
@@ -634,41 +590,34 @@ useEffect(() => {
       /* ---------------------------------------------------------------------- */
       /* 🟩 NORMAL YES EVENTS (lead or deputy)                                   */
       /* ---------------------------------------------------------------------- */
-      const type = String(payload.type || "");
-
       const isLead =
-        type === "availability_yes" || type === "leadYes";
+        payload.type === "availability_yes" || payload.type === "leadYes";
 
       const isDeputy =
-        type === "availability_deputy_yes" || type === "deputy_yes"; // support legacy alias
-
-      // Prefer explicit name from payload; fall back to badge-derived label
-      const fallbackFromBadge =
-        payload?.badge?.deputies?.[0]?.vocalistName ||
-        payload?.badge?.deputies?.[0]?.name ||
-        payload?.badge?.vocalistName ||
-        "";
-
-      const musicianName = (
-        payload.musicianName ||
-        fallbackFromBadge ||
-        (isDeputy ? "Deputy Vocalist" : "Lead Vocalist")
-      ).trim();
+        payload.type === "availability_deputy_yes" ||
+        payload.isDeputy === true;
 
       console.log("🟩 [SSE] Standard availability event:", {
-        type,
+        type: payload.type,
         isLead,
         isDeputy,
         actId: payload.actId,
-        musicianName,
+        musicianName: payload.musicianName,
       });
 
       const shortDate = formatShortDate(payload.dateISO);
       const toastMsg = isDeputy
-        ? `${musicianName} is available to perform with ${payload.actName} on ${shortDate}.`
-        : `${musicianName} from ${payload.actName} is available for ${shortDate}.`;
+        ? `${payload.musicianName} is available to perform with ${payload.actName} on ${shortDate}.`
+        : `${
+            payload.musicianName || "Lead vocalist"
+          } from ${payload.actName} is available for ${shortDate}.`;
 
-      const showToast = isDeputy || isLead;
+      console.log("🔔 [SSE] Standard Toast Message:", toastMsg);
+
+      const showToast =
+        payload.type === "availability_deputy_yes" ||
+        payload.type === "leadYes" ||
+        payload.type === "availability_yes";
 
       if (showToast) {
         toast(<CustomToast type="success" message={toastMsg} />);
@@ -988,7 +937,7 @@ const addToCart = async (
     lineupId,
     selectedExtras = [],
     selectedAfternoonSets = [],
-    songSuggestions = [],
+    songSuggestions = []
   ) => {
     if (!actId || !lineupId) {
       return;
@@ -1050,20 +999,8 @@ const addToCart = async (
           paLightsFinishTime: "",
           paLightsFinishDayOffset: 0,
         },
-        // carry vocalist choices through to cart
-        selectedVocalists: getSelectedVocalistsForAct(actKey),
-        selectedVocalistNames: getSelectedVocalistDisplayNamesForAct(actKey),
       },
     };
-
-    // Debug log for cart add
-    console.groupCollapsed("🛒 [ShopContext.addToCart]");
-    console.log("actId:", actKey, "lineupId:", lineupKey);
-    console.log("selectedVocalists:", getSelectedVocalistsForAct(actKey));
-    console.log("selectedVocalistNames:", getSelectedVocalistDisplayNamesForAct(actKey));
-    console.log("extras:", allSelectedExtras);
-    console.log("afternoonSets:", [...afternoonInput, ...allAfternoonSets]);
-    console.groupEnd();
 
     setCartItems(updated);
 
@@ -1083,8 +1020,6 @@ const addToCart = async (
             selectedExtras: allSelectedExtras,
             selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
             songSuggestions: suggestionsInput,
-            selectedVocalists: getSelectedVocalistsForAct(actKey),
-            selectedVocalistNames: getSelectedVocalistDisplayNamesForAct(actKey),
           },
           { headers: { token } }
         );
@@ -1322,15 +1257,10 @@ navigate("/"); // clean redirect without reload
     scheduleBalanceInvoice,
     handleDateOrAddressChange,
     selectedVocalists,
-    selectedVocalistNames,
     selectVocalistForAct,
     toggleVocalistForAct,
     ensureLeadIncluded,
-    setSelectedVocalistForAct,
-  getSelectedVocalistsForAct,
     setUser,
-    getSelectedVocalistNameById,
-    getSelectedVocalistDisplayNamesForAct,
   };
 
   return (
