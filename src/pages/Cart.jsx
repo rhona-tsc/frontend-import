@@ -1740,10 +1740,6 @@ const displayCartDetails = Array.isArray(cartDetails)
                 cacheBuster={person.setAt}
                 isSelected={isSelected}
                 disabled={isLeadLocked}
-                onSelect={(id) => {
-                  console.log('[child:onSelect]', { id, isLeadLocked, isSelected });
-                  if (!isLeadLocked) handlePick(id, isSelected, isLeadLocked);
-                }}
                 actContext={item.actName}
                 dateContext={selectedDate}
               />
