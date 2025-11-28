@@ -307,6 +307,30 @@ useEffect(() => {
 
   const mergedUpdateExtras = useMergedUpdateExtras(cartItems, setCartItems);
 
+  // Diagnostics + safe invoker for whatever shape the hook returns
+  console.log('[diag] mergedUpdateExtras type:', typeof mergedUpdateExtras);
+  const callMergedUpdateExtras = useCallback((...args) => {
+    if (typeof mergedUpdateExtras === 'function') {
+      return mergedUpdateExtras(...args);
+    }
+    if (
+      mergedUpdateExtras &&
+      typeof mergedUpdateExtras === 'object' &&
+      typeof mergedUpdateExtras.updateExtras === 'function'
+    ) {
+      return mergedUpdateExtras.updateExtras(...args);
+    }
+    console.warn('[extras] mergedUpdateExtras not callable', {
+      value: mergedUpdateExtras,
+      type: typeof mergedUpdateExtras,
+      keys:
+        mergedUpdateExtras && typeof mergedUpdateExtras === 'object'
+          ? Object.keys(mergedUpdateExtras)
+          : null,
+    });
+    return undefined;
+  }, [mergedUpdateExtras]);
+
 
   // NEW: track which lineups got auto-added extras so the banner shows the right text.
   // key shape: `${actId}:${lineupId}` -> 'late' | 'early'
@@ -1128,7 +1152,7 @@ const permittedOnSiteMinutes =
             if (!existing) {
               return;
             }
-            mergedUpdateExtras(item.actId, item.lineupId, {
+            callMergedUpdateExtras(item.actId, item.lineupId, {
               key,
               quantity: 0,
               price: 0,
@@ -1150,7 +1174,7 @@ const permittedOnSiteMinutes =
           if (same) {
             return;
           }
-          mergedUpdateExtras(item.actId, item.lineupId, { key, ...desired });
+          callMergedUpdateExtras(item.actId, item.lineupId, { key, ...desired });
 
           if (key === "late_stay_60min_per_band_member") {
             markAutoAdded(item.actId, item.lineupId, "late");
