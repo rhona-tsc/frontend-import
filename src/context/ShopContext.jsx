@@ -43,6 +43,7 @@ useEffect(() => {
 
 const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [selectedVocalists, setSelectedVocalists] = useState({});
+const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
 
   // --- User / shortlist (single sources of truth) ---
   const [userId, setUserId] = useState(null);
@@ -82,16 +83,27 @@ const [token, setToken] = useState(localStorage.getItem("token") || "");
     }));
   };
 
-  const toggleVocalistForAct = (actId, musicianId) => {
-  setSelectedVocalists((prev) => {
-    const current = prev[actId];
-    // toggle if already selected
-    return {
-      ...prev,
-      [actId]: current === musicianId ? null : musicianId,
-    };
+  const ensureLeadIncluded = useCallback((actId, leadId) => {
+  setSelectedVocalists(prev => {
+    const s = new Set(toArray(prev?.[actId]));
+    if (leadId) s.add(String(leadId));
+    const after = Array.from(s);
+    console.log("[CTX.ensureLeadIncluded]", { actId, leadId, after });
+    return { ...prev, [actId]: after };
   });
-};
+}, []);
+
+
+const toggleVocalistForAct = useCallback((actId, musicianId) => {
+  setSelectedVocalists(prev => {
+    const before = new Set(toArray(prev?.[actId]));
+    if (before.has(String(musicianId))) before.delete(String(musicianId));
+    else before.add(String(musicianId));
+    const after = Array.from(before);
+    console.log("[CTX.toggle] actId:", actId, { before: Array.from(before), after });
+    return { ...prev, [actId]: after };
+  });
+}, []);
 
   const getActById = async (actId) => {
     try {
@@ -1253,6 +1265,7 @@ navigate("/"); // clean redirect without reload
     selectedVocalists,
     selectVocalistForAct,
     toggleVocalistForAct,
+    ensureLeadIncluded,
     setUser,
   };
 

@@ -97,7 +97,7 @@ const Cart = () => {
     updatePerformance,
     isActUnavailableForSelectedDate,
     toggleVocalistForAct,
-  availLoading, setSelectedVocalists, selectedVocalists,
+  availLoading, setSelectedVocalists, selectedVocalists, ensureLeadIncluded
   } = useContext(ShopContext);
 
   const changingLineupRef = useRef(false);
@@ -113,6 +113,15 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
   const [customEventType, setCustomEventType] = useState("");
   const [performancePlans, setPerformancePlans] = useState({});
   const [showDebug, setShowDebug] = useState(false);
+
+
+  useEffect(() => {
+  setSelectedVocalists(prev => {
+    const next = {};
+    for (const k of Object.keys(prev || {})) next[k] = toArray(prev[k]);
+    return next;
+  });
+}, []);
 
   // Expose quick debug helpers on the live site console (no reliance on console logs from click handlers)
   useEffect(() => {
@@ -159,7 +168,7 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
 
       const current = toArray(selectedVocalists?.[actId]);
       if (!current.includes(leadId)) {
-        toggleVocalistForAct(actId, leadId);
+  ensureLeadIncluded(actId, leadId);
       }
       if (!already) {
         seededLeadsRef.current.add(String(actId));
