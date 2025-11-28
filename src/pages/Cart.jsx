@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useRef,
+  useMemo,
 } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -26,6 +27,35 @@ const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
   import.meta.env.BACKEND_URL?.replace(/\/$/, "") ||
   "";
+
+
+// How many vocalists are required in the selected lineup
+const getRequiredVocalCount = (actData) => {
+  const lineup = actData?.selectedLineup || actData?.lineups?.[0] || null;
+  if (!lineup?.bandMembers) return 1;
+  const count = lineup.bandMembers.filter((m) =>
+    /(vocal|singer)/i.test(`${m?.role || ""} ${m?.instrument || ""} ${m?.name || ""}`) &&
+    (m?.isEssential || m?.required === true)
+  ).length;
+  return Math.max(1, count || 1);
+};
+
+// Find the featured lead for this date (lead with photo and not unavailable)
+const getLeadIdForDate = (actData, selectedDate) => {
+  const allBadges = actData?.availabilityBadges || {};
+  const clean = (selectedDate || "").slice(0, 10);
+  const key = Object.keys(allBadges).find((k) => k.includes(clean));
+  const badge = key ? allBadges[key] : null;
+  const slots = Array.isArray(badge?.slots) ? badge.slots : [];
+  const lead = slots.find(
+    (s) => s?.state !== "unavailable" && typeof s?.photoUrl === "string" && s.photoUrl.startsWith("http")
+  );
+  return lead?.musicianId ? String(lead.musicianId) : null;
+};
+
+// Normalise selection shape (string or array) -> array
+const toArray = (val) => (Array.isArray(val) ? val : val ? [val] : []);
+
 
 const Cart = () => {
   const {
@@ -56,6 +86,30 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
   const [performancePlans, setPerformancePlans] = useState({});
 
   const navigate = useNavigate();
+
+// inside your component, before the JSX:
+const requiredVocalCount = useMemo(() => getRequiredVocalCount(actData), [actData]);
+const leadIdForDate = useMemo(
+  () => getLeadIdForDate(actData, selectedDate),
+  [actData?.availabilityBadges, selectedDate]
+);
+
+// current selection for this act as an array (supports old single-string shape)
+const currentSelRaw = selectedVocalists?.[actData._id];
+const currentSelArr = toArray(currentSelRaw);
+
+// Seed: ensure featured lead is selected exactly once; make it "locked"
+const leadSeededRef = useRef(false);
+useEffect(() => {
+  if (!leadIdForDate || leadSeededRef.current) return;
+  if (!currentSelArr.includes(leadIdForDate)) {
+    // uses your existing toggle API
+    toggleVocalistForAct(actData._id, leadIdForDate);
+  }
+  leadSeededRef.current = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [leadIdForDate, actData._id]);
+
 
       useEffect(() => {
     if (actData) {
@@ -1385,18 +1439,16 @@ const displayCartDetails = Array.isArray(cartDetails)
 
 <div className="flex flex-wrap gap-4 items-left ml-4">
 {(() => {
-  // ——— helpers
   const isHttp = (u) => typeof u === "string" && u.startsWith("http");
   const isYes  = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
 
-  // source
   const allBadges   = actData?.availabilityBadges || {};
   const cleanDate   = (selectedDate || "").slice(0, 10);
   const badgeKey    = Object.keys(allBadges).find(k => k.includes(cleanDate));
   const badge       = badgeKey ? allBadges[badgeKey] : null;
   const slots       = Array.isArray(badge?.slots) ? badge.slots : [];
 
-  // lead (prefer a lead with a photo and NOT unavailable)
+  // lead card (render info)
   const leadSlot = slots.find(s => s?.state !== "unavailable" && isHttp(s?.photoUrl)) || null;
   const leadItem = leadSlot ? {
     isDeputy: false,
@@ -1419,45 +1471,72 @@ const displayCartDetails = Array.isArray(cartDetails)
       vocalistName: d.vocalistName || d.resolvedName || "",
     }));
 
-  // selection order: lead first (if any), then deputies; cap to 3
-  const selection = [leadItem, ...depYes].filter(Boolean).slice(0, 3);
+  // order: lead first (if any), then deputies
+  const selection = [leadItem, ...depYes].filter(Boolean);
 
-  console.log("🛒 [CartChooser] badgeKey:", badgeKey, "cleanDate:", cleanDate, {
-    slots: slots.length,
-    leadPicked: !!leadItem,
-    deputiesYes: depYes.length,
-    selectionCount: selection.length
-  });
+  // Heading (plural) + selected count
+  const curr = toArray(selectedVocalists?.[actData._id]);
+  const chosenCount = curr.length;
+  const titlePlural = requiredVocalCount > 1 ? "vocalists" : "vocalist";
 
-  // optional heading
-  const showChooseHeading = selection.length > 0;
+  // click handler that enforces max & keeps lead locked
+  const handlePick = (musicianId, isSelected, isLocked) => {
+    if (isLocked) return; // lead is locked
+    const lockedIds = leadIdForDate ? new Set([leadIdForDate]) : new Set();
+
+    const selectedSet = new Set(toArray(selectedVocalists?.[actData._id]));
+    // ensure locked IDs counted
+    lockedIds.forEach((id) => selectedSet.add(id));
+
+    const selecting = !isSelected;
+    const willHave = new Set(selectedSet);
+    if (selecting) {
+      willHave.add(musicianId);
+      if (willHave.size > requiredVocalCount) {
+        toast?.info?.(`You can choose up to ${requiredVocalCount} ${titlePlural}.`);
+        return;
+      }
+    }
+    // delegate to your existing toggler
+    toggleVocalistForAct(actData._id, musicianId);
+  };
 
   if (!selection.length) return null;
 
   return (
     <>
-      {showChooseHeading && (
-        <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
-          Choose your vocalist:
-        </h3>
-      )}
+      <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
+        Choose your {titlePlural}
+        {requiredVocalCount > 1 && (
+          <span className="ml-1 text-gray-500 font-normal">
+            ({Math.min(chosenCount, requiredVocalCount)}/{requiredVocalCount} selected)
+          </span>
+        )}
+      </h3>
 
       <div className="flex flex-wrap gap-4 items-left ml-4">
-        {selection.map((item, idx) => (
-          <FeaturedVocalistBadgeForCart
-            key={item.musicianId || idx}
-            pictureSource={item}
-            imageUrl={item.photoUrl}
-            size={120}
-            variant={item.isDeputy ? "deputy" : "lead"}
-            musicianId={item.musicianId}
-            cacheBuster={item.setAt}
-            isSelected={selectedVocalists?.[actData._id] === item.musicianId}
-            onSelect={(musicianId) => toggleVocalistForAct(actData._id, musicianId)}
-            actContext={actData?.tscName}
-            dateContext={selectedDate}
-          />
-        ))}
+        {selection.slice(0, 8).map((item, idx) => {
+          const isLeadLocked = item.musicianId === leadIdForDate; // cannot unselect
+          const actSel = toArray(selectedVocalists?.[actData._id]);
+          const isSelected = isLeadLocked ? true : actSel.includes(item.musicianId);
+
+          return (
+            <FeaturedVocalistBadgeForCart
+              key={item.musicianId || idx}
+              pictureSource={item}
+              imageUrl={item.photoUrl}
+              size={120}
+              variant={item.isDeputy ? "deputy" : "lead"}
+              musicianId={item.musicianId}
+              cacheBuster={item.setAt}
+              isSelected={isSelected}
+              disabled={isLeadLocked}
+              onSelect={(id) => handlePick(id, isSelected, isLeadLocked)}
+              actContext={actData?.tscName}
+              dateContext={selectedDate}
+            />
+          );
+        })}
       </div>
     </>
   );

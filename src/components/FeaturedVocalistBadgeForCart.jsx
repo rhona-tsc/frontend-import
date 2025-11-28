@@ -29,83 +29,60 @@ export function FeaturedVocalistBadgeForCart({
   dateContext = null,
   onSelect = null,
   isSelected = false,
+  disabled = false,          // 👈 NEW
 }) {
   const [hover, setHover] = useState(false);
 
   const inner = Math.round(size * photoScale);
-  const ringSrc =
-    variant === "deputy"
-      ? assets.Deputy_Vocalist_Available
-      : assets.Featured_Vocalist_Available;
+  const ringSrc = variant === "deputy"
+    ? assets.Deputy_Vocalist_Available
+    : assets.Featured_Vocalist_Available;
 
   const resolvedImageUrl = imageUrl || pickProfilePicture(pictureSource || {});
-  const hasValidUrl =
-    typeof resolvedImageUrl === "string" &&
-    resolvedImageUrl.trim().startsWith("http");
-  const imgSrc =
-    hasValidUrl && cacheBuster
-      ? `${resolvedImageUrl}${
-          resolvedImageUrl.includes("?") ? "&" : "?"
-        }v=${encodeURIComponent(cacheBuster)}`
-      : resolvedImageUrl;
+  const hasValidUrl = typeof resolvedImageUrl === "string" && resolvedImageUrl.trim().startsWith("http");
+  const imgSrc = hasValidUrl && cacheBuster
+    ? `${resolvedImageUrl}${resolvedImageUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(cacheBuster)}`
+    : resolvedImageUrl;
 
   const effectiveProfileUrl =
-    profileUrl ||
-    (musicianId ? `${PUBLIC_SITE_BASE}/musician/${musicianId}` : "");
+    profileUrl || (musicianId ? `${PUBLIC_SITE_BASE}/musician/${musicianId}` : "");
 
-const handleClick = () => {
-  const id =
-    musicianId ||
-    pictureSource?.musicianId ||
-    pictureSource?.resolvedMusicianId ||
-    pictureSource?._id ||
-    "";
-  if (onSelect && id) onSelect(id);
-};
+  const handleClick = () => {
+    if (disabled) return;
+    const id = musicianId || pictureSource?.musicianId || pictureSource?.resolvedMusicianId || pictureSource?._id || "";
+    if (onSelect && id) onSelect(id);
+  };
 
-console.log("🟢 Badge Click Bind:", {
-  musicianId,
-  resolvedFrom: pictureSource?.musicianId,
-});
-
-  // ✅ Grow effect but no circle outline
   const scaleClass = hover || isSelected ? "scale-105" : "scale-100";
+  const cursorClass = disabled ? "cursor-not-allowed opacity-70" : (onSelect ? "cursor-pointer" : "cursor-default");
 
-  // Helper to get first name + initial of surname
-  function getShortName(obj = {}) {
-    const fullName =
-      obj.vocalistName ||
-      obj.name ||
-      "";
+  const getShortName = (obj = {}) => {
+    const fullName = obj.vocalistName || obj.name || "";
     if (!fullName) return "";
     const parts = fullName.trim().split(" ");
-    if (parts.length === 0) return "";
-    const first = parts[0];
+    const first = parts[0] || "";
     const lastInitial = parts.length > 1 ? parts[1][0] : "";
     return lastInitial ? `${first} ${lastInitial}.` : first;
-  }
-
+  };
   const vocalistDisplayName = getShortName(pictureSource || {});
 
   return (
-<div
-  className={`inline-flex flex-col items-center ${className} ${onSelect ? "cursor-pointer" : "cursor-default"} transition-transform duration-150`}
-  style={{ width: size, zIndex: 50, minHeight: size }}
-  onClick={onSelect ? handleClick : undefined}
-  onMouseEnter={onSelect ? () => setHover(true) : undefined}
-  onMouseLeave={onSelect ? () => setHover(false) : undefined}
-  role={onSelect ? "button" : undefined}
-  aria-pressed={onSelect ? isSelected : undefined}
->
+    <div
+      className={`inline-flex flex-col items-center ${className} ${cursorClass} transition-transform duration-150`}
+      style={{ width: size, zIndex: 50, minHeight: size }}
+      onClick={onSelect && !disabled ? handleClick : undefined}
+      onMouseEnter={!disabled && onSelect ? () => setHover(true) : undefined}
+      onMouseLeave={!disabled && onSelect ? () => setHover(false) : undefined}
+      role={onSelect ? "button" : undefined}
+      aria-pressed={onSelect ? isSelected : undefined}
+      aria-disabled={disabled || undefined}
+      title={disabled ? "Featured vocalist (required)" : undefined}
+    >
       <div
-className={`relative select-none rounded-md border-2 shadow-md hover:shadow-lg p-4 transition-all
-  ${isSelected ? "brightness-110 border-[#ff6667] shadow-lg bg-gray-300" : "border-gray-300 bg-white"}
-  ${scaleClass}`}        style={{
-          width: size,
-          height: size,
-          minHeight: size,
-          position: "relative",
-        }}
+        className={`relative select-none rounded-md border-2 shadow-md hover:shadow-lg p-4 transition-all
+          ${isSelected ? "brightness-110 border-[#ff6667] shadow-lg bg-gray-300" : "border-gray-300 bg-white"}
+          ${scaleClass}`}
+        style={{ width: size, height: size, minHeight: size, position: "relative" }}
         aria-label="Vocalist featured & available"
       >
         {hasValidUrl && (
@@ -132,7 +109,9 @@ className={`relative select-none rounded-md border-2 shadow-md hover:shadow-lg p
       </div>
 
       {vocalistDisplayName && (
-        <div className="mt-2 text-[15px] font-semibold text-center w-full">{vocalistDisplayName}</div>
+        <div className="mt-2 text-[15px] font-semibold text-center w-full">
+          {vocalistDisplayName}{disabled ? " (featured)" : ""}
+        </div>
       )}
 
       {effectiveProfileUrl && (
@@ -147,16 +126,9 @@ className={`relative select-none rounded-md border-2 shadow-md hover:shadow-lg p
         </a>
       )}
 
-      {/* Show tick icon below badge if selected */}
       {isSelected && (
         <div className="flex justify-center w-full mt-2">
-          <img
-            src={assets.tick}
-            alt="Selected"
-            style={{ width: 20, height: 20 }}
-            className="mx-auto"
-            draggable={false}
-          />
+          <img src={assets.tick} alt="Selected" style={{ width: 20, height: 20 }} className="mx-auto" draggable={false} />
         </div>
       )}
     </div>
