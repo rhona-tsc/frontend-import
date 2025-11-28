@@ -112,37 +112,7 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
   const [selectedEventType, setSelectedEventType] = useState("Wedding");
   const [customEventType, setCustomEventType] = useState("");
   const [performancePlans, setPerformancePlans] = useState({});
-  const [showDebug, setShowDebug] = useState(false);
 
-  // Expose quick debug helpers on the live site console (no reliance on console logs from click handlers)
-  useEffect(() => {
-    try {
-      window.__cartDebug = {
-        dump() {
-          toast?.(<CustomToast type="info" message="__cartDebug.dump(): see console" />);
-          console.log('[__cartDebug.dump]', {
-            selectedDate,
-            selectedAddress,
-            cartItems,
-            selectedVocalists,
-            availabilityBadgesByAct,
-          });
-        },
-        toggle(actId, musicianId) {
-          try {
-            toggleVocalistForAct?.(String(actId), String(musicianId));
-            toast?.(<CustomToast type="success" message={`Toggled vocalist ${musicianId} for act ${actId}`} />);
-          } catch (e) {
-            toast?.(<CustomToast type="error" message="Toggle failed — see console" />);
-            console.warn('[__cartDebug.toggle] error', e);
-          }
-        },
-      };
-    } catch {}
-    return () => {
-      try { delete window.__cartDebug; } catch {}
-    };
-  }, [cartItems, selectedAddress, selectedDate, selectedVocalists, availabilityBadgesByAct, toggleVocalistForAct]);
 
   const navigate = useNavigate();
 
@@ -1325,45 +1295,6 @@ const displayCartDetails = Array.isArray(cartDetails)
         <Title text1={"BOOKING"} text2={"DETAILS"} />
       </div>
 
-      {/* --- Debug panel (toggle) --- */}
-      <div className="mb-2 p-2 border rounded bg-gray-50">
-        <button
-          type="button"
-          className="px-3 py-1 text-sm rounded bg-black text-white hover:bg-[#ff6667]"
-          onClick={() => setShowDebug((v) => !v)}
-        >
-          🛠 Debug
-        </button>
-        {showDebug && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="px-2 py-1 text-xs border rounded"
-              onClick={() => {
-                console.log('[DEBUG] Top button clicked', {
-                  selectedDate,
-                  selectedAddress,
-                  cartActs: Object.keys(cartItems || {}),
-                  selectedVocalists,
-                });
-                toast(<CustomToast type="info" message="Debug: log printed" />);
-              }}
-            >
-              Log basics
-            </button>
-            <button
-              type="button"
-              className="px-2 py-1 text-xs border rounded"
-              onClick={() => {
-                setShowSearch?.(true);
-                console.log('[DEBUG] Open search clicked');
-              }}
-            >
-              Open search
-            </button>
-          </div>
-        )}
-      </div>
 
       {selectedDate && selectedAddress ? (
         <>
@@ -1478,7 +1409,6 @@ const displayCartDetails = Array.isArray(cartDetails)
               ? perfFromCart.arrivalTime
               : "";
 
-              const selected = selectedVocalists?.[item._id] ? [selectedVocalists[item._id]] : [];
 
           return (
             <div
@@ -1532,57 +1462,11 @@ const displayCartDetails = Array.isArray(cartDetails)
                   <p className="text-2xl text-gray-700 font-medium">
                     {item.actName}
                   </p>
-                  {showDebug && (
-                    <div className="mt-2 ml-1 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="px-2 py-1 text-xs border rounded"
-                        onClick={() => console.log('[TEST] Per-item button clicked', { actId: item.actId, name: item.actName })}
-                      >
-                        Test Log (per item)
-                      </button>
-                      <button
-                        type="button"
-                        className="px-2 py-1 text-xs border rounded"
-                        onClick={() => {
-                          try {
-                            const allBadges = (availabilityBadgesByAct?.[item.actId]) || (item.actData?.availabilityBadges) || {};
-                            const cleanDate = (selectedDate || '').slice(0,10);
-                            const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
-                            const badge = badgeKey ? allBadges[badgeKey] : null;
-                            const slots = Array.isArray(badge?.slots) ? badge.slots : [];
-                            const dep = slots.flatMap(s => Array.isArray(s.deputies) ? s.deputies : [])
-                              .find(d => (d?.state === 'yes' || d?.reply === 'yes' || d?.available === true) && d?.musicianId);
-                            const id = String(dep?.musicianId || '');
-                            console.log('[TEST] toggleVocalistForAct attempt', { actId: item.actId, id });
-                            if (id) toggleVocalistForAct(item.actId, id);
-                            else toast(<CustomToast type="warning" message="No deputy YES found to toggle" />);
-                          } catch (e) {
-                            console.warn('[TEST] toggle error', e);
-                          }
-                        }}
-                      >
-                        Toggle first YES deputy
-                      </button>
-                    </div>
-                  )}
            {/* Availability badge */}
 <div className="mt-6">
 
 <div
   className="flex flex-wrap gap-4 items-left ml-4"
-  onClickCapture={(e) => {
-    console.log('[CAPTURE] badge wrapper', { target: e.target?.tagName, currentTarget: e.currentTarget?.tagName });
-    if (showDebug) {
-      toast(<CustomToast type="info" message="(capture) badge area clicked" />);
-    }
-  }}
-  onClick={() => {
-    console.log('[BUBBLE] badge wrapper click');
-    if (showDebug) {
-      toast(<CustomToast type="info" message="(bubble) badge area clicked" />);
-    }
-  }}
 >
 {(() => {
   const isHttp = (u) => typeof u === "string" && u.startsWith("http");
@@ -1651,30 +1535,29 @@ const displayCartDetails = Array.isArray(cartDetails)
   const titlePlural = requiredVocalCount > 1 ? "vocalists" : "vocalist";
   console.log('[state]', { actSel, chosenCount, titlePlural });
 
-  // click handler that enforces max & keeps lead locked
-  const handlePick = (musicianId, isSelected, isLocked) => {
-    console.log('[pick:init]', { musicianId, isSelected, isLocked, requiredVocalCount });
-    if (isLocked) {
-      console.warn('[pick] blocked: lead is locked');
-      return; // lead is locked
-    }
+  // click handler that enforces max & keeps lead locked, shows toast on selection
+  const handlePick = (person, isSelected, isLocked) => {
+    const musicianId = person.musicianId;
+    if (isLocked) return; // lead is locked (unclickable)
+
     const lockedIds = leadIdForDate ? new Set([leadIdForDate]) : new Set();
     const selectedSet = new Set(actSel);
     lockedIds.forEach((id) => selectedSet.add(id));
-    console.log('[pick:before]', { selectedSet: Array.from(selectedSet) });
 
     const selecting = !isSelected;
-    const willHave = new Set(selectedSet);
     if (selecting) {
+      const willHave = new Set(selectedSet);
       willHave.add(musicianId);
-      console.log('[pick:willHave]', { willHave: Array.from(willHave) });
       if (willHave.size > requiredVocalCount) {
-        console.warn('[pick] blocked by cap', { cap: requiredVocalCount, attemptedId: musicianId });
         toast?.info?.(`You can choose up to ${requiredVocalCount} ${titlePlural}.`);
         return;
       }
+
+      const who = (person.vocalistName || '').trim() || 'Vocalist';
+      const phr = requiredVocalCount > 1 ? 'one of your vocalists' : 'your vocalist';
+      try { toast(<CustomToast type="success" message={`${who} is selected as ${phr}.`} />); } catch {}
     }
-    console.log('[pick:toggle]', { actId: item.actId, musicianId });
+
     toggleVocalistForAct(item.actId, musicianId);
   };
 
@@ -1708,26 +1591,16 @@ const displayCartDetails = Array.isArray(cartDetails)
               tabIndex={0}
               aria-pressed={isSelected}
               className="inline-block focus:outline-none"
-              onMouseDown={() => {
-                console.log('[parent:mousedown]', { keyId });
-                if (showDebug) toast(<CustomToast type="info" message="mousedown on badge" />);
-              }}
-              onMouseUp={() => {
-                console.log('[parent:mouseup]', { keyId });
-                if (showDebug) toast(<CustomToast type="info" message="mouseup on badge" />);
-              }}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[parent:click]', { keyId, musicianId: person.musicianId, isLeadLocked, isSelected });
-                if (!isLeadLocked) handlePick(person.musicianId, isSelected, isLeadLocked);
+                if (!isLeadLocked) handlePick(person, isSelected, isLeadLocked);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('[parent:keyToggle]', { keyId, musicianId: person.musicianId, isLeadLocked, isSelected });
-                  if (!isLeadLocked) handlePick(person.musicianId, isSelected, isLeadLocked);
+                  if (!isLeadLocked) handlePick(person, isSelected, isLeadLocked);
                 }
               }}
               style={{ cursor: isLeadLocked ? 'not-allowed' : 'pointer' }}
@@ -1740,7 +1613,7 @@ const displayCartDetails = Array.isArray(cartDetails)
                 musicianId={person.musicianId}
                 cacheBuster={person.setAt}
                 isSelected={isSelected}
-                disabled={isLeadLocked}
+                disabled={false}
                 actContext={item.actName}
                 dateContext={selectedDate}
               />
