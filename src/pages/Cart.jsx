@@ -87,6 +87,24 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
 
   const navigate = useNavigate();
 
+  // --- Safe actId + selection helpers (avoid null ._id access)
+  const actId = actData?._id || null;
+
+  // Normalize selection shape for this act (string | array -> array)
+  const selectionForAct = toArray(actId ? selectedVocalists?.[actId] : []);
+
+  // Safe toggle wrapper (no-op until actId exists)
+  const safeToggle = useCallback(
+    (musicianId) => {
+      if (!actId) {
+        console.warn("toggleVocalistForAct skipped: no actId yet");
+        return;
+      }
+      toggleVocalistForAct(actId, musicianId);
+    },
+    [actId, toggleVocalistForAct]
+  );
+
 // inside your component, before the JSX:
 const requiredVocalCount = useMemo(() => getRequiredVocalCount(actData), [actData]);
 const leadIdForDate = useMemo(
@@ -94,21 +112,16 @@ const leadIdForDate = useMemo(
   [actData?.availabilityBadges, selectedDate]
 );
 
-// current selection for this act as an array (supports old single-string shape)
-const currentSelRaw = selectedVocalists?.[actData._id];
-const currentSelArr = toArray(currentSelRaw);
 
 // Seed: ensure featured lead is selected exactly once; make it "locked"
 const leadSeededRef = useRef(false);
 useEffect(() => {
-  if (!leadIdForDate || leadSeededRef.current) return;
-  if (!currentSelArr.includes(leadIdForDate)) {
-    // uses your existing toggle API
-    toggleVocalistForAct(actData._id, leadIdForDate);
+  if (!leadIdForDate || !actId || leadSeededRef.current) return;
+  if (!selectionForAct.includes(leadIdForDate)) {
+    safeToggle(leadIdForDate);
   }
   leadSeededRef.current = true;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [leadIdForDate, actData._id]);
+}, [leadIdForDate, actId]); // keep deps minimal to avoid loops
 
 
       useEffect(() => {
@@ -1475,7 +1488,7 @@ const displayCartDetails = Array.isArray(cartDetails)
   const selection = [leadItem, ...depYes].filter(Boolean);
 
   // Heading (plural) + selected count
-  const curr = toArray(selectedVocalists?.[actData._id]);
+  const curr = selectionForAct;
   const chosenCount = curr.length;
   const titlePlural = requiredVocalCount > 1 ? "vocalists" : "vocalist";
 
@@ -1484,7 +1497,7 @@ const displayCartDetails = Array.isArray(cartDetails)
     if (isLocked) return; // lead is locked
     const lockedIds = leadIdForDate ? new Set([leadIdForDate]) : new Set();
 
-    const selectedSet = new Set(toArray(selectedVocalists?.[actData._id]));
+    const selectedSet = new Set(selectionForAct);
     // ensure locked IDs counted
     lockedIds.forEach((id) => selectedSet.add(id));
 
@@ -1498,7 +1511,7 @@ const displayCartDetails = Array.isArray(cartDetails)
       }
     }
     // delegate to your existing toggler
-    toggleVocalistForAct(actData._id, musicianId);
+    safeToggle(musicianId);
   };
 
   if (!selection.length) return null;
@@ -1517,12 +1530,12 @@ const displayCartDetails = Array.isArray(cartDetails)
       <div className="flex flex-wrap gap-4 items-left ml-4">
         {selection.slice(0, 8).map((item, idx) => {
           const isLeadLocked = item.musicianId === leadIdForDate; // cannot unselect
-          const actSel = toArray(selectedVocalists?.[actData._id]);
+          const actSel = selectionForAct;
           const isSelected = isLeadLocked ? true : actSel.includes(item.musicianId);
 
           return (
             <FeaturedVocalistBadgeForCart
-              key={item.musicianId || idx}
+              key={`${(selectedDate || "").slice(0,10)}_${item.musicianId || idx}`}
               pictureSource={item}
               imageUrl={item.photoUrl}
               size={120}
@@ -1531,7 +1544,7 @@ const displayCartDetails = Array.isArray(cartDetails)
               cacheBuster={item.setAt}
               isSelected={isSelected}
               disabled={isLeadLocked}
-              onSelect={(id) => handlePick(id, isSelected, isLeadLocked)}
+              onSelect={isLeadLocked ? undefined : (id) => handlePick(id, isSelected, isLeadLocked)}
               actContext={actData?.tscName}
               dateContext={selectedDate}
             />
