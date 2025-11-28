@@ -1199,62 +1199,90 @@ if (!actData || !selectedLineup) {
     const isHttp = (u) => typeof u === "string" && u.startsWith("http");
     const isYes = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
 
+    // small helpers
+    const uniqBy = (arr, getKey) => {
+      const seen = new Set();
+      const out = [];
+      for (const item of arr) {
+        const key = getKey(item);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(item);
+      }
+      return out;
+    };
+
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
         {slots.map((slot) => {
-          // ✅ New preferred path: server-chosen primary
-          const p = slot?.primary;
-          if (p && isHttp(p.photoUrl)) {
-            return (
-              <FeaturedVocalistBadge
-                key={`${badgeKey}_slot_${slot.slotIndex}_primary`}
-                imageUrl={p.photoUrl}
-                size={140}
-                cacheBuster={p.setAt || slot.setAt || badgeForDate.setAt || ""}
-                className="mt-2"
-                musicianId={String(p.musicianId || "")}
-                profileUrl={p.profileUrl}
-                variant={p.isDeputy ? "deputy" : "lead"}
-              />
-            );
+          const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
+
+          // sort YES deputies by most recent reply
+          const yesDeps = deps
+            .filter(d => isYes(d) && isHttp(d?.photoUrl))
+            .sort((a, b) => new Date(b.repliedAt || b.setAt || 0) - new Date(a.repliedAt || a.setAt || 0));
+
+          // when LEAD is available, show the lead only (keeps UI clean)
+          const leadIsAvailable = slot?.state === "yes";
+          const leadHasPhoto = isHttp(slot?.photoUrl);
+
+          let renderList = [];
+
+          if (leadIsAvailable && leadHasPhoto) {
+            // show lead only
+            renderList = [{
+              isDeputy: false,
+              musicianId: slot.musicianId,
+              photoUrl: slot.photoUrl,
+              profileUrl: slot.profileUrl,
+              setAt: slot.setAt,
+            }];
+          } else {
+            // lead unavailable or no lead photo → show up to 3 YES deputies
+            // prefer server-chosen primary if it's a deputy, then add other yes-deps
+            const primary = (slot?.primary && slot.primary.isDeputy && isHttp(slot.primary.photoUrl))
+              ? slot.primary
+              : null;
+
+            const combined = [
+              ...(primary ? [primary] : []),
+              ...yesDeps.filter(d => !primary || String(d.musicianId) !== String(primary.musicianId)),
+            ];
+
+            // de-dupe by musicianId, cap to 3
+            renderList = uniqBy(combined, d => String(d.musicianId)).slice(0, 3);
+
+            // fallback: if nobody said YES but there is any deputy with a photo, show the first one
+            if (!renderList.length) {
+              const firstWithPhoto = deps.find(d => isHttp(d?.photoUrl));
+              if (firstWithPhoto) renderList = [{ ...firstWithPhoto, isDeputy: true }];
+            }
           }
 
-          // 🟨 Legacy fallback (kept for older badges / safety)
-          const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
-          const covering = deps.find(d => isYes(d) && isHttp(d?.photoUrl));
-          const leadIsUnavailable = slot?.state === "unavailable";
-          const leadCandidate = (!leadIsUnavailable && isHttp(slot?.photoUrl))
-            ? {
-                musicianId: slot.musicianId,
-                photoUrl: slot.photoUrl,
-                profileUrl: slot.profileUrl,
-                setAt: slot.setAt,
-                isDeputy: false,
-              }
-            : null;
-          const firstDepWithPhoto = deps.find(d => isHttp(d?.photoUrl)) || null;
-
-          const basePrimary = covering
-            ? { ...covering, isDeputy: true }
-            : (leadCandidate || (firstDepWithPhoto ? { ...firstDepWithPhoto, isDeputy: true } : null));
-
-          if (!basePrimary) return null;
-
-          const resolvedProfileUrl =
-            basePrimary.profileUrl ||
-            (basePrimary.musicianId ? `${window.location.origin}/musician/${basePrimary.musicianId}` : "");
+          if (!renderList.length) return null;
 
           return (
-            <FeaturedVocalistBadge
-              key={`${badgeKey}_slot_${slot.slotIndex}_fallback`}
-              imageUrl={basePrimary.photoUrl}
-              size={140}
-              cacheBuster={basePrimary.setAt || slot.setAt || badgeForDate.setAt || ""}
-              className="mt-2"
-              musicianId={String(basePrimary.musicianId || "")}
-              profileUrl={resolvedProfileUrl}
-              variant={basePrimary.isDeputy ? "deputy" : "lead"}
-            />
+            <div key={`${badgeKey}_slotwrap_${slot.slotIndex}`} className="flex items-center gap-3 flex-wrap">
+              {renderList.map((item, idx) => {
+                const cache = item.setAt || slot.setAt || badgeForDate.setAt || "";
+                const prof =
+                  item.profileUrl ||
+                  (item.musicianId ? `${window.location.origin}/musician/${item.musicianId}` : "");
+
+                return (
+                  <FeaturedVocalistBadge
+                    key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}
+                    imageUrl={item.photoUrl}
+                    size={140}
+                    cacheBuster={cache}
+                    className="mt-2"
+                    musicianId={String(item.musicianId || "")}
+                    profileUrl={prof}
+                    variant={item.isDeputy ? "deputy" : "lead"}
+                  />
+                );
+              })}
+            </div>
           );
         })}
       </div>
