@@ -1382,60 +1382,93 @@ const displayCartDetails = Array.isArray(cartDetails)
                   </p>
            {/* Availability badge */}
 <div className="mt-6">
-{(() => {
-  const badges = actData?.availabilityBadges || {};
-  const cleanDate = selectedDate ? selectedDate.slice(0, 10) : null;
-  const matchedKey =
-    cleanDate &&
-    Object.keys(badges).find(
-      (key) =>
-        key === cleanDate ||
-        key.startsWith(`${cleanDate}_`) ||
-        key.includes(cleanDate)
-    );
-  const badgeForDate = matchedKey ? badges[matchedKey] : null;
+{showChooseHeading && (
+  <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
+    Choose your vocalist:
+  </h3>
+)}
 
-  if (!badgeForDate) return null;
+<div className="flex flex-wrap gap-4 items-left ml-4">
+  {(() => {
+    const allBadges = actData?.availabilityBadges;
+    if (!allBadges || !selectedDate) return null;
 
-  // 🧠 Hide everything if lead is available
-  if (badgeForDate?.isDeputy === false) return null;
+    const cleanDate = selectedDate.slice(0, 10);
+    const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
+    if (!badgeKey) return null;
 
-  const showChooseHeading = badgeForDate?.isDeputy === true;
+    const badgeForDate = allBadges[badgeKey];
+    const slots = badgeForDate?.slots || [];
+    if (!slots.length) return null;
 
-  // 🎤 Include all deputies that replied “yes/available”
-  const deputyList =
-    Array.isArray(badgeForDate.deputies) && badgeForDate.deputies.length
-      ? badgeForDate.deputies
-      : [badgeForDate];
+    const isHttp = (u) => typeof u === "string" && u.startsWith("http");
+    const isYes  = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
+    const uniqBy = (arr, getKey) => {
+      const seen = new Set();
+      const out = [];
+      for (const item of arr) {
+        const key = getKey(item);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(item);
+      }
+      return out;
+    };
 
-  return (
-    <>
-      {showChooseHeading && (
-        <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
-          Choose your vocalist:
-        </h3>
-      )}
+    // Lead-first per slot, then deputy YES (newest first), cap 3 per slot
+    const items = slots.flatMap((slot) => {
+      const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
 
-      <div className="flex flex-wrap gap-4 items-left ml-4">
-        {deputyList.map((dep, idx) => (
-          <FeaturedVocalistBadgeForCart
-            key={dep.musicianId || idx}
-            pictureSource={dep}
-            imageUrl={dep.photoUrl || dep.profilePicture}
-            size={120}
-            variant={dep.isDeputy ? "deputy" : "lead"}
-            musicianId={dep.musicianId}
-            cacheBuster={dep.setAt}
-            isSelected={selectedVocalists?.[actData._id] === dep.musicianId}
-            onSelect={(musicianId) => toggleVocalistForAct(actData._id, musicianId)}
-            actContext={actData?.tscName}
-            dateContext={selectedDate}
-          />
-        ))}
-      </div>
-    </>
-  );
-})()}
+      // Lead only if AVAILABLE and has a photo
+      const leadIsAvailable = slot?.state === "yes";
+      const leadHasPhoto    = isHttp(slot?.photoUrl);
+      const leadItem = (leadIsAvailable && leadHasPhoto)
+        ? {
+            isDeputy: false,
+            musicianId: slot.musicianId,
+            photoUrl: slot.photoUrl,
+            profileUrl: slot.profileUrl,
+            setAt: slot.setAt,
+            vocalistName: slot.vocalistName || "",
+            slotIndex: slot.slotIndex,
+          }
+        : null;
+
+      // YES deputies with photos (newest first)
+      const yesDeps = deps
+        .filter(d => isYes(d) && isHttp(d?.photoUrl))
+        .sort((a, b) => new Date(b.repliedAt || b.setAt || 0) - new Date(a.repliedAt || a.setAt || 0))
+        .map(d => ({ ...d, isDeputy: true, slotIndex: slot.slotIndex }));
+
+      const combined = [
+        ...(leadItem ? [leadItem] : []),
+        ...yesDeps,
+      ];
+
+      // De-dupe per slot by musicianId and cap to 3
+      return uniqBy(combined, x => String(x.musicianId)).slice(0, 3);
+    });
+
+    if (!items.length) return null;
+
+    return items.map((it, idx) => (
+      <FeaturedVocalistBadgeForCart
+        key={`${badgeKey}_${it.slotIndex}_${String(it.musicianId || idx)}`}
+        pictureSource={it}
+        imageUrl={it.photoUrl || it.profilePicture}
+        size={120}
+        variant={it.isDeputy ? "deputy" : "lead"}
+        musicianId={it.musicianId}
+        cacheBuster={it.setAt}
+        // ✅ Only deputies are selectable (buttons)
+        onSelect={it.isDeputy ? (musicianId) => toggleVocalistForAct(actData._id, musicianId) : null}
+        isSelected={it.isDeputy && selectedVocalists?.[actData._id] === it.musicianId}
+        actContext={actData?.tscName}
+        dateContext={selectedDate}
+      />
+    ));
+  })()}
+</div>
 
 
   

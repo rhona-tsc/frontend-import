@@ -88,13 +88,15 @@ console.log("🟢 Badge Click Bind:", {
   const vocalistDisplayName = getShortName(pictureSource || {});
 
   return (
-    <div
-      className={`inline-flex flex-col items-center ${className} cursor-pointer transition-transform duration-150`}
-      style={{ width: size, zIndex: 50, minHeight: size }}
-      onClick={handleClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
+<div
+  className={`inline-flex flex-col items-center ${className} ${onSelect ? "cursor-pointer" : "cursor-default"} transition-transform duration-150`}
+  style={{ width: size, zIndex: 50, minHeight: size }}
+  onClick={onSelect ? handleClick : undefined}
+  onMouseEnter={onSelect ? () => setHover(true) : undefined}
+  onMouseLeave={onSelect ? () => setHover(false) : undefined}
+  role={onSelect ? "button" : undefined}
+  aria-pressed={onSelect ? isSelected : undefined}
+>
       <div
 className={`relative select-none rounded-md border-2 shadow-md hover:shadow-lg p-4 transition-all
   ${isSelected ? "brightness-110 border-[#ff6667] shadow-lg bg-gray-300" : "border-gray-300 bg-white"}
