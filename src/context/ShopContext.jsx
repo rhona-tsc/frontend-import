@@ -1,5 +1,5 @@
 // frontend/src/context/ShopContext.jsx
-import React, { createContext, useState, useEffect, useRef } from "react";
+import React, { createContext, useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
@@ -76,12 +76,13 @@ const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
     return p; // relative (e.g. "/api/..."), works locally when Vite dev proxy is set
   };
 
-  const selectVocalistForAct = (actId, musicianId) => {
-    setSelectedVocalists((prev) => ({
-      ...prev,
-      [actId]: musicianId,
-    }));
-  };
+  const selectVocalistForAct = useCallback((actId, musicianId) => {
+    setSelectedVocalists((prev) => {
+      const s = new Set(toArray(prev?.[actId]));
+      if (musicianId) s.add(String(musicianId));
+      return { ...prev, [actId]: Array.from(s) };
+    });
+  }, []);
 
   const ensureLeadIncluded = useCallback((actId, leadId) => {
   setSelectedVocalists(prev => {
