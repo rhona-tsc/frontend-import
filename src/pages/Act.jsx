@@ -1197,17 +1197,31 @@ if (!actData || !selectedLineup) {
     if (!slots.length) return null;
 
     const isHttp = (u) => typeof u === "string" && u.startsWith("http");
-    const isYes = (d) => d?.state === "yes" || d?.reply === "yes";
+    const isYes = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
 
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
         {slots.map((slot) => {
+          // ✅ New preferred path: server-chosen primary
+          const p = slot?.primary;
+          if (p && isHttp(p.photoUrl)) {
+            return (
+              <FeaturedVocalistBadge
+                key={`${badgeKey}_slot_${slot.slotIndex}_primary`}
+                imageUrl={p.photoUrl}
+                size={140}
+                cacheBuster={p.setAt || slot.setAt || badgeForDate.setAt || ""}
+                className="mt-2"
+                musicianId={String(p.musicianId || "")}
+                profileUrl={p.profileUrl}
+                variant={p.isDeputy ? "deputy" : "lead"}
+              />
+            );
+          }
+
+          // 🟨 Legacy fallback (kept for older badges / safety)
           const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
-
-          // 1) covering deputy who said YES
           const covering = deps.find(d => isYes(d) && isHttp(d?.photoUrl));
-
-          // 2) lead candidate only if NOT unavailable and has a photo
           const leadIsUnavailable = slot?.state === "unavailable";
           const leadCandidate = (!leadIsUnavailable && isHttp(slot?.photoUrl))
             ? {
@@ -1218,25 +1232,21 @@ if (!actData || !selectedLineup) {
                 isDeputy: false,
               }
             : null;
-
-          // 3) fallback: any deputy with a photo (prefer first with http)
           const firstDepWithPhoto = deps.find(d => isHttp(d?.photoUrl)) || null;
 
-          // Primary choice
           const basePrimary = covering
             ? { ...covering, isDeputy: true }
             : (leadCandidate || (firstDepWithPhoto ? { ...firstDepWithPhoto, isDeputy: true } : null));
 
           if (!basePrimary) return null;
 
-          // Ensure profileUrl is present
           const resolvedProfileUrl =
             basePrimary.profileUrl ||
             (basePrimary.musicianId ? `${window.location.origin}/musician/${basePrimary.musicianId}` : "");
 
           return (
             <FeaturedVocalistBadge
-              key={`${badgeKey}_slot_${slot.slotIndex}_primary`}
+              key={`${badgeKey}_slot_${slot.slotIndex}_fallback`}
               imageUrl={basePrimary.photoUrl}
               size={140}
               cacheBuster={basePrimary.setAt || slot.setAt || badgeForDate.setAt || ""}
