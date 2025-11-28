@@ -114,6 +114,36 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
   const [performancePlans, setPerformancePlans] = useState({});
   const [showDebug, setShowDebug] = useState(false);
 
+  // Expose quick debug helpers on the live site console (no reliance on console logs from click handlers)
+  useEffect(() => {
+    try {
+      window.__cartDebug = {
+        dump() {
+          toast?.(<CustomToast type="info" message="__cartDebug.dump(): see console" />);
+          console.log('[__cartDebug.dump]', {
+            selectedDate,
+            selectedAddress,
+            cartItems,
+            selectedVocalists,
+            availabilityBadgesByAct,
+          });
+        },
+        toggle(actId, musicianId) {
+          try {
+            toggleVocalistForAct?.(String(actId), String(musicianId));
+            toast?.(<CustomToast type="success" message={`Toggled vocalist ${musicianId} for act ${actId}`} />);
+          } catch (e) {
+            toast?.(<CustomToast type="error" message="Toggle failed — see console" />);
+            console.warn('[__cartDebug.toggle] error', e);
+          }
+        },
+      };
+    } catch {}
+    return () => {
+      try { delete window.__cartDebug; } catch {}
+    };
+  }, [cartItems, selectedAddress, selectedDate, selectedVocalists, availabilityBadgesByAct, toggleVocalistForAct]);
+
   const navigate = useNavigate();
 
   // Seed: ensure each act's featured lead (if any) is selected exactly once and locked
@@ -1542,8 +1572,16 @@ const displayCartDetails = Array.isArray(cartDetails)
   className="flex flex-wrap gap-4 items-left ml-4"
   onClickCapture={(e) => {
     console.log('[CAPTURE] badge wrapper', { target: e.target?.tagName, currentTarget: e.currentTarget?.tagName });
+    if (showDebug) {
+      toast(<CustomToast type="info" message="(capture) badge area clicked" />);
+    }
   }}
-  onClick={() => console.log('[BUBBLE] badge wrapper click')}
+  onClick={() => {
+    console.log('[BUBBLE] badge wrapper click');
+    if (showDebug) {
+      toast(<CustomToast type="info" message="(bubble) badge area clicked" />);
+    }
+  }}
 >
 {(() => {
   const isHttp = (u) => typeof u === "string" && u.startsWith("http");
@@ -1669,8 +1707,14 @@ const displayCartDetails = Array.isArray(cartDetails)
               tabIndex={0}
               aria-pressed={isSelected}
               className="inline-block focus:outline-none"
-              onMouseDown={() => console.log('[parent:mousedown]', { keyId })}
-              onMouseUp={() => console.log('[parent:mouseup]', { keyId })}
+              onMouseDown={() => {
+                console.log('[parent:mousedown]', { keyId });
+                if (showDebug) toast(<CustomToast type="info" message="mousedown on badge" />);
+              }}
+              onMouseUp={() => {
+                console.log('[parent:mouseup]', { keyId });
+                if (showDebug) toast(<CustomToast type="info" message="mouseup on badge" />);
+              }}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
