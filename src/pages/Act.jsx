@@ -1197,6 +1197,7 @@ if (!actData || !selectedLineup) {
     if (!slots.length) return null;
 
     const isHttp = (u) => typeof u === "string" && u.startsWith("http");
+    const isYes = (d) => d?.state === "yes" || d?.reply === "yes";
 
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
@@ -1204,43 +1205,45 @@ if (!actData || !selectedLineup) {
           const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
 
           // 1) covering deputy who said YES
-          const covering =
-            deps.find(d => d?.state === "yes" && isHttp(d?.photoUrl));
+          const covering = deps.find(d => isYes(d) && isHttp(d?.photoUrl));
 
-          // 2) lead with a photo (even if lead is unavailable)
-          const leadHasPhoto = isHttp(slot?.photoUrl) ? {
-            musicianId: slot.musicianId,
-            photoUrl: slot.photoUrl,
-            profileUrl: slot.profileUrl,
-            setAt: slot.setAt,
-            isDeputy: false,
-          } : null;
+          // 2) lead candidate only if NOT unavailable and has a photo
+          const leadIsUnavailable = slot?.state === "unavailable";
+          const leadCandidate = (!leadIsUnavailable && isHttp(slot?.photoUrl))
+            ? {
+                musicianId: slot.musicianId,
+                photoUrl: slot.photoUrl,
+                profileUrl: slot.profileUrl,
+                setAt: slot.setAt,
+                isDeputy: false,
+              }
+            : null;
 
-          // after leadHasPhoto
-const leadIsUnavailable = slot?.state === "unavailable";
-const leadCandidate = (!leadIsUnavailable && leadHasPhoto) ? leadHasPhoto : null;
-// then use leadCandidate in place of leadHasPhoto in the primary selection
+          // 3) fallback: any deputy with a photo (prefer first with http)
+          const firstDepWithPhoto = deps.find(d => isHttp(d?.photoUrl)) || null;
 
-          // 3) any deputy with a photo (fallback)
-          const firstDepWithPhoto =
-            deps.find(d => isHttp(d?.photoUrl)) || null;
-
-          const primary = covering
+          // Primary choice
+          const basePrimary = covering
             ? { ...covering, isDeputy: true }
             : (leadCandidate || (firstDepWithPhoto ? { ...firstDepWithPhoto, isDeputy: true } : null));
 
-          if (!primary) return null;
+          if (!basePrimary) return null;
+
+          // Ensure profileUrl is present
+          const resolvedProfileUrl =
+            basePrimary.profileUrl ||
+            (basePrimary.musicianId ? `${window.location.origin}/musician/${basePrimary.musicianId}` : "");
 
           return (
             <FeaturedVocalistBadge
               key={`${badgeKey}_slot_${slot.slotIndex}_primary`}
-              imageUrl={primary.photoUrl}
+              imageUrl={basePrimary.photoUrl}
               size={140}
-              cacheBuster={primary.setAt || slot.setAt || badgeForDate.setAt || ""}
+              cacheBuster={basePrimary.setAt || slot.setAt || badgeForDate.setAt || ""}
               className="mt-2"
-              musicianId={String(primary.musicianId || "")}
-              profileUrl={primary.profileUrl}
-              variant={primary.isDeputy ? "deputy" : "lead"}
+              musicianId={String(basePrimary.musicianId || "")}
+              profileUrl={resolvedProfileUrl}
+              variant={basePrimary.isDeputy ? "deputy" : "lead"}
             />
           );
         })}
