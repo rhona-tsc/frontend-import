@@ -97,7 +97,7 @@ const Cart = () => {
     updatePerformance,
     isActUnavailableForSelectedDate,
     toggleVocalistForAct,
-  availLoading, setSelectedVocalists, selectedVocalists,
+  availLoading, setSelectedVocalists, selectedVocalists,ensureLeadIncluded,
   } = useContext(ShopContext);
 
   const changingLineupRef = useRef(false);
@@ -158,9 +158,9 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
       if (!leadId) return;
 
       const current = toArray(selectedVocalists?.[actId]);
-      if (!current.includes(leadId)) {
-        toggleVocalistForAct(actId, leadId);
-      }
+     if (!current.includes(leadId)) {
+  ensureLeadIncluded(actId, leadId);
+}
       if (!already) {
         seededLeadsRef.current.add(String(actId));
       }
