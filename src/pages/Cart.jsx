@@ -467,6 +467,25 @@ const clearFinishOverride = useCallback(
     window.scrollTo(0, 0);
   }, []);
 
+  // 🔎 Debug: watch selection & badges stores
+useEffect(() => {
+  try {
+    console.log("[STORE] selectedVocalists snapshot", selectedVocalists);
+  } catch (e) {}
+}, [selectedVocalists]);
+
+useEffect(() => {
+  try {
+    const keys = Object.keys(availabilityBadgesByAct || {});
+    const forDate = (selectedDate || "").slice(0, 10);
+    console.log("[STORE] availabilityBadgesByAct snapshot", {
+      keys,
+      forDate,
+      keysForDate: keys.filter((k) => k.includes(forDate)),
+    });
+  } catch (e) {}
+}, [availabilityBadgesByAct, selectedDate]);
+
   useEffect(() => {
     if (!acts || acts.length === 0) return;
     if (!cartItems || Object.keys(cartItems).length === 0) {
@@ -1477,7 +1496,15 @@ const displayCartDetails = Array.isArray(cartDetails)
               ? perfFromCart.arrivalTime
               : "";
 
-              const selected = selectedVocalists?.[item._id] ? [selectedVocalists[item._id]] : [];
+
+              if (selectedVocalists?.[item._id] && !selectedVocalists?.[item.actId]) {
+  console.warn("[VOCAL-UI] key mismatch: selectedVocalists is keyed by item._id, not actId", {
+    item_actId: item.actId,
+    item__id: item._id,
+    slice__id: selectedVocalists?.[item._id],
+    slice_actId: selectedVocalists?.[item.actId],
+  });
+}
 
           return (
             <div
@@ -1554,8 +1581,20 @@ const displayCartDetails = Array.isArray(cartDetails)
                               .find(d => (d?.state === 'yes' || d?.reply === 'yes' || d?.available === true) && d?.musicianId);
                             const id = String(dep?.musicianId || '');
                             console.log('[TEST] toggleVocalistForAct attempt', { actId: item.actId, id });
-                            if (id) toggleVocalistForAct(item.actId, id);
-                            else toast(<CustomToast type="warning" message="No deputy YES found to toggle" />);
+                           if (id) {
+  toggleVocalistForAct(item.actId, id);
+  setTimeout(() => {
+    try {
+      console.log("[TEST] post-toggle store", {
+        actId: item.actId,
+        slice: selectedVocalists?.[item.actId],
+        list: toArray(selectedVocalists?.[item.actId]),
+      });
+    } catch (e) {}
+  }, 0);
+} else {
+  toast(<CustomToast type="warning" message="No deputy YES found to toggle" />);
+}
                           } catch (e) {
                             console.warn('[TEST] toggle error', e);
                           }
@@ -1673,8 +1712,17 @@ const displayCartDetails = Array.isArray(cartDetails)
         return;
       }
     }
-    console.log('[pick:toggle]', { actId: item.actId, musicianId });
-    toggleVocalistForAct(item.actId, musicianId);
+console.log('[pick:toggle]', { actId: item.actId, musicianId });
+toggleVocalistForAct(item.actId, musicianId);
+setTimeout(() => {
+  try {
+    console.log('[pick:post-toggle]', {
+      actId: item.actId,
+      storeSlice: selectedVocalists?.[item.actId],
+      storeSel: toArray(selectedVocalists?.[item.actId]),
+    });
+  } catch (e) {}
+}, 0);
   };
 
   if (!selection.length) {
@@ -1697,9 +1745,10 @@ const displayCartDetails = Array.isArray(cartDetails)
 
       <div className="flex flex-wrap gap-4 items-left ml-4">
         {selection.slice(0, 8).map((person, idx) => {
-          const isLeadLocked = person.musicianId === leadIdForDate;
-          const isSelected = isLeadLocked ? true : actSel.includes(person.musicianId);
-          const keyId = `${(selectedDate || "").slice(0,10)}_${person.musicianId || idx}`;
+         const isLeadLocked = person.musicianId === leadIdForDate;
+const keyId = `${(selectedDate || "").slice(0,10)}_${person.musicianId || idx}`;
+const isSelected = isLeadLocked ? true : actSel.includes(person.musicianId);
+console.log('[badge:isSelected]', { keyId, musicianId: person.musicianId, isLeadLocked, actSel, isSelected });
           return (
             <div
               key={keyId}
