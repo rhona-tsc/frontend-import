@@ -14,7 +14,8 @@ const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
 const ShopProvider = (props) => {
   const currency = "£";
   const delivery_fee = 10;
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  // Normalise backend base; empty string means "use relative URLs" (dev proxy)
+  const backendUrl = (import.meta.env.VITE_BACKEND_URL || import.meta.env.BACKEND_URL || "").replace(/\/+$/,"");
 
   // --- Core UI / data ---
   const [search, setSearch] = useState("");
@@ -67,9 +68,12 @@ const [token, setToken] = useState(localStorage.getItem("token") || "");
   );
 
 
-  // Always build absolute API URLs
-  const api = (path) =>
-    `${backendUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  // Always build API URLs; if no backendUrl is configured, fall back to a relative path (requires Vite dev proxy)
+  const api = (path) => {
+    const p = path.startsWith("/") ? path : `/${path}`;
+    if (backendUrl) return `${backendUrl}${p}`;
+    return p; // relative (e.g. "/api/..."), works locally when Vite dev proxy is set
+  };
 
   const selectVocalistForAct = (actId, musicianId) => {
     setSelectedVocalists((prev) => ({
@@ -481,7 +485,8 @@ useEffect(() => {
   let sse;
 
   try {
-    const url = api("api/availability/subscribe");
+    const url = api("/api/availability/subscribe");
+    console.log("🔧 [SSE] Using API base:", backendUrl || "(relative via dev proxy)", "→ URL:", url);
     sse = new EventSource(url);
 
     console.log("🔌 [SSE] Initialized:", url);
