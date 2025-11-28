@@ -115,13 +115,7 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
   const [showDebug, setShowDebug] = useState(false);
 
 
-  useEffect(() => {
-  setSelectedVocalists(prev => {
-    const next = {};
-    for (const k of Object.keys(prev || {})) next[k] = toArray(prev[k]);
-    return next;
-  });
-}, []);
+  
 
   // Expose quick debug helpers on the live site console (no reliance on console logs from click handlers)
   useEffect(() => {
@@ -306,30 +300,6 @@ useEffect(() => {
 
 
   const mergedUpdateExtras = useMergedUpdateExtras(cartItems, setCartItems);
-
-  // Diagnostics + safe invoker for whatever shape the hook returns
-  console.log('[diag] mergedUpdateExtras type:', typeof mergedUpdateExtras);
-  const callMergedUpdateExtras = useCallback((...args) => {
-    if (typeof mergedUpdateExtras === 'function') {
-      return mergedUpdateExtras(...args);
-    }
-    if (
-      mergedUpdateExtras &&
-      typeof mergedUpdateExtras === 'object' &&
-      typeof mergedUpdateExtras.updateExtras === 'function'
-    ) {
-      return mergedUpdateExtras.updateExtras(...args);
-    }
-    console.warn('[extras] mergedUpdateExtras not callable', {
-      value: mergedUpdateExtras,
-      type: typeof mergedUpdateExtras,
-      keys:
-        mergedUpdateExtras && typeof mergedUpdateExtras === 'object'
-          ? Object.keys(mergedUpdateExtras)
-          : null,
-    });
-    return undefined;
-  }, [mergedUpdateExtras]);
 
 
   // NEW: track which lineups got auto-added extras so the banner shows the right text.
@@ -1152,7 +1122,7 @@ const permittedOnSiteMinutes =
             if (!existing) {
               return;
             }
-            callMergedUpdateExtras(item.actId, item.lineupId, {
+            mergedUpdateExtras(item.actId, item.lineupId, {
               key,
               quantity: 0,
               price: 0,
@@ -1174,7 +1144,7 @@ const permittedOnSiteMinutes =
           if (same) {
             return;
           }
-          callMergedUpdateExtras(item.actId, item.lineupId, { key, ...desired });
+          mergedUpdateExtras(item.actId, item.lineupId, { key, ...desired });
 
           if (key === "late_stay_60min_per_band_member") {
             markAutoAdded(item.actId, item.lineupId, "late");

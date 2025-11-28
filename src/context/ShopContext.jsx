@@ -1,55 +1,20 @@
 // frontend/src/context/ShopContext.jsx
-import React, { createContext, useState, useEffect, useRef, useCallback } from "react";
+import React, { createContext, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
 import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
-import rawDebounce from "lodash.debounce";
-// --- safe debounce wrapper (handles CJS/ESM default interop) ---
-const debounce =
-  typeof rawDebounce === "function"
-    ? rawDebounce
-    : (rawDebounce && typeof rawDebounce.default === "function"
-        ? rawDebounce.default
-        : (fn, wait = 0, opts = {}) => {
-            let t;
-            const leading = !!opts.leading;
-            const trailing = opts.trailing !== false;
-            return (...args) => {
-              const callLeading = leading && !t;
-              clearTimeout(t);
-              t = setTimeout(() => {
-                if (trailing) fn(...args);
-                t = null;
-              }, wait);
-              if (callLeading) fn(...args);
-            };
-          });
-
-console.log("[diag] debounce type:", typeof debounce);
-
-// --- safe structuredClone fallback ---
-const safeClone = (obj) => {
-  try {
-    return typeof structuredClone === "function"
-      ? structuredClone(obj)
-      : JSON.parse(JSON.stringify(obj));
-  } catch {
-    return Array.isArray(obj) ? [...obj] : { ...(obj || {}) };
-  }
-};
+import debounce from "lodash.debounce";
 
 export const ShopContext = createContext();
 
 const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
 
 const ShopProvider = (props) => {
-  console.log("[diag] ShopContext loaded");
   const currency = "£";
   const delivery_fee = 10;
-  // Normalise backend base; empty string means "use relative URLs" (dev proxy)
-  const backendUrl = (import.meta.env.VITE_BACKEND_URL || import.meta.env.BACKEND_URL || "").replace(/\/+$/,"");
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   // --- Core UI / data ---
   const [search, setSearch] = useState("");
@@ -77,7 +42,6 @@ useEffect(() => {
 
 const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [selectedVocalists, setSelectedVocalists] = useState({});
-const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
 
   // --- User / shortlist (single sources of truth) ---
   const [userId, setUserId] = useState(null);
@@ -103,42 +67,27 @@ const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
   );
 
 
-  // Always build API URLs; if no backendUrl is configured, fall back to a relative path (requires Vite dev proxy)
-  const api = (path) => {
-    const p = path.startsWith("/") ? path : `/${path}`;
-    if (backendUrl) return `${backendUrl}${p}`;
-    return p; // relative (e.g. "/api/..."), works locally when Vite dev proxy is set
+  // Always build absolute API URLs
+  const api = (path) =>
+    `${backendUrl}${path.startsWith("/") ? path : `/${path}`}`;
+
+  const selectVocalistForAct = (actId, musicianId) => {
+    setSelectedVocalists((prev) => ({
+      ...prev,
+      [actId]: musicianId,
+    }));
   };
 
-  const selectVocalistForAct = useCallback((actId, musicianId) => {
-    setSelectedVocalists((prev) => {
-      const s = new Set(toArray(prev?.[actId]));
-      if (musicianId) s.add(String(musicianId));
-      return { ...prev, [actId]: Array.from(s) };
-    });
-  }, []);
-
-  const ensureLeadIncluded = useCallback((actId, leadId) => {
-  setSelectedVocalists(prev => {
-    const s = new Set(toArray(prev?.[actId]));
-    if (leadId) s.add(String(leadId));
-    const after = Array.from(s);
-    console.log("[CTX.ensureLeadIncluded]", { actId, leadId, after });
-    return { ...prev, [actId]: after };
+  const toggleVocalistForAct = (actId, musicianId) => {
+  setSelectedVocalists((prev) => {
+    const current = prev[actId];
+    // toggle if already selected
+    return {
+      ...prev,
+      [actId]: current === musicianId ? null : musicianId,
+    };
   });
-}, []);
-
-
-const toggleVocalistForAct = useCallback((actId, musicianId) => {
-  setSelectedVocalists(prev => {
-    const before = new Set(toArray(prev?.[actId]));
-    if (before.has(String(musicianId))) before.delete(String(musicianId));
-    else before.add(String(musicianId));
-    const after = Array.from(before);
-    console.log("[CTX.toggle] actId:", actId, { before: Array.from(before), after });
-    return { ...prev, [actId]: after };
-  });
-}, []);
+};
 
   const getActById = async (actId) => {
     try {
@@ -357,7 +306,7 @@ const toggleVocalistForAct = useCallback((actId, musicianId) => {
   // inside ShopProvider, near other cart helpers
   const updatePerformance = (actId, lineupId, patch) => {
     setCartItems((prev) => {
-      const next = safeClone(prev || {});
+      const next = structuredClone(prev || {});
       if (!next[actId] || !next[actId][lineupId]) return prev; // nothing to update
 
       const current = next[actId][lineupId].performance || {
@@ -532,8 +481,7 @@ useEffect(() => {
   let sse;
 
   try {
-    const url = api("/api/availability/subscribe");
-    console.log("🔧 [SSE] Using API base:", backendUrl || "(relative via dev proxy)", "→ URL:", url);
+    const url = api("api/availability/subscribe");
     sse = new EventSource(url);
 
     console.log("🔌 [SSE] Initialized:", url);
@@ -960,7 +908,7 @@ const shortlistAct = async (uid, actId) => {
   // ============ Cart helpers ============
 
   const removeFromCart = (actId, lineupId) => {
-    const updated = safeClone(cartItems);
+    const updated = structuredClone(cartItems);
 
     if (updated[actId]) {
       delete updated[actId][lineupId];
@@ -1006,7 +954,7 @@ const addToCart = async (
         : [];
 
     // Clone cart
-    const updated = safeClone(cartItems || {});
+    const updated = structuredClone(cartItems || {});
     // single-lineup-per-act model: clear existing
     if (updated[actKey]) {
       delete updated[actKey];
@@ -1081,7 +1029,7 @@ const addToCart = async (
   };
 
   const updateQuantity = (actId, lineupId, quantity) => {
-    const updated = safeClone(cartItems);
+    const updated = structuredClone(cartItems);
 
     if (quantity > 0) {
       if (!updated[actId]) updated[actId] = {};
@@ -1103,7 +1051,7 @@ const addToCart = async (
   };
 
   const updateExtras = async (actId, lineupId, newExtra) => {
-    const updated = safeClone(cartItems);
+    const updated = structuredClone(cartItems);
 
     if (updated[actId] && updated[actId][lineupId]) {
       const rawExtras = updated[actId][lineupId].selectedExtras;
@@ -1300,7 +1248,6 @@ navigate("/"); // clean redirect without reload
     selectedVocalists,
     selectVocalistForAct,
     toggleVocalistForAct,
-    ensureLeadIncluded,
     setUser,
   };
 
