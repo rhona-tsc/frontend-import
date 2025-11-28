@@ -28,20 +28,40 @@ const BACKEND_URL =
   import.meta.env.BACKEND_URL?.replace(/\/$/, "") ||
   "";
 
+  // Is this member a vocalist? (checks instrument/role/name + additionalRoles text)
+const isVocalistMember = (m = {}) => {
+  const extraRoles = Array.isArray(m.additionalRoles) ? m.additionalRoles : [];
+  const hay =
+    `${m.role || ""} ${m.instrument || ""} ${m.name || ""} ` +
+    extraRoles.map(r => r?.role || r?.title || "").join(" ");
+  return /\b(vocal|singer|rap(?!tors))\b/i.test(hay);
+};
+
+// Is this member essential? (member flag OR any essential additional role)
+const isEssentialMember = (m = {}) =>
+  m?.isEssential === true ||
+  m?.required === true ||
+  (Array.isArray(m.additionalRoles) && m.additionalRoles.some(r => r?.isEssential));
 
 // How many vocalists are required in the selected lineup
+// How many vocalists are required for the selected lineup
 const getRequiredVocalCount = (actData, lineupOverride = null) => {
   const lineup =
     lineupOverride ||
     actData?.selectedLineup ||
     (Array.isArray(actData?.lineups) ? actData.lineups[0] : null);
 
-  if (!lineup?.bandMembers) return 1;
+  const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
 
-  const count = lineup.bandMembers.filter((m) =>
-    /(vocal|singer)/i.test(`${m?.role || ""} ${m?.instrument || ""} ${m?.name || ""}`) &&
-    (m?.isEssential || m?.required === true)
-  ).length;
+  // Prefer "required = number of essential vocalist members"
+  let count = members.filter(m => isVocalistMember(m) && isEssentialMember(m)).length;
+
+  // Fallback: if that returns 0/1 but we clearly have more vocalists present (even if not flagged essential),
+  // use the rough vocalist count (so 6-piece with two vocals will allow 2)
+  if (count < 2) {
+    const rough = members.filter(isVocalistMember).length;
+    count = Math.max(count, rough);
+  }
 
   return Math.max(1, count || 1);
 };
@@ -1481,9 +1501,11 @@ const displayCartDetails = Array.isArray(cartDetails)
           // order: lead first (if any), then deputies
           const selection = [leadItem, ...depYes].filter(Boolean);
 
-          // Per-item required vocal count and lead id
-          const requiredVocalCount = getRequiredVocalCount(item.actData, item.lineup);
-          const leadIdForDate = getLeadIdForDate(item.actData, selectedDate, allBadges);
+       // Prefer badge slot count (each slot = a vocalist position), fallback to lineup-based detection
+const slotCount = Array.isArray(slots) ? slots.length : 0;
+const requiredVocalCount = Math.max(1, slotCount || getRequiredVocalCount(item.actData, item.lineup));
+
+const leadIdForDate = getLeadIdForDate(item.actData, selectedDate, allBadges);
 
           // Per-act selection for this item
           const actSel = toArray(selectedVocalists?.[item.actId]);
@@ -1523,27 +1545,27 @@ const displayCartDetails = Array.isArray(cartDetails)
               </h3>
 
               <div className="flex flex-wrap gap-4 items-left ml-4">
-                {selection.slice(0, 8).map((item, idx) => {
-                  const isLeadLocked = item.musicianId === leadIdForDate; // cannot unselect
-                  const isSelected = isLeadLocked ? true : actSel.includes(item.musicianId);
+                {selection.slice(0, 8).map((person, idx) => {
+  const isLeadLocked = person.musicianId === leadIdForDate;
+  const isSelected = isLeadLocked ? true : actSel.includes(person.musicianId);
 
-                  return (
-                    <FeaturedVocalistBadgeForCart
-                      key={`${(selectedDate || "").slice(0,10)}_${item.musicianId || idx}`}
-                      pictureSource={item}
-                      imageUrl={item.photoUrl}
-                      size={120}
-                      variant={item.isDeputy ? "deputy" : "lead"}
-                      musicianId={item.musicianId}
-                      cacheBuster={item.setAt}
-                      isSelected={isSelected}
-                      disabled={isLeadLocked}
-                      onSelect={isLeadLocked ? undefined : (id) => handlePick(id, isSelected, isLeadLocked)}
-                      actContext={item.actData?.tscName}
-                      dateContext={selectedDate}
-                    />
-                  );
-                })}
+  return (
+    <FeaturedVocalistBadgeForCart
+      key={`${(selectedDate || "").slice(0,10)}_${person.musicianId || idx}`}
+      pictureSource={person}
+      imageUrl={person.photoUrl}
+      size={120}
+      variant={person.isDeputy ? "deputy" : "lead"}
+      musicianId={person.musicianId}
+      cacheBuster={person.setAt}
+      isSelected={isSelected}
+      disabled={isLeadLocked}
+      onSelect={isLeadLocked ? undefined : (id) => handlePick(id, isSelected, isLeadLocked)}
+      actContext={item.actName}           // ✅ was undefined before due to shadowing
+      dateContext={selectedDate}
+    />
+  );
+})}
               </div>
             </>
           );
