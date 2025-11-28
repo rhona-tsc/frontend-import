@@ -1476,7 +1476,7 @@ const displayCartDetails = Array.isArray(cartDetails)
   const slots = Array.isArray(badge?.slots) ? badge.slots : [];
 
   // --- DEBUG GROUP LOGS ---
-  console.groupCollapsed(
+  console.group(
     `%c[VOCAL-UI]%c ${item.actName} (${item.actId}) – ${cleanDate}`,
     'color:#8b5cf6;font-weight:bold',
     'color:inherit'
@@ -1580,21 +1580,47 @@ const displayCartDetails = Array.isArray(cartDetails)
         {selection.slice(0, 8).map((person, idx) => {
           const isLeadLocked = person.musicianId === leadIdForDate;
           const isSelected = isLeadLocked ? true : actSel.includes(person.musicianId);
+          const keyId = `${(selectedDate || "").slice(0,10)}_${person.musicianId || idx}`;
           return (
-            <FeaturedVocalistBadgeForCart
-              key={`${(selectedDate || "").slice(0,10)}_${person.musicianId || idx}`}
-              pictureSource={person}
-              imageUrl={person.photoUrl}
-              size={120}
-              variant={person.isDeputy ? "deputy" : "lead"}
-              musicianId={person.musicianId}
-              cacheBuster={person.setAt}
-              isSelected={isSelected}
-              disabled={isLeadLocked}
-              onSelect={isLeadLocked ? undefined : (id) => { console.log('[click:onSelect]', { id, isLeadLocked, isSelected }); handlePick(id, isSelected, isLeadLocked); }}
-              actContext={item.actName}
-              dateContext={selectedDate}
-            />
+            <div
+              key={keyId}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isSelected}
+              className="inline-block focus:outline-none"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[parent:click]', { keyId, musicianId: person.musicianId, isLeadLocked, isSelected });
+                if (!isLeadLocked) handlePick(person.musicianId, isSelected, isLeadLocked);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('[parent:keyToggle]', { keyId, musicianId: person.musicianId, isLeadLocked, isSelected });
+                  if (!isLeadLocked) handlePick(person.musicianId, isSelected, isLeadLocked);
+                }
+              }}
+              style={{ cursor: isLeadLocked ? 'not-allowed' : 'pointer' }}
+            >
+              <FeaturedVocalistBadgeForCart
+                pictureSource={person}
+                imageUrl={person.photoUrl}
+                size={120}
+                variant={person.isDeputy ? 'deputy' : 'lead'}
+                musicianId={person.musicianId}
+                cacheBuster={person.setAt}
+                isSelected={isSelected}
+                disabled={isLeadLocked}
+                onSelect={(id) => {
+                  console.log('[child:onSelect]', { id, isLeadLocked, isSelected });
+                  if (!isLeadLocked) handlePick(id, isSelected, isLeadLocked);
+                }}
+                actContext={item.actName}
+                dateContext={selectedDate}
+              />
+            </div>
           );
         })}
       </div>
