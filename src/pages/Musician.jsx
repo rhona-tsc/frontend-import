@@ -387,7 +387,7 @@ useEffect(() => {
       </button>
 
       {/* Date & Venue Selection */}
-      <div>
+      <div className="visability:hidden">
         {selectedDate ? (
           <div className="text-sm mt-3 p-2 text-gray-500 visability:hidden">
             <span>Availability for </span>
