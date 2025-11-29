@@ -494,15 +494,26 @@ useEffect(() => {
   let sse;
   // 🔒 Deduplicate identical toasts (e.g., legacy "availability_yes" + "leadYes")
   const recentToastKeys = new Map();
-  const shouldToast = (payload) => {
+  // ⏳ Delay single-token lead names to "prefer" the richer (first+last) event
+  const pendingLeadTimers = new Map(); // key: `${actId}|${dateISO}` → timeoutId
+
+  const buildDedupeKey = (normalizedType, p) => {
+    // For LEAD: key only by act+date so double-emits (different musicianName shapes) collapse.
+    if (normalizedType === "leadYes") {
+      return ["leadYes", p?.actId || "", p?.dateISO || ""].join("|");
+    }
+    // For DEPUTY: keep musician in the key so multiple deputies can each toast.
+    return [
+      normalizedType,
+      p?.actId || "",
+      (p?.musicianId || p?.musicianName || "").toString(),
+      p?.dateISO || ""
+    ].join("|");
+  };
+
+  const shouldToast = (normalizedType, p) => {
     try {
-      const normalizedType = payload?.type === "availability_yes" ? "leadYes" : payload?.type;
-      const k = [
-        normalizedType,
-        payload?.actId || "",
-        (payload?.musicianId || payload?.musicianName || "").toString(),
-        payload?.dateISO || ""
-      ].join("|");
+      const k = buildDedupeKey(normalizedType, p);
       const now = Date.now();
       const last = recentToastKeys.get(k) || 0;
       if (now - last < 5000) return false; // 5s hold-off window
@@ -647,11 +658,44 @@ useEffect(() => {
 
       console.log("🔔 [SSE] Standard Toast Message:", { normalizedType, toastMsg });
 
-      // Only toast for deputy-yes or leadYes; dedupe against legacy duplicates
-      const allowToast = (normalizedType === "availability_deputy_yes" || normalizedType === "leadYes") && shouldToast({ ...payload, type: normalizedType });
+      // Helpers for lead: prefer richer "first + last initial" over bare first-name
+      const keyLead = `${payload?.actId || ""}|${payload?.dateISO || ""}`;
+      const hasSurname = /\s/.test(String(payload?.musicianName || ""));
 
-      if (allowToast) {
-        toast(<CustomToast type="success" message={toastMsg} />);
+      const pushToast = () => {
+        if (normalizedType === "leadYes") {
+          if (shouldToast("leadYes", payload)) {
+            toast(<CustomToast type="success" message={toastMsg} />);
+          }
+        } else if (normalizedType === "availability_deputy_yes") {
+          if (shouldToast("availability_deputy_yes", payload)) {
+            toast(<CustomToast type="success" message={toastMsg} />);
+          }
+        }
+      };
+
+      if (normalizedType === "leadYes") {
+        if (hasSurname) {
+          // ✅ Prefer this richer event: cancel any pending bare-first timer, then toast.
+          const t = pendingLeadTimers.get(keyLead);
+          if (t) {
+            clearTimeout(t);
+            pendingLeadTimers.delete(keyLead);
+          }
+          pushToast();
+        } else {
+          // ⏳ Bare first name — queue briefly in case a richer one lands shortly.
+          if (!pendingLeadTimers.has(keyLead)) {
+            const t = setTimeout(() => {
+              pendingLeadTimers.delete(keyLead);
+              pushToast();
+            }, 600);
+            pendingLeadTimers.set(keyLead, t);
+          }
+        }
+      } else if (normalizedType === "availability_deputy_yes") {
+        // Deputies toast immediately (deduped by musician)
+        pushToast();
       }
 
       console.log("♻️ [SSE] Refreshing ACT:", payload.actId);
@@ -670,6 +714,11 @@ useEffect(() => {
   }
 
   return () => {
+    // 🧹 Clear any pending lead timers
+    try {
+      pendingLeadTimers.forEach((t) => clearTimeout(t));
+      pendingLeadTimers.clear();
+    } catch {}
     if (sse) {
       sse.close();
       console.log("❌ [SSE] Connection CLOSED");
