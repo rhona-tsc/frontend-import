@@ -329,7 +329,7 @@ useEffect(() => {
   if (Array.isArray(foundAct.lineups) && foundAct.lineups.length > 0) {
     setSelectedLineup(foundAct.lineups[0]);
   }
-}, [musicianId, acts, actData]);
+}, [musicianId, acts]);
   useEffect(() => {
     const fetchPrice = async () => {
       if (!actData || !selectedLineup || !selectedDate || !selectedAddress) {
@@ -767,12 +767,15 @@ useEffect(() => {
 
       {/* ===== GALLERY (full width) ===== */}
       {/*  Academics & Achievements */}
-      <Section when={content.hasCredits && (
-        (Array.isArray(actData?.academic_credentials) && actData.academic_credentials.length > 0) ||
-        (Array.isArray(actData?.function_bands_performed_with) && actData.function_bands_performed_with.length > 0) ||
-        (Array.isArray(actData?.original_bands_performed_with) && actData.original_bands_performed_with.length > 0) ||
-        (Array.isArray(actData?.sessions) && actData.sessions.length > 0)
-      )}>
+     <Section when={Boolean(
+  content.hasCredits &&
+  (
+      (Array.isArray(actData?.academic_credentials) && actData.academic_credentials.length > 0) ||
+      (Array.isArray(actData?.function_bands_performed_with) && actData.function_bands_performed_with.length > 0) ||
+      (Array.isArray(actData?.original_bands_performed_with) && actData.original_bands_performed_with.length > 0) ||
+      (Array.isArray(actData?.sessions) && actData.sessions.length > 0)
+  )
+)}>
         <div className="lg:col-span-7">
           <div className="text-2xl mb-2">
             <Title text1={getPossessiveTitleCase(`${actData?.firstName || ""}`)} text2="ACADEMICS, ACHIEVEMENTS & BANDS" />
