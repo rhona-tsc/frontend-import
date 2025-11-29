@@ -492,18 +492,38 @@ const toggleVocalistForAct = useCallback((actId, musicianId) => {
 // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
 useEffect(() => {
   let sse;
-// put this near the top of the useEffect, before sse.addEventListener("message", …)
-const shortDisplayName = (full) => {
-  if (!full) return "";
-  const cleaned = String(full).trim().replace(/\s+/g, " ");
-  const parts = cleaned.split(" ");
-  if (parts.length === 1) return parts[0];       // mononym
-  const first = parts[0];
-  // last token, strip non-letters but keep hyphen/apostrophe edge cases
-  const last = parts[parts.length - 1].replace(/[^A-Za-zÀ-ÿ'-]/g, "");
-  const initial = last ? last[0].toUpperCase() : "";
-  return initial ? `${first} ${initial}` : first;
-};
+  // 🔒 Deduplicate identical toasts (e.g., legacy "availability_yes" + "leadYes")
+  const recentToastKeys = new Map();
+  const shouldToast = (payload) => {
+    try {
+      const normalizedType = payload?.type === "availability_yes" ? "leadYes" : payload?.type;
+      const k = [
+        normalizedType,
+        payload?.actId || "",
+        (payload?.musicianId || payload?.musicianName || "").toString(),
+        payload?.dateISO || ""
+      ].join("|");
+      const now = Date.now();
+      const last = recentToastKeys.get(k) || 0;
+      if (now - last < 5000) return false; // 5s hold-off window
+      recentToastKeys.set(k, now);
+      return true;
+    } catch {
+      return true;
+    }
+  };
+  // put this near the top of the useEffect, before sse.addEventListener("message", …)
+  const shortDisplayName = (full) => {
+    if (!full) return "";
+    const cleaned = String(full).trim().replace(/\s+/g, " ");
+    const parts = cleaned.split(" ");
+    if (parts.length === 1) return parts[0];       // mononym
+    const first = parts[0];
+    // last token, strip non-letters but keep hyphen/apostrophe edge cases
+    const last = parts[parts.length - 1].replace(/[^A-Za-zÀ-ÿ'-]/g, "");
+    const initial = last ? last[0].toUpperCase() : "";
+    return initial ? `${first} ${initial}` : first;
+  };
   try {
     const url = api("api/availability/subscribe");
     sse = new EventSource(url);
@@ -603,12 +623,13 @@ const shortDisplayName = (full) => {
       /* ---------------------------------------------------------------------- */
       /* 🟩 NORMAL YES EVENTS (lead or deputy)                                   */
       /* ---------------------------------------------------------------------- */
+      const normalizedType = payload.type === "availability_yes" ? "leadYes" : payload.type;
+
       const isLead =
-        payload.type === "availability_yes" || payload.type === "leadYes";
+        normalizedType === "leadYes";
 
       const isDeputy =
-        payload.type === "availability_deputy_yes" ||
-        payload.isDeputy === true;
+        normalizedType === "availability_deputy_yes" || payload.isDeputy === true;
 
       console.log("🟩 [SSE] Standard availability event:", {
         type: payload.type,
@@ -619,19 +640,17 @@ const shortDisplayName = (full) => {
       });
 
       const shortDate = formatShortDate(payload.dateISO);
-     const nameForToast = shortDisplayName(payload.musicianName) || (isDeputy ? "Deputy" : "Lead vocalist");
- const toastMsg = isDeputy
-   ? `${nameForToast} is available to perform with ${payload.actName} on ${shortDate}.`
-   : `${nameForToast} from ${payload.actName} is available for ${shortDate}.`;
+      const nameForToast = shortDisplayName(payload.musicianName) || (isDeputy ? "Deputy" : "Lead vocalist");
+      const toastMsg = isDeputy
+        ? `${nameForToast} is available to perform with ${payload.actName} on ${shortDate}.`
+        : `${nameForToast} from ${payload.actName} is available for ${shortDate}.`;
 
-      console.log("🔔 [SSE] Standard Toast Message:", toastMsg);
+      console.log("🔔 [SSE] Standard Toast Message:", { normalizedType, toastMsg });
 
-      const showToast =
-        payload.type === "availability_deputy_yes" ||
-        payload.type === "leadYes" ||
-        payload.type === "availability_yes";
+      // Only toast for deputy-yes or leadYes; dedupe against legacy duplicates
+      const allowToast = (normalizedType === "availability_deputy_yes" || normalizedType === "leadYes") && shouldToast({ ...payload, type: normalizedType });
 
-      if (showToast) {
+      if (allowToast) {
         toast(<CustomToast type="success" message={toastMsg} />);
       }
 
