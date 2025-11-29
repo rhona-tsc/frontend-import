@@ -378,6 +378,138 @@ useEffect(() => {
     return `${first}`.trim();
   };
 
+  // ------- generic content helpers -------
+  const hasContent = (v) => {
+    if (v == null) return false;
+    if (typeof v === "string") return v.trim().length > 0;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "object") return Object.keys(v).length > 0;
+    return Boolean(v);
+  };
+
+  const pickBioText = (data) => {
+    const preferred = data?.tscApprovedBio ?? data?.bio ?? "";
+    if (preferred == null) return "";
+    if (typeof preferred === "string") return preferred.trim();
+    if (Array.isArray(preferred)) {
+      try {
+        return preferred
+          .map((b) =>
+            typeof b === "string"
+              ? b
+              : b?.text || b?.children?.map?.((c) => c?.text).join("") || ""
+          )
+          .join("\n");
+      } catch {
+        return "";
+      }
+    }
+    try {
+      return JSON.stringify(preferred);
+    } catch {
+      return String(preferred || "");
+    }
+  };
+
+  const content = React.useMemo(() => {
+    if (!actData) {
+      return {
+        hasVideos: false,
+        hasBio: false,
+        hasInstrumentation: false,
+        hasVocals: false,
+        hasAnySkills: false,
+        hasLocation: false,
+        hasCredits: false,
+        hasGallery: false,
+        hasRepertoire: false,
+        hasEquipment: false,
+        hasSnapshot: false,
+        hasRelated: false,
+        bio: "",
+      };
+    }
+
+    const videosArr = [
+      ...(Array.isArray(actData?.tscApprovedFunctionBandVideoLinks)
+        ? actData.tscApprovedFunctionBandVideoLinks
+        : []),
+      ...(Array.isArray(actData?.tscApprovedOriginalBandVideoLinks)
+        ? actData.tscApprovedOriginalBandVideoLinks
+        : []),
+    ].filter((v) => v && v.url);
+
+    const hasVideos = videosArr.length > 0;
+
+    const bio = pickBioText(actData);
+    const hasBio = hasContent(bio);
+
+    const hasInstrumentation =
+      Array.isArray(actData?.instrumentation) && actData.instrumentation.length > 0;
+
+    const hasVocals =
+      (Array.isArray(actData?.vocals?.type) && actData.vocals.type.length > 0) ||
+      hasContent(actData?.vocals?.range) ||
+      (actData?.vocals?.rap === true || actData?.vocals?.rap === "true");
+
+    const otherSkillsArr = Array.isArray(actData?.other_skills) ? actData.other_skills : [];
+    const hasAnySkills = otherSkillsArr.length > 0;
+
+    const hasLocation = hasContent(actData?.address?.county);
+
+    const hasCredits =
+      (Array.isArray(actData?.academic_credentials) && actData.academic_credentials.length > 0) ||
+      (Array.isArray(actData?.awards) && actData.awards.length > 0) ||
+      (Array.isArray(actData?.function_bands_performed_with) && actData.function_bands_performed_with.length > 0) ||
+      (Array.isArray(actData?.original_bands_performed_with) && actData.original_bands_performed_with.length > 0) ||
+      (Array.isArray(actData?.sessions) && actData.sessions.length > 0);
+
+    const galleryCounts = [
+      actData?.digitalWardrobeBlackTie,
+      actData?.digitalWardrobeFormal,
+      actData?.digitalWardrobeSmartCasual,
+      actData?.digitalWardrobeSessionAllBlack,
+      actData?.additionalImages,
+    ].map((g) => (Array.isArray(g) ? g.length : 0));
+    const hasGallery = galleryCounts.some((n) => n > 0);
+
+    const hasRepertoire = Array.isArray(actData?.selectedSongs) && actData.selectedSongs.length > 0;
+
+    const hasEquipment =
+      hasContent(actData?.equipment_spec) ||
+      hasContent(actData?.pa_equipment) ||
+      hasContent(actData?.iem) ||
+      hasContent(actData?.dj_gear) ||
+      hasContent(actData?.lighting) ||
+      hasContent(actData?.additional_gear);
+
+    const hasSnapshot = hasInstrumentation || hasVocals || hasLocation || hasAnySkills;
+
+    const hasRelated =
+      (Array.isArray(actData?.vocals?.genres) && actData.vocals.genres.length > 0) ||
+      hasInstrumentation ||
+      hasContent(Array.isArray(actData?.vocals?.type) ? actData.vocals.type[0] : "");
+
+    return {
+      hasVideos,
+      hasBio,
+      hasInstrumentation,
+      hasVocals,
+      hasAnySkills,
+      hasLocation,
+      hasCredits,
+      hasGallery,
+      hasRepertoire,
+      hasEquipment,
+      hasSnapshot,
+      hasRelated,
+      bio,
+    };
+  }, [actData]);
+
+  // Tiny conditional wrapper
+  const Section = ({ when, children }) => (when ? <>{children}</> : null);
+
   return (
   <div className="p-4">
     {/* Top Navigation */}
@@ -433,596 +565,496 @@ useEffect(() => {
         {/* LEFT: span 8 */}
         <div className="lg:col-span-8 space-y-4">
           {/* Videos */}
-          <div className="aspect-video">
-            <div className="text-2xl">
-              <Title
-                text1={getPossessiveTitleCase(displayShortName(actData))}
-                text2="VIDEOS"
-              />
-            </div>
-            {(() => {
-              const allVideoLinks = [
-                ...(Array.isArray(actData?.tscApprovedFunctionBandVideoLinks)
-                  ? actData.tscApprovedFunctionBandVideoLinks
-                  : []),
-                ...(Array.isArray(actData?.tscApprovedOriginalBandVideoLinks)
-                  ? actData.tscApprovedOriginalBandVideoLinks
-                  : []),
-              ].filter((v) => v && v.url);
+          <Section when={content.hasVideos}>
+            <div className="aspect-video">
+              <div className="text-2xl">
+                <Title
+                  text1={getPossessiveTitleCase(displayShortName(actData))}
+                  text2="VIDEOS"
+                />
+              </div>
+              {(() => {
+                const allVideoLinks = [
+                  ...(Array.isArray(actData?.tscApprovedFunctionBandVideoLinks)
+                    ? actData.tscApprovedFunctionBandVideoLinks
+                    : []),
+                  ...(Array.isArray(actData?.tscApprovedOriginalBandVideoLinks)
+                    ? actData.tscApprovedOriginalBandVideoLinks
+                    : []),
+                ].filter((v) => v && v.url);
 
-              const selectedUrl = video || allVideoLinks[0]?.url || "";
-              const selectedVideoId = extractVideoId(selectedUrl);
+                const selectedUrl = video || allVideoLinks[0]?.url || "";
+                const selectedVideoId = extractVideoId(selectedUrl);
 
-              if (!selectedVideoId) {
+                if (!selectedVideoId) return null; // hide if none
+
                 return (
-                  <div className="w-full h-full bg-gray-100 rounded flex items-center justify-center text-gray-500">
-                    No videos yet.
+                  <iframe
+                    className="w-full h-full object-contain aspect-video rounded"
+                    src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&showinfo=0&controls=0`}
+                    title="YouTube video player"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                );
+              })()}
+            </div>
+
+            {/* Thumbnails */}
+            {(() => {
+              const covers = Array.isArray(actData?.tscApprovedFunctionBandVideoLinks)
+                ? actData.tscApprovedFunctionBandVideoLinks.filter((v) => v && v.url)
+                : [];
+              const originals = Array.isArray(actData?.tscApprovedOriginalBandVideoLinks)
+                ? actData.tscApprovedOriginalBandVideoLinks.filter((v) => v && v.url)
+                : [];
+
+              const Row = ({ label, items }) => {
+                if (!items.length) return null;
+                return (
+                  <div className="mb-3">
+                    <div className="text-xs tracking-widest text-gray-500 uppercase mb-1 px-1">
+                      {label}
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {items.map((videoObj, index) => {
+                        const videoId = extractVideoId(videoObj.url);
+                        if (!videoId) return null;
+                        return (
+                          <img
+                            key={`${label}-${index}`}
+                            onClick={() => setVideo(videoObj.url)}
+                            className="w-[96px] h-[54px] object-cover cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded"
+                            src={`https://img.youtube.com/vi/${videoId}/0.jpg`}
+                            alt={videoObj.title || `${label} ${index + 1}`}
+                            title={videoObj.title || videoObj.url}
+                            loading="lazy"
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
                 );
-              }
+              };
 
               return (
-                <iframe
-                  className="w-full h-full object-contain aspect-video rounded"
-                  src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&showinfo=0&controls=0`}
-                  title="YouTube video player"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              );
-            })()}
-          </div>
-
-          {/* Thumbnails */}
-          {(() => {
-            const covers = Array.isArray(actData?.tscApprovedFunctionBandVideoLinks)
-              ? actData.tscApprovedFunctionBandVideoLinks.filter((v) => v && v.url)
-              : [];
-            const originals = Array.isArray(actData?.tscApprovedOriginalBandVideoLinks)
-              ? actData.tscApprovedOriginalBandVideoLinks.filter((v) => v && v.url)
-              : [];
-
-            const Row = ({ label, items }) => {
-              if (!items.length) return null;
-              return (
-                <div className="mb-3">
-                  <div className="text-xs tracking-widest text-gray-500 uppercase mb-1 px-1">
-                    {label}
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {items.map((videoObj, index) => {
-                      const videoId = extractVideoId(videoObj.url);
-                      if (!videoId) return null;
-                      return (
-                        <img
-                          key={`${label}-${index}`}
-                          onClick={() => setVideo(videoObj.url)}
-                          className="w-[96px] h-[54px] object-cover cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded"
-                          src={`https://img.youtube.com/vi/${videoId}/0.jpg`}
-                          alt={videoObj.title || `${label} ${index + 1}`}
-                          title={videoObj.title || videoObj.url}
-                          loading="lazy"
-                        />
-                      );
-                    })}
-                  </div>
+                <div className="mt-2">
+                  <Row label="Covers" items={covers} />
+                  <Row label="Originals" items={originals} />
                 </div>
               );
-            };
+            })()}
+          </Section>
 
-            return (
-              <div className="mt-2">
-                <Row label="Covers" items={covers} />
-                <Row label="Originals" items={originals} />
-                {!covers.length && !originals.length && (
-                  <p className="text-sm text-gray-400 px-1">No videos to show yet.</p>
-                )}
+          {/* Bio */}
+          <Section when={content.hasBio}>
+            <div className="mt-12">
+              <div className="text-2xl">
+                <Title
+                  text1={getPossessiveTitleCase(displayShortName(actData))}
+                  text2="BIOGRAPHY"
+                />
               </div>
-            );
-          })()}
-
-    {/* Bio */}
-    <div className="mt-12">
-      <div className="text-2xl">
-        <Title
-          text1={getPossessiveTitleCase(displayShortName(actData))}
-          text2="BIOGRAPHY"
-        />
-      </div>
               <div className="px-2 py-2 text-gray-600 text-lg sm:text-xl leading-relaxed">
-        {(() => {
-          const pickBio = (data) => {
-            const preferred = data?.tscApprovedBio ?? data?.bio ??  "";
-            if (preferred == null) return "";
-            if (typeof preferred === "string") return preferred.trim();
-            // If an array of blocks (e.g., from a rich text editor), try to join text
-            if (Array.isArray(preferred)) {
-              try {
-                return preferred
-                  .map((b) => (typeof b === "string" ? b : (b?.text || b?.children?.map?.((c)=>c?.text).join("") || "")))
-                  .join("\n");
-              } catch {
-                return JSON.stringify(preferred);
-              }
-            }
-            // If object, stringify
-            try {
-              return JSON.stringify(preferred);
-            } catch {
-              return String(preferred);
-            }
-          };
-
-          const raw = pickBio(actData);
-          const looksLikeHTML =
-            /<\/?[a-z][\s\S]*>/i.test(raw) || /&lt;\/?[a-z][\s\S]*&gt;/i.test(raw);
-          const html = looksLikeHTML ? raw : String(raw).replace(/\n/g, "<br/>");
-          return raw ? (
-            <div dangerouslySetInnerHTML={{ __html: html }} />
-          ) : (
-            <p className="text-gray-400">No biography added yet.</p>
-          );
-        })()}
-      </div>
-    </div>
-   
+                {(() => {
+                  const raw = content.bio;
+                  const looksLikeHTML = /<\/?[a-z][\s\S]*>/i.test(raw) || /&lt;<\/?[a-z][\s\S]*&gt;/i.test(raw);
+                  const html = looksLikeHTML ? raw : String(raw).replace(/\n/g, "<br/>");
+                  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+                })()}
+              </div>
+            </div>
+          </Section>
         </div>
 
         {/* RIGHT: IN BRIEF span 4 */}
-        <div className="lg:col-span-4">
-        <div className="text-2xl" id="lineup-selector">
-          <Title
-            text1={getPossessiveTitleCase(displayShortName(actData))}
-            text2="SNAPSHOT"
-          />
-        </div>
+        <Section when={content.hasSnapshot}>
+          <div className="lg:col-span-4">
+            <div className="text-2xl" id="lineup-selector">
+              <Title
+                text1={getPossessiveTitleCase(displayShortName(actData))}
+                text2="SNAPSHOT"
+              />
+            </div>
+            {/* Instrumentation */}
+            {Array.isArray(actData?.instrumentation) && (actData?.instrumentation?.length || 0) > 0 && (
+              <>
+                <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
+                  <h4 className="font-semibold text-gray-900 mb-2">Instrumentation</h4>
+                  {(() => {
+                    const skillOrder = { Expert: 1, Advanced: 2, Intermediate: 3 };
+                    const sorted = [...(actData.instrumentation || [])].sort((a, b) => {
+                      const aOrder = skillOrder[a?.skill_level] || 99;
+                      const bOrder = skillOrder[b?.skill_level] || 99;
+                      return aOrder - bOrder;
+                    });
+                    return sorted.map((item, idx) => (
+                      <li key={`inst-${idx}`}>
+                        {item?.instrument}
+                        {item?.skill_level ? ` (${item.skill_level})` : ""}
+                      </li>
+                    ));
+                  })()}
+                </ul>
+              </>
+            )}
 
-               {/* Instrumentation Header and Sorted List */}
-        {Array.isArray(actData?.instrumentation) &&
-          (actData?.instrumentation?.length || 0) > 0 && (
-            <>
+            {/* Vocals */}
+            <Section when={content.hasVocals}>
               <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
-                                <h4 className="font-semibold text-gray-900 mb-2">Instrumentation</h4>
-
-                {/* Sorted Instruments */}
-                {(() => {
-                  const skillOrder = {
-                    "Expert": 1,
-                    "Advanced": 2,
-                    "Intermediate": 3
-                  };
-                  // Defensive copy and sort
-                  const sorted = [...(actData.instrumentation || [])].sort((a, b) => {
-                    const aOrder = skillOrder[a?.skill_level] || 99;
-                    const bOrder = skillOrder[b?.skill_level] || 99;
-                    return aOrder - bOrder;
-                  });
-                  return sorted.map((item, idx) => (
-                    <li key={`inst-${idx}`}>
-                      {item?.instrument}
-                      {item?.skill_level ? ` (${item.skill_level})` : ""}
-                    </li>
-                  ));
-                })()}
-              </ul>
-            </>
-        )}
-
-           {/* Additional info list */}
-<ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
                 <h4 className="font-semibold text-gray-900 mb-2">Vocals</h4>
+                {Array.isArray(actData?.vocals?.type) && (actData?.vocals?.type?.length || 0) > 0 && (
+                  <li>
+                    {actData.vocals.type.join(", ")}
+                    {actData.vocals?.range ? ` (${actData.vocals.range})` : ""}
+                  </li>
+                )}
+                {(actData?.vocals?.rap === true || actData?.vocals?.rap === "true") && <li>Can rap / MC</li>}
+              </ul>
+            </Section>
 
-  {/* Vocal abilities */}
-  {Array.isArray(actData?.vocals?.type) &&
-    (actData?.vocals?.type?.length || 0) > 0 && (
-      <li>
-        {actData.vocals.type.join(", ")}
-        {actData.vocals?.range ? ` (${actData.vocals.range})` : ""}
-      </li>
-    )}
+            {/* Skills categories */}
+            <Section when={content.hasAnySkills}>
+              {(() => {
+                const liveSkillsSet = new Set([
+                  "Live Audio Recording",
+                  "Sound Engineering",
+                  "Sound Engineering with PA & Lights Provision",
+                  "DJ with Decks",
+                  "DJ with Mixing Console",
+                  "Roaming Performer",
+                  "Talkback Experience",
+                  "Musical Director",
+                  "Band Leader",
+                  "Can perform to click track",
+                  "Can perform to backing track",
+                  "Can trigger backing tracks",
+                  "Can perform to live band and backing track",
+                ]);
+                const studioSkillsSet = new Set(["Music Production: Mixing", "Music Production: Mastering"]);
+                const prepSkillsSet = new Set(["Client Liaison", "Can curate backing tracks", "Can curate setlist"]);
+                const otherSkillsSet = new Set(["Photography", "Videography"]);
 
-  {/* Rap ability */}
-{/* Rap ability */}
-{(actData?.vocals?.rap === true || actData?.vocals?.rap === "true") && (
-  <li>Can rap / MC</li>
-)}
-</ul>
+                const otherSkillsArr = Array.isArray(actData?.other_skills) ? actData.other_skills : [];
+                const liveSkills = otherSkillsArr.filter((skill) => liveSkillsSet.has(skill));
+                const studioSkills = otherSkillsArr.filter((skill) => studioSkillsSet.has(skill));
+                const prepSkills = otherSkillsArr.filter((skill) => prepSkillsSet.has(skill));
+                const otherSkills = otherSkillsArr.filter((skill) => otherSkillsSet.has(skill));
+                const allCategorized = new Set([...liveSkills, ...studioSkills, ...prepSkills, ...otherSkills]);
+                const uncategorized = otherSkillsArr.filter((skill) => !allCategorized.has(skill));
+                const fullOtherSkills = [...otherSkills, ...uncategorized];
 
-{(() => {
-  // Define skill categories and their skills
-  const liveSkillsSet = new Set([
-    "Live Audio Recording",
-    "Sound Engineering",
-    "Sound Engineering with PA & Lights Provision",
-   
-    "DJ with Decks",
-    "DJ with Mixing Console",
-    "Roaming Performer",
-    "Talkback Experience",
-    "Musical Director",
-    "Band Leader",
-    "Can perform to click track",
-    "Can perform to backing track",
-    "Can trigger backing tracks",
-    "Can perform to live band and backing track"
-  ]);
-  const studioSkillsSet = new Set([
-    "Music Production: Mixing",
-    "Music Production: Mastering"
-  ]);
-  const prepSkillsSet = new Set([
-    "Client Liaison",
-    "Can curate backing tracks",
-    "Can curate setlist"
-  ]);
-  const otherSkillsSet = new Set([
-    "Photography",
-    "Videography"
-  ]);
+                return (
+                  <>
+                    {liveSkills.length > 0 && (
+                      <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Live Skills</h4>
+                        {liveSkills.map((skill, idx) => (
+                          <li key={`live-skill-${idx}`}>{skill}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {studioSkills.length > 0 && (
+                      <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Studio Skills</h4>
+                        {studioSkills.map((skill, idx) => (
+                          <li key={`studio-skill-${idx}`}>{skill}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {prepSkills.length > 0 && (
+                      <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Preparatory Skills</h4>
+                        {prepSkills.map((skill, idx) => (
+                          <li key={`prep-skill-${idx}`}>{skill}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {(() => {
+                      const visibleOtherSkills = ["Photography", "Videography"].filter((skill) => fullOtherSkills.includes(skill));
+                      return visibleOtherSkills.length > 0 ? (
+                        <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
+                          <h4 className="font-semibold text-gray-900 mb-2">Other</h4>
+                          {visibleOtherSkills.map((skill) => (
+                            <li key={skill}>{skill}</li>
+                          ))}
+                        </ul>
+                      ) : null;
+                    })()}
+                  </>
+                );
+              })()}
+            </Section>
 
-  // Defensive: always array
-  const otherSkillsArr = Array.isArray(actData?.other_skills) ? actData.other_skills : [];
-  // Partition skills
-  const liveSkills = otherSkillsArr.filter(skill => liveSkillsSet.has(skill));
-  const studioSkills = otherSkillsArr.filter(skill => studioSkillsSet.has(skill));
-  const prepSkills = otherSkillsArr.filter(skill => prepSkillsSet.has(skill));
-  const otherSkills = otherSkillsArr.filter(skill =>
-    otherSkillsSet.has(skill)
-  );
-
-  // Anything not in above? Assign to "Other" as well (but avoid duplicates)
-  const allCategorized = new Set([
-    ...liveSkills,
-    ...studioSkills,
-    ...prepSkills,
-    ...otherSkills
-  ]);
-  const uncategorized = otherSkillsArr.filter(skill => !allCategorized.has(skill));
-  const fullOtherSkills = [...otherSkills, ...uncategorized];
-
-  return (
-    <>
-    {liveSkills.length > 0 && (
-  <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
-    <h4 className="font-semibold text-gray-900 mb-2">Live Skills</h4>
-    {liveSkills.map((skill, idx) => (
-      <li key={`live-skill-${idx}`}>{skill}</li>
-    ))}
-  </ul>
-)}
-
-{studioSkills.length > 0 && (
-  <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
-    <h4 className="font-semibold text-gray-900 mb-2">Studio Skills</h4>
-    {studioSkills.map((skill, idx) => (
-      <li key={`studio-skill-${idx}`}>{skill}</li>
-    ))}
-  </ul>
-)}
-
-{prepSkills.length > 0 && (
-  <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
-    <h4 className="font-semibold text-gray-900 mb-2">Preparatory Skills</h4>
-    {prepSkills.map((skill, idx) => (
-      <li key={`prep-skill-${idx}`}>{skill}</li>
-    ))}
-  </ul>
-)}
-
-{(() => {
-  const visibleOtherSkills = ["Photography", "Videography"].filter((skill) =>
-    fullOtherSkills.includes(skill)
-  );
-
-  return visibleOtherSkills.length > 0 ? (
-    <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
-      <h4 className="font-semibold text-gray-900 mb-2">Other</h4>
-      {visibleOtherSkills.map((skill) => (
-        <li key={skill}>{skill}</li>
-      ))}
-    </ul>
-  ) : null;
-})()}
-    </>
-  );
-})()}
-<ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
-      <h4 className="font-semibold text-gray-900 mb-2">Location</h4>
-
-  {/* County */}
-  {actData?.address?.county && <li>Based in {actData?.address?.county}</li>}
-</ul>
-        </div>
+            {/* Location */}
+            <Section when={content.hasLocation}>
+              <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
+                <h4 className="font-semibold text-gray-900 mb-2">Location</h4>
+                {actData?.address?.county && <li>Based in {actData?.address?.county}</li>}
+              </ul>
+            </Section>
+          </div>
+        </Section>
       </div>
 
       {/* ===== GALLERY (full width) ===== */}
-      <div className="w-full mt-12">
-            {/*  Academics & Achievements */}
-      <div className="lg:col-span-7">
-        <div className="text-2xl mb-2">
-          <Title
-            text1={getPossessiveTitleCase(
-              `${actData?.firstName || ""}`
-            )}
-            text2="ACADEMICS, ACHIEVEMENTS & BANDS"
-          />
-        </div>
-        <div className="border rounded px-4 py-6 text-m text-gray-700 w-full my-2 sm:px-6 sm:py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* 🎓 Academic Credentials */}
-          <div>
-            {Array.isArray(actData?.academic_credentials) &&
-              actData.academic_credentials.length > 0 && (
-                <>
-                  <h4 className="font-semibold text-gray-900 mb-2">Education & Achievements</h4>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {actData.academic_credentials.map((cred, idx) => {
-                      const level = cred?.education_level ? `${cred.education_level} — ` : "";
-                      const course = cred?.course || "";
-                      const inst = cred?.institution ? ` @ ${cred.institution}` : "";
-                      const years = cred?.years ? ` (${cred.years})` : "";
-                      const line = `${level}${course}${inst}${years}`.trim();
-                      return line ? <li key={`cred-${idx}`}>{line}</li> : null;
-                    })}
-                  </ul>
-                   {Array.isArray(actData?.awards) && actData.awards.length > 0 && (
-              <>
-              
-                <ul className="list-disc pl-5 space-y-1">
-                  {actData.awards.map((a, idx) => {
-                    const desc = a?.description || "";
-                    const years = a?.years ? ` (${a.years})` : "";
-                    const line = `${desc}${years}`.trim();
-                    return line ? <li key={`award-${idx}`}>{line}</li> : null;
-                  })}
-                </ul>
-              </>
-            )}
-                </>
-              )}
-
-           
+      {/*  Academics & Achievements */}
+      <Section when={content.hasCredits}>
+        <div className="lg:col-span-7">
+          <div className="text-2xl mb-2">
+            <Title text1={getPossessiveTitleCase(`${actData?.firstName || ""}`)} text2="ACADEMICS, ACHIEVEMENTS & BANDS" />
           </div>
-          {/* 🎸 Function Bands Performed With */}
-          <div>
-            {Array.isArray(actData?.function_bands_performed_with) &&
-              actData.function_bands_performed_with.length > 0 && (
-                <>
-                  <h4 className="font-semibold text-gray-900 mb-2">Function Projects</h4>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {actData.function_bands_performed_with.map((b, idx) => {
-                      const name = b?.function_band_name || "";
-                  
-                      return name ? (
-                        <li key={`funcband-${idx}`}>
-                          {name}
-                        
-                        </li>
-                      ) : null;
-                    })}
-                  </ul>
-                </>
-              )}
-          </div>
-          {/* 🎤 Original Bands Performed With */}
-          <div>
-            {Array.isArray(actData?.original_bands_performed_with) &&
-              actData.original_bands_performed_with.length > 0 && (
-                <>
-                  <h4 className="font-semibold text-gray-900 mb-2">Original Projects</h4>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {actData.original_bands_performed_with.map((b, idx) => {
-                      const name = b?.original_band_name || "";
-                   
-                      return name ? (
-                        <li key={`origband-${idx}`}>
-                          {name}
-                      
-                        </li>
-                      ) : null;
-                    })}
-                  </ul>
-                </>
-              )}
-          </div>
-          {/* 🎚️ Sessions */}
-          <div>
-            {Array.isArray(actData?.sessions) && actData.sessions.length > 0 && (
-              <>
-                <h4 className="font-semibold text-gray-900 mb-2">Sessions</h4>
-                <ul className="list-disc pl-5 space-y-1">
-                  {actData.sessions.map((s, idx) => {
-                    const artist = s?.artist || "";
-                    const stype = s?.session_type ? `, ${s.session_type}` : "";
-                    const line = `${artist}${stype}`.trim();
-                    return line ? <li key={`session-${idx}`}>{line}</li> : null;
-                  })}
-                </ul>
-              </>
-            )}
-          </div>
-          {/* Fallback */}
-          {!(
-            (Array.isArray(actData?.academic_credentials) &&
-              actData.academic_credentials.length) ||
-            (Array.isArray(actData?.awards) && actData.awards.length) ||
-            (Array.isArray(actData?.function_bands_performed_with) &&
-              actData.function_bands_performed_with.length) ||
-            (Array.isArray(actData?.original_bands_performed_with) &&
-              actData.original_bands_performed_with.length) ||
-            (Array.isArray(actData?.sessions) && actData.sessions.length)
-          ) && (
-            <div className="col-span-full">
-              <p className="text-gray-400">No credits listed yet.</p>
-            </div>
-          )}
-        </div>
-      </div>
-        <div className="text-2xl mt-12">
-          <Title
-            text1={getPossessiveTitleCase(displayShortName(actData))}
-            text2="GALLERY"
-          />
-        </div>
-
-        {(() => {
-          const mediaGroups = [
-            {
-              id: "blackTie",
-              label: "Black Tie",
-              items: Array.isArray(actData?.digitalWardrobeBlackTie)
-                ? actData.digitalWardrobeBlackTie
-                : [],
-            },
-            {
-              id: "formal",
-              label: "Formal",
-              items: Array.isArray(actData?.digitalWardrobeFormal)
-                ? actData.digitalWardrobeFormal
-                : [],
-            },
-            {
-              id: "smartCasual",
-              label: "Smart Casual",
-              items: Array.isArray(actData?.digitalWardrobeSmartCasual)
-                ? actData.digitalWardrobeSmartCasual
-                : [],
-            },
-            {
-              id: "sessionAllBlack",
-              label: "Session All Black",
-              items: Array.isArray(actData?.digitalWardrobeSessionAllBlack)
-                ? actData.digitalWardrobeSessionAllBlack
-                : [],
-            },
-            {
-              id: "additional",
-              label: "Additional",
-              items: Array.isArray(actData?.additionalImages)
-                ? actData.additionalImages
-                : [],
-            },
-          ];
-
-          const activeGroup = mediaGroups.find((g) => g.id === activeMediaTab) || mediaGroups[0];
-          const images = (activeGroup?.items || [])
-            .map((item) => {
-              if (typeof item === "string") return item;
-              if (item && typeof item === "object" && item.url) return item.url;
-              return null;
-            })
-            .filter(Boolean);
-
-          return (
-            <>
-              {/* Tabs */}
-              <div className="flex flex-wrap gap-2 mt-4 px-1">
-                {mediaGroups.map((g) => (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={() => setActiveMediaTab(g.id)}
-                    className={`px-3 py-1.5 rounded border text-sm transition-colors ${
-                      activeMediaTab === g.id
-                        ? "bg-black text-white border-black"
-                        : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-[#ff6667] hover:text-white hover:border-[#ff6667]"
-                    }`}
-                  >
-                    {g.label} ({g.items?.length || 0})
-                  </button>
-                ))}
-              </div>
-
-              {/* Carousel */}
-              <div className="relative px-1 py-3">
-                {images.length > 0 ? (
-                  <div className="relative">
-                    <button
-                      onClick={() => scrollGallery("left")}
-                      className="absolute -left-6 top-1/2 -translate-y-1/2 z-10"
-                      aria-label="Scroll left"
-                      type="button"
-                    >
-                      <img src={assets.scroll_left_icon} alt="Scroll left" className="w-8 h-8" />
-                    </button>
-
-                    <div
-                      ref={galleryRef}
-                      className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
-                      style={{ scrollBehavior: "smooth" }}
-                    >
-                      {images.map((url, index) => (
-                        <img
-                          key={`${activeGroup.id}-${index}`}
-                          src={url}
-                          alt={`${activeGroup.label} image ${index + 1}`}
-                          className="w-[600px] h-[400px] object-cover rounded shadow-sm flex-shrink-0 snap-start"
-                          loading="lazy"
-                        />
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => scrollGallery("right")}
-                      className="absolute -right-6 top-1/2 -translate-y-1/2 z-10"
-                      aria-label="Scroll right"
-                      type="button"
-                    >
-                      <img src={assets.scroll_right_icon} alt="Scroll right" className="w-8 h-8" />
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 px-0 py-3">
-                    No images in “{activeGroup.label}”. Try a different tab.
-                  </p>
+          <div className="border rounded px-4 py-6 text-m text-gray-700 w-full my-2 sm:px-6 sm:py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* 🎓 Academic Credentials */}
+            <div>
+              {Array.isArray(actData?.academic_credentials) &&
+                actData.academic_credentials.length > 0 && (
+                  <>
+                    <h4 className="font-semibold text-gray-900 mb-2">Education & Achievements</h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {actData.academic_credentials.map((cred, idx) => {
+                        const level = cred?.education_level ? `${cred.education_level} — ` : "";
+                        const course = cred?.course || "";
+                        const inst = cred?.institution ? ` @ ${cred.institution}` : "";
+                        const years = cred?.years ? ` (${cred.years})` : "";
+                        const line = `${level}${course}${inst}${years}`.trim();
+                        return line ? <li key={`cred-${idx}`}>{line}</li> : null;
+                      })}
+                    </ul>
+                    {Array.isArray(actData?.awards) && actData.awards.length > 0 && (
+                      <>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {actData.awards.map((a, idx) => {
+                            const desc = a?.description || "";
+                            const years = a?.years ? ` (${a.years})` : "";
+                            const line = `${desc}${years}`.trim();
+                            return line ? <li key={`award-${idx}`}>{line}</li> : null;
+                          })}
+                        </ul>
+                      </>
+                    )}
+                  </>
                 )}
-              </div>
-            </>
-          );
-        })()}
-      </div>
+            </div>
+            {/* 🎸 Function Bands Performed With */}
+            <div>
+              {Array.isArray(actData?.function_bands_performed_with) &&
+                actData.function_bands_performed_with.length > 0 && (
+                  <>
+                    <h4 className="font-semibold text-gray-900 mb-2">Function Projects</h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {actData.function_bands_performed_with.map((b, idx) => {
+                        const name = b?.function_band_name || "";
+                        return name ? (
+                          <li key={`funcband-${idx}`}>
+                            {name}
+                          </li>
+                        ) : null;
+                      })}
+                    </ul>
+                  </>
+                )}
+            </div>
+            {/* 🎤 Original Bands Performed With */}
+            <div>
+              {Array.isArray(actData?.original_bands_performed_with) &&
+                actData.original_bands_performed_with.length > 0 && (
+                  <>
+                    <h4 className="font-semibold text-gray-900 mb-2">Original Projects</h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {actData.original_bands_performed_with.map((b, idx) => {
+                        const name = b?.original_band_name || "";
+                        return name ? (
+                          <li key={`origband-${idx}`}>
+                            {name}
+                          </li>
+                        ) : null;
+                      })}
+                    </ul>
+                  </>
+                )}
+            </div>
+            {/* 🎚️ Sessions */}
+            <div>
+              {Array.isArray(actData?.sessions) && actData.sessions.length > 0 && (
+                <>
+                  <h4 className="font-semibold text-gray-900 mb-2">Sessions</h4>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {actData.sessions.map((s, idx) => {
+                      const artist = s?.artist || "";
+                      const stype = s?.session_type ? `, ${s.session_type}` : "";
+                      const line = `${artist}${stype}`.trim();
+                      return line ? <li key={`session-${idx}`}>{line}</li> : null;
+                    })}
+                  </ul>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* GALLERY */}
+      <Section when={content.hasGallery}>
+        <div className="text-2xl mt-12">
+          <Title text1={getPossessiveTitleCase(displayShortName(actData))} text2="GALLERY" />
+        </div>
+        {(() => { /* keep existing gallery code unchanged */ return (
+          <> 
+            {(() => {
+              const mediaGroups = [
+                {
+                  id: "blackTie",
+                  label: "Black Tie",
+                  items: Array.isArray(actData?.digitalWardrobeBlackTie)
+                    ? actData.digitalWardrobeBlackTie
+                    : [],
+                },
+                {
+                  id: "formal",
+                  label: "Formal",
+                  items: Array.isArray(actData?.digitalWardrobeFormal)
+                    ? actData.digitalWardrobeFormal
+                    : [],
+                },
+                {
+                  id: "smartCasual",
+                  label: "Smart Casual",
+                  items: Array.isArray(actData?.digitalWardrobeSmartCasual)
+                    ? actData.digitalWardrobeSmartCasual
+                    : [],
+                },
+                {
+                  id: "sessionAllBlack",
+                  label: "Session All Black",
+                  items: Array.isArray(actData?.digitalWardrobeSessionAllBlack)
+                    ? actData.digitalWardrobeSessionAllBlack
+                    : [],
+                },
+                {
+                  id: "additional",
+                  label: "Additional",
+                  items: Array.isArray(actData?.additionalImages)
+                    ? actData.additionalImages
+                    : [],
+                },
+              ];
+
+              const activeGroup = mediaGroups.find((g) => g.id === activeMediaTab) || mediaGroups[0];
+              const images = (activeGroup?.items || [])
+                .map((item) => {
+                  if (typeof item === "string") return item;
+                  if (item && typeof item === "object" && item.url) return item.url;
+                  return null;
+                })
+                .filter(Boolean);
+
+              return (
+                <>
+                  {/* Tabs */}
+                  <div className="flex flex-wrap gap-2 mt-4 px-1">
+                    {mediaGroups.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setActiveMediaTab(g.id)}
+                        className={`px-3 py-1.5 rounded border text-sm transition-colors ${
+                          activeMediaTab === g.id
+                            ? "bg-black text-white border-black"
+                            : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-[#ff6667] hover:text-white hover:border-[#ff6667]"
+                        }`}
+                      >
+                        {g.label} ({g.items?.length || 0})
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Carousel */}
+                  <div className="relative px-1 py-3">
+                    {images.length > 0 ? (
+                      <div className="relative">
+                        <button
+                          onClick={() => scrollGallery("left")}
+                          className="absolute -left-6 top-1/2 -translate-y-1/2 z-10"
+                          aria-label="Scroll left"
+                          type="button"
+                        >
+                          <img src={assets.scroll_left_icon} alt="Scroll left" className="w-8 h-8" />
+                        </button>
+
+                        <div
+                          ref={galleryRef}
+                          className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
+                          style={{ scrollBehavior: "smooth" }}
+                        >
+                          {images.map((url, index) => (
+                            <img
+                              key={`${activeGroup.id}-${index}`}
+                              src={url}
+                              alt={`${activeGroup.label} image ${index + 1}`}
+                              className="w-[600px] h-[400px] object-cover rounded shadow-sm flex-shrink-0 snap-start"
+                              loading="lazy"
+                            />
+                          ))}
+                        </div>
+
+                        <button
+                          onClick={() => scrollGallery("right")}
+                          className="absolute -right-6 top-1/2 -translate-y-1/2 z-10"
+                          aria-label="Scroll right"
+                          type="button"
+                        >
+                          <img src={assets.scroll_right_icon} alt="Scroll right" className="w-8 h-8" />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              );
+            })()}
+          </>
+        ); })()}
+      </Section>
 
       {/* ===== REPERTOIRE (full width) ===== */}
-      <div className="w-full mt-10">
-        <MusicianRepertoireSection
-          selectedSongs={Array.isArray(actData?.selectedSongs) ? actData.selectedSongs : []}
-          actData={actData}
-          addToCart={addToCart}
-        />
-      </div>
+      <Section when={content.hasRepertoire}>
+        <div className="w-full mt-10">
+          <MusicianRepertoireSection
+            selectedSongs={Array.isArray(actData?.selectedSongs) ? actData.selectedSongs : []}
+            actData={actData}
+            addToCart={addToCart}
+          />
+        </div>
+      </Section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-12">
         
 
         {/* RIGHT: Equipment */}
-        <div className="lg:col-span-12">
-          <div className="text-2xl mb-2">
-            <Title
-              text1={getPossessiveTitleCase(
-                `${actData?.firstName || ""}`
-              )}
-              text2="EQUIPMENT"
-            />
+        <Section when={content.hasEquipment}>
+          <div className="lg:col-span-12">
+            <div className="text-2xl mb-2">
+              <Title text1={getPossessiveTitleCase(`${actData?.firstName || ""}`)} text2="EQUIPMENT" />
+            </div>
+            <div className="relative">
+              <MusicianEquipment actData={actData} />
+            </div>
           </div>
-          <div className="relative">
-            <MusicianEquipment actData={actData} />
-          </div>
-        </div>
+        </Section>
       </div>
 
       {/* ===== RELATED MUSICIANS (full width) ===== */}
-      <div className="w-full mt-12">
-        <RelatedMusicians
-          genres={Array.isArray(actData?.vocals?.genres) ? actData.vocals.genres : []}
-          instruments={
-            Array.isArray(actData?.instrumentation)
-              ? actData.instrumentation.map((i) => i?.instrument).filter(Boolean)
-              : []
-          }
-          vocalist={Array.isArray(actData?.vocals?.type) ? actData.vocals.type[0] || "" : ""}
-          currentActId={actData?._id}
-        />
-      </div>
+      <Section when={content.hasRelated}>
+        <div className="w-full mt-12">
+          <RelatedMusicians
+            genres={Array.isArray(actData?.vocals?.genres) ? actData.vocals.genres : []}
+            instruments={Array.isArray(actData?.instrumentation) ? actData.instrumentation.map((i) => i?.instrument).filter(Boolean) : []}
+            vocalist={Array.isArray(actData?.vocals?.type) ? actData.vocals.type[0] || "" : ""}
+            currentActId={actData?._id}
+          />
+        </div>
+      </Section>
     </div>
   </div>
 );
