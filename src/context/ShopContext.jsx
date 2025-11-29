@@ -487,10 +487,23 @@ const toggleVocalistForAct = useCallback((actId, musicianId) => {
     })();
   }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
 
+
+  
 // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
 useEffect(() => {
   let sse;
-
+// put this near the top of the useEffect, before sse.addEventListener("message", …)
+const shortDisplayName = (full) => {
+  if (!full) return "";
+  const cleaned = String(full).trim().replace(/\s+/g, " ");
+  const parts = cleaned.split(" ");
+  if (parts.length === 1) return parts[0];       // mononym
+  const first = parts[0];
+  // last token, strip non-letters but keep hyphen/apostrophe edge cases
+  const last = parts[parts.length - 1].replace(/[^A-Za-zÀ-ÿ'-]/g, "");
+  const initial = last ? last[0].toUpperCase() : "";
+  return initial ? `${first} ${initial}` : first;
+};
   try {
     const url = api("api/availability/subscribe");
     sse = new EventSource(url);
@@ -606,11 +619,10 @@ useEffect(() => {
       });
 
       const shortDate = formatShortDate(payload.dateISO);
-      const toastMsg = isDeputy
-        ? `${payload.musicianName} is available to perform with ${payload.actName} on ${shortDate}.`
-        : `${
-            payload.musicianName || "Lead vocalist"
-          } from ${payload.actName} is available for ${shortDate}.`;
+     const nameForToast = shortDisplayName(payload.musicianName) || (isDeputy ? "Deputy" : "Lead vocalist");
+ const toastMsg = isDeputy
+   ? `${nameForToast} is available to perform with ${payload.actName} on ${shortDate}.`
+   : `${nameForToast} from ${payload.actName} is available for ${shortDate}.`;
 
       console.log("🔔 [SSE] Standard Toast Message:", toastMsg);
 
