@@ -82,16 +82,18 @@ const RelatedMusicians = ({ currentActId }) => {
 
   return (
     <div>
+      {performedWith.length > 0 && (
       <div className="text-center text-3xl py-2 mt-12">
         <Title text1={"MUSICIANS"} text2={"PERFORMED WITH"} />
       </div>
+      )}
 
-      {loading ? (
-        <p className="text-center text-gray-500 mt-5">Loading…</p>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
-          {performedWith.length > 0 ? (
-            performedWith.map((m) => {
+      {performedWith.length > 0 && (
+        loading ? (
+          <p className="text-center text-gray-500 mt-5">Loading…</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
+            {performedWith.map((m) => {
               const img = displayImage(m);
               const name = displayName(m);
               return (
@@ -133,13 +135,9 @@ const RelatedMusicians = ({ currentActId }) => {
                   </div>
                 </a>
               );
-            })
-          ) : (
-            <p className="text-center text-gray-500 mt-5">
-              No co-performers found yet.
-            </p>
-          )}
-        </div>
+            })}
+          </div>
+        )
       )}
     </div>
   );

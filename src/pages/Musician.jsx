@@ -518,40 +518,7 @@ useEffect(() => {
         ← Back
       </button>
 
-      {/* Date & Venue Selection */}
-      <div className="visability:hidden">
-        {selectedDate ? (
-          <div className="text-sm mt-3 p-2 text-gray-500 visability:hidden">
-            <span>Availability for </span>
-            <span className="text-gray-700">{formatDate(selectedDate)}</span>
-            {isYesForSelectedDate === true && (
-              <span className="ml-2 inline-flex items-center text-green-700">✓ Available</span>
-            )}
-            {isYesForSelectedDate === false && (
-              <span className="ml-2 inline-flex items-center text-red-700">✗ Not available</span>
-            )}
-            {isYesForSelectedDate === null && (
-              <span className="ml-2 inline-flex items-center text-gray-600">— checking —</span>
-            )}
-            <span
-              onClick={() => setShowSearch(true)}
-              className="text-blue-600 cursor-pointer underline ml-3"
-            >
-              change date
-            </span>
-          </div>
-        ) : (
-          <p className="text-sm mt-3 p-2 text-gray-500 justify-center">
-            Select a date to check this musician’s availability
-            <span
-              onClick={() => setShowSearch(true)}
-              className="text-blue-600 cursor-pointer underline ml-2"
-            >
-              choose date
-            </span>
-          </p>
-        )}
-      </div>
+      
 
       <div />
     </div>
@@ -800,7 +767,12 @@ useEffect(() => {
 
       {/* ===== GALLERY (full width) ===== */}
       {/*  Academics & Achievements */}
-      <Section when={content.hasCredits}>
+      <Section when={content.hasCredits && (
+        (Array.isArray(actData?.academic_credentials) && actData.academic_credentials.length > 0) ||
+        (Array.isArray(actData?.function_bands_performed_with) && actData.function_bands_performed_with.length > 0) ||
+        (Array.isArray(actData?.original_bands_performed_with) && actData.original_bands_performed_with.length > 0) ||
+        (Array.isArray(actData?.sessions) && actData.sessions.length > 0)
+      )}>
         <div className="lg:col-span-7">
           <div className="text-2xl mb-2">
             <Title text1={getPossessiveTitleCase(`${actData?.firstName || ""}`)} text2="ACADEMICS, ACHIEVEMENTS & BANDS" />
