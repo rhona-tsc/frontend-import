@@ -47,7 +47,6 @@ const Musician = () => {
   const [selectedCounty, setSelectedCounty] = useState(
     sessionStorage.getItem("selectedCounty") || ""
   );
-
   // Fetch musician/deputy profile for this page
   useEffect(() => {
     let abort = false;
@@ -131,6 +130,7 @@ const Musician = () => {
     addToShortlist,
   });
   const [actData, setActData] = useState(null);
+const m = actData;
 
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
 
@@ -711,6 +711,7 @@ useEffect(() => {
                 const allCategorized = new Set([...liveSkills, ...studioSkills, ...prepSkills, ...otherSkills]);
                 const uncategorized = otherSkillsArr.filter((skill) => !allCategorized.has(skill));
                 const fullOtherSkills = [...otherSkills, ...uncategorized];
+const m = actData?.act || actData?.musician || actData?.deputy || actData;
 
                 return (
                   <>
@@ -767,13 +768,14 @@ useEffect(() => {
 
       {/* ===== GALLERY (full width) ===== */}
       {/*  Academics & Achievements */}
-     <Section when={Boolean(
-  content.hasCredits &&
+
+<Section when={Boolean(
+  m &&
   (
-      (Array.isArray(actData?.academic_credentials) && actData.academic_credentials.length > 0) ||
-      (Array.isArray(actData?.function_bands_performed_with) && actData.function_bands_performed_with.length > 0) ||
-      (Array.isArray(actData?.original_bands_performed_with) && actData.original_bands_performed_with.length > 0) ||
-      (Array.isArray(actData?.sessions) && actData.sessions.length > 0)
+    (Array.isArray(m?.academic_credentials) && m.academic_credentials.length > 0) ||
+    (Array.isArray(m?.function_bands_performed_with) && m.function_bands_performed_with.length > 0) ||
+    (Array.isArray(m?.original_bands_performed_with) && m.original_bands_performed_with.length > 0) ||
+    (Array.isArray(m?.sessions) && m.sessions.length > 0)
   )
 )}>
         <div className="lg:col-span-7">
@@ -788,7 +790,7 @@ useEffect(() => {
                   <>
                     <h4 className="font-semibold text-gray-900 mb-2">Education & Achievements</h4>
                     <ul className="list-disc pl-5 space-y-1">
-                      {actData.academic_credentials.map((cred, idx) => {
+                      {m.academic_credentials.map((cred, idx) => {
                         const level = cred?.education_level ? `${cred.education_level} — ` : "";
                         const course = cred?.course || "";
                         const inst = cred?.institution ? ` @ ${cred.institution}` : "";
@@ -819,7 +821,7 @@ useEffect(() => {
                   <>
                     <h4 className="font-semibold text-gray-900 mb-2">Function Projects</h4>
                     <ul className="list-disc pl-5 space-y-1">
-                      {actData.function_bands_performed_with.map((b, idx) => {
+                      {m.function_bands_performed_with.map((b, idx) => {
                         const name = b?.function_band_name || "";
                         return name ? (
                           <li key={`funcband-${idx}`}>
@@ -834,7 +836,7 @@ useEffect(() => {
             {/* 🎤 Original Bands Performed With */}
             <div>
               {Array.isArray(actData?.original_bands_performed_with) &&
-                actData.original_bands_performed_with.length > 0 && (
+                m.original_bands_performed_with.length > 0 && (
                   <>
                     <h4 className="font-semibold text-gray-900 mb-2">Original Projects</h4>
                     <ul className="list-disc pl-5 space-y-1">
@@ -856,7 +858,7 @@ useEffect(() => {
                 <>
                   <h4 className="font-semibold text-gray-900 mb-2">Sessions</h4>
                   <ul className="list-disc pl-5 space-y-1">
-                    {actData.sessions.map((s, idx) => {
+                    {m.sessions.map((s, idx) => {
                       const artist = s?.artist || "";
                       const stype = s?.session_type ? `, ${s.session_type}` : "";
                       const line = `${artist}${stype}`.trim();
