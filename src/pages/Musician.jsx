@@ -130,7 +130,9 @@ const Musician = () => {
     addToShortlist,
   });
   const [actData, setActData] = useState(null);
-const m = actData;
+const userRole = sessionStorage.getItem("userRole") || localStorage.getItem("userRole") || "";
+const isPrivileged = userRole === "musician" || userRole === "agent";
+const m = actData?.act || actData?.musician || actData?.deputy || actData || null;
 
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
 
@@ -204,8 +206,10 @@ const m = actData;
   useEffect(() => {
     const fetchShortlist = async (userId) => {
       try {
+        const userId = getStoredUserId();
+        if (!userId) return;
         const res = await axios.get(
-          `/api/availability/user/${userId}/shortlisted`
+          `${import.meta.env.VITE_BACKEND_URL}/api/shortlist/user/${userId}/shortlisted`
         );
         const musicianIds = res.data.acts.map((act) => act._id);
         setShortlistedActs(musicianIds);
@@ -770,6 +774,7 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
       {/*  Academics & Achievements */}
 
 <Section when={Boolean(
+  isPrivileged &&
   m &&
   (
     (Array.isArray(m?.academic_credentials) && m.academic_credentials.length > 0) ||
@@ -821,7 +826,7 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
                   <>
                     <h4 className="font-semibold text-gray-900 mb-2">Function Projects</h4>
                     <ul className="list-disc pl-5 space-y-1">
-                      {m.function_bands_performed_with.map((b, idx) => {
+                      {m.function_bands_performed_with?.map((b, idx) => {
                         const name = b?.function_band_name || "";
                         return name ? (
                           <li key={`funcband-${idx}`}>
