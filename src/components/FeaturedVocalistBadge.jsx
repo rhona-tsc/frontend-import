@@ -14,6 +14,7 @@ export function FeaturedVocalistBadge({
   className = "",
   musicianId = "",
   profileUrl = "",
+  displayName = "",
 }) {
   const inner = Math.round(size * photoScale);
   const ringSrc =
@@ -60,6 +61,10 @@ export function FeaturedVocalistBadge({
           draggable={false}
         />
       </div>
+
+      {displayName && (
+        <div className="text-[14px] text-gray-900 font-medium mt-1">{displayName}</div>
+      )}
 
       {resolvedProfile && (
         <a
@@ -117,6 +122,21 @@ export function VocalistFeaturedAvailable({
     }
   }
 
+  // Resolve display name for badge text
+  const shortDisplayName = (full) => {
+    if (!full) return "";
+    const cleaned = String(full).trim().replace(/\s+/g, " ");
+    const parts = cleaned.split(" ");
+    if (parts.length === 1) return parts[0];
+    const first = parts[0];
+    const last = parts[parts.length - 1].replace(/[^A-Za-zÀ-ÿ'-]/g, "");
+    const initial = last ? last[0].toUpperCase() : "";
+    return initial ? `${first} ${initial}` : first;
+  };
+
+  const nameCandidate = (renderData && (renderData.vocalistName || renderData.name)) || (slot && slot.vocalistName) || "";
+  const displayName = shortDisplayName(nameCandidate);
+
   if (!slot) {
     console.warn("🐊 [VFA] ❌ No usable slot found.");
     console.groupEnd();
@@ -142,6 +162,7 @@ export function VocalistFeaturedAvailable({
       musicianId={String(musicianId || "")}
       profileUrl={profileUrl}
       variant={isDeputy ? "deputy" : "lead"}
+      displayName={displayName}
     />
   );
 }
