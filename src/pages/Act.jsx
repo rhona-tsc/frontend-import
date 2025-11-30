@@ -1374,20 +1374,34 @@ const Act = () => {
     item.profileUrl ||
     (item.musicianId ? `${window.location.origin}/musician/${item.musicianId}` : "");
 
-  // 🔤 Pick a name: lead uses slot name; deputies use their own name carried above
-  const fullName = item.isDeputy
-    ? (item.vocalistName || "")
-    : (slot.vocalistName || "");
+// 🔤 Robust label fallback (lead or deputy)
+const slotVocalistName = slot.vocalistName || "";
+const itemVocalistName = item.vocalistName || "";
+const deputy = item.isDeputy ? item : null;
 
-  const displayName = shortName(fullName);
+// BEFORE (likely something like):
+// const label = isDeputy ? displayName : (slotVocalistName || itemVocalistName || displayName);
+
+// AFTER — robust fallback for deputies and primaries:
+const label = [
+  item.displayName,        // backend-populated for deputies (if provided)
+  slotVocalistName,        // existing slot label
+  itemVocalistName,        // older path
+  deputy?.vocalistName,    // extra safety if item carries deputy fields
+  deputy?.resolvedName,
+  deputy?.firstName && deputy?.lastName ? `${deputy.firstName} ${deputy.lastName[0]}` : deputy?.firstName,
+].find(Boolean) || "Deputy";
+
+const displayName = shortName(label);
+
 console.log("🎤 [Act.jsx] Badge name debug", {
   matchedKey: badgeKey,
   slotIndex: slot.slotIndex,
   isDeputy: !!item.isDeputy,
   itemMusicianId: String(item.musicianId || ""),
-  slotVocalistName: slot.vocalistName,
-  itemVocalistName: item.vocalistName,
-  computedFullName: fullName,
+  slotVocalistName,
+  itemVocalistName,
+  chosenLabel: label,
   computedDisplayName: displayName,
 });
 
