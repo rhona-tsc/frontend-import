@@ -1269,21 +1269,6 @@ const Act = () => {
                     {sortedSlots /* or slots */
                       .map((slot) => {
                         // 🏷 Cart badge name formatting: First + Last initial
-                        const getShortName = (obj = {}) => {
-                          const fullName = obj?.vocalistName || obj?.name || "";
-                          if (!fullName) return "";
-
-                          const parts = fullName.trim().split(" ");
-                          const first = parts[0] || "";
-                          const lastInitial =
-                            parts.length > 1 && parts[1]
-                              ? parts[1].charAt(0).toUpperCase()
-                              : "";
-
-                          return lastInitial
-                            ? `${first} ${lastInitial}.`
-                            : first;
-                        };
 
                         // 🏷 Short-name helper (no dot after the initial)
                         const shortName = (full = "") => {
@@ -1395,6 +1380,16 @@ const Act = () => {
     : (slot.vocalistName || "");
 
   const displayName = shortName(fullName);
+console.log("🎤 [Act.jsx] Badge name debug", {
+  matchedKey: badgeKey,
+  slotIndex: slot.slotIndex,
+  isDeputy: !!item.isDeputy,
+  itemMusicianId: String(item.musicianId || ""),
+  slotVocalistName: slot.vocalistName,
+  itemVocalistName: item.vocalistName,
+  computedFullName: fullName,
+  computedDisplayName: displayName,
+});
 
   return (
     <FeaturedVocalistBadge

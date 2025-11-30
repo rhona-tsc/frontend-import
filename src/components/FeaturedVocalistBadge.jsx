@@ -16,6 +16,13 @@ export function FeaturedVocalistBadge({
   profileUrl = "",
   displayName = "",
 }) {
+  console.log("🎯 [FeaturedVocalistBadge] props", {
+  displayName,
+  musicianId,
+  variant,
+  hasImage: !!imageUrl,
+});
+
   const inner = Math.round(size * photoScale);
   const ringSrc =
     variant === "deputy"
