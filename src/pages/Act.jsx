@@ -14,8 +14,19 @@ import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import AcousticExtrasSelector from "../components/AcousticExtrasSelector";
 import ActPerformanceOverview from "../components/ActPerformanceOverview";
-import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
-import { paMap, lightMap, generateDescription, numberToWords, formatDate, fetchBadgeForActAndDate, calculateAverageRating } from "./utils/helpersforAct";
+import {
+  FeaturedVocalistBadge,
+  VocalistFeaturedAvailable,
+} from "../components/FeaturedVocalistBadge";
+import {
+  paMap,
+  lightMap,
+  generateDescription,
+  numberToWords,
+  formatDate,
+  fetchBadgeForActAndDate,
+  calculateAverageRating,
+} from "./utils/helpersforAct";
 
 const Act = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -28,7 +39,23 @@ const Act = () => {
     return match ? match[1] : url;
   };
   const { actId } = useParams();
-  const { acts, getActById, addToCart, selectedDate, setSelectedDate, selectedAddress, setSelectedAddress, setShowSearch, userId, shortlistAct, shortlistedActs, cartItems, removeFromCart, handleDateOrAddressChange, selectedCounty } = useContext(ShopContext);
+  const {
+    acts,
+    getActById,
+    addToCart,
+    selectedDate,
+    setSelectedDate,
+    selectedAddress,
+    setSelectedAddress,
+    setShowSearch,
+    userId,
+    shortlistAct,
+    shortlistedActs,
+    cartItems,
+    removeFromCart,
+    handleDateOrAddressChange,
+    selectedCounty,
+  } = useContext(ShopContext);
   const [actData, setActData] = useState(null);
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
   const [selectedLineup, setSelectedLineup] = useState("");
@@ -39,61 +66,56 @@ const Act = () => {
   const [playing, setPlaying] = useState(false);
   const [finalTravelPrice, setFinalTravelPrice] = useState(null);
   // 🧹 Track locally cleared availability badges
-const [clearedBadges, setClearedBadges] = useState(new Set());
+  const [clearedBadges, setClearedBadges] = useState(new Set());
   const [price, setPrice] = useState(null);
 
   const id = extractVideoId(video);
 
-      // Gallery Carousel logic
+  // Gallery Carousel logic
   const galleryRef = useRef(null);
   const reviewGalleryRef = useRef(null); // ✅ fix
 
-
-const scrollGallery = (direction) => {
-      if (galleryRef.current) {
-        const scrollAmount = direction === "left" ? -400 : 400;
-        galleryRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-      }
-    };
-
-
-
-
-
-const handleInputChange = (actId, date, address) => {
-  // update local UI state first
-  setSelectedDate(date);
-  setSelectedAddress(address);
-  // then trigger backend update
-  handleDateOrAddressChange(actId);
-};
-
-// ✅ Safe merge to prevent infinite loop
-useEffect(() => {
-  if (!actData) return;
-
-  setActData((prev) => {
-    if (!prev) return actData;
-
-    // Compare shallowly — skip update if same object
-    const prevBadges = prev.availabilityBadges || {};
-    const newBadges = actData.availabilityBadges || {};
-
-    // Skip if badge data hasn’t changed
-    if (JSON.stringify(prevBadges) === JSON.stringify(newBadges)) {
-      return prev;
+  const scrollGallery = (direction) => {
+    if (galleryRef.current) {
+      const scrollAmount = direction === "left" ? -400 : 400;
+      galleryRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
+  };
 
-    const merged = {
-      ...actData,
-      availabilityBadges: { ...newBadges },
-    };
-    clearedBadges.forEach((d) => {
-      delete merged.availabilityBadges?.[d];
+  const handleInputChange = (actId, date, address) => {
+    // update local UI state first
+    setSelectedDate(date);
+    setSelectedAddress(address);
+    // then trigger backend update
+    handleDateOrAddressChange(actId);
+  };
+
+  // ✅ Safe merge to prevent infinite loop
+  useEffect(() => {
+    if (!actData) return;
+
+    setActData((prev) => {
+      if (!prev) return actData;
+
+      // Compare shallowly — skip update if same object
+      const prevBadges = prev.availabilityBadges || {};
+      const newBadges = actData.availabilityBadges || {};
+
+      // Skip if badge data hasn’t changed
+      if (JSON.stringify(prevBadges) === JSON.stringify(newBadges)) {
+        return prev;
+      }
+
+      const merged = {
+        ...actData,
+        availabilityBadges: { ...newBadges },
+      };
+      clearedBadges.forEach((d) => {
+        delete merged.availabilityBadges?.[d];
+      });
+      return merged;
     });
-    return merged;
-  });
-}, [clearedBadges]); // 👈 removed actData from deps
+  }, [clearedBadges]); // 👈 removed actData from deps
 
   useEffect(() => {
     if (location.hash) {
@@ -106,95 +128,97 @@ useEffect(() => {
     }
   }, [location]);
 
-const promptLogin = (
-  msg = "Please log in to save acts to your shortlist.",
-  actId = null
-) => {
-  try {
-    toast(<CustomToast type="info" message={msg} />);
-  } catch {}
-
-  const next = `${location.pathname}${location.search || ""}`;
-  sessionStorage.setItem("postLoginNext", next);
-
-  // 🆕 Store act ID so we can auto-add after login
-  if (actId) sessionStorage.setItem("pendingShortlistActId", actId);
-
-  navigate("/login");
-};
-
-
-useEffect(() => {
-  const evtSource = new EventSource(
-    `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`
-  );
-
-  evtSource.onmessage = async (e) => {
+  const promptLogin = (
+    msg = "Please log in to save acts to your shortlist.",
+    actId = null
+  ) => {
     try {
-      const data = JSON.parse(e.data);
-      console.log(`📡 SSE event received:`, data);
+      toast(<CustomToast type="info" message={msg} />);
+    } catch {}
 
-      // ✅ Only act on known badge-related event types
-      const validTypes = [
-        "availability_yes",
-        "availability_deputy_yes",
-        "availability_badge_updated",
-      ];
+    const next = `${location.pathname}${location.search || ""}`;
+    sessionStorage.setItem("postLoginNext", next);
 
-   if (!validTypes.includes(data.type)) return;
+    // 🆕 Store act ID so we can auto-add after login
+    if (actId) sessionStorage.setItem("pendingShortlistActId", actId);
 
-// ✅ Only act on this act
-if (String(data.actId) !== String(actId)) return;
-
-const cleanDate = data.dateISO?.slice(0, 10) || selectedDate?.slice(0, 10);
-if (!cleanDate) return;
-
-// 🧹 Handle explicit null badge clears
-if (data.type === "availability_badge_updated" && data.badge === null) {
-  console.log("🧹 Explicit badge clear received via SSE:", data);
-  setClearedBadges((prev) => new Set(prev).add(cleanDate));
-
-  setActData((prev) => {
-    if (!prev) return prev;
-    const updatedBadges = { ...(prev.availabilityBadges || {}) };
-
-    // 🔍 Delete both possible variants
-    delete updatedBadges[cleanDate];
-    delete updatedBadges[`${cleanDate}_tbc`];
-
-    console.log("🗑️ Cleared badge keys from actData:", Object.keys(updatedBadges));
-    return { ...prev, availabilityBadges: updatedBadges };
-  });
-
-  return;
-}
-
-// 🧭 Otherwise fetch and update latest badge
-const badge = await fetchBadgeForActAndDate(actId, cleanDate);
-if (badge) {
-  console.log("♻️ Updated badge from SSE:", badge);
-  setActData((prev) => ({
-    ...prev,
-    availabilityBadges: {
-      ...(prev?.availabilityBadges || {}),
-      [cleanDate]: badge,
-    },
-  }));
-} else {
-  console.log("🪶 No badge returned for SSE event.");
-
-}
-    } catch (err) {
-      console.error("⚠️ Error processing SSE message:", err);
-    }
+    navigate("/login");
   };
 
-  evtSource.onerror = (err) => {
-    console.warn("⚠️ SSE connection error", err);
-  };
+  useEffect(() => {
+    const evtSource = new EventSource(
+      `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`
+    );
 
-  return () => evtSource.close();
-}, [actId, selectedDate]);
+    evtSource.onmessage = async (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        console.log(`📡 SSE event received:`, data);
+
+        // ✅ Only act on known badge-related event types
+        const validTypes = [
+          "availability_yes",
+          "availability_deputy_yes",
+          "availability_badge_updated",
+        ];
+
+        if (!validTypes.includes(data.type)) return;
+
+        // ✅ Only act on this act
+        if (String(data.actId) !== String(actId)) return;
+
+        const cleanDate =
+          data.dateISO?.slice(0, 10) || selectedDate?.slice(0, 10);
+        if (!cleanDate) return;
+
+        // 🧹 Handle explicit null badge clears
+        if (data.type === "availability_badge_updated" && data.badge === null) {
+          console.log("🧹 Explicit badge clear received via SSE:", data);
+          setClearedBadges((prev) => new Set(prev).add(cleanDate));
+
+          setActData((prev) => {
+            if (!prev) return prev;
+            const updatedBadges = { ...(prev.availabilityBadges || {}) };
+
+            // 🔍 Delete both possible variants
+            delete updatedBadges[cleanDate];
+            delete updatedBadges[`${cleanDate}_tbc`];
+
+            console.log(
+              "🗑️ Cleared badge keys from actData:",
+              Object.keys(updatedBadges)
+            );
+            return { ...prev, availabilityBadges: updatedBadges };
+          });
+
+          return;
+        }
+
+        // 🧭 Otherwise fetch and update latest badge
+        const badge = await fetchBadgeForActAndDate(actId, cleanDate);
+        if (badge) {
+          console.log("♻️ Updated badge from SSE:", badge);
+          setActData((prev) => ({
+            ...prev,
+            availabilityBadges: {
+              ...(prev?.availabilityBadges || {}),
+              [cleanDate]: badge,
+            },
+          }));
+        } else {
+          console.log("🪶 No badge returned for SSE event.");
+        }
+      } catch (err) {
+        console.error("⚠️ Error processing SSE message:", err);
+      }
+    };
+
+    evtSource.onerror = (err) => {
+      console.warn("⚠️ SSE connection error", err);
+    };
+
+    return () => evtSource.close();
+  }, [actId, selectedDate]);
 
   useEffect(() => {
     if (!actId || !selectedDate) return;
@@ -235,7 +259,7 @@ if (badge) {
           ""
         );
         const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
-const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
+        const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
         u.searchParams.set("date", dateISO);
         u.searchParams.set("actId", String(actId));
 
@@ -330,99 +354,100 @@ const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
     };
   }, []);
 
-useEffect(() => {
-  (async () => {
-    if (!actId) return;
+  useEffect(() => {
+    (async () => {
+      if (!actId) return;
 
-    // 1️⃣ Try to find act in cached list first
-    let foundAct = acts.find((item) => item._id === actId);
+      // 1️⃣ Try to find act in cached list first
+      let foundAct = acts.find((item) => item._id === actId);
 
-    // 2️⃣ If not found or missing key fields, fetch full version from backend
-    if (
-      !foundAct ||
-      !foundAct.lineups ||
-      !Array.isArray(foundAct.lineups) ||
-      !foundAct.numberOfSets ||
-      !foundAct.lengthOfSets
-    ) {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`,
-          { headers: { accept: "application/json" } }
-        );
-        const json = await res.json();
-        if (res.ok && json?.success && json?.act) {
-          foundAct = json.act;
+      // 2️⃣ If not found or missing key fields, fetch full version from backend
+      if (
+        !foundAct ||
+        !foundAct.lineups ||
+        !Array.isArray(foundAct.lineups) ||
+        !foundAct.numberOfSets ||
+        !foundAct.lengthOfSets
+      ) {
+        try {
+          const res = await fetch(
+            `${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`,
+            { headers: { accept: "application/json" } }
+          );
+          const json = await res.json();
+          if (res.ok && json?.success && json?.act) {
+            foundAct = json.act;
+          }
+        } catch (err) {
+          console.error("⚠️ Failed to fetch full act:", err);
         }
-      } catch (err) {
-        console.error("⚠️ Failed to fetch full act:", err);
       }
-    }
 
-    // 3️⃣ If we have act data, populate state
-    if (foundAct) {
-      const avgRating = calculateAverageRating(foundAct.reviews || []);
-      setActData({
-        ...foundAct,
-        averageRating: avgRating,
-      });
+      // 3️⃣ If we have act data, populate state
+      if (foundAct) {
+        const avgRating = calculateAverageRating(foundAct.reviews || []);
+        setActData({
+          ...foundAct,
+          averageRating: avgRating,
+        });
 
-      setVideo(foundAct.videos?.[0]?.url || "");
+        setVideo(foundAct.videos?.[0]?.url || "");
 
-      if (Array.isArray(foundAct.lineups) && foundAct.lineups.length > 0) {
-        setSelectedLineup(foundAct.lineups?.[0] || null);
+        if (Array.isArray(foundAct.lineups) && foundAct.lineups.length > 0) {
+          setSelectedLineup(foundAct.lineups?.[0] || null);
+        }
       }
+    })();
+  }, [actId, acts]);
+
+  const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
+
+  const handleLineupChange = async (lineup) => {
+    setSelectedLineup(lineup);
+
+    const selectedCounty =
+      selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+
+    try {
+      console.group("🧾 [Act.jsx] calculateActPricing Debug");
+      console.log("🔹 actData:", actData?.name);
+      console.log("🔹 selected lineup:", lineup?.actSize);
+      console.log("🔹 base fees:", lineup?.base_fee);
+      console.log("🔹 selectedCounty:", selectedCounty);
+      console.groupEnd();
+
+      const result = await calculateActPricing(
+        actData,
+        selectedCounty,
+        selectedAddress,
+        selectedDate,
+        lineup
+      );
+
+      // ✅ Put this here
+      console.group("🧮 [Act.jsx] Price Debug");
+      console.log("Lineup used:", lineup?.actSize);
+      console.log("calculateActPricing result:", result);
+      console.groupEnd();
+
+      if (result) {
+        setPrice({ ...result, travelCalculated: result?.travelFeeTotal > 0 });
+        setFormattedPrice(result.total);
+        setFinalTravelPrice(result); // keep for fallback if needed
+      }
+    } catch (error) {
+      console.error(
+        "❌ Error in price calculation (handleLineupChange):",
+        error
+      );
     }
-  })();
-}, [actId, acts]);
-
-const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
-
-
-
-const handleLineupChange = async (lineup) => {
-  setSelectedLineup(lineup);
-
-  const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
-
-  try {
-    console.group("🧾 [Act.jsx] calculateActPricing Debug");
-    console.log("🔹 actData:", actData?.name);
-    console.log("🔹 selected lineup:", lineup?.actSize);
-    console.log("🔹 base fees:", lineup?.base_fee);
-    console.log("🔹 selectedCounty:", selectedCounty);
-    console.groupEnd();
-
-const result = await calculateActPricing(
-  actData,
-  selectedCounty,
-  selectedAddress,
-  selectedDate,
-  lineup
-);
-
-// ✅ Put this here
-console.group("🧮 [Act.jsx] Price Debug");
-console.log("Lineup used:", lineup?.actSize);
-console.log("calculateActPricing result:", result);
-console.groupEnd();
-
-    if (result) {
-      setPrice({ ...result, travelCalculated: result?.travelFeeTotal > 0 });
-      setFormattedPrice(result.total);
-      setFinalTravelPrice(result); // keep for fallback if needed
-    }
-  } catch (error) {
-    console.error("❌ Error in price calculation (handleLineupChange):", error);
-  }
-};
-
+  };
 
   useEffect(() => {
     const calculateAndSetPrice = async () => {
       try {
         if (!actData?.lineups?.length) {
-          console.warn('⚠️ Missing actData or lineups in ActItem:', actData);
+          console.warn("⚠️ Missing actData or lineups in ActItem:", actData);
           return;
         }
 
@@ -447,8 +472,14 @@ console.groupEnd();
         console.log("Lineup fee allocations:", lineup?.base_fee);
         const essentialRoles = (lineup?.bandMembers || [])
           .flatMap((member) => member.additionalRoles || [])
-          .filter((role) => role?.isEssential && typeof role?.additionalFee === "number");
-        const essentialTotal = essentialRoles.reduce((sum, r) => sum + (r.additionalFee || 0), 0);
+          .filter(
+            (role) =>
+              role?.isEssential && typeof role?.additionalFee === "number"
+          );
+        const essentialTotal = essentialRoles.reduce(
+          (sum, r) => sum + (r.additionalFee || 0),
+          0
+        );
         console.log("Essential additional roles:", essentialRoles);
         console.log("Essential additional total:", essentialTotal);
 
@@ -473,10 +504,10 @@ console.groupEnd();
         setPrice({
           total: pricingResults.total,
           travelCalculated: pricingResults.travelCalculated,
-          travelFeeTotal: pricingResults.travelFeeTotal
+          travelFeeTotal: pricingResults.travelFeeTotal,
         });
       } catch (err) {
-        console.error('❌ Failed to calculate price:', {
+        console.error("❌ Failed to calculate price:", {
           err,
           actId: actData?._id,
           useCountyTravelFee: actData?.useCountyTravelFee,
@@ -487,7 +518,9 @@ console.groupEnd();
           actData?.formattedPrice?.total ??
           lineup?.base_fee?.[0]?.total_fee ??
           null;
-        setPrice(base != null ? { total: base, travelCalculated: false } : null);
+        setPrice(
+          base != null ? { total: base, travelCalculated: false } : null
+        );
       }
     };
     calculateAndSetPrice();
@@ -495,15 +528,11 @@ console.groupEnd();
 
   // Calculate display price: prefer price?.total, then formattedPrice, then actData formattedPrice
   const rawTotal =
-    price?.total ??
-    formattedPrice ??
-    actData?.formattedPrice?.total ??
-    null;
+    price?.total ?? formattedPrice ?? actData?.formattedPrice?.total ?? null;
   const displayTotal =
-    rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
-
-
-
+    rawTotal != null
+      ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ""))
+      : null;
 
   // Check if the act is already in the cart
   const isInCart =
@@ -530,13 +559,10 @@ console.groupEnd();
       : false;
 
   // Ensure hooks above always run; show loading UI after hooks are set up
-if (!actData || !selectedLineup) {
-  return <div className="p-4 text-gray-500">Loading act details...</div>;
-}
+  if (!actData || !selectedLineup) {
+    return <div className="p-4 text-gray-500">Loading act details...</div>;
+  }
 
-
-
- 
   return (
     <div className="p-4">
       {/* Top Navigation */}
@@ -654,7 +680,7 @@ if (!actData || !selectedLineup) {
                 );
               })}
             </div>
-     
+
             {/* Inclusions (mobile only) */}
             <div className="block sm:hidden">
               <div className="text-2xl mt-6" id="lineup-selector-mobile">
@@ -718,55 +744,60 @@ if (!actData || !selectedLineup) {
                       <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
                     </svg>
                   </button>
-                 <button
-  onClick={async () => {
-    try {
-      // 🔹 Check if user is logged in before proceeding
-     if (!userId) {
-  promptLogin("Please log in to save acts to your shortlist.", actData._id);
-  return;
-}
+                  <button
+                    onClick={async () => {
+                      try {
+                        // 🔹 Check if user is logged in before proceeding
+                        if (!userId) {
+                          promptLogin(
+                            "Please log in to save acts to your shortlist.",
+                            actData._id
+                          );
+                          return;
+                        }
 
-      // 🔹 Proceed with shortlist toggle
-      await shortlistAct(userId, actData._id);
+                        // 🔹 Proceed with shortlist toggle
+                        await shortlistAct(userId, actData._id);
 
-      toast(
-        <CustomToast
-          type="success"
-          message={
-            isShortlisted
-              ? `${actData.tscName || actData.name} removed from your shortlist.`
-              : `${actData.tscName || actData.name} added to your shortlist!`
-          }
-        />,
-        {
-          position: "top-right",
-          autoClose: 1600,
-        }
-      );
-    } catch (e) {
-      console.error("❌ Shortlist toggle failed", e);
-      toast(
-        <CustomToast
-          type="error"
-          message="Could not update shortlist."
-        />,
-        {
-          position: "top-right",
-          autoClose: 1600,
-        }
-      );
-    }
-  }}
-  aria-pressed={isShortlisted}
-  className={`px-8 py-3 text-m rounded transition-colors ${
-    isShortlisted
-      ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
-      : "bg-black text-white hover:bg-[#ff6667]"
-  }`}
->
-  {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
-</button>
+                        toast(
+                          <CustomToast
+                            type="success"
+                            message={
+                              isShortlisted
+                                ? `${actData.tscName || actData.name} removed from your shortlist.`
+                                : `${actData.tscName || actData.name} added to your shortlist!`
+                            }
+                          />,
+                          {
+                            position: "top-right",
+                            autoClose: 1600,
+                          }
+                        );
+                      } catch (e) {
+                        console.error("❌ Shortlist toggle failed", e);
+                        toast(
+                          <CustomToast
+                            type="error"
+                            message="Could not update shortlist."
+                          />,
+                          {
+                            position: "top-right",
+                            autoClose: 1600,
+                          }
+                        );
+                      }
+                    }}
+                    aria-pressed={isShortlisted}
+                    className={`px-8 py-3 text-m rounded transition-colors ${
+                      isShortlisted
+                        ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
+                        : "bg-black text-white hover:bg-[#ff6667]"
+                    }`}
+                  >
+                    {isShortlisted
+                      ? "REMOVE FROM SHORTLIST"
+                      : "ADD TO SHORTLIST"}
+                  </button>
                   <button
                     onClick={async () => {
                       if (!selectedLineup) {
@@ -839,27 +870,30 @@ if (!actData || !selectedLineup) {
               )}
               <p className="mt-5 text-3xl font-medium p-3">
                 {(() => {
-              const rawTotal =
-                price?.total ??
-                formattedPrice ??
-                actData?.formattedPrice?.total ??
-                null;
-            const cleanTotal = price?.total ?? finalTravelPrice?.total ?? actData?.formattedPrice ?? null;
+                  const rawTotal =
+                    price?.total ??
+                    formattedPrice ??
+                    actData?.formattedPrice?.total ??
+                    null;
+                  const cleanTotal =
+                    price?.total ??
+                    finalTravelPrice?.total ??
+                    actData?.formattedPrice ??
+                    null;
 
-              // Prefer travelFeeTotal in price breakdowns if available
-              const travelFeeDisplay =
-                price?.travelFeeTotal ??
-                finalTravelPrice?.travelFeeTotal ??
-                null;
+                  // Prefer travelFeeTotal in price breakdowns if available
+                  const travelFeeDisplay =
+                    price?.travelFeeTotal ??
+                    finalTravelPrice?.travelFeeTotal ??
+                    null;
 
-     
-
-              if (cleanTotal != null) {
-                return price?.travelCalculated || finalTravelPrice?.travelCalculated
-                  ? `£${cleanTotal}`
-                  : `from £${cleanTotal}`;
-              }
-              return "Loading price...";
+                  if (cleanTotal != null) {
+                    return price?.travelCalculated ||
+                      finalTravelPrice?.travelCalculated
+                      ? `£${cleanTotal}`
+                      : `from £${cleanTotal}`;
+                  }
+                  return "Loading price...";
                 })()}
               </p>
               <div className="flex flex-col gap-4 my-2">
@@ -885,17 +919,15 @@ if (!actData || !selectedLineup) {
                   })}
                 </div>
                 <div className="my-3 mt-5">
-              <div className="my-3 mt-5">
-
-  
-</div>
-
+                  <div className="my-3 mt-5"></div>
                 </div>
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
                   <li>
-                    Up to {actData?.numberOfSets?.[0]}x{actData?.lengthOfSets?.[0]}
-                    mins or {actData?.numberOfSets?.[1]}x{actData?.lengthOfSets?.[1]}
+                    Up to {actData?.numberOfSets?.[0]}x
+                    {actData?.lengthOfSets?.[0]}
+                    mins or {actData?.numberOfSets?.[1]}x
+                    {actData?.lengthOfSets?.[1]}
                     mins live performance
                   </li>
                   <li>
@@ -959,62 +991,70 @@ if (!actData || !selectedLineup) {
                 </ul>
               </div>
               {/* move this block ABOVE or BELOW the .block sm:hidden */}
-<div className="my-3 mt-5 flex justify-left z-10">
-  {(() => {
-    const allBadges = actData?.availabilityBadges;
-    console.log("🐊 [Lookup] All badges:", allBadges);
+              <div className="my-3 mt-5 flex justify-left z-10">
+                {(() => {
+                  const allBadges = actData?.availabilityBadges;
+                  console.log("🐊 [Lookup] All badges:", allBadges);
 
-    if (!allBadges || !selectedDate) {
-      console.warn("🐊 [Lookup] Missing badges or date");
-      return null;
-    }
+                  if (!allBadges || !selectedDate) {
+                    console.warn("🐊 [Lookup] Missing badges or date");
+                    return null;
+                  }
 
-    const cleanDate = selectedDate.slice(0,10);
-    console.log("🐊 [Lookup] Clean date:", cleanDate);
+                  const cleanDate = selectedDate.slice(0, 10);
+                  console.log("🐊 [Lookup] Clean date:", cleanDate);
 
-    const matchedKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
-    console.log("🐊 [Lookup] matchedKey:", matchedKey);
+                  const matchedKey = Object.keys(allBadges).find((k) =>
+                    k.includes(cleanDate)
+                  );
+                  console.log("🐊 [Lookup] matchedKey:", matchedKey);
 
-    if (!matchedKey) {
-      console.warn("🐊 [Lookup] No badge matched date");
-      return null;
-    }
+                  if (!matchedKey) {
+                    console.warn("🐊 [Lookup] No badge matched date");
+                    return null;
+                  }
 
-    const badgeForDate = allBadges[matchedKey];
-    console.log("🐊 [Lookup] badgeForDate.slots:", badgeForDate?.slots);
+                  const badgeForDate = allBadges[matchedKey];
+                  console.log(
+                    "🐊 [Lookup] badgeForDate.slots:",
+                    badgeForDate?.slots
+                  );
 
-    if (!badgeForDate?.slots?.length) return null;
+                  if (!badgeForDate?.slots?.length) return null;
 
-    return (
-      <div className="flex items-center gap-3 mt-2 flex-wrap">
-       {badgeForDate.slots.map(slot => (
-  <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
-    <VocalistFeaturedAvailable
-      badge={badgeForDate}
-      slotIndex={slot.slotIndex}
-      size={140}
-      cacheBuster={slot.setAt || badgeForDate.setAt || ""}
-      className="mt-2"
-    />
+                  return (
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      {badgeForDate.slots.map((slot) => (
+                        <React.Fragment
+                          key={`${matchedKey}_slot_${slot.slotIndex}`}
+                        >
+                          <VocalistFeaturedAvailable
+                            badge={badgeForDate}
+                            slotIndex={slot.slotIndex}
+                            size={140}
+                            cacheBuster={slot.setAt || badgeForDate.setAt || ""}
+                            className="mt-2"
+                          />
 
-    {Array.isArray(slot.deputies) && slot.deputies.map((dep, i) => (
-      <FeaturedVocalistBadge
-        key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
-        imageUrl={dep.photoUrl}
-        size={120}
-        cacheBuster={dep.setAt}
-        className="mt-2"
-        musicianId={dep.musicianId}
-        profileUrl={dep.profileUrl}
-        variant="deputy"          // 👈 deputy ring
-      />
-    ))}
-  </React.Fragment>
-))}
-      </div>
-    );
-  })()}
-</div>
+                          {Array.isArray(slot.deputies) &&
+                            slot.deputies.map((dep, i) => (
+                              <FeaturedVocalistBadge
+                                key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
+                                imageUrl={dep.photoUrl}
+                                size={120}
+                                cacheBuster={dep.setAt}
+                                className="mt-2"
+                                musicianId={dep.musicianId}
+                                profileUrl={dep.profileUrl}
+                                variant="deputy" // 👈 deputy ring
+                              />
+                            ))}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
             {/* Bio section */}
             <div className="mt-6">
@@ -1058,34 +1098,33 @@ if (!actData || !selectedLineup) {
               <p className="pl-2">({actData?.reviews?.length || 0})</p>
             </div>
 
-        <p className="mt-5 text-3xl font-medium p-3">
-          {(() => {
-            const rawTotal =
-              price?.total ??
-              formattedPrice ??
-              actData?.formattedPrice?.total ??
-              null;
-            const cleanTotal =
-              rawTotal != null
-                ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ''))
-                : null;
+            <p className="mt-5 text-3xl font-medium p-3">
+              {(() => {
+                const rawTotal =
+                  price?.total ??
+                  formattedPrice ??
+                  actData?.formattedPrice?.total ??
+                  null;
+                const cleanTotal =
+                  rawTotal != null
+                    ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ""))
+                    : null;
 
-            // Prefer travelFeeTotal in price breakdowns if available
-            const travelFeeDisplay =
-              price?.travelFeeTotal ??
-              finalTravelPrice?.travelFeeTotal ??
-              null;
+                // Prefer travelFeeTotal in price breakdowns if available
+                const travelFeeDisplay =
+                  price?.travelFeeTotal ??
+                  finalTravelPrice?.travelFeeTotal ??
+                  null;
 
-
-
-            if (cleanTotal != null) {
-              return price?.travelCalculated || finalTravelPrice?.travelCalculated
-                ? `£${cleanTotal}`
-                : `from £${cleanTotal}`;
-            }
-            return "Loading price...";
-          })()}
-        </p>
+                if (cleanTotal != null) {
+                  return price?.travelCalculated ||
+                    finalTravelPrice?.travelCalculated
+                    ? `£${cleanTotal}`
+                    : `from £${cleanTotal}`;
+                }
+                return "Loading price...";
+              })()}
+            </p>
 
             {/* ✅ Lineup Selection (Now Updates Price Instantly) */}
             <div className="flex flex-col gap-4 my-2">
@@ -1113,15 +1152,15 @@ if (!actData || !selectedLineup) {
                   );
                 })}
               </div>
-            
+
               <p className="text-gray-600 text-lg ml-3">Including:</p>
               <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
                 <li>
-  Up to {actData?.numberOfSets?.[0] || "?"}x
-  {actData?.lengthOfSets?.[0] || "?"}mins
-  or {actData?.numberOfSets?.[1] || "?"}x
-  {actData?.lengthOfSets?.[1] || "?"}mins live performance
-</li>
+                  Up to {actData?.numberOfSets?.[0] || "?"}x
+                  {actData?.lengthOfSets?.[0] || "?"}mins or{" "}
+                  {actData?.numberOfSets?.[1] || "?"}x
+                  {actData?.lengthOfSets?.[1] || "?"}mins live performance
+                </li>
                 <li>
                   {actData?.paSystem &&
                     `A ${paMap[actData?.paSystem]} PA system `}
@@ -1183,167 +1222,256 @@ if (!actData || !selectedLineup) {
               </ul>
             </div>
             {/* move this block ABOVE or BELOW the .block sm:hidden */}
-<div className="my-3 mt-5 flex justify-left z-10">
-  {(() => {
-    const allBadges = actData?.availabilityBadges;
-    if (!allBadges || !selectedDate) return null;
+            <div className="my-3 mt-5 flex justify-left z-10">
+              {(() => {
+                const allBadges = actData?.availabilityBadges;
+                if (!allBadges || !selectedDate) return null;
 
-    const cleanDate = selectedDate.slice(0, 10);
-    const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
-    if (!badgeKey) return null;
+                const cleanDate = selectedDate.slice(0, 10);
+                const badgeKey = Object.keys(allBadges).find((k) =>
+                  k.includes(cleanDate)
+                );
+                if (!badgeKey) return null;
 
-    const badgeForDate = allBadges[badgeKey];
-    const slots = badgeForDate?.slots || [];
-    if (!slots.length) return null;
+                const badgeForDate = allBadges[badgeKey];
+                const slots = badgeForDate?.slots || [];
+                if (!slots.length) return null;
 
-    const isHttp = (u) => typeof u === "string" && u.startsWith("http");
-    const isYes  = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
-    const uniqBy = (arr, getKey) => {
-      const seen = new Set();
-      const out = [];
-      for (const item of arr) {
-        const key = getKey(item);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        out.push(item);
-      }
-      return out;
-    };
+                const isHttp = (u) =>
+                  typeof u === "string" && u.startsWith("http");
+                const isYes = (d) =>
+                  d?.state === "yes" ||
+                  d?.reply === "yes" ||
+                  d?.available === true;
+                const uniqBy = (arr, getKey) => {
+                  const seen = new Set();
+                  const out = [];
+                  for (const item of arr) {
+                    const key = getKey(item);
+                    if (!key || seen.has(key)) continue;
+                    seen.add(key);
+                    out.push(item);
+                  }
+                  return out;
+                };
 
-    // OPTIONAL: if you want "lead-first across all slots", use sortedSlots instead of slots below
-    const sortedSlots = [...slots].sort((a, b) => {
-      const aLead = (a?.state === "yes" && isHttp(a?.photoUrl)) ? 1 : 0;
-      const bLead = (b?.state === "yes" && isHttp(b?.photoUrl)) ? 1 : 0;
-      return bLead - aLead; // any slot with a lead-YES comes first
-    });
-
-    return (
-      <div className="flex items-center gap-3 mt-2 flex-wrap">
-        {(sortedSlots /* or slots */).map((slot) => {
-          const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
-
-          // 1) lead (featured) item IF available and has photo – always prepend
-          const leadIsAvailable = slot?.state === "yes";
-          const leadHasPhoto    = isHttp(slot?.photoUrl);
-          const leadItem = (leadIsAvailable && leadHasPhoto)
-            ? {
-                isDeputy: false,
-                musicianId: slot.musicianId,
-                photoUrl: slot.photoUrl,
-                profileUrl: slot.profileUrl,
-                setAt: slot.setAt,
-              }
-            : null;
-
-          // 2) server primary only if it's a deputy (but lead still goes first)
-          const primaryDep = (slot?.primary && slot.primary.isDeputy && isHttp(slot.primary.photoUrl))
-            ? slot.primary
-            : null;
-
-          // 3) YES deputies (newest first)
-          const yesDeps = deps
-            .filter(d => isYes(d) && isHttp(d?.photoUrl))
-            .sort((a, b) => new Date(b.repliedAt || b.setAt || 0) - new Date(a.repliedAt || a.setAt || 0));
-
-          // Build render list: lead first if present → primary deputy → other YES deputies
-          const combined = [
-            ...(leadItem ? [leadItem] : []),
-            ...(primaryDep ? [primaryDep] : []),
-            ...yesDeps.filter(d => !primaryDep || String(d.musicianId) !== String(primaryDep.musicianId)),
-          ];
-
-          // de-dupe by musicianId, cap to 3
-          let renderList = uniqBy(combined, d => String(d.musicianId)).slice(0, 3);
-
-          // fallback: if nothing to show, pick first deputy with any photo
-          if (!renderList.length) {
-            const firstWithPhoto = deps.find(d => isHttp(d?.photoUrl));
-            if (firstWithPhoto) renderList = [{ ...firstWithPhoto, isDeputy: true }];
-            // (intentionally not showing lead when unavailable)
-          }
-
-          if (!renderList.length) return null;
-
-          return (
-            <div key={`${badgeKey}_slotwrap_${slot.slotIndex}`} className="flex items-center gap-3 flex-wrap">
-              {renderList.map((item, idx) => {
-                const cache = item.setAt || slot.setAt || badgeForDate.setAt || "";
-                const prof =
-                  item.profileUrl ||
-                  (item.musicianId ? `${window.location.origin}/musician/${item.musicianId}` : "");
+                // OPTIONAL: if you want "lead-first across all slots", use sortedSlots instead of slots below
+                const sortedSlots = [...slots].sort((a, b) => {
+                  const aLead =
+                    a?.state === "yes" && isHttp(a?.photoUrl) ? 1 : 0;
+                  const bLead =
+                    b?.state === "yes" && isHttp(b?.photoUrl) ? 1 : 0;
+                  return bLead - aLead; // any slot with a lead-YES comes first
+                });
 
                 return (
-                  <FeaturedVocalistBadge
-                    key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}
-                    imageUrl={item.photoUrl}
-                    size={140}
-                    cacheBuster={cache}
-                    className="mt-2"
-                    musicianId={String(item.musicianId || "")}
-                    profileUrl={prof}
-                    variant={item.isDeputy ? "deputy" : "lead"}
-                  />
+                  <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    {sortedSlots /* or slots */
+                      .map((slot) => {
+                        // 🏷 Cart badge name formatting: First + Last initial
+                        const getShortName = (obj = {}) => {
+                          const fullName = obj?.vocalistName || obj?.name || "";
+                          if (!fullName) return "";
+
+                          const parts = fullName.trim().split(" ");
+                          const first = parts[0] || "";
+                          const lastInitial =
+                            parts.length > 1 && parts[1]
+                              ? parts[1].charAt(0).toUpperCase()
+                              : "";
+
+                          return lastInitial
+                            ? `${first} ${lastInitial}.`
+                            : first;
+                        };
+
+                        // 🏷 Short-name helper (no dot after the initial)
+                        const shortName = (full = "") => {
+                          const cleaned = String(full)
+                            .trim()
+                            .replace(/\s+/g, " ");
+                          if (!cleaned) return "";
+                          const parts = cleaned.split(" ");
+                          if (parts.length === 1) return parts[0];
+                          const first = parts[0];
+                          const last = parts[parts.length - 1].replace(
+                            /[^A-Za-zÀ-ÿ'-]/g,
+                            ""
+                          );
+                          const initial = last ? last[0].toUpperCase() : "";
+                          return initial ? `${first} ${initial}` : first;
+                        };
+
+                        const deps = Array.isArray(slot.deputies)
+                          ? slot.deputies
+                          : [];
+
+                        // 1) lead (featured) item IF available and has photo – always prepend
+                        const leadIsAvailable = slot?.state === "yes";
+                        const leadHasPhoto = isHttp(slot?.photoUrl);
+                        const leadItem =
+                          leadIsAvailable && leadHasPhoto
+                            ? {
+                                isDeputy: false,
+                                musicianId: slot.musicianId,
+                                photoUrl: slot.photoUrl,
+                                profileUrl: slot.profileUrl,
+                                setAt: slot.setAt,
+                                vocalistName: slot.vocalistName || "", // ← carry name for lead
+                              }
+                            : null;
+
+                        // 2) server primary only if it's a deputy (but lead still goes first)
+                        const primaryDep =
+                          slot?.primary &&
+                          slot.primary.isDeputy &&
+                          isHttp(slot.primary.photoUrl)
+                            ? (() => {
+                                const match = deps.find(
+                                  (d) =>
+                                    String(d.musicianId) ===
+                                    String(slot.primary.musicianId)
+                                );
+                                return {
+                                  ...slot.primary,
+                                  vocalistName:
+                                    match?.vocalistName || match?.name || "",
+                                }; // ← attach name
+                              })()
+                            : null;
+
+                        // 3) YES deputies (newest first)
+                        const yesDeps = deps
+                          .filter((d) => isYes(d) && isHttp(d?.photoUrl))
+                          .sort(
+                            (a, b) =>
+                              new Date(b.repliedAt || b.setAt || 0) -
+                              new Date(a.repliedAt || a.setAt || 0)
+                          );
+
+                        // Build render list & de-dupe
+                        const combined = [
+                          ...(leadItem ? [leadItem] : []),
+                          ...(primaryDep ? [primaryDep] : []),
+                          ...yesDeps.filter(
+                            (d) =>
+                              !primaryDep ||
+                              String(d.musicianId) !==
+                                String(primaryDep.musicianId)
+                          ),
+                        ];
+
+                        let renderList = uniqBy(combined, (d) =>
+                          String(d.musicianId)
+                        ).slice(0, 3);
+
+                        // fallback: any deputy with a photo
+                        if (!renderList.length) {
+                          const firstWithPhoto = deps.find((d) =>
+                            isHttp(d?.photoUrl)
+                          );
+                          if (firstWithPhoto)
+                            renderList = [
+                              { ...firstWithPhoto, isDeputy: true },
+                            ];
+                        }
+
+                        if (!renderList.length) return null;
+
+                        return (
+                          <div
+                            key={`${badgeKey}_slotwrap_${slot.slotIndex}`}
+                            className="flex items-center gap-3 flex-wrap"
+                          >
+                            {renderList.map((item, idx) => {
+  const cache = item.setAt || slot.setAt || badgeForDate.setAt || "";
+  const prof =
+    item.profileUrl ||
+    (item.musicianId ? `${window.location.origin}/musician/${item.musicianId}` : "");
+
+  // 🔤 Pick a name: lead uses slot name; deputies use their own name carried above
+  const fullName = item.isDeputy
+    ? (item.vocalistName || "")
+    : (slot.vocalistName || "");
+
+  const displayName = shortName(fullName);
+
+  return (
+    <FeaturedVocalistBadge
+      key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}
+      imageUrl={item.photoUrl}
+      size={140}
+      cacheBuster={cache}
+      className="mt-2"
+      musicianId={String(item.musicianId || "")}
+      profileUrl={prof}
+      variant={item.isDeputy ? "deputy" : "lead"}
+      displayName={displayName}          // ← now correct
+    />
+  );
+})}
+                          </div>
+                        );
+                      })}
+                  </div>
                 );
-              })}
+              })()}
             </div>
-          );
-        })}
-      </div>
-    );
-  })()}
-</div>
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row my-6 gap-6 ml-3">
-           <button
-  onClick={async () => {
-    try {
-      // 🔹 Check if user is logged in before proceeding
-    if (!userId) {
-  promptLogin("Please log in to save acts to your shortlist.", actData._id);
-  return;
-}
+              <button
+                onClick={async () => {
+                  try {
+                    // 🔹 Check if user is logged in before proceeding
+                    if (!userId) {
+                      promptLogin(
+                        "Please log in to save acts to your shortlist.",
+                        actData._id
+                      );
+                      return;
+                    }
 
-      // 🔹 Proceed with shortlist toggle
-      await shortlistAct(userId, actData._id);
+                    // 🔹 Proceed with shortlist toggle
+                    await shortlistAct(userId, actData._id);
 
-      toast(
-        <CustomToast
-          type="success"
-          message={
-            isShortlisted
-              ? `${actData.tscName || actData.name} removed from your shortlist.`
-              : `${actData.tscName || actData.name} added to your shortlist!`
-          }
-        />,
-        {
-          position: "top-right",
-          autoClose: 1600,
-        }
-      );
-    } catch (e) {
-      console.error("❌ Shortlist toggle failed", e);
-      toast(
-        <CustomToast
-          type="error"
-          message="Could not update shortlist."
-        />,
-        {
-          position: "top-right",
-          autoClose: 1600,
-        }
-      );
-    }
-  }}
-  aria-pressed={isShortlisted}
-  className={`px-8 py-3 text-m rounded transition-colors ${
-    isShortlisted
-      ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
-      : "bg-black text-white hover:bg-[#ff6667]"
-  }`}
->
-  {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
-</button>
+                    toast(
+                      <CustomToast
+                        type="success"
+                        message={
+                          isShortlisted
+                            ? `${actData.tscName || actData.name} removed from your shortlist.`
+                            : `${actData.tscName || actData.name} added to your shortlist!`
+                        }
+                      />,
+                      {
+                        position: "top-right",
+                        autoClose: 1600,
+                      }
+                    );
+                  } catch (e) {
+                    console.error("❌ Shortlist toggle failed", e);
+                    toast(
+                      <CustomToast
+                        type="error"
+                        message="Could not update shortlist."
+                      />,
+                      {
+                        position: "top-right",
+                        autoClose: 1600,
+                      }
+                    );
+                  }
+                }}
+                aria-pressed={isShortlisted}
+                className={`px-8 py-3 text-m rounded transition-colors ${
+                  isShortlisted
+                    ? "bg-white text-black border border-black hover:bg-[#ff6667] hover:text-white"
+                    : "bg-black text-white hover:bg-[#ff6667]"
+                }`}
+              >
+                {isShortlisted ? "REMOVE FROM SHORTLIST" : "ADD TO SHORTLIST"}
+              </button>
 
               <button
                 onClick={async () => {
