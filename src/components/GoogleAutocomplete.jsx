@@ -1,54 +1,65 @@
 import React, { useEffect, useRef, useState } from "react";
 
 /**
- * Google Places Autocomplete input
- * - Lazily injects the Maps JS script in dev if it's not present
+ * Google Places Autocomplete input (importLibrary version)
+ * - Uses the modern google.maps.importLibrary loader (no `libraries=` URL param)
  * - Restricts results to GB
  * - Emits both full formatted address and best-effort county
  * - Adds verbose console logs to help debug on localhost
  */
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API; // <-- ensure this exists in `.env.local`
 
-function ensureMapsPlacesScript() {
+// Ensure Maps JS is present and supports importLibrary; inject <script> if needed
+function ensureMapsWithImportLibrary() {
   if (typeof window === "undefined") return Promise.reject(new Error("no-window"));
-  if (window.google?.maps?.places) return Promise.resolve(true);
 
-  // prevent duplicate inserts
-  const existing = document.querySelector('script[data-tsc="gmaps-places"]');
-  if (existing) {
-    return new Promise((resolve) => {
-      existing.addEventListener("load", () => resolve(true));
-      // if it's already loaded, resolve immediately
-      if (window.google?.maps?.places) resolve(true);
-    });
-  }
+  // Already loaded and ready
+  if (window.google?.maps?.importLibrary) return Promise.resolve(true);
 
   if (!API_KEY) {
-    console.warn("⚠️ GoogleAutocomplete: VITE_GOOGLE_MAPS_API not set. Autocomplete will not initialise.");
+    console.warn(
+      "⚠️ GoogleAutocomplete: VITE_GOOGLE_MAPS_API not set. Autocomplete will not initialise."
+    );
     return Promise.resolve(false);
   }
 
-  const s = document.createElement("script");
-  s.async = true;
-  s.defer = true;
-  s.dataset.tsc = "gmaps-places";
-  s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-    API_KEY
-  )}&libraries=places&v=weekly`;
-  document.head.appendChild(s);
+  // Prevent duplicate inserts
+  let script = document.querySelector('script[data-tsc="gmaps-core"]');
+  if (!script) {
+    script = document.createElement("script");
+    script.async = true;
+    script.defer = true;
+    script.dataset.tsc = "gmaps-core";
+    // Note: no `libraries=` here; we'll import what we need at runtime
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+      API_KEY
+    )}&v=weekly&loading=async`;
+    document.head.appendChild(script);
+  }
 
   return new Promise((resolve) => {
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
+    const onReady = () => resolve(!!window.google?.maps);
+    if (script!.readyState) {
+      script!.onreadystatechange = function () {
+        if (script!.readyState === "loaded" || script!.readyState === "complete") onReady();
+      };
+    } else {
+      script!.onload = onReady;
+      script!.onerror = () => resolve(false);
+    }
   });
 }
 
 const GoogleAutocomplete = ({ setAddress, setCounty, ...props }) => {
   const inputRef = useRef(null);
-  const [ready, setReady] = useState(!!(typeof window !== "undefined" && window.google?.maps?.places));
+  const [ready, setReady] = useState(
+    !!(typeof window !== "undefined" && window.google?.maps?.importLibrary)
+  );
 
   useEffect(() => {
     let autocomplete = null;
+    let placeListener = null;
+    let retryTimer = null;
 
     function pickCounty(components = []) {
       // Prefer county/UA (level_2), then level_1 (England/Scotland etc.), else postal_town as last resort
@@ -59,25 +70,25 @@ const GoogleAutocomplete = ({ setAddress, setCounty, ...props }) => {
       return c2?.long_name || c1?.long_name || town?.long_name || "";
     }
 
-    function init() {
-      if (
-        !window.google ||
-        !window.google.maps ||
-        !window.google.maps.places ||
-        !inputRef.current
-      ) {
-        return false;
-      }
+    async function initOnce() {
+      if (!inputRef.current) return false;
+
+      // Ensure Maps core is available
+      const coreOk = await ensureMapsWithImportLibrary();
+      if (!coreOk || !window.google?.maps?.importLibrary) return false;
 
       try {
+        // Dynamically import Places
+        const { Autocomplete } = await window.google.maps.importLibrary("places");
+
         // Fields keeps payload small
-        autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+        autocomplete = new Autocomplete(inputRef.current, {
           types: ["geocode"],
           componentRestrictions: { country: ["gb"] },
           fields: ["formatted_address", "address_components", "geometry"],
         });
 
-        autocomplete.addListener("place_changed", () => {
+        placeListener = autocomplete.addListener("place_changed", () => {
           const place = autocomplete.getPlace();
           if (!place || !place.formatted_address) {
             console.log("🔎 [GA] place_changed fired but no formatted_address", place);
@@ -98,7 +109,8 @@ const GoogleAutocomplete = ({ setAddress, setCounty, ...props }) => {
           setCounty?.(county);
         });
 
-        console.log("✅ [GA] Autocomplete initialised");
+        console.log("✅ [GA] Autocomplete initialised via importLibrary");
+        setReady(true);
         return true;
       } catch (e) {
         console.warn("❌ [GA] Autocomplete init failed:", e);
@@ -106,28 +118,23 @@ const GoogleAutocomplete = ({ setAddress, setCounty, ...props }) => {
       }
     }
 
-    // If Places not ready, inject script then try init
     (async () => {
-      if (!window.google?.maps?.places) {
-        const ok = await ensureMapsPlacesScript();
-        setReady(ok);
-        if (!ok) return;
-      } else {
-        setReady(true);
-      }
+      const ok = await initOnce();
+      if (ok) return;
 
-      if (!init()) {
-        // small retry loop in case script is still warming up
-        const t0 = Date.now();
-        const timer = setInterval(() => {
-          if (init() || Date.now() - t0 > 8000) clearInterval(timer);
-        }, 250);
-        return () => clearInterval(timer);
-      }
+      // small retry loop in case script is still warming up
+      const t0 = Date.now();
+      retryTimer = setInterval(async () => {
+        const done = await initOnce();
+        if (done || Date.now() - t0 > 8000) {
+          clearInterval(retryTimer);
+        }
+      }, 250);
     })();
 
     return () => {
-      // No formal dispose for Autocomplete; GC will clean up when input unmounts
+      if (placeListener) window.google?.maps?.event?.removeListener(placeListener);
+      if (retryTimer) clearInterval(retryTimer);
       autocomplete = null;
     };
   }, [setAddress, setCounty]);
