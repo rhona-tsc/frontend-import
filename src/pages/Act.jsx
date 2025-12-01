@@ -14,6 +14,7 @@ import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import AcousticExtrasSelector from "../components/AcousticExtrasSelector";
 import ActPerformanceOverview from "../components/ActPerformanceOverview";
+import { priceCache, makePriceKey } from "./utils/priceCache";
 import {
   FeaturedVocalistBadge,
   VocalistFeaturedAvailable,
@@ -444,21 +445,56 @@ const Act = () => {
   };
 
   useEffect(() => {
-    const calculateAndSetPrice = async () => {
+    if (!actData?.lineups?.length) {
+      // show base if available and bail
+      const lineup = actData?.lineups?.[0];
+      const base =
+        actData?.formattedPrice?.total ??
+        lineup?.base_fee?.[0]?.total_fee ??
+        null;
+      if (base != null) {
+        setPrice({ total: Number(String(base).replace(/[^0-9.+-]/g, "")), travelCalculated: false });
+      }
+      return;
+    }
+
+    const hasAnyLocation = !!(selectedAddress || selectedCounty);
+    if (!selectedDate || !hasAnyLocation) {
+      const lineup = actData.lineups[0];
+      const base =
+        actData?.formattedPrice?.total ??
+        lineup?.base_fee?.[0]?.total_fee ??
+        null;
+      if (base != null) {
+        setPrice({ total: Number(String(base).replace(/[^0-9.+-]/g, "")), travelCalculated: false });
+      }
+      return;
+    }
+
+    const hasCountyTable =
+      actData.useCountyTravelFee &&
+      actData.countyFees &&
+      Object.keys(actData.countyFees).length > 0;
+
+    const lineup = actData.lineups[0];
+
+    const key = makePriceKey({
+      actId: actData._id,
+      lineupId: lineup?._id || lineup?.lineupId,
+      dateISO: selectedDate,
+      address: selectedAddress || "",
+      county: hasCountyTable ? selectedCounty : "",
+    });
+
+    const cached = priceCache.get(key);
+    if (cached) {
+      setPrice(cached);
+      setFinalTravelPrice(cached);
+      return;
+    }
+
+    (async () => {
       try {
-        if (!actData?.lineups?.length) {
-          console.warn("⚠️ Missing actData or lineups in ActItem:", actData);
-          return;
-        }
-
-        // Only use county travel if it’s actually configured
-        const hasCountyTable =
-          actData.useCountyTravelFee &&
-          actData.countyFees &&
-          Object.keys(actData.countyFees).length > 0;
-
-        const lineup = actData.lineups[0];
-
         const pricingResults = await calculateActPricing(
           actData,
           hasCountyTable ? selectedCounty : null,
@@ -467,44 +503,22 @@ const Act = () => {
           lineup
         );
 
-        // 🎯 Log breakdown for debugging
-        console.group("🧾 calculateActPricing breakdown");
-        console.log("Lineup fee allocations:", lineup?.base_fee);
-        const essentialRoles = (lineup?.bandMembers || [])
-          .flatMap((member) => member.additionalRoles || [])
-          .filter(
-            (role) =>
-              role?.isEssential && typeof role?.additionalFee === "number"
-          );
-        const essentialTotal = essentialRoles.reduce(
-          (sum, r) => sum + (r.additionalFee || 0),
-          0
-        );
-        console.log("Essential additional roles:", essentialRoles);
-        console.log("Essential additional total:", essentialTotal);
-
         const base =
           actData?.formattedPrice?.total ??
           lineup?.base_fee?.[0]?.total_fee ??
           0;
 
-        // Always prefer travelFeeTotal from pricing helper, fallback to 0
-        const finalTravelPrice = pricingResults?.travelFeeTotal ?? 0;
-        setFinalTravelPrice(pricingResults);
+        const final =
+          pricingResults && pricingResults.total != null
+            ? pricingResults
+            : { total: Number(String(base).replace(/[^0-9.+-]/g, "")), travelCalculated: false };
 
-        const subtotal = base + essentialTotal + finalTravelPrice;
-        const total = Math.round(subtotal * 1.25);
-
-        console.log("Base:", base);
-        console.log("Travel (travelFeeTotal):", finalTravelPrice);
-        console.log("Subtotal (pre-margin):", subtotal);
-        console.log("Total (with 25% margin):", total);
-        console.groupEnd();
-
+        priceCache.set(key, final);
+        setFinalTravelPrice(final);
         setPrice({
-          total: pricingResults.total,
-          travelCalculated: pricingResults.travelCalculated,
-          travelFeeTotal: pricingResults.travelFeeTotal,
+          total: final.total,
+          travelCalculated: !!final.travelCalculated,
+          travelFeeTotal: final.travelFeeTotal ?? 0,
         });
       } catch (err) {
         console.error("❌ Failed to calculate price:", {
@@ -512,19 +526,26 @@ const Act = () => {
           actId: actData?._id,
           useCountyTravelFee: actData?.useCountyTravelFee,
         });
-        // Last-resort fallback so UI never gets stuck
-        const lineup = actData.lineups?.[0];
         const base =
           actData?.formattedPrice?.total ??
           lineup?.base_fee?.[0]?.total_fee ??
           null;
-        setPrice(
-          base != null ? { total: base, travelCalculated: false } : null
-        );
+        if (base != null) {
+          const fallback = { total: Number(String(base).replace(/[^0-9.+-]/g, "")), travelCalculated: false };
+          setPrice(fallback);
+          setFinalTravelPrice(fallback);
+        }
       }
-    };
-    calculateAndSetPrice();
-  }, [actData, selectedCounty, selectedAddress, selectedDate]);
+    })();
+  }, [
+    actData?._id,
+    actData?.lineups?.length,
+    actData?.useCountyTravelFee,
+    actData?.countyFees && Object.keys(actData.countyFees).length,
+    selectedCounty,
+    selectedAddress,
+    selectedDate,
+  ]);
 
   // Calculate display price: prefer price?.total, then formattedPrice, then actData formattedPrice
   const rawTotal =

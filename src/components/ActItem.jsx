@@ -5,11 +5,15 @@ import CustomToast from './CustomToast';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import calculateActPricing from '../pages/utils/pricing';
 import { ShopContext } from '../context/ShopContext';
+import useOnScreen from '../hooks/useOnScreen';
+import { priceCache, makePriceKey } from '../pages/utils/priceCache';
 
 const ActItem = ({ actData, shortlistCount }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const cardRef = React.useRef(null);
+  const isOnScreen = useOnScreen(cardRef);
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Robust initial love count (DB source preferred) -> fallbacks
@@ -43,6 +47,15 @@ const ActItem = ({ actData, shortlistCount }) => {
     selectedDate,
   } = useContext(ShopContext);
 
+  const getBasePrice = (act) => {
+    const lineup = act?.lineups?.[0] || null;
+    const base =
+      act?.formattedPrice?.total ??
+      lineup?.base_fee?.[0]?.total_fee ??
+      null;
+    return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
+  };
+
   // Keep loveCount in sync with DB when actData changes
   useEffect(() => {
     const next =
@@ -62,58 +75,92 @@ const ActItem = ({ actData, shortlistCount }) => {
   ]);
 
   useEffect(() => {
-    const calculateAndSetPrice = async () => {
+    // 0) If no lineups yet, show base if possible and bail
+    if (!actData?.lineups?.length) {
+      const base = getBasePrice(actData);
+      if (base != null) setPrice({ total: base, travelCalculated: false });
+      return;
+    }
+
+    // 1) If no date or no location/county, show base and bail (no heavy calc)
+    const hasAnyLocation = !!(selectedAddress || selectedCounty);
+    if (!selectedDate || !hasAnyLocation) {
+      const base = getBasePrice(actData);
+      if (base != null) setPrice({ total: base, travelCalculated: false });
+      return;
+    }
+
+    // 2) Only calculate when the card is on-screen
+    if (!isOnScreen) return;
+
+    const lineup = actData.lineups[0];
+    const hasCountyTable =
+      actData.useCountyTravelFee &&
+      actData.countyFees &&
+      Object.keys(actData.countyFees).length > 0;
+
+    const key = makePriceKey({
+      actId: actData._id,
+      lineupId: lineup?._id || lineup?.lineupId,
+      dateISO: selectedDate,
+      address: selectedAddress || '',
+      county: hasCountyTable ? selectedCounty : '',
+    });
+
+    // 3) Serve from cache if present
+    const cached = priceCache.get(key);
+    if (cached) {
+      setPrice(cached);
+      return;
+    }
+
+    // 4) Defer heavy work slightly so initial paint is smooth
+    const schedule = window.requestIdleCallback
+      ? (fn) => requestIdleCallback(fn, { timeout: 1000 })
+      : (fn) => setTimeout(fn, 0);
+
+    schedule(async () => {
       try {
-        if (!actData?.lineups?.length) {
-          console.warn('⚠️ Missing actData or lineups in ActItem:', actData);
-          return;
-        }
-
-        // Only use county travel if it’s actually configured
-        const hasCountyTable =
-          actData.useCountyTravelFee &&
-          actData.countyFees &&
-          Object.keys(actData.countyFees).length > 0;
-
-        const lineup = actData.lineups[0];
-
         const result = await calculateActPricing(
           actData,
-          hasCountyTable ? selectedCounty : null,
+          hasCountyTable ? selectedCounty : null, // only pass county if configured
           selectedAddress,
           selectedDate,
           lineup
         );
 
-        // Hard fallback if util returns nothing
-        if (!result || result.total == null) {
-          const base =
-            actData?.formattedPrice?.total ??
-            lineup?.base_fee?.[0]?.total_fee ??
-            null;
+        const base = getBasePrice(actData);
+        const final =
+          result && result.total != null
+            ? result
+            : base != null
+            ? { total: base, travelCalculated: false }
+            : null;
 
-          setPrice(base != null ? { total: base, travelCalculated: false } : null);
-          return;
+        if (final) {
+          priceCache.set(key, final);
+          setPrice(final);
         }
-
-        setPrice(result);
       } catch (err) {
         console.error('❌ Failed to calculate price:', {
           err,
           actId: actData?._id,
           useCountyTravelFee: actData?.useCountyTravelFee,
         });
-        // Last-resort fallback so UI never gets stuck
-        const lineup = actData.lineups?.[0];
-        const base =
-          actData?.formattedPrice?.total ??
-          lineup?.base_fee?.[0]?.total_fee ??
-          null;
-        setPrice(base != null ? { total: base, travelCalculated: false } : null);
+        const base = getBasePrice(actData);
+        if (base != null) setPrice({ total: base, travelCalculated: false });
       }
-    };
-    calculateAndSetPrice();
-  }, [actData, selectedCounty, selectedAddress, selectedDate]);
+    });
+  }, [
+    actData?._id,
+    actData?.lineups?.length,
+    actData?.useCountyTravelFee,
+    actData?.countyFees && Object.keys(actData.countyFees).length,
+    selectedCounty,
+    selectedAddress,
+    selectedDate,
+    isOnScreen,
+  ]);
 
   const rawTotal = (actData?.formattedPrice?.total ?? price?.total);
   const displayTotal =
@@ -189,7 +236,7 @@ try {
   const isShortlisted = shortlistedActs?.includes(String(actData?._id));
 
   return (
-    <div className="relative group">
+    <div ref={cardRef} className="relative group">
       <Link
         to={`/act/${actData?._id}`}
         onClick={() => window.scrollTo(0, 0)}
@@ -205,6 +252,7 @@ try {
 
             return (
               <img
+                loading="lazy"
                 className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
                 src={resolvedImage}
                 alt={actData?.tscName || 'Act'}

@@ -5,6 +5,8 @@ import { ShopContext } from '../context/ShopContext';
 import axios from 'axios';
 import calculateActPricing from '../pages/utils/pricing';
 import PropTypes from 'prop-types';
+import useOnScreen from '../hooks/useOnScreen';
+import { priceCache, makePriceKey } from './utils/priceCache';
 
 const ShortlistItem = ({
   id,
@@ -23,62 +25,107 @@ const ShortlistItem = ({
   
 }) => {
 
+  const cardRef = React.useRef(null);
+  const isOnScreen = useOnScreen(cardRef);
+
   const [isAnimating, setIsAnimating] = useState(false);
   const [price, setPrice] = useState(null);
 
   const [loveCount, setLoveCount] = useState(shortlistCount || 0);
   const { shortlistAct, shortlistedActs, selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
   
-
-  useEffect(() => {
-    setLoveCount(shortlistCount || 0);
-  }, [shortlistCount]);
+  const getBasePrice = (act) => {
+    const lineup = act?.lineups?.[0] || null;
+    const base =
+      act?.formattedPrice?.total ??
+      lineup?.base_fee?.[0]?.total_fee ??
+      null;
+    return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
+  };
 
 useEffect(() => {
-  const calculateAndSetPrice = async () => {
+  // 0) If we don't have lineups yet, show base if possible and bail
+  if (!actData?.lineups?.length) {
+    const base = getBasePrice(actData);
+    if (base != null) setPrice({ total: base, travelCalculated: false });
+    return;
+  }
+
+  // 1) If no date or no location/county, show base and bail (no heavy calc)
+  const hasAnyLocation = !!(selectedAddress || selectedCounty);
+  if (!selectedDate || !hasAnyLocation) {
+    const base = getBasePrice(actData);
+    if (base != null) setPrice({ total: base, travelCalculated: false });
+    return;
+  }
+
+  // 2) Only calculate when the card is on-screen
+  if (!isOnScreen) return;
+
+  const lineup = actData.lineups[0];
+  const hasCountyTable =
+    actData.useCountyTravelFee &&
+    actData.countyFees &&
+    Object.keys(actData.countyFees).length > 0;
+
+  const key = makePriceKey({
+    actId: actData._id,
+    lineupId: lineup?._id || lineup?.lineupId,
+    dateISO: selectedDate,
+    address: selectedAddress || '',
+    county: hasCountyTable ? selectedCounty : '',
+  });
+
+  // 3) Serve from cache if present
+  const cached = priceCache.get(key);
+  if (cached) {
+    setPrice(cached);
+    return;
+  }
+
+  // 4) Defer heavy work slightly so initial paint is smooth
+  const schedule = window.requestIdleCallback
+    ? (fn) => requestIdleCallback(fn, { timeout: 1000 })
+    : (fn) => setTimeout(fn, 0);
+
+  schedule(async () => {
     try {
-      if (!actData?.lineups?.length) {
-        console.warn('⚠️ Missing actData or lineups in ActItem:', actData);
-        return;
-      }
-
-      // Only use county travel if it’s actually configured
-      const hasCountyTable = actData.useCountyTravelFee && actData.countyFees && Object.keys(actData.countyFees).length > 0;
-      const lineup = actData.lineups[0];
-
       const result = await calculateActPricing(
         actData,
-        hasCountyTable ? selectedCounty : null, // prevent county-based path when empty
+        hasCountyTable ? selectedCounty : null, // only pass county if valid
         selectedAddress,
         selectedDate,
         lineup
       );
 
-      // Hard fallback if util returns nothing
-      if (!result || result.total == null) {
-        const base =
-          actData?.formattedPrice?.total ??
-          lineup?.base_fee?.[0]?.total_fee ??
-          null;
+      const base = getBasePrice(actData);
+      const final =
+        result && result.total != null
+          ? result
+          : base != null
+          ? { total: base, travelCalculated: false }
+          : null;
 
-        setPrice(base != null ? { total: base, travelCalculated: false } : null);
-        return;
+      if (final) {
+        priceCache.set(key, final);
+        setPrice(final);
       }
-
-      setPrice(result);
     } catch (err) {
       console.error('❌ Failed to calculate price:', { err, actId: actData?._id, useCountyTravelFee: actData?.useCountyTravelFee });
-      // Last-resort fallback so UI never gets stuck
-      const lineup = actData.lineups?.[0];
-      const base =
-        actData?.formattedPrice?.total ??
-        lineup?.base_fee?.[0]?.total_fee ??
-        null;
-      setPrice(base != null ? { total: base, travelCalculated: false } : null);
+      const base = getBasePrice(actData);
+      if (base != null) setPrice({ total: base, travelCalculated: false });
     }
-  };
-  calculateAndSetPrice();
-}, [actData, selectedCounty, selectedAddress, selectedDate]);
+  });
+}, [
+  actData?._id,
+  actData?.lineups?.length,
+  actData?.useCountyTravelFee,
+  actData?.countyFees && Object.keys(actData.countyFees).length,
+  selectedCounty,
+  selectedAddress,
+  selectedDate,
+  isOnScreen,
+]);
 
   const handleHeartClick = async (e) => {
 
@@ -131,7 +178,7 @@ return;
   // Debug logging for actId and isShortlisted
   console.log("❤️ actId in ShortlistItem:", id, "Shortlisted?", isShortlisted);
 return (
-<div className={`relative group m-4 shrink-0 w-full max-w-[380px] sm:w-[320px] ${className ? className : ''}`}
+<div ref={cardRef} className={`relative group m-4 shrink-0 w-full max-w-[380px] sm:w-[320px] ${className ? className : ''}`}
  onMouseEnter={onMouseEnter}
  >
         <Link to={`/act/${actData?._id}`} onClick={() => window.scrollTo(0, 0)} className="block text-gray-700">
@@ -170,6 +217,7 @@ return (
                   }}
                 >
                   <img
+                    loading="lazy"
                     src={`https://img.youtube.com/vi/${extractVideoId(tscVideos[videoIndex]?.url)}/hqdefault.jpg`}
                     className="absolute inset-0 w-full h-full object-cover"
                     alt="Video thumbnail"
@@ -196,6 +244,7 @@ return (
               )
             ) : (
               <img
+                loading="lazy"
                 className="absolute inset-0 w-full h-full object-cover"
                 src={images?.[0]?.url || '/placeholder.jpg'}
                 alt="Thumbnail"
