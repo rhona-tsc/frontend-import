@@ -1012,70 +1012,84 @@ const Act = () => {
                 </ul>
               </div>
               {/* move this block ABOVE or BELOW the .block sm:hidden */}
-              <div className="my-3 mt-5 flex justify-left z-10">
-                {(() => {
-                  const allBadges = actData?.availabilityBadges;
-                  console.log("🐊 [Lookup] All badges:", allBadges);
+              {/* ------- Availability Badges (lead + deputies) ------- */}
+<div className="my-3 mt-5 flex justify-left z-10">
+  {(() => {
+    const allBadges = actData?.availabilityBadges;
+    console.log("🐊 [Lookup] All badges:", allBadges);
 
-                  if (!allBadges || !selectedDate) {
-                    console.warn("🐊 [Lookup] Missing badges or date");
-                    return null;
-                  }
+    if (!allBadges || !selectedDate) {
+      console.warn("🐊 [Lookup] Missing badges or date");
+      return null;
+    }
 
-                  const cleanDate = selectedDate.slice(0, 10);
-                  console.log("🐊 [Lookup] Clean date:", cleanDate);
+    const cleanDate = selectedDate.slice(0, 10);
+    console.log("🐊 [Lookup] Clean date:", cleanDate);
 
-                  const matchedKey = Object.keys(allBadges).find((k) =>
-                    k.includes(cleanDate)
-                  );
-                  console.log("🐊 [Lookup] matchedKey:", matchedKey);
+    const matchedKey = Object.keys(allBadges).find((k) => k.includes(cleanDate));
+    console.log("🐊 [Lookup] matchedKey:", matchedKey);
 
-                  if (!matchedKey) {
-                    console.warn("🐊 [Lookup] No badge matched date");
-                    return null;
-                  }
+    if (!matchedKey) {
+      console.warn("🐊 [Lookup] No badge matched date");
+      return null;
+    }
 
-                  const badgeForDate = allBadges[matchedKey];
-                  console.log(
-                    "🐊 [Lookup] badgeForDate.slots:",
-                    badgeForDate?.slots
-                  );
+    const badgeForDate = allBadges[matchedKey];
+    console.log("🐊 [Lookup] badgeForDate.slots:", badgeForDate?.slots);
 
-                  if (!badgeForDate?.slots?.length) return null;
+    const slots = Array.isArray(badgeForDate?.slots) ? badgeForDate.slots : [];
+    if (!slots.length) return null;
 
-                  return (
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
-                      {badgeForDate.slots.map((slot) => (
-                        <React.Fragment
-                          key={`${matchedKey}_slot_${slot.slotIndex}`}
-                        >
-                          <VocalistFeaturedAvailable
-                            badge={badgeForDate}
-                            slotIndex={slot.slotIndex}
-                            size={140}
-                            cacheBuster={slot.setAt || badgeForDate.setAt || ""}
-                            className="mt-2"
-                          />
+    return (
+      <div className="flex items-center gap-3 mt-2 flex-wrap">
+        {slots.map((slot) => {
+          // --- lead/primary image fallback logic ---
+          const img =
+            slot?.primary?.photoUrl ||
+            slot?.photoUrl ||
+            assets?.placeholderMusician;
+          const hasImage = Boolean(slot?.primary?.photoUrl || slot?.photoUrl);
+          const cacheBuster =
+            slot?.setAt || slot?.primary?.setAt || badgeForDate?.setAt || "";
+          const leadProfileUrl = slot?.primary?.profileUrl || slot?.profileUrl || "";
+          const leadMusicianId = slot?.primary?.musicianId || slot?.musicianId || "";
 
-                          {Array.isArray(slot.deputies) &&
-                            slot.deputies.map((dep, i) => (
-                              <FeaturedVocalistBadge
-                                key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
-                                imageUrl={dep.photoUrl}
-                                size={120}
-                                cacheBuster={dep.setAt}
-                                className="mt-2"
-                                musicianId={dep.musicianId}
-                                profileUrl={dep.profileUrl}
-                                variant="deputy" // 👈 deputy ring
-                              />
-                            ))}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
+          return (
+            <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
+              {/* Lead / primary */}
+              <FeaturedVocalistBadge
+                imageUrl={img}
+                hasImage={hasImage}
+                size={140}
+                cacheBuster={cacheBuster}
+                className="mt-2"
+                musicianId={leadMusicianId}
+                profileUrl={leadProfileUrl}
+                variant="lead"
+              />
+
+              {/* Deputies */}
+              {Array.isArray(slot.deputies) &&
+                slot.deputies.map((dep, i) => (
+                  <FeaturedVocalistBadge
+                    key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
+                    imageUrl={dep.photoUrl || assets?.placeholderMusician}
+                    hasImage={Boolean(dep.photoUrl)}
+                    size={120}
+                    cacheBuster={dep.setAt}
+                    className="mt-2"
+                    musicianId={dep.musicianId}
+                    profileUrl={dep.profileUrl}
+                    variant="deputy"
+                  />
+                ))}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    );
+  })()}
+</div>
             </div>
             {/* Bio section */}
             <div className="mt-6">
