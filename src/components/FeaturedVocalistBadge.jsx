@@ -141,8 +141,50 @@ export function VocalistFeaturedAvailable({
     return initial ? `${first} ${initial}` : first;
   };
 
-  const nameCandidate = (renderData && (renderData.vocalistName || renderData.name)) || (slot && slot.vocalistName) || "";
-  const displayName = shortDisplayName(nameCandidate);
+  // Prefer broad key coverage: deputies often arrive with different field names
+  const pickName = (obj) => {
+    if (!obj || typeof obj !== "object") return "";
+
+    // 1) Single-string candidates in priority order
+    const singleKeys = [
+      "displayName",
+      "preferredName",
+      "vocalistName",
+      "depName",
+      "deputyName",
+      "musicianName",
+      "fullName",
+      "name",
+    ];
+    for (const k of singleKeys) {
+      const v = obj?.[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+
+    // 2) Common nested shapes
+    const nested = obj?.musician || obj?.user || obj?.profile || null;
+    if (nested) {
+      const fromNested = pickName(nested);
+      if (fromNested) return fromNested;
+    }
+
+    // 3) Split first/last fallbacks
+    const fn = obj.firstName || obj.first_name || "";
+    const ln = obj.lastName || obj.last_name || "";
+    if ((fn && fn.trim()) || (ln && ln.trim())) {
+      return `${(fn || "").trim()} ${(ln || "").trim()}`.trim();
+    }
+
+    return "";
+  };
+
+  // Try the chosen render target first, then the slot itself
+  const rawName =
+    pickName(renderData) ||
+    pickName(slot) ||
+    "";
+
+  const displayName = shortDisplayName(rawName);
 
   if (!slot) {
     console.warn("🐊 [VFA] ❌ No usable slot found.");
