@@ -84,7 +84,7 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {itemsToRender.length > 0 ? (
           itemsToRender.map((item) => (
-            <ActItemContainer key={item._id} act={item} />  {/* 👈 wrapped */}
+            <ActItemContainer key={item._id} act={item} /> 
           ))
         ) : (
           <p className="text-center text-gray-500 mt-5">No similar acts found.</p>
