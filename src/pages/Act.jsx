@@ -28,6 +28,7 @@ import {
   fetchBadgeForActAndDate,
   calculateAverageRating,
 } from "./utils/helpersforAct";
+import useRenderTracker from "../hooks/useRenderTracker";
 
 const Act = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -69,6 +70,15 @@ const Act = () => {
   // 🧹 Track locally cleared availability badges
   const [clearedBadges, setClearedBadges] = useState(new Set());
   const [price, setPrice] = useState(null);
+
+  useRenderTracker("Act", {
+  actId,
+  hasActData: !!actData,
+  lineupCount: actData?.lineups?.length || 0,
+  selectedDate: selectedDate ? selectedDate.slice(0,10) : null,
+  hasAddress: !!selectedAddress,
+  badgeKeys: Object.keys(actData?.availabilityBadges || {}).length,
+});
 
   const id = extractVideoId(video);
 

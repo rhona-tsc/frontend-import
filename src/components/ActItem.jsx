@@ -1,4 +1,3 @@
-// frontend/src/components/ActItem.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { toast } from 'react-toastify';
 import CustomToast from './CustomToast';
@@ -7,6 +6,7 @@ import calculateActPricing from '../pages/utils/pricing';
 import { ShopContext } from '../context/ShopContext';
 import useOnScreen from '../hooks/useOnScreen';
 import { priceCache, makePriceKey } from '../pages/utils/priceCache';
+import useRenderTracker from '../hooks/useRenderTracker'; // 👈 add this import
 
 const ActItem = ({ actData, shortlistCount }) => {
   const navigate = useNavigate();
@@ -36,6 +36,15 @@ const ActItem = ({ actData, shortlistCount }) => {
 
   const [loveCount, setLoveCount] = useState(initialLove);
   const [price, setPrice] = useState(null);
+
+  // ✅ render tracker — place after you have basic props you want to log
+  useRenderTracker('ActItem', {
+    actId: actData?._id,
+    name: actData?.tscName,
+    hasLineups: !!actData?.lineups?.length,
+    shortlisted: !!shortlistCount,
+    onScreen: isOnScreen,
+  });
 
   // ✅ use shortlist from context
   const {
@@ -172,25 +181,15 @@ const ActItem = ({ actData, shortlistCount }) => {
 
     // 🔒 Require login before shortlisting
     if (!userId) {
-      // If we came from the Acts listing, return to that exact list (with filters/query)
       const fromActsListing = String(location.pathname || '').startsWith('/acts');
       const listUrl =
         `${location.pathname || ''}${location.search || ''}${location.hash || ''}` || '/acts';
-
-      // Otherwise, fall back to the specific act profile
       const actUrl = actData?._id ? `/act/${actData._id}` : '/';
-
       const fallback = fromActsListing ? listUrl : actUrl;
-
-      // Persist the intended next page for the login screen to read
       sessionStorage.setItem('postLoginNext', fallback);
-
-      // Navigate to login
       navigate('/login', { state: { from: fallback } });
-      return; // 👈 do not continue
+      return;
     }
-
- 
 
     setIsAnimating(true);
 
@@ -202,29 +201,29 @@ const ActItem = ({ actData, shortlistCount }) => {
     });
 
     shortlistAct(userId, actData._id);
-try {
-  const lineupId = actData?.lineups?.[0]?._id;
+    try {
+      const lineupId = actData?.lineups?.[0]?._id;
 
-  await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/availability/request`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      userId,
-      actId: actData._id,
-      lineupId,
-      selectedDate,
-      selectedAddress,
-      selectedCounty,
-      source: "Website",
-    }),
-  });
+      await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/availability/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          actId: actData._id,
+          lineupId,
+          selectedDate,
+          selectedAddress,
+          selectedCounty,
+          source: "Website",
+        }),
+      });
 
-  console.log("✅ Shortlist add triggered Twilio availability check");
-} catch (err) {
-  console.error("❌ Failed to POST /api/availability/request:", err);
-}
+      console.log("✅ Shortlist add triggered Twilio availability check");
+    } catch (err) {
+      console.error("❌ Failed to POST /api/availability/request:", err);
+    }
     setTimeout(() => setIsAnimating(false), 300);
   };
 
@@ -244,9 +243,6 @@ try {
       >
         <div className="overflow-hidden h-full w-full">
           {(() => {
-           
-       
-
             const resolvedImage =
               (actData?.profileImage?.[0]?.url || '/placeholder.jpg');
 
