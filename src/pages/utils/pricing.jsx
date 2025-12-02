@@ -4,8 +4,7 @@ import outcodeToCounty from "./outcodeToCounty";
 import getTravelV2 from "./travelV2";
 
 const calculateActPricing = async (act, selectedCounty, selectedAddress, selectedDate, selectedLineup) => {
-  console.groupCollapsed("🧾 calculateActPricing Debug");
-  console.log("Inputs →", { actName: act?.tscName, selectedCounty, selectedAddress, selectedDate, selectedLineup });
+  
 
   if (!act || !selectedLineup) {
     console.warn("⚠️ Missing act or lineup");
