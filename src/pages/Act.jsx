@@ -1064,14 +1064,6 @@ const Act = () => {
     const cacheBuster =
       slot?.primary?.setAt || slot?.setAt || badgeForDate?.setAt || "";
 
-    // helper to shorten "First Last" -> "First L"
-    const short = (full) => {
-      const parts = String(full || "").trim().split(/\s+/);
-      if (!parts.length) return "";
-      if (parts.length === 1) return parts[0];
-      const lastInitial = parts[parts.length - 1][0]?.toUpperCase() || "";
-      return `${parts[0]} ${lastInitial}`;
-    };
 
     return (
       <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
@@ -1458,38 +1450,36 @@ const Act = () => {
                                   ? `${window.location.origin}/musician/${item.musicianId}`
                                   : "");
 
-                              // 🔤 Robust label fallback (lead or deputy)
+                              // 🔤 Name resolution: **deputy-first** to avoid inheriting the lead name
                               const slotVocalistName = slot.vocalistName || "";
-                              const itemVocalistName = item.vocalistName || "";
                               const deputy = item.isDeputy ? item : null;
 
-                              // BEFORE (likely something like):
-                              // const label = isDeputy ? displayName : (slotVocalistName || itemVocalistName || displayName);
+                              // Prefer the deputy's own fields; only fall back to the lead name if this item is the lead
+                              const deputyFirstLabel = [
+                                item.displayName,
+                                item.vocalistName,
+                                item.preferredName,
+                                item.depName,
+                                item.deputyName,
+                                item.musicianName,
+                                deputy?.displayName,
+                                deputy?.vocalistName,
+                                deputy?.preferredName,
+                                deputy?.depName,
+                                deputy?.deputyName,
+                              ].find((v) => typeof v === "string" && v.trim());
 
-                              // AFTER — robust fallback for deputies and primaries:
-                              const label =
-                                [
-                                  item.displayName, // backend-populated for deputies (if provided)
-                                  slotVocalistName, // existing slot label
-                                  itemVocalistName, // older path
-                                  deputy?.vocalistName, // extra safety if item carries deputy fields
-                                  deputy?.resolvedName,
-                                  deputy?.firstName && deputy?.lastName
-                                    ? `${deputy.firstName} ${deputy.lastName[0]}`
-                                    : deputy?.firstName,
-                                ].find(Boolean) || "Deputy";
+                              const label = deputyFirstLabel || (!item.isDeputy ? slotVocalistName : "");
+                              const displayName = shortName(label || "");
 
-                              const displayName = shortName(label);
-
-                              console.log("🎤 [Act.jsx] Badge name debug", {
-                                matchedKey: badgeKey,
+                              // Debug so we can see exactly what we render
+                              console.log("🎤 [Act.jsx] Deputy label pick", {
+                                badgeKey,
                                 slotIndex: slot.slotIndex,
-                                isDeputy: !!item.isDeputy,
-                                itemMusicianId: String(item.musicianId || ""),
-                                slotVocalistName,
-                                itemVocalistName,
-                                chosenLabel: label,
+                                itemIsDeputy: !!item.isDeputy,
+                                chosenRawLabel: label,
                                 computedDisplayName: displayName,
+                                itemMusicianId: String(item.musicianId || ""),
                               });
 
                               return (
@@ -1502,7 +1492,7 @@ const Act = () => {
                                   musicianId={String(item.musicianId || "")}
                                   profileUrl={prof}
                                   variant={item.isDeputy ? "deputy" : "lead"}
-                                  displayName={displayName} // ← now correct
+                                  displayName={displayName}
                                 />
                               );
                             })}
