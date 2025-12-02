@@ -1059,14 +1059,23 @@ const Act = () => {
                   if (!slots.length) return null;
 
                   return (
-                   <div className="flex items-center gap-3 mt-2 flex-wrap">
+               <div className="flex items-center gap-3 mt-2 flex-wrap">
   {slots.map((slot) => {
     const cacheBuster =
-      slot?.setAt || slot?.primary?.setAt || badgeForDate?.setAt || "";
+      slot?.primary?.setAt || slot?.setAt || badgeForDate?.setAt || "";
+
+    // helper to shorten "First Last" -> "First L"
+    const short = (full) => {
+      const parts = String(full || "").trim().split(/\s+/);
+      if (!parts.length) return "";
+      if (parts.length === 1) return parts[0];
+      const lastInitial = parts[parts.length - 1][0]?.toUpperCase() || "";
+      return `${parts[0]} ${lastInitial}`;
+    };
 
     return (
       <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
-        {/* Lead/primary (auto-switches to deputy "YES" with photo and name) */}
+        {/* Primary bubble (auto-switches to a covering deputy with YES) */}
         <VocalistFeaturedAvailable
           slot={slot}
           size={140}
@@ -1074,15 +1083,19 @@ const Act = () => {
           className="mt-2"
         />
 
-        {/* Deputies list (keeps showing all deputies as deputies) */}
+        {/* Deputies — force their own names so we never inherit the lead’s */}
         {Array.isArray(slot.deputies) &&
           slot.deputies.map((dep, i) => (
-            <VocalistFeaturedAvailable
+            <FeaturedVocalistBadge
               key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
-              slot={dep}
+              imageUrl={dep.photoUrl || assets?.placeholderMusician}
               size={120}
               cacheBuster={dep.setAt}
               className="mt-2"
+              musicianId={dep.musicianId}
+              profileUrl={dep.profileUrl}
+              variant="deputy"
+              displayName={short(dep.vocalistName || dep.musicianName || dep.displayName || dep.preferredName || "")}
             />
           ))}
       </React.Fragment>
