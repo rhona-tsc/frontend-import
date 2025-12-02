@@ -82,7 +82,7 @@ const Terms = () => {
           <p><strong>Key Points</strong></p>
           <ul className="list-disc pl-6 space-y-2">
             <li>
-              This Contract is subject to Bamboo Music Management&apos;s Terms and Conditions.
+              This Contract is subject to The Supreme Collective&apos;s Terms and Conditions.
             </li>
             <li>
               The Client must complete the Event Sheet four weeks prior to the event to
@@ -102,7 +102,7 @@ const Terms = () => {
           <p><strong>Client Authorisation</strong></p>
           <p>
             By signing the booking contract you confirm that you are the authorised signatory
-            for this booking and agree to be bound by Bamboo Music Management’s Terms and
+            for this booking and agree to be bound by The Supreme Collective’s Terms and
             Conditions of booking.
           </p>
 
@@ -112,18 +112,18 @@ const Terms = () => {
             Artist Name(s): as per booking confirmation
           </p>
 
-          <p><strong>Bamboo Music Management - Terms and Conditions of Booking</strong></p>
+          <p><strong>The Supreme Collective - Terms and Conditions of Booking</strong></p>
           <p>
             If you do not understand any part of these Terms and Conditions, please check in
-            with Bamboo Music Management or seek legal advice before agreeing to them and
+            with The Supreme Collective or seek legal advice before agreeing to them and
             confirming a booking.
           </p>
 
           <p><strong>Definition</strong></p>
           <p>
-            The following definitions refer to the &apos;Contract&apos; (Bamboo Music Management
-            Booking Contract) and these &apos;Terms and Conditions&apos;. Bamboo Music Management,
-            Company No. 09318270, is the &apos;Agent&apos;, the proposed entertainment booker is
+            The following definitions refer to the &apos;Contract&apos; (The Supreme Collective
+            Booking Contract) and these &apos;Terms and Conditions&apos;. The Supreme Collective,
+            Company No. 16883956, is the &apos;Agent&apos;, the proposed entertainment booker is
             the &apos;Client&apos; and the proposed entertainment act is the &apos;Artist&apos;.
           </p>
 

@@ -574,7 +574,7 @@ actIds: actsSummary.map(a => a.actId),
             </p>
             <ul>
               <li>
-                This Contract is subject to Bamboo Music Management's Terms and
+                This Contract is subject to The Supreme Collective's Terms and
                 Conditions.
               </li>
               <li>
@@ -642,13 +642,13 @@ actIds: actsSummary.map(a => a.actId),
 
             <p>
               <strong>
-                Bamboo Music Management - Terms and Conditions of Booking
+                The Supreme Collective - Terms and Conditions of Booking
               </strong>
             </p>
 
             <p>
               If you do not understand any part of these Terms and Conditions,
-              please check in with Bamboo Music Management or seek legal advice
+              please check in with The Supreme Collective or seek legal advice
               before agreeing to them and confirming a booking.
             </p>
 
@@ -658,7 +658,7 @@ actIds: actsSummary.map(a => a.actId),
             <p>
               The following definitions refer to the 'Contract' (Bamboo Music
               Management Booking Contract) and these 'Terms and Conditions'.
-              Bamboo Music Management, Company No. 09318270, is the 'Agent', the
+              The Supreme Collective, Company No. 16883956, is the 'Agent', the
               proposed entertainment booker is the 'Client' and the proposed
               entertainment act is the 'Artist'.
             </p>
