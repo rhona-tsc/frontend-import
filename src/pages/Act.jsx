@@ -1084,20 +1084,48 @@ const Act = () => {
         />
 
         {/* Deputies — force their own names so we never inherit the lead’s */}
-        {Array.isArray(slot.deputies) &&
-          slot.deputies.map((dep, i) => (
-            <FeaturedVocalistBadge
-              key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
-              imageUrl={dep.photoUrl || assets?.placeholderMusician}
-              size={120}
-              cacheBuster={dep.setAt}
-              className="mt-2"
-              musicianId={dep.musicianId}
-              profileUrl={dep.profileUrl}
-              variant="deputy"
-              displayName={short(dep.vocalistName || dep.musicianName || dep.displayName || dep.preferredName || "")}
-            />
-          ))}
+       {/* Deputies — force their own names so we never inherit the lead’s */}
+{Array.isArray(slot.deputies) &&
+  slot.deputies.map((dep, i) => {
+    // Prefer explicit deputy name fields only
+    const rawDeputyName =
+      (typeof dep.vocalistName === "string" && dep.vocalistName.trim()) ? dep.vocalistName.trim()
+      : (typeof dep.displayName  === "string" && dep.displayName.trim())  ? dep.displayName.trim()
+      : (typeof dep.preferredName=== "string" && dep.preferredName.trim())? dep.preferredName.trim()
+      : "";
+
+    const short = (full) => {
+      const parts = String(full || "").trim().split(/\s+/);
+      if (!parts.length) return "";
+      if (parts.length === 1) return parts[0];
+      const lastInitial = parts[parts.length - 1]?.[0]?.toUpperCase() || "";
+      return `${parts[0]} ${lastInitial}`;
+    };
+
+    const displayName = short(rawDeputyName);
+
+    // helpful debug (remove when happy)
+    console.log("🎯 deputy render", {
+      displayName,
+      rawDeputyName,
+      depId: dep.musicianId,
+      dep
+    });
+
+    return (
+      <FeaturedVocalistBadge
+        key={`${matchedKey}_slot_${slot.slotIndex}_dep_${dep.musicianId || i}`}
+        imageUrl={dep.photoUrl || assets?.placeholderMusician}
+        size={120}
+        cacheBuster={dep.setAt || dep.repliedAt || slot.setAt || ""}
+        className="mt-2"
+        musicianId={dep.musicianId}
+        profileUrl={dep.profileUrl}
+        variant="deputy"
+        displayName={displayName}
+      />
+    );
+  })}
       </React.Fragment>
     );
   })}
