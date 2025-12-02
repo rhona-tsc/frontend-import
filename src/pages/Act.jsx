@@ -453,7 +453,10 @@ const Act = () => {
         lineup?.base_fee?.[0]?.total_fee ??
         null;
       if (base != null) {
-        setPrice({ total: Number(String(base).replace(/[^0-9.+-]/g, "")), travelCalculated: false });
+        setPrice({
+          total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+          travelCalculated: false,
+        });
       }
       return;
     }
@@ -466,7 +469,10 @@ const Act = () => {
         lineup?.base_fee?.[0]?.total_fee ??
         null;
       if (base != null) {
-        setPrice({ total: Number(String(base).replace(/[^0-9.+-]/g, "")), travelCalculated: false });
+        setPrice({
+          total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+          travelCalculated: false,
+        });
       }
       return;
     }
@@ -511,7 +517,10 @@ const Act = () => {
         const final =
           pricingResults && pricingResults.total != null
             ? pricingResults
-            : { total: Number(String(base).replace(/[^0-9.+-]/g, "")), travelCalculated: false };
+            : {
+                total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+                travelCalculated: false,
+              };
 
         priceCache.set(key, final);
         setFinalTravelPrice(final);
@@ -531,7 +540,10 @@ const Act = () => {
           lineup?.base_fee?.[0]?.total_fee ??
           null;
         if (base != null) {
-          const fallback = { total: Number(String(base).replace(/[^0-9.+-]/g, "")), travelCalculated: false };
+          const fallback = {
+            total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+            travelCalculated: false,
+          };
           setPrice(fallback);
           setFinalTravelPrice(fallback);
         }
@@ -1011,85 +1023,75 @@ const Act = () => {
                   )}
                 </ul>
               </div>
-              {/* move this block ABOVE or BELOW the .block sm:hidden */}
-              {/* ------- Availability Badges (lead + deputies) ------- */}
-<div className="my-3 mt-5 flex justify-left z-10">
-  {(() => {
-    const allBadges = actData?.availabilityBadges;
-    console.log("🐊 [Lookup] All badges:", allBadges);
 
-    if (!allBadges || !selectedDate) {
-      console.warn("🐊 [Lookup] Missing badges or date");
-      return null;
-    }
+              <div className="my-3 mt-5 flex justify-left z-10">
+                {(() => {
+                  const allBadges = actData?.availabilityBadges;
+                  console.log("🐊 [Lookup] All badges:", allBadges);
 
-    const cleanDate = selectedDate.slice(0, 10);
-    console.log("🐊 [Lookup] Clean date:", cleanDate);
+                  if (!allBadges || !selectedDate) {
+                    console.warn("🐊 [Lookup] Missing badges or date");
+                    return null;
+                  }
 
-    const matchedKey = Object.keys(allBadges).find((k) => k.includes(cleanDate));
-    console.log("🐊 [Lookup] matchedKey:", matchedKey);
+                  const cleanDate = selectedDate.slice(0, 10);
+                  console.log("🐊 [Lookup] Clean date:", cleanDate);
 
-    if (!matchedKey) {
-      console.warn("🐊 [Lookup] No badge matched date");
-      return null;
-    }
+                  const matchedKey = Object.keys(allBadges).find((k) =>
+                    k.includes(cleanDate)
+                  );
+                  console.log("🐊 [Lookup] matchedKey:", matchedKey);
 
-    const badgeForDate = allBadges[matchedKey];
-    console.log("🐊 [Lookup] badgeForDate.slots:", badgeForDate?.slots);
+                  if (!matchedKey) {
+                    console.warn("🐊 [Lookup] No badge matched date");
+                    return null;
+                  }
 
-    const slots = Array.isArray(badgeForDate?.slots) ? badgeForDate.slots : [];
-    if (!slots.length) return null;
+                  const badgeForDate = allBadges[matchedKey];
+                  console.log(
+                    "🐊 [Lookup] badgeForDate.slots:",
+                    badgeForDate?.slots
+                  );
+
+                  const slots = Array.isArray(badgeForDate?.slots)
+                    ? badgeForDate.slots
+                    : [];
+                  if (!slots.length) return null;
+
+                  return (
+                   <div className="flex items-center gap-3 mt-2 flex-wrap">
+  {slots.map((slot) => {
+    const cacheBuster =
+      slot?.setAt || slot?.primary?.setAt || badgeForDate?.setAt || "";
 
     return (
-      <div className="flex items-center gap-3 mt-2 flex-wrap">
-        {slots.map((slot) => {
-          // --- lead/primary image fallback logic ---
-          const img =
-            slot?.primary?.photoUrl ||
-            slot?.photoUrl ||
-            assets?.placeholderMusician;
-          const hasImage = Boolean(slot?.primary?.photoUrl || slot?.photoUrl);
-          const cacheBuster =
-            slot?.setAt || slot?.primary?.setAt || badgeForDate?.setAt || "";
-          const leadProfileUrl = slot?.primary?.profileUrl || slot?.profileUrl || "";
-          const leadMusicianId = slot?.primary?.musicianId || slot?.musicianId || "";
+      <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
+        {/* Lead/primary (auto-switches to deputy "YES" with photo and name) */}
+        <VocalistFeaturedAvailable
+          slot={slot}
+          size={140}
+          cacheBuster={cacheBuster}
+          className="mt-2"
+        />
 
-          return (
-            <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
-              {/* Lead / primary */}
-              <FeaturedVocalistBadge
-                imageUrl={img}
-                hasImage={hasImage}
-                size={140}
-                cacheBuster={cacheBuster}
-                className="mt-2"
-                musicianId={leadMusicianId}
-                profileUrl={leadProfileUrl}
-                variant="lead"
-              />
-
-              {/* Deputies */}
-              {Array.isArray(slot.deputies) &&
-                slot.deputies.map((dep, i) => (
-                  <FeaturedVocalistBadge
-                    key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
-                    imageUrl={dep.photoUrl || assets?.placeholderMusician}
-                    hasImage={Boolean(dep.photoUrl)}
-                    size={120}
-                    cacheBuster={dep.setAt}
-                    className="mt-2"
-                    musicianId={dep.musicianId}
-                    profileUrl={dep.profileUrl}
-                    variant="deputy"
-                  />
-                ))}
-            </React.Fragment>
-          );
-        })}
-      </div>
+        {/* Deputies list (keeps showing all deputies as deputies) */}
+        {Array.isArray(slot.deputies) &&
+          slot.deputies.map((dep, i) => (
+            <VocalistFeaturedAvailable
+              key={`${matchedKey}_slot_${slot.slotIndex}_dep_${i}`}
+              slot={dep}
+              size={120}
+              cacheBuster={dep.setAt}
+              className="mt-2"
+            />
+          ))}
+      </React.Fragment>
     );
-  })()}
+  })}
 </div>
+                  );
+                })()}
+              </div>
             </div>
             {/* Bio section */}
             <div className="mt-6">
@@ -1404,56 +1406,65 @@ const Act = () => {
                             className="flex items-center gap-3 flex-wrap"
                           >
                             {renderList.map((item, idx) => {
-  const cache = item.setAt || slot.setAt || badgeForDate.setAt || "";
-  const prof =
-    item.profileUrl ||
-    (item.musicianId ? `${window.location.origin}/musician/${item.musicianId}` : "");
+                              const cache =
+                                item.setAt ||
+                                slot.setAt ||
+                                badgeForDate.setAt ||
+                                "";
+                              const prof =
+                                item.profileUrl ||
+                                (item.musicianId
+                                  ? `${window.location.origin}/musician/${item.musicianId}`
+                                  : "");
 
-// 🔤 Robust label fallback (lead or deputy)
-const slotVocalistName = slot.vocalistName || "";
-const itemVocalistName = item.vocalistName || "";
-const deputy = item.isDeputy ? item : null;
+                              // 🔤 Robust label fallback (lead or deputy)
+                              const slotVocalistName = slot.vocalistName || "";
+                              const itemVocalistName = item.vocalistName || "";
+                              const deputy = item.isDeputy ? item : null;
 
-// BEFORE (likely something like):
-// const label = isDeputy ? displayName : (slotVocalistName || itemVocalistName || displayName);
+                              // BEFORE (likely something like):
+                              // const label = isDeputy ? displayName : (slotVocalistName || itemVocalistName || displayName);
 
-// AFTER — robust fallback for deputies and primaries:
-const label = [
-  item.displayName,        // backend-populated for deputies (if provided)
-  slotVocalistName,        // existing slot label
-  itemVocalistName,        // older path
-  deputy?.vocalistName,    // extra safety if item carries deputy fields
-  deputy?.resolvedName,
-  deputy?.firstName && deputy?.lastName ? `${deputy.firstName} ${deputy.lastName[0]}` : deputy?.firstName,
-].find(Boolean) || "Deputy";
+                              // AFTER — robust fallback for deputies and primaries:
+                              const label =
+                                [
+                                  item.displayName, // backend-populated for deputies (if provided)
+                                  slotVocalistName, // existing slot label
+                                  itemVocalistName, // older path
+                                  deputy?.vocalistName, // extra safety if item carries deputy fields
+                                  deputy?.resolvedName,
+                                  deputy?.firstName && deputy?.lastName
+                                    ? `${deputy.firstName} ${deputy.lastName[0]}`
+                                    : deputy?.firstName,
+                                ].find(Boolean) || "Deputy";
 
-const displayName = shortName(label);
+                              const displayName = shortName(label);
 
-console.log("🎤 [Act.jsx] Badge name debug", {
-  matchedKey: badgeKey,
-  slotIndex: slot.slotIndex,
-  isDeputy: !!item.isDeputy,
-  itemMusicianId: String(item.musicianId || ""),
-  slotVocalistName,
-  itemVocalistName,
-  chosenLabel: label,
-  computedDisplayName: displayName,
-});
+                              console.log("🎤 [Act.jsx] Badge name debug", {
+                                matchedKey: badgeKey,
+                                slotIndex: slot.slotIndex,
+                                isDeputy: !!item.isDeputy,
+                                itemMusicianId: String(item.musicianId || ""),
+                                slotVocalistName,
+                                itemVocalistName,
+                                chosenLabel: label,
+                                computedDisplayName: displayName,
+                              });
 
-  return (
-    <FeaturedVocalistBadge
-      key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}
-      imageUrl={item.photoUrl}
-      size={140}
-      cacheBuster={cache}
-      className="mt-2"
-      musicianId={String(item.musicianId || "")}
-      profileUrl={prof}
-      variant={item.isDeputy ? "deputy" : "lead"}
-      displayName={displayName}          // ← now correct
-    />
-  );
-})}
+                              return (
+                                <FeaturedVocalistBadge
+                                  key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}
+                                  imageUrl={item.photoUrl}
+                                  size={140}
+                                  cacheBuster={cache}
+                                  className="mt-2"
+                                  musicianId={String(item.musicianId || "")}
+                                  profileUrl={prof}
+                                  variant={item.isDeputy ? "deputy" : "lead"}
+                                  displayName={displayName} // ← now correct
+                                />
+                              );
+                            })}
                           </div>
                         );
                       })}
