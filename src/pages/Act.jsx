@@ -29,6 +29,7 @@ import {
   calculateAverageRating,
 } from "./utils/helpersforAct";
 import useRenderTracker from "../hooks/useRenderTracker";
+ import { logBadges } from "../utils/logger";
 
 const Act = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -85,7 +86,9 @@ const Act = () => {
   // Gallery Carousel logic
   const galleryRef = useRef(null);
   const reviewGalleryRef = useRef(null); // ✅ fix
-
+// at top of the component
+const sseRef = React.useRef(null);
+const lastActIdRef = React.useRef(null);
   const scrollGallery = (direction) => {
     if (galleryRef.current) {
       const scrollAmount = direction === "left" ? -400 : 400;
@@ -101,32 +104,37 @@ const Act = () => {
     handleDateOrAddressChange(actId);
   };
 
-  // ✅ Safe merge to prevent infinite loop
-  useEffect(() => {
-    if (!actData) return;
+const badgeVersion = (b = {}) => {
+  const keys = Object.keys(b);
+  let latest = 0;
+  for (const k of keys) {
+    const t = new Date(b[k]?.setAt || 0).getTime();
+    if (t > latest) latest = t;
+  }
+  return `${keys.length}:${latest}`;
+};
 
-    setActData((prev) => {
-      if (!prev) return actData;
+useEffect(() => {
+  if (!actData) return;
 
-      // Compare shallowly — skip update if same object
-      const prevBadges = prev.availabilityBadges || {};
-      const newBadges = actData.availabilityBadges || {};
+  setActData(prev => {
+    if (!prev) return prev;
 
-      // Skip if badge data hasn’t changed
-      if (JSON.stringify(prevBadges) === JSON.stringify(newBadges)) {
-        return prev;
-      }
-
-      const merged = {
-        ...actData,
-        availabilityBadges: { ...newBadges },
-      };
-      clearedBadges.forEach((d) => {
-        delete merged.availabilityBadges?.[d];
-      });
-      return merged;
+    const source = actData?.availabilityBadges || {};
+    const filtered = { ...source };
+    clearedBadges.forEach((d) => {
+      delete filtered[d];
+      delete filtered[`${d}_tbc`];
     });
-  }, [clearedBadges]); // 👈 removed actData from deps
+
+    const prevV = badgeVersion(prev.availabilityBadges || {});
+    const nextV = badgeVersion(filtered);
+
+    if (prevV === nextV) return prev; // no change
+
+    return { ...prev, ...actData, availabilityBadges: filtered };
+  });
+}, [actData?.availabilityBadges, clearedBadges]);
 
   useEffect(() => {
     if (location.hash) {
@@ -156,90 +164,99 @@ const Act = () => {
     navigate("/login");
   };
 
-  useEffect(() => {
-    const evtSource = new EventSource(
-      `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`
-    );
+// Derive what you actually render
+const visibleBadges = React.useMemo(() => {
+  const base = actData?.availabilityBadges || {};
+  if (!clearedBadges?.size) return base;
 
-    evtSource.onmessage = async (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        console.log(`📡 SSE event received:`, data);
+  const out = { ...base };
+  clearedBadges.forEach((d) => {
+    delete out[d];
+    delete out[`${d}_tbc`];
+  });
+  return out;
+}, [actData?.availabilityBadges, clearedBadges]);
 
-        // ✅ Only act on known badge-related event types
-        const validTypes = [
-          "availability_yes",
-          "availability_deputy_yes",
-          "availability_badge_updated",
-        ];
+useEffect(() => {
+  if (!actId) return;
 
-        if (!validTypes.includes(data.type)) return;
+  // If we already have a live connection for this act, don't open another
+  if (sseRef.current && lastActIdRef.current === String(actId)) {
+    return;
+  }
 
-        // ✅ Only act on this act
-        if (String(data.actId) !== String(actId)) return;
+  // Close any previous connection (e.g., StrictMode re-mount)
+  if (sseRef.current) {
+    try { sseRef.current.close(); } catch {}
+    sseRef.current = null;
+  }
 
-        const cleanDate =
-          data.dateISO?.slice(0, 10) || selectedDate?.slice(0, 10);
-        if (!cleanDate) return;
+  const url = `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`;
+  const es = new EventSource(url);
+  sseRef.current = es;
+  lastActIdRef.current = String(actId);
 
-        // 🧹 Handle explicit null badge clears
-        if (data.type === "availability_badge_updated" && data.badge === null) {
-          console.log("🧹 Explicit badge clear received via SSE:", data);
-          setClearedBadges((prev) => new Set(prev).add(cleanDate));
+  const onMessage = async (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      // ✅ Only act on known types
+      if (!["availability_yes","availability_deputy_yes","availability_badge_updated"].includes(data.type)) return;
+      // ✅ Only act on this act
+      if (String(data.actId) !== String(actId)) return;
 
-          setActData((prev) => {
-            if (!prev) return prev;
-            const updatedBadges = { ...(prev.availabilityBadges || {}) };
+      const cleanDate = (data.dateISO || "").slice(0,10) || (selectedDate || "").slice(0,10);
+      if (!cleanDate) return;
 
-            // 🔍 Delete both possible variants
-            delete updatedBadges[cleanDate];
-            delete updatedBadges[`${cleanDate}_tbc`];
-
-            console.log(
-              "🗑️ Cleared badge keys from actData:",
-              Object.keys(updatedBadges)
-            );
-            return { ...prev, availabilityBadges: updatedBadges };
-          });
-
-          return;
-        }
-
-        // 🧭 Otherwise fetch and update latest badge
-        const badge = await fetchBadgeForActAndDate(actId, cleanDate);
-        if (badge) {
-          console.log("♻️ Updated badge from SSE:", badge);
-          setActData((prev) => ({
-            ...prev,
-            availabilityBadges: {
-              ...(prev?.availabilityBadges || {}),
-              [cleanDate]: badge,
-            },
-          }));
-        } else {
-          console.log("🪶 No badge returned for SSE event.");
-        }
-      } catch (err) {
-        console.error("⚠️ Error processing SSE message:", err);
+      if (data.type === "availability_badge_updated" && data.badge === null) {
+        setClearedBadges(prev => new Set(prev).add(cleanDate));
+        return;
       }
-    };
 
-    evtSource.onerror = (err) => {
-      console.warn("⚠️ SSE connection error", err);
-    };
+      const badge = await fetchBadgeForActAndDate(actId, cleanDate);
+      if (badge) {
+        setActData(prev => ({
+          ...prev,
+          availabilityBadges: {
+            ...(prev?.availabilityBadges || {}),
+            [cleanDate]: badge,
+          },
+        }));
+      }
+    } catch (err) {
+      console.error("⚠️ SSE message error", err);
+    }
+  };
 
-    return () => evtSource.close();
-  }, [actId, selectedDate]);
+  const onError = (err) => {
+    console.warn("⚠️ SSE connection error", err);
+  };
+
+  es.addEventListener("message", onMessage);
+  es.addEventListener("error", onError);
+  es.addEventListener("open", () => console.log("📡 [SSE] Connection established"));
+
+  return () => {
+    // Clean up *this* instance only
+    es.removeEventListener("message", onMessage);
+    es.removeEventListener("error", onError);
+    try { es.close(); } catch {}
+    if (sseRef.current === es) {
+      sseRef.current = null;
+      lastActIdRef.current = null;
+    }
+  };
+// ❗️only reconnect if actId changes; NOT on selectedDate changes
+}, [actId]);
 
   useEffect(() => {
     if (!actId || !selectedDate) return;
 
     const cleanDate = selectedDate.slice(0, 10);
-    console.log("📡 Fetching badge for act/date:", { actId, cleanDate });
+    log("📡 Fetching badge for act/date:", { actId, cleanDate });
 
     fetchBadgeForActAndDate(actId, cleanDate).then((badge) => {
       if (!badge) {
-        console.log("🪶 No badge returned for", cleanDate);
+        log("🪶 No badge returned for", cleanDate);
         return;
       }
 
@@ -249,7 +266,7 @@ const Act = () => {
           ...(prev?.availabilityBadges || {}),
           [cleanDate]: badge,
         };
-        console.log("💾 Merged availabilityBadges:", updatedBadges);
+        log("💾 Merged availabilityBadges:", updatedBadges);
         return { ...prev, availabilityBadges: updatedBadges };
       });
     });
@@ -421,10 +438,10 @@ const Act = () => {
 
     try {
       console.group("🧾 [Act.jsx] calculateActPricing Debug");
-      console.log("🔹 actData:", actData?.name);
-      console.log("🔹 selected lineup:", lineup?.actSize);
-      console.log("🔹 base fees:", lineup?.base_fee);
-      console.log("🔹 selectedCounty:", selectedCounty);
+      log("🔹 actData:", actData?.name);
+      log("🔹 selected lineup:", lineup?.actSize);
+      log("🔹 base fees:", lineup?.base_fee);
+      log("🔹 selectedCounty:", selectedCounty);
       console.groupEnd();
 
       const result = await calculateActPricing(
@@ -437,8 +454,8 @@ const Act = () => {
 
       // ✅ Put this here
       console.group("🧮 [Act.jsx] Price Debug");
-      console.log("Lineup used:", lineup?.actSize);
-      console.log("calculateActPricing result:", result);
+      log("Lineup used:", lineup?.actSize);
+      log("calculateActPricing result:", result);
       console.groupEnd();
 
       if (result) {
@@ -1036,8 +1053,9 @@ const Act = () => {
 
               <div className="my-3 mt-5 flex justify-left z-10">
                 {(() => {
-                  const allBadges = actData?.availabilityBadges;
-                  console.log("🐊 [Lookup] All badges:", allBadges);
+                  const allBadges = visibleBadges;
+                 
+logBadges("🐊 [Lookup] All badges", allBadges);
 
                   if (!allBadges || !selectedDate) {
                     console.warn("🐊 [Lookup] Missing badges or date");
@@ -1045,12 +1063,12 @@ const Act = () => {
                   }
 
                   const cleanDate = selectedDate.slice(0, 10);
-                  console.log("🐊 [Lookup] Clean date:", cleanDate);
+                  log("🐊 [Lookup] Clean date:", cleanDate);
 
                   const matchedKey = Object.keys(allBadges).find((k) =>
                     k.includes(cleanDate)
                   );
-                  console.log("🐊 [Lookup] matchedKey:", matchedKey);
+                  log("🐊 [Lookup] matchedKey:", matchedKey);
 
                   if (!matchedKey) {
                     console.warn("🐊 [Lookup] No badge matched date");
@@ -1058,7 +1076,7 @@ const Act = () => {
                   }
 
                   const badgeForDate = allBadges[matchedKey];
-                  console.log(
+                  log(
                     "🐊 [Lookup] badgeForDate.slots:",
                     badgeForDate?.slots
                   );
@@ -1107,7 +1125,7 @@ const Act = () => {
     const displayName = short(rawDeputyName);
 
     // helpful debug (remove when happy)
-    console.log("🎯 deputy render", {
+    log("🎯 deputy render", {
       displayName,
       rawDeputyName,
       depId: dep.musicianId,
@@ -1304,7 +1322,7 @@ const Act = () => {
             {/* move this block ABOVE or BELOW the .block sm:hidden */}
             <div className="my-3 mt-5 flex justify-left z-10">
               {(() => {
-                const allBadges = actData?.availabilityBadges;
+                const allBadges = visibleBadges;
                 if (!allBadges || !selectedDate) return null;
 
                 const cleanDate = selectedDate.slice(0, 10);
@@ -1483,7 +1501,7 @@ const Act = () => {
                               const displayName = shortName(label || "");
 
                               // Debug so we can see exactly what we render
-                              console.log("🎤 [Act.jsx] Deputy label pick", {
+                              log("🎤 [Act.jsx] Deputy label pick", {
                                 badgeKey,
                                 slotIndex: slot.slotIndex,
                                 itemIsDeputy: !!item.isDeputy,

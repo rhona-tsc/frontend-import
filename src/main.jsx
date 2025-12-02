@@ -10,6 +10,13 @@ if (window.location.hostname.includes("ngrok")) {
   window.location.replace("https://tsc2025.netlify.app");
 }
 
+if (location.search.includes("nolog")) {
+  ["log","debug","info","warn","error","group","groupCollapsed","table"].forEach(k => {
+    // eslint-disable-next-line no-console
+    console[k] = () => {};
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   
   <BrowserRouter>
