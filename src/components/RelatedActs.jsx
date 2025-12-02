@@ -1,143 +1,97 @@
-import React, { useContext, useEffect, useState } from 'react';
-import Title from './Title';
-import { ShopContext } from '../context/ShopContext';
-import ActItem from './ActItem';
-import axios from 'axios';
-
+// src/components/RelatedActs.jsx
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import Title from "./Title";
+import { ShopContext } from "../context/ShopContext";
+import ActItemContainer from "./ActItemContainer"; // 👈 use the container
 
 const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActId }) => {
-  
-    const [related, setRelated] = useState([]);
- const { acts, userId, isShortlisted, shortlistAct, shortlistitems } = useContext(ShopContext);          const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const { acts } = useContext(ShopContext);
 
-    const [shortlistedActs, setShortlistedActs] = useState([]);
-    const [selectedCounty, setSelectedCounty] = useState(() => {
-        return sessionStorage.getItem("selectedCounty")?.trim() || '';
+  const [related, setRelated] = useState([]);
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== "undefined"
+      ? window.matchMedia("(min-width: 1024px)").matches
+      : true
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = (e) => setIsDesktop(e.matches);
+    try { mq.addEventListener("change", onChange); } catch { mq.addListener(onChange); }
+    return () => {
+      try { mq.removeEventListener("change", onChange); } catch { mq.removeListener(onChange); }
+    };
+  }, []);
+
+  // price calc (unchanged)
+  const calculatePrice = (act) => {
+    if (!act || !Array.isArray(act.lineups)) return null;
+    const smallest = act.lineups.reduce((s, c) =>
+      (c.bandMembers?.length || 0) < (s?.bandMembers?.length || Infinity) ? c : s, null
+    );
+    if (!smallest || !Array.isArray(smallest.bandMembers)) return null;
+    const essentialFees = smallest.bandMembers.flatMap((m) => {
+      const base = m.isEssential ? Number(m.fee) || 0 : 0;
+      const addl = (m.additionalRoles || [])
+        .filter((r) => r.isEssential)
+        .map((r) => Number(r.additionalFee) || 0);
+      return [base, ...addl];
+    });
+    const totalFee = essentialFees.reduce((sum, f) => sum + f, 0);
+    return Math.ceil(totalFee / 0.8); // +20%
+  };
+
+  useEffect(() => {
+    if (acts.length === 0 || genres.length === 0) return;
+    let filtered = acts.filter(
+      (a) => a._id !== currentActId && a.status === "approved"
+    );
+
+    const genreMatchCnt = (gs) =>
+      Array.isArray(gs) ? gs.filter((g) => genres.includes(g)).length : 0;
+    const hasInstrument = (ins) =>
+      Array.isArray(ins) && ins.some((i) => instruments.includes(i));
+    const hasVocal = (v) => (vocalist ? v === vocalist : false);
+
+    filtered.sort((a, b) => {
+      const gA = genreMatchCnt(a.genre), gB = genreMatchCnt(b.genre);
+      const vA = hasVocal(a.vocalist) ? 1 : 0;
+      const vB = hasVocal(b.vocalist) ? 1 : 0;
+      const iA = hasInstrument(a.instruments) ? 1 : 0;
+      const iB = hasInstrument(b.instruments) ? 1 : 0;
+      return (gB - gA) || (vB - vA) || (iB - iA);
     });
 
-    // Helper to get shortlist fcount for an act from sessionStorage (or default to 0)
-const getShortlistCountForAct = (actId) => {
-  return shortlistedActs.includes(actId) ? 1 : 0;
-};
+    const updated = filtered.slice(0, 5).map((act) => ({
+      ...act,
+      formattedPrice: calculatePrice(act),
+    }));
+    setRelated(updated);
+  }, [acts, genres, instruments, vocalist, currentActId]);
 
-const [isDesktop, setIsDesktop] = useState(
-  typeof window !== "undefined"
-    ? window.matchMedia("(min-width: 1024px)").matches
-    : true
-);
+  const itemsToRender = useMemo(
+    () => (isDesktop ? related : related.slice(0, 4)),
+    [isDesktop, related]
+  );
 
-useEffect(() => {
-  if (typeof window === "undefined") return;
-  const mq = window.matchMedia("(min-width: 1024px)");
-  const onChange = (e) => setIsDesktop(e.matches);
-  try {
-    mq.addEventListener("change", onChange);
-  } catch {
-    // Safari
-    mq.addListener(onChange);
-  }
-  return () => {
-    try {
-      mq.removeEventListener("change", onChange);
-    } catch {
-      mq.removeListener(onChange);
-    }
-  };
-}, []);
+  return (
+    <div>
+      <div className="text-center text-3xl py-2 mt-12">
+        <Title text1={"SIMILAR"} text2={"ACTS"} />
+      </div>
 
-const itemsToRender = isDesktop ? related : related.slice(0, 4);
-
-
-
-    // ✅ Function to calculate price (mirroring NewActs/BestSeller essential member pricing)
-    const calculatePrice = (act) => {
-      if (!act || !Array.isArray(act.lineups)) return null;
-
-      const smallestLineup = act.lineups.reduce((smallest, current) => {
-        return (current.bandMembers?.length || 0) < (smallest?.bandMembers?.length || Infinity) ? current : smallest;
-      }, null);
-
-      if (!smallestLineup || !Array.isArray(smallestLineup.bandMembers)) return null;
-
-      const essentialFees = smallestLineup.bandMembers.flatMap((member) => {
-        const baseFee = member.isEssential ? Number(member.fee) || 0 : 0;
-        const additionalEssentialFees = (member.additionalRoles || [])
-          .filter((role) => role.isEssential)
-          .map((role) => Number(role.additionalFee) || 0);
-        return [baseFee, ...additionalEssentialFees];
-      });
-
-      const totalFee = essentialFees.reduce((sum, fee) => sum + fee, 0);
-
-      return Math.ceil(totalFee / 0.8); // Apply 20% margin
-    };
-
-    useEffect(() => {
-        if (acts.length > 0 && genres.length > 0) {
-            // Only include acts that are approved and not the current act
-            let filteredActs = acts.filter(
-                item => item._id !== currentActId && item.status === "approved"
-            );
-
-            const getGenreMatchCount = (actGenres) => {
-                if (!Array.isArray(actGenres)) return 0;
-                return actGenres.filter(genre => genres.includes(genre)).length;
-            };
-
-            const hasInstrumentMatch = (actInstruments) => {
-                if (!Array.isArray(actInstruments)) return false;
-                return actInstruments.some(inst => instruments.includes(inst));
-            };
-
-            const hasVocalistMatch = (actVocalist) => {
-                if (!vocalist) return false;
-                return actVocalist === vocalist;
-            };
-
-            filteredActs.sort((a, b) => {
-                const genreMatchA = getGenreMatchCount(a.genre);
-                const genreMatchB = getGenreMatchCount(b.genre);
-                const vocalistMatchA = hasVocalistMatch(a.vocalist) ? 1 : 0;
-                const vocalistMatchB = hasVocalistMatch(b.vocalist) ? 1 : 0;
-                const instrumentMatchA = hasInstrumentMatch(a.instruments) ? 1 : 0;
-                const instrumentMatchB = hasInstrumentMatch(b.instruments) ? 1 : 0;
-
-                return (genreMatchB - genreMatchA) || (vocalistMatchB - vocalistMatchA) || (instrumentMatchB - instrumentMatchA);
-            });
-
-            // ✅ Apply price calculation
-            const updatedRelated = filteredActs.slice(0, 5).map(act => ({
-                ...act,
-                formattedPrice: calculatePrice(act)
-            }));
-
-            setRelated(updatedRelated);
-        }
-    }, [acts, genres, instruments, vocalist, currentActId, selectedCounty]);
-
-    return (
-        <div>
-            <div className='text-center text-3xl py-2 mt-12'>
-                <Title text1={"SIMILAR"} text2={"ACTS"} />
-            </div>
-
-            <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'>
-           {itemsToRender.length > 0 ? (
-  itemsToRender.map((item, index) => (
-                 <ActItem
-  key={item._id}
-  actData={item}
-  isShortlisted={isShortlisted(item._id)}
-  onShortlistToggle={() => shortlistAct(userId, item._id)}
-  price={item.formattedPrice}
-/>
-                    ))
-                ) : (
-                    <p className="text-center text-gray-500 mt-5">No similar acts found.</p>
-                )}
-            </div>
-        </div>
-    );
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {itemsToRender.length > 0 ? (
+          itemsToRender.map((item) => (
+            <ActItemContainer key={item._id} act={item} />  {/* 👈 wrapped */}
+          ))
+        ) : (
+          <p className="text-center text-gray-500 mt-5">No similar acts found.</p>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default RelatedActs;
