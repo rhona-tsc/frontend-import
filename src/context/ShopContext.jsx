@@ -84,7 +84,6 @@ const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
     const s = new Set(toArray(prev?.[actId]));
     if (leadId) s.add(String(leadId));
     const after = Array.from(s);
-    console.log("[CTX.ensureLeadIncluded]", { actId, leadId, after });
     return { ...prev, [actId]: after };
   });
 }, []);
@@ -95,7 +94,6 @@ const toggleVocalistForAct = useCallback((actId, musicianId) => {
     if (before.has(String(musicianId))) before.delete(String(musicianId));
     else before.add(String(musicianId));
     const after = Array.from(before);
-    console.log("[CTX.toggle] actId:", actId, { before: Array.from(before), after });
     return { ...prev, [actId]: after };
   });
 }, []);
@@ -404,7 +402,6 @@ const toggleVocalistForAct = useCallback((actId, musicianId) => {
         // Guard: if a request for this combo is already in flight or was just sent, skip
         const existing = inFlight.get(key);
         if (existing && Date.now() - existing < 8000) {
-          console.log(`🟡 Skipping duplicate availability trigger for ${key}`);
           return;
         }
 
@@ -428,7 +425,6 @@ const toggleVocalistForAct = useCallback((actId, musicianId) => {
           timeout: 15000,
         });
 
-        console.log(`✅ Sent availability request for ${key}`);
       } catch (err) {
         console.warn(
           "⚠️ requestVocalistAvailability failed:",
@@ -583,30 +579,17 @@ useEffect(() => {
           (s) => s.musicianId && s.photoUrl?.startsWith("http")
         );
 
-        console.log(
-          "🧠 [SSE Badge Debug] Slot has valid lead/deputy singer?",
-          slotHasValidSinger
-        );
+       
 
         if (!slotHasValidSinger) {
-          console.log(
-            "🧹 [SSE] Ignoring badge broadcast with no valid singers in slots[]",
-            payload
-          );
+        
           return;
         }
 
         // 🔬 Deep slot-level debugging
         if (badge?.slots?.length) {
           badge.slots.forEach((s) => {
-            console.log("🧩 [SSE Slot Debug]", {
-              slotIndex: s.slotIndex,
-              vocalistName: s.vocalistName,
-              musicianId: s.musicianId,
-              photoUrl: s.photoUrl,
-              isDeputy: s.isDeputy,
-              setAt: s.setAt,
-            });
+          
           });
         } else {
           console.warn(
@@ -614,19 +597,12 @@ useEffect(() => {
           );
         }
 
-        console.log("🟦 [SSE] BADGE_UPDATED fired:", {
-          actId: payload.actId,
-          dateISO: payload.dateISO,
-          badgeExists: !!badge,
-          badge,
-        });
+   
 
         /* --------------------------------------------- */
         /* ♻️ Refresh Act                                 */
         /* --------------------------------------------- */
-        console.log("♻️ [SSE] refreshActById START:", payload.actId);
         await refreshActById(payload.actId);
-        console.log("♻️ [SSE] refreshActById COMPLETE:", payload.actId);
 
         return; // ✅ done handling badge update
       }
@@ -642,13 +618,7 @@ useEffect(() => {
       const isDeputy =
         normalizedType === "availability_deputy_yes" || payload.isDeputy === true;
 
-      console.log("🟩 [SSE] Standard availability event:", {
-        type: payload.type,
-        isLead,
-        isDeputy,
-        actId: payload.actId,
-        musicianName: payload.musicianName,
-      });
+
 
       const shortDate = formatShortDate(payload.dateISO);
       const nameForToast = shortDisplayName(payload.musicianName) || (isDeputy ? "Deputy" : "Lead vocalist");
@@ -656,7 +626,6 @@ useEffect(() => {
         ? `${nameForToast} is available to perform with ${payload.actName} on ${shortDate}.`
         : `${nameForToast} from ${payload.actName} is available for ${shortDate}.`;
 
-      console.log("🔔 [SSE] Standard Toast Message:", { normalizedType, toastMsg });
 
       // Helpers for lead: prefer richer "first + last initial" over bare first-name
       const keyLead = `${payload?.actId || ""}|${payload?.dateISO || ""}`;
@@ -698,9 +667,7 @@ useEffect(() => {
         pushToast();
       }
 
-      console.log("♻️ [SSE] Refreshing ACT:", payload.actId);
       await refreshActById(payload.actId);
-      console.log("♻️ [SSE] Finished ACT refresh:", payload.actId);
     });
 
     /* -------------------------------------------------------------------------- */
@@ -721,7 +688,6 @@ useEffect(() => {
     } catch {}
     if (sse) {
       sse.close();
-      console.log("❌ [SSE] Connection CLOSED");
     }
   };
 }, []); // ✅ run once on mount
@@ -753,7 +719,6 @@ useEffect(() => {
         }),
       });
 
-      console.log("✅ [ShopContext] Shortlist update triggered successfully");
     } catch (err) {
       console.warn("⚠️ [ShopContext] Failed to update shortlist:", err.message);
     }
@@ -851,11 +816,6 @@ const shortlistAct = async (uid, actId) => {
     selectedAddress: selectedAddressFinal,
   };
 
-  console.log("🎬 [shortlistAct] START", {
-    ...clientPayload,
-    actId,
-  });
-
   if (!userId) {
     promptLogin("Please log in to manage your shortlist.");
     return;
@@ -880,10 +840,7 @@ const shortlistAct = async (uid, actId) => {
   try {
     if (isShortlistedNow) {
       // 🔵 Removing from shortlist
-      console.log("❎ [shortlistAct] Removing from shortlist", {
-        actId: idStr,
-        ...clientPayload,
-      });
+  
 
       await axios.patch(
         `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
@@ -891,10 +848,7 @@ const shortlistAct = async (uid, actId) => {
       );
     } else {
       // 🟢 Adding to shortlist
-      console.log("🚀 [shortlistAct] Adding to shortlist", {
-        actId: idStr,
-        ...clientPayload,
-      });
+   
 
       await axios.patch(
         `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
@@ -904,12 +858,7 @@ const shortlistAct = async (uid, actId) => {
       // 🩵 Optional: force a shortlist sync to ensure frontend UI matches backend
       if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
         const dateISO = new Date(selectedDateFinal).toISOString().slice(0, 10);
-        console.log("📅 [shortlistAct] Triggering shortlist sync", {
-          actId: idStr,
-          dateISO,
-          formattedAddress: selectedAddressFinal,
-          ...clientPayload,
-        });
+     
 
         await axios.patch(`${backendUrl}/api/shortlist/update`, {
           actId: idStr,
@@ -918,7 +867,6 @@ const shortlistAct = async (uid, actId) => {
           ...clientPayload,
         });
 
-        console.log("✅ [shortlistAct] Synced shortlisted act with backend");
       }
     }
   } catch (err) {

@@ -26,13 +26,6 @@ const ActItem = ({ actData, shortlistCount }) => {
       0
     ) || 0;
 
-  console.debug('💖 loveCount source →', {
-    fromDB: actData?.timesShortlisted,
-    fromProp: shortlistCount,
-    fromAct: actData?.shortlistCount,
-    fromMetrics: actData?.metrics?.shortlists,
-    initialLove
-  });
 
   const [loveCount, setLoveCount] = useState(initialLove);
   const [price, setPrice] = useState(null);
@@ -220,7 +213,6 @@ const ActItem = ({ actData, shortlistCount }) => {
         }),
       });
 
-      console.log("✅ Shortlist add triggered Twilio availability check");
     } catch (err) {
       console.error("❌ Failed to POST /api/availability/request:", err);
     }
