@@ -252,11 +252,9 @@ useEffect(() => {
     if (!actId || !selectedDate) return;
 
     const cleanDate = selectedDate.slice(0, 10);
-    log("📡 Fetching badge for act/date:", { actId, cleanDate });
 
     fetchBadgeForActAndDate(actId, cleanDate).then((badge) => {
       if (!badge) {
-        log("🪶 No badge returned for", cleanDate);
         return;
       }
 
@@ -266,7 +264,6 @@ useEffect(() => {
           ...(prev?.availabilityBadges || {}),
           [cleanDate]: badge,
         };
-        log("💾 Merged availabilityBadges:", updatedBadges);
         return { ...prev, availabilityBadges: updatedBadges };
       });
     });
@@ -437,12 +434,7 @@ useEffect(() => {
       selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
     try {
-      console.group("🧾 [Act.jsx] calculateActPricing Debug");
-      log("🔹 actData:", actData?.name);
-      log("🔹 selected lineup:", lineup?.actSize);
-      log("🔹 base fees:", lineup?.base_fee);
-      log("🔹 selectedCounty:", selectedCounty);
-      console.groupEnd();
+
 
       const result = await calculateActPricing(
         actData,
@@ -452,11 +444,6 @@ useEffect(() => {
         lineup
       );
 
-      // ✅ Put this here
-      console.group("🧮 [Act.jsx] Price Debug");
-      log("Lineup used:", lineup?.actSize);
-      log("calculateActPricing result:", result);
-      console.groupEnd();
 
       if (result) {
         setPrice({ ...result, travelCalculated: result?.travelFeeTotal > 0 });
@@ -1063,12 +1050,10 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                   }
 
                   const cleanDate = selectedDate.slice(0, 10);
-                  log("🐊 [Lookup] Clean date:", cleanDate);
 
                   const matchedKey = Object.keys(allBadges).find((k) =>
                     k.includes(cleanDate)
                   );
-                  log("🐊 [Lookup] matchedKey:", matchedKey);
 
                   if (!matchedKey) {
                     console.warn("🐊 [Lookup] No badge matched date");
@@ -1076,10 +1061,7 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                   }
 
                   const badgeForDate = allBadges[matchedKey];
-                  log(
-                    "🐊 [Lookup] badgeForDate.slots:",
-                    badgeForDate?.slots
-                  );
+                 
 
                   const slots = Array.isArray(badgeForDate?.slots)
                     ? badgeForDate.slots
@@ -1123,14 +1105,6 @@ logBadges("🐊 [Lookup] All badges", allBadges);
     };
 
     const displayName = short(rawDeputyName);
-
-    // helpful debug (remove when happy)
-    log("🎯 deputy render", {
-      displayName,
-      rawDeputyName,
-      depId: dep.musicianId,
-      dep
-    });
 
     return (
       <FeaturedVocalistBadge
@@ -1500,15 +1474,6 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                               const label = deputyFirstLabel || (!item.isDeputy ? slotVocalistName : "");
                               const displayName = shortName(label || "");
 
-                              // Debug so we can see exactly what we render
-                              log("🎤 [Act.jsx] Deputy label pick", {
-                                badgeKey,
-                                slotIndex: slot.slotIndex,
-                                itemIsDeputy: !!item.isDeputy,
-                                chosenRawLabel: label,
-                                computedDisplayName: displayName,
-                                itemMusicianId: String(item.musicianId || ""),
-                              });
 
                               return (
                                 <FeaturedVocalistBadge
