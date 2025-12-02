@@ -82,7 +82,6 @@ const GoogleAutocomplete = ({ setAddress, setCounty, ...props }) => {
         autocomplete.addListener("place_changed", () => {
           const place = autocomplete.getPlace();
           if (!place || !place.formatted_address) {
-            console.log("🔎 [GA] place_changed fired but no formatted_address", place);
             return;
           }
 
@@ -90,17 +89,12 @@ const GoogleAutocomplete = ({ setAddress, setCounty, ...props }) => {
           const components = place.address_components || [];
           const county = pickCounty(components);
 
-          console.log("📍 [GA] Selected place:", {
-            address,
-            county,
-            components,
-          });
+      
 
           setAddress?.(address);
           setCounty?.(county);
         });
 
-        console.log("✅ [GA] Autocomplete initialised");
         return true;
       } catch (e) {
         console.warn("❌ [GA] Autocomplete init failed:", e);

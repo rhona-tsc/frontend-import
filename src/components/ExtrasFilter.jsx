@@ -102,7 +102,6 @@ const ExtrasFilter = ({
     let normalizedCounty = selectedCounty?.trim().toLowerCase();
     let normalizedLineup = newLineup?.substring(0, 3).trim().toLowerCase();
 
-    console.log("📌 Normalized Lineup:", normalizedLineup);
 
     // ✅ Find matching travel fee
     let travelFee = 0;
@@ -119,15 +118,11 @@ const ExtrasFilter = ({
       );
     }
 
-    console.log("🚗 Travel Fee for selected county:", travelFee);
 
     // ✅ Get lineup size from newLineup
     const lineupSizeMatch = newLineup.match(/\d+/);
     const lineupSize = lineupSizeMatch ? parseInt(lineupSizeMatch[0]) : 1;
 
-    console.log(
-      `🎼 Lineup Size: ${lineupSize}, Travel Fee: ${travelFee}, Per Musician: ${travelFee / lineupSize}`
-    );
 
     return travelFee / lineupSize; // ✅ Divide travel fee per musician
   }; // ✅ Get travel fee directly from existing calculation (line 331)
@@ -143,7 +138,6 @@ const ExtrasFilter = ({
   const lineupSize = extractLineupSize("4-p"); // 🎼 Extracted from line 301
   const travelFeePerMusician = Math.ceil(totalTravelFee / lineupSize); // 🔄 Round up
 
-  console.log("🚗 Travel Fee Per Musician:", travelFeePerMusician);
 
   // ✅ Now use travelFeePerMusician in other calculations
   const removeDrumsFee = soundLimiters?.remove_drums

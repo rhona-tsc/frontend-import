@@ -22,5 +22,4 @@ export const api = (path = "") => {
 export const logApiBase = () => {
   const mode = isDev ? "DEV" : "PROD";
   // eslint-disable-next-line no-console
-  console.log(`🔧 [apiBase] Mode=${mode} BACKEND='${BACKEND || "(relative via proxy)"}'`);
 };

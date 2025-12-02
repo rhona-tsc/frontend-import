@@ -1,7 +1,6 @@
 import { postcodes } from '../assets/assets';
 
 const getCounty = (addressComponents) => {
-    console.log("🔍 Address Components:", addressComponents);
 
     // ✅ Extract postcode (first part only)
     const postcodeComponent = addressComponents.find(component =>
@@ -14,7 +13,6 @@ const getCounty = (addressComponents) => {
     }
 
     const postcode = postcodeComponent.long_name.split(" ")[0].toUpperCase();
-    console.log("📮 Extracted Outcode:", postcode);
 
     // ✅ Find county in `postcodes`
     if (!Array.isArray(postcodes) || postcodes.length === 0) {
@@ -26,7 +24,6 @@ const getCounty = (addressComponents) => {
 
     for (const [county, codes] of Object.entries(countyData)) {
         if (codes.includes(postcode)) {
-            console.log(`✅ Matched Outcode to County: ${county}`);
             return county.charAt(0).toUpperCase() + county.slice(1); // Capitalize first letter
         }
     }

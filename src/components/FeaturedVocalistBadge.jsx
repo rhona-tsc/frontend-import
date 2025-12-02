@@ -16,12 +16,7 @@ export function FeaturedVocalistBadge({
   profileUrl = "",
   displayName = "",
 }) {
-  console.log("🎯 [FeaturedVocalistBadge] props", {
-  displayName,
-  musicianId,
-  variant,
-  hasImage: !!imageUrl,
-});
+ 
 
   const inner = Math.round(size * photoScale);
   const ringSrc =
@@ -97,8 +92,6 @@ export function VocalistFeaturedAvailable({
   cacheBuster = "",
   className = "",
 }) {
-  console.group("🎤 SLOT AWARE COMPONENT");
-  console.log("🐊 [VFA] raw prop:", JSON.parse(JSON.stringify(badge || slotProp || {})));
 
   // If caller passed a slot explicitly, use it.
   let slot = slotProp || null;
@@ -187,20 +180,16 @@ export function VocalistFeaturedAvailable({
   const displayName = shortDisplayName(rawName);
 
   if (!slot) {
-    console.warn("🐊 [VFA] ❌ No usable slot found.");
-    console.groupEnd();
+ 
     return null;
   }
 
   const { musicianId, photoUrl, profileUrl, isDeputy } = renderData || {};
   if (!photoUrl?.startsWith("http")) {
-    console.warn("🐊 [VFA] ❌ Render data missing/invalid photoUrl.");
-    console.groupEnd();
     return null;
   }
 
-  console.log("🐊 [VFA] ✅ Rendering renderData:", { slotIndex: renderData?.slotIndex, musicianId, photoUrl, isDeputy });
-  console.groupEnd();
+
 
   return (
     <FeaturedVocalistBadge

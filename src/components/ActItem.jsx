@@ -16,6 +16,8 @@ const ActItem = ({ actData, shortlistCount }) => {
   const isOnScreen = useOnScreen(cardRef);
   const [isAnimating, setIsAnimating] = useState(false);
 
+  
+
   // Robust initial love count (DB source preferred) -> fallbacks
   const initialLove =
     Number(
@@ -58,23 +60,35 @@ const ActItem = ({ actData, shortlistCount }) => {
     return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
   };
 
+  const setPriceIfChanged = React.useCallback((next) => {
+  setPrice((prev) => {
+    if (!prev) return next;
+    const same =
+      prev.total === next.total &&
+      !!prev.travelCalculated === !!next.travelCalculated &&
+      (prev.travelFeeTotal ?? 0) === (next.travelFeeTotal ?? 0);
+    return same ? prev : next;
+  });
+}, []);
+
   // Keep loveCount in sync with DB when actData changes
-  useEffect(() => {
-    const next =
-      Number(
-        actData?.timesShortlisted ??
-        shortlistCount ??
-        actData?.shortlistCount ??
-        actData?.metrics?.shortlists ??
-        0
-      ) || 0;
-    setLoveCount(next);
-  }, [
-    actData?.timesShortlisted,
-    shortlistCount,
-    actData?.shortlistCount,
-    actData?.metrics?.shortlists
-  ]);
+useEffect(() => {
+  const next =
+    Number(
+      actData?.timesShortlisted ??
+      shortlistCount ??
+      actData?.shortlistCount ??
+      actData?.metrics?.shortlists ??
+      0
+    ) || 0;
+
+  setLoveCount((prev) => (prev === next ? prev : next));
+}, [
+  actData?.timesShortlisted,
+  shortlistCount,
+  actData?.shortlistCount,
+  actData?.metrics?.shortlists
+]);
 
   useEffect(() => {
     // 0) If no lineups yet, show base if possible and bail
@@ -141,7 +155,7 @@ const ActItem = ({ actData, shortlistCount }) => {
 
         if (final) {
           priceCache.set(key, final);
-          setPrice(final);
+          setPriceIfChanged(final);
         }
       } catch (err) {
         console.error('❌ Failed to calculate price:', {
@@ -309,4 +323,32 @@ const ActItem = ({ actData, shortlistCount }) => {
   );
 };
 
-export default ActItem;
+
+function areEqualActItem(prev, next) {
+  const p = prev.actData || {};
+  const n = next.actData || {};
+
+  // Use only the fields the card actually renders/needs
+  const sameId = String(p._id) === String(n._id);
+  const sameName = (p.tscName || p.name) === (n.tscName || n.name);
+  const sameImg =
+    (p.profileImage?.[0]?.url || "") === (n.profileImage?.[0]?.url || "");
+  const sameLineupCount = (p.lineups?.length || 0) === (n.lineups?.length || 0);
+  const sameTimesShortlisted =
+    (p.timesShortlisted ?? 0) === (n.timesShortlisted ?? 0);
+  const sameFormattedPrice =
+    (p.formattedPrice?.total ?? null) === (n.formattedPrice?.total ?? null);
+  const sameShortlistCount = (prev.shortlistCount ?? 0) === (next.shortlistCount ?? 0);
+
+  return (
+    sameId &&
+    sameName &&
+    sameImg &&
+    sameLineupCount &&
+    sameTimesShortlisted &&
+    sameFormattedPrice &&
+    sameShortlistCount
+  );
+}
+
+export default React.memo(ActItem, areEqualActItem);
