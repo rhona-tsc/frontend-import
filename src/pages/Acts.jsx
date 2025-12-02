@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { postcodes } from "../assets/assets";
 import calculateActPricing from "./utils/pricing";
 import axios from "axios";
+import useRenderTracker from "../hooks/useRenderTracker";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -131,7 +132,14 @@ const [availLoading, setAvailLoading] = useState(false);
   const user = JSON.parse(localStorage.getItem("user"));
 
 
-
+  useRenderTracker("Acts", {
+  actId,
+  hasActData: !!actData,
+  lineupCount: actData?.lineups?.length || 0,
+  selectedDate: selectedDate ? selectedDate.slice(0,10) : null,
+  hasAddress: !!selectedAddress,
+  badgeKeys: Object.keys(actData?.availabilityBadges || {}).length,
+});
   const calculateActPricing = async (
     act,
     selectedCounty,
