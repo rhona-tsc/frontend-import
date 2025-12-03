@@ -90,17 +90,6 @@
       setHydrated(true);
     }, [token]);
 
-    useEffect(() => {
-  if (typeof window === "undefined") return;
-  if (window.__keepaliveStarted) return;
-  window.__keepaliveStarted = true;
-
-  const id = setInterval(() => {
-    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/health`).catch(() => {});
-  }, 14 * 60 * 1000); // < typical idle window
-
-  return () => clearInterval(id);
-}, []);
 
     return (
       <>

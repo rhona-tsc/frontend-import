@@ -135,10 +135,6 @@ const instrumentIndex = useMemo(() => {
   return map;
 }, [approvedActs]);
 
-// 🕓 Defer noisy inputs so filtering runs less per keystroke
-const deferredSearch = useDeferredValue(search);
-const deferredSongSearch = useDeferredValue(songSearch);
-const deferredActSearch = useDeferredValue(actSearch);
 
   // --- Add isLoading state for fetching acts ---
     const filterRunIdRef = useRef(0);
@@ -165,6 +161,11 @@ const [updatingResults, setUpdatingResults] = useState(false);
   const [instruments, setInstruments] = useState([]);
   const [songSearch, setSongSearch] = useState([]);
   const [actSearch, setActSearch] = useState([]);
+
+// 🕓 Defer noisy inputs so filtering runs less per keystroke
+const deferredSearch = useDeferredValue(search);
+const deferredSongSearch = useDeferredValue(songSearch);
+const deferredActSearch = useDeferredValue(actSearch);
   const [soundLimiters, setSoundLimiters] = useState([]);
   const [setupAndSoundcheck, setSetupAndSoundcheck] = useState([]);
   const [paAndLights, setPaAndLights] = useState([]);
@@ -620,19 +621,6 @@ const togglePli = (e) => {
     israeli_sets: "Israeli dancing sets",
   };
 
-
-  const all = [...fromTop, ...fromLineups];
-
-  // Expand combos then canonicalise and dedupe
-  const expanded = all.flatMap((name) => splitInstrumentTokens(name));
-  const canonical = expanded.map((v) => {
-    const c = canonicaliseInstrument(v);
-    // final tweak: plain "Rapper" should count under MC/Rapper
-    return c === "Rapper" ? "MC/Rapper" : c;
-  });
-
-  return Array.from(new Set(canonical));
-};
 
   const formatDate = (dateString) => {
     if (!dateString) return "";
