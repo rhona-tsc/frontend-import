@@ -385,59 +385,64 @@ useEffect(() => {
       el.removeEventListener("touchend", onTouchEnd);
     };
   }, []);
-  
+
 // act loader
 useEffect(() => {
   if (!actId) return;
   let cancelled = false;
 
-  // 1) paint instantly from cache if present
+  // 1) paint instantly from acts[] if present
+  let found = Array.isArray(acts)
+    ? acts.find(a => String(a._id) === String(actId))
+    : null;
+  if (found) {
+    const avg = calculateAverageRating(found.reviews || []);
+    setActData({ ...found, averageRating: avg });
+    setSelectedLineup(found.lineups?.[0] || null);
+    setVideo(found.videos?.[0]?.url || "");
+  }
+
+  // 2) then from cache if better
   const cached = readCachedAct(actId);
   if (cached) {
     const avg = calculateAverageRating(cached.reviews || []);
-    setActData({ ...cached, averageRating: avg });
+    setActData(prev => {
+      // prefer whichever has more fields/lineups
+      const candidate = (cached?.lineups?.length || 0) >= (prev?.lineups?.length || 0) ? cached : prev;
+      return candidate ? { ...candidate, averageRating: calculateAverageRating(candidate.reviews || []) } : prev;
+    });
     setSelectedLineup(cached.lineups?.[0] || null);
     setVideo(cached.videos?.[0]?.url || "");
   }
 
-  // 2) fetch with retry (helps Render cold starts)
-  let attempt = 0;
-  const load = async () => {
-    attempt += 1;
+  // 3) fetch fresh (NO abort controller)
+  (async () => {
     try {
-      const ctl = new AbortController();
-      const kill = setTimeout(() => ctl.abort(), 25000); // 25s
-      const res = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`,
-        { headers: { accept: "application/json" }, signal: ctl.signal }
-      );
-      clearTimeout(kill);
-
-      const json = await res.json().catch(() => ({}));
-      if (!cancelled && res.ok && json?.success && json?.act) {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`, {
+        headers: { accept: "application/json" },
+      });
+      const text = await res.text();                // resilient parse
+      if (cancelled) return;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = text ? JSON.parse(text) : null;
+      if (json?.success && json?.act) {
         const act = json.act;
         writeCachedAct(actId, act);
         const avg = calculateAverageRating(act.reviews || []);
         setActData({ ...act, averageRating: avg });
         setSelectedLineup(act.lineups?.[0] || null);
         setVideo(act.videos?.[0]?.url || "");
-        return; // success
-      }
-      throw new Error(`HTTP ${res.status}`);
-    } catch (e) {
-      if (cancelled) return;
-      // retry up to 3 times with small backoff
-      if (attempt < 3) {
-        setTimeout(load, attempt * 1500);
       } else {
-        console.warn("⚠️ /api/act fetch failed after retries", e);
+        console.warn("[Act] Unexpected payload for /api/act/:id", json);
       }
+    } catch (e) {
+      console.error("[Act] fetch failed", e);
+      // keep whatever we already painted (acts/cache)
     }
-  };
+  })();
 
-  load();
   return () => { cancelled = true; };
-}, [actId]);
+}, [actId, acts]);
 
   const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
