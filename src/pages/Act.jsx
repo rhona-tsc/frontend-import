@@ -599,16 +599,6 @@ useEffect(() => {
 
 const priceReqKey = React.useRef("");
 
-async function handleLineupChange(lineup){
-  setSelectedLineup(lineup);
-  const lineupId = lineup?._id || lineup?.lineupId;
-  const key = `${actData?._id}|${lineupId}|${selectedDate}|${selectedAddress}|${selectedCounty||""}`;
-  priceReqKey.current = key;
-
-  const result = await calculateActPricing(/*...*/);
-  if (priceReqKey.current !== key) return; // discard stale result
-  if (result) { setPrice({ ...result, travelCalculated: result?.travelFeeTotal > 0 }); }
-}
 
 useEffect(() => {
   if (!actData) return;
