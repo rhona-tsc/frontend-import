@@ -124,6 +124,14 @@ const cld = (url, w = 900) =>
     ? url.replace("/upload/", `/upload/f_auto,q_auto,w_${w}/`)
     : url;
 
+  // 🔺 Pre-compute hero URL for high-priority preload/render
+  const heroUrlHigh = React.useMemo(() => {
+    try {
+      const u = actData?.images?.[0]?.url || "";
+      return u ? cld(u, 1600) : "";
+    } catch { return ""; }
+  }, [actData?.images]);
+
   // Gallery Carousel logic
   const galleryRef = useRef(null);
   const reviewGalleryRef = useRef(null); // ✅ fix
@@ -217,6 +225,42 @@ useEffect(() => {
       }
     }
   }, [location]);
+
+  // 🚀 Preconnect to Cloudinary once (improves TLS handshake for hero image)
+  useEffect(() => {
+    const host = "https://res.cloudinary.com";
+    const add = (rel, attrs = {}) => {
+      const el = document.createElement("link");
+      el.rel = rel;
+      el.setAttribute("data-auto", "act-hero");
+      Object.entries(attrs).forEach(([k, v]) => v != null && el.setAttribute(k, String(v)));
+      document.head.appendChild(el);
+    };
+    if (!document.head.querySelector('link[rel="preconnect"][href="https://res.cloudinary.com"]')) {
+      add("preconnect", { href: host, crossOrigin: "" });
+    }
+    if (!document.head.querySelector('link[rel="dns-prefetch"][href="https://res.cloudinary.com"]')) {
+      add("dns-prefetch", { href: host });
+    }
+  }, []);
+
+  // 🖼️ Preload the hero image at high priority as soon as we know it
+  useEffect(() => {
+    if (!heroUrlHigh) return;
+    // Avoid duplicates
+    const existing = document.head.querySelector(`link[rel="preload"][as="image"][href="${heroUrlHigh}"]`);
+    if (existing) return;
+    const l = document.createElement("link");
+    l.rel = "preload";
+    l.as = "image";
+    l.href = heroUrlHigh;
+    l.setAttribute("fetchpriority", "high");
+    l.setAttribute("data-auto", "act-hero-preload");
+    document.head.appendChild(l);
+    return () => {
+      try { document.head.removeChild(l); } catch {}
+    };
+  }, [heroUrlHigh]);
 
   const promptLogin = (
     msg = "Please log in to save acts to your shortlist.",
@@ -737,7 +781,7 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
         </div>
         <div></div>
       </div>
-      <ActHero actId={actId} acts={acts} />
+      <ActHero actId={actId} acts={acts} act={actData} heroUrl={heroUrlHigh} />
       <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
         <div className="flex flex-col sm:flex-row gap-6 w-full">
           {/* Left: Video & Bio stacked together */}
