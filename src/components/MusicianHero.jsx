@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import PropTypes from 'prop-types';
 
 // import { assets } from '../assets/assets';
@@ -6,6 +6,7 @@ import PropTypes from 'prop-types';
 const pickHeroImageFromMusician = (m) => {
   if (!m) return '';
   if (m.coverHeroImage) return m.coverHeroImage;
+  if (m.profilePicture) return m.profilePicture;
   if (Array.isArray(m.additionalImages) && m.additionalImages[0]) return m.additionalImages[0];
   const wardrobes = [
     'digitalWardrobeBlackTie',
@@ -46,6 +47,7 @@ const MusicianHero = ({
   acts = [],
 }) => {
   const [musician, setMusician] = useState(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const resolvedId = musicianId || actId || null;
   const resolvedList = Array.isArray(musicians) && musicians.length ? musicians : acts;
@@ -101,32 +103,47 @@ const MusicianHero = ({
     return () => { mounted = false; };
   }, [resolvedId, resolvedList]);
 
-  if (!musician) return null;
+  if (!musician) {
+    return (
+      <div className="relative w-full max-w-full">
+        <div className="w-full aspect-video rounded-md bg-gray-100 animate-pulse" />
+      </div>
+    );
+  }
 
-  const heroImage = pickHeroImageFromMusician(musician);
-  const title = (() => {
-    if (musician.firstName) {
-      const lastInitial = musician.lastName ? ` ${musician.lastName.charAt(0)}` : '';
+  const heroImage = useMemo(() => pickHeroImageFromMusician(musician), [musician]);
+  const title = useMemo(() => {
+    if (musician?.firstName) {
+      const lastInitial = musician?.lastName ? ` ${musician.lastName.charAt(0)}` : '';
       return `${musician.firstName}${lastInitial}`;
     }
-    return musician.stageName || 'Musician';
-  })();
-  const subtitle = pickSubtitleFromMusician(musician);
+    return musician?.stageName || 'Musician';
+  }, [musician?.firstName, musician?.lastName, musician?.stageName]);
+  const subtitle = useMemo(() => pickSubtitleFromMusician(musician), [musician]);
 
   return (
     <div className="relative w-full max-w-full">
-      {heroImage && (
-        <div
-          className="relative w-full aspect-video bg-cover bg-center flex items-center justify-center text-white rounded-md overflow-hidden"
-          style={{ backgroundImage: `url(${heroImage})` }}
-        >
-          {!hideHeart && (
-            <div className="absolute top-4 left-4 p-2 z-20 opacity-60 pointer-events-none" />
-          )}
-          <div className="bg-black bg-opacity-50 p-6 rounded text-center max-w-2xl flex flex-col justify-center">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-snug">
-              {title}
-            </h1>
+      <div className="relative w-full aspect-video rounded-md overflow-hidden">
+        {!isLoaded && <div className="absolute inset-0 bg-gray-100 animate-pulse z-10" />}
+        {heroImage && (
+          <img
+            src={heroImage}
+            alt={title ? `${title} hero` : 'Musician hero'}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
+            onLoad={() => setIsLoaded(true)}
+          />
+        )}
+
+        {!hideHeart && (
+          <div className="absolute top-4 left-4 p-2 z-30 opacity-60 pointer-events-none" />
+        )}
+
+        <div className="absolute inset-0 flex items-center justify-center z-20">
+          <div className="bg-black bg-opacity-50 p-6 rounded text-center max-w-2xl text-white">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-snug">{title}</h1>
             {subtitle && (
               <div className="flex items-center gap-2 justify-center mt-4 text-sm tracking-wider">
                 <span>{subtitle}</span>
@@ -134,7 +151,7 @@ const MusicianHero = ({
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -164,4 +181,5 @@ MusicianHero.propTypes = {
   acts: PropTypes.array,
 };
 
-export default MusicianHero;
+const MemoMusicianHero = memo(MusicianHero);
+export default MemoMusicianHero;

@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useRef } from "react";
+import React, { useContext, useState, useEffect, useRef, lazy, Suspense, useDeferredValue } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
@@ -10,9 +10,12 @@ import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adju
 import axios from "axios";
 import { useLocation } from "react-router-dom";
 import MusicianHero from "../components/MusicianHero";
-import MusicianRepertoireSection from "../components/MusicianRepertoireSection";
-import RelatedMusicians from "../components/RelatedMusicians";
-import MusicianEquipment from "../components/MusicianEquipment";
+const MusicianRepertoireSection = lazy(() => import("../components/MusicianRepertoireSection"));
+const RelatedMusicians = lazy(() => import("../components/RelatedMusicians"));
+const MusicianEquipment = lazy(() => import("../components/MusicianEquipment"));
+
+const getStoredUserId = () =>
+  sessionStorage.getItem("userId") || localStorage.getItem("userId") || null;
 
 // Calculate average rating from reviews, rounded to nearest 0.5
 const calculateAverageRating = (reviews) => {
@@ -42,6 +45,7 @@ const Musician = () => {
     selectedDate,
     selectedAddress,
     setShowSearch,
+    setShortlistedActs,
   } = useContext(ShopContext);
   const { cartItems, removeFromCart } = useContext(ShopContext); // 👈 Import removeFromCart and cartItems
   const [selectedCounty, setSelectedCounty] = useState(
@@ -119,7 +123,7 @@ const Musician = () => {
     }
   }, [location]);
   // Deep debug logging after useContext calls
-  console.log("🧠 RENDERING Act.jsx");
+  console.log("🎵 RENDERING Musician.jsx");
   console.log("🛒 ShopContext values:", {
     acts,
     selectedDate,
@@ -159,6 +163,9 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData || nul
   // Gallery Carousel logic
   const galleryRef = useRef(null);
 
+  const videoContainerRef = useRef(null);
+  const [videoVisible, setVideoVisible] = useState(false);
+
   const scrollGallery = (direction) => {
     if (galleryRef.current) {
       const scrollAmount = direction === "left" ? -400 : 400;
@@ -166,19 +173,21 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData || nul
     }
   };
 
-  // verify latest reply on this act+date
+  // verify latest reply on this act+date (deferred)
   useEffect(() => {
     let abort = false;
-    (async () => {
+    const idle = (fn) =>
+      ("requestIdleCallback" in window)
+        ? window.requestIdleCallback(fn, { timeout: 1500 })
+        : setTimeout(fn, 400);
+
+    const run = async () => {
       try {
         if (!actData?._id || !selectedDate) {
-          setIsYesForSelectedDate(null);
+          if (!abort) setIsYesForSelectedDate(null);
           return;
         }
-
         const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
-
-        // Always hit the backend directly (no relative Netlify paths)
         const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
         const url = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
         url.searchParams.set("date", dateISO);
@@ -186,22 +195,35 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData || nul
 
         const resp = await fetch(url.toString(), { headers: { accept: "application/json" } });
         const text = await resp.text();
-
         let data = {};
         try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
-
         if (!abort) {
-          // Accept a few possible shapes
           const latest = data?.latestReply ?? data?.reply ?? data?.status ?? "";
           setIsYesForSelectedDate(String(latest).toLowerCase() === "yes");
         }
       } catch {
         if (!abort) setIsYesForSelectedDate(null);
       }
-    })();
+    };
 
+    idle(run);
     return () => { abort = true; };
   }, [actData?._id, selectedDate]);
+  useEffect(() => {
+    const el = videoContainerRef.current;
+    if (!el || videoVisible) return;
+
+    const onIntersect = (entries) => {
+      if (entries[0]?.isIntersecting) {
+        setVideoVisible(true);
+        observer.disconnect();
+      }
+    };
+
+    const observer = new window.IntersectionObserver(onIntersect, { threshold: 0.25 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [videoVisible]);
 
   useEffect(() => {
     const fetchShortlist = async (userId) => {
@@ -528,7 +550,7 @@ useEffect(() => {
     </div>
 
     {/* HERO */}
-    <MusicianHero musicianId={musicianId} />
+    <MusicianHero musicianId={musicianId} acts={acts} />
 
     {/* ===== ROW 1: LEFT (video + thumbs + bio), RIGHT (in brief) ===== */}
     <div className="border-t-2 pt-10">
@@ -560,14 +582,47 @@ useEffect(() => {
                 if (!selectedVideoId) return null; // hide if none
 
                 return (
-                  <iframe
-                    className="w-full h-full object-contain aspect-video rounded"
-                    src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&showinfo=0&controls=0`}
-                    title="YouTube video player"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+                  <div ref={videoContainerRef} className="w-full h-full">
+                    {videoVisible ? (
+                      <iframe
+                        className="w-full h-full object-contain aspect-video rounded"
+                        src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&showinfo=0&controls=0`}
+                        title="YouTube video player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setVideoVisible(true)}
+                        className="w-full h-full rounded overflow-hidden relative group"
+                        aria-label="Play video"
+                      >
+                        <img
+                          src={`https://img.youtube.com/vi/${selectedVideoId}/hqdefault.jpg`}
+                          alt="Video poster"
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        <span
+                          className="absolute inset-0 grid place-items-center"
+                          aria-hidden
+                        >
+                          <span className="w-16 h-16 rounded-full bg-black/60 group-hover:bg-black/70 transition"/>
+                          <span
+                            className="absolute w-0 h-0"
+                            style={{
+                              borderLeft: "18px solid white",
+                              borderTop: "12px solid transparent",
+                              borderBottom: "12px solid transparent",
+                              marginLeft: "-8px",
+                            }}
+                          />
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 );
               })()}
             </div>
@@ -1002,11 +1057,13 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
       {/* ===== REPERTOIRE (full width) ===== */}
       <Section when={content.hasRepertoire}>
         <div className="w-full mt-10">
-          <MusicianRepertoireSection
-            selectedSongs={Array.isArray(actData?.selectedSongs) ? actData.selectedSongs : []}
-            actData={actData}
-            addToCart={addToCart}
-          />
+          <Suspense fallback={<div className="h-40 bg-gray-100 animate-pulse rounded" /> }>
+            <MusicianRepertoireSection
+              selectedSongs={Array.isArray(actData?.selectedSongs) ? actData.selectedSongs : []}
+              actData={actData}
+              addToCart={addToCart}
+            />
+          </Suspense>
         </div>
       </Section>
 
@@ -1020,7 +1077,9 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
               <Title text1={getPossessiveTitleCase(`${actData?.firstName || ""}`)} text2="EQUIPMENT" />
             </div>
             <div className="relative">
-              <MusicianEquipment actData={actData} />
+              <Suspense fallback={<div className="h-48 bg-gray-100 animate-pulse rounded" /> }>
+                <MusicianEquipment actData={actData} />
+              </Suspense>
             </div>
           </div>
         </Section>
@@ -1029,12 +1088,14 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
       {/* ===== RELATED MUSICIANS (full width) ===== */}
       <Section when={content.hasRelated}>
         <div className="w-full mt-12">
-          <RelatedMusicians
-            genres={Array.isArray(actData?.vocals?.genres) ? actData.vocals.genres : []}
-            instruments={Array.isArray(actData?.instrumentation) ? actData.instrumentation.map((i) => i?.instrument).filter(Boolean) : []}
-            vocalist={Array.isArray(actData?.vocals?.type) ? actData.vocals.type[0] || "" : ""}
-            currentActId={actData?._id}
-          />
+          <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded" /> }>
+            <RelatedMusicians
+              genres={Array.isArray(actData?.vocals?.genres) ? actData.vocals.genres : []}
+              instruments={Array.isArray(actData?.instrumentation) ? actData.instrumentation.map((i) => i?.instrument).filter(Boolean) : []}
+              vocalist={Array.isArray(actData?.vocals?.type) ? actData.vocals.type[0] || "" : ""}
+              currentActId={actData?._id}
+            />
+          </Suspense>
         </div>
       </Section>
     </div>
