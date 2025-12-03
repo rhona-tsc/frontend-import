@@ -48,10 +48,18 @@ const ActHero = ({
     }
   }, [act, actId, acts]);
 
-  const rawUrl = heroUrl || actData?.coverImage?.[0]?.url || actData?.images?.[0]?.url || "";
-  if (!rawUrl) {
+  // Resolve the actual hero source in priority order:
+  // 1) explicit heroUrl prop; 2) coverImage[0]; 3) images[0]
+  const rawUrl =
+    heroUrl ||
+    actData?.coverImage?.[0]?.url ||
+    actData?.images?.[0]?.url ||
+    "";
+
+  if (!actData || !rawUrl) {
     return null;
   }
+
   const placeholder = cldBlur(rawUrl);
 
   // Fallbacks if hero props aren't provided
