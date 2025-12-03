@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import PropTypes from "prop-types";
 import { assets } from "../assets/assets";
 import { ShopContext } from "../context/ShopContext";
+import { Helmet } from "react-helmet-async";
 
 /** Cloudinary helper: injects transforms */
 const cld = (url, { w, h, crop = "fill", gravity = "auto", q = "auto", fmt = "auto" } = {}) => {
@@ -71,99 +72,113 @@ const ActHero = ({ actId, acts, hideHeart = false }) => {
   };
 
   return (
-    <div className="relative w-full max-w-full">
-      {/* Image layer */}
-      <div className="relative w-full aspect-video rounded-md overflow-hidden">
-        {/* LQIP placeholder */}
-        <img
-          src={placeholder}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover blur-md scale-105"
+    <>
+      {/* ✅ Preload THIS page’s hero at the correct size */}
+      <Helmet prioritizeSeoTags>
+        <link
+          rel="preload"
+          as="image"
+          href={src}
+          imagesrcset={srcSet}
+          imagesizes="100vw"
+          crossOrigin="anonymous"
         />
+      </Helmet>
 
-        {/* Sharp hero image */}
-        <img
-          src={src}
-          srcSet={srcSet}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 100vw"
-          alt={actData.tscName || actData.name || "Act hero image"}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-400 ${
-            loaded ? "opacity-100" : "opacity-0"
-          }`}
-          decoding="async"
-          loading="eager"             /* above the fold */
-          fetchpriority="high"        /* hint: start ASAP */
-          onLoad={() => setLoaded(true)}
-        />
-
-        {/* Top-left heart */}
-        {!hideHeart && (
-          <button
-            onClick={handleHeartClick}
-            disabled={isAnimating}
-            className="absolute top-4 left-4 p-2 z-20 hidden lg:block"
-            aria-label={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
-          >
-            <div className="relative flex items-center justify-center">
-              {isShortlisted ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="#ff6667"
-                  stroke="#cc5253"
-                  strokeWidth={1}
-                  viewBox="0 0 24 24"
-                  className={`w-8 h-8 transition-transform duration-200 ${isAnimating ? "scale-125" : ""}`}
-                >
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill={isAnimating ? "#ff6667" : "none"}
-                  stroke="#ffffff"
-                  strokeWidth={1}
-                  viewBox="0 0 24 24"
-                  className={`w-8 h-8 transition-transform duration-200 ${isAnimating ? "scale-125" : ""}`}
-                >
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                </svg>
-              )}
-            </div>
-          </button>
-        )}
-
-        {/* Bestseller badge */}
-        {actData.bestseller && (
+      <div className="relative w-full max-w-full">
+        {/* Image layer */}
+        <div className="relative w-full aspect-video rounded-md overflow-hidden">
+          {/* LQIP placeholder */}
           <img
-            src={assets.client_fave_icon}
-            alt="Client Favourite Badge"
-            className={`absolute ${hideHeart ? "top-2 right-2 w-[80px] h-[80px]" : "bottom-2 right-2 w-[150px] h-[150px] sm:w-[150px] sm:h-[150px]"} hidden lg:block`}
-            decoding="async"
-            loading="lazy"
+            src={placeholder}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover blur-md scale-105"
           />
-        )}
 
-        {/* Overlay content */}
-        <div className={`absolute inset-0 grid place-items-center`}>
-          <div className={`bg-black/50 ${hideHeart ? "h-[50%] p-6 rounded" : "p-6 rounded"} text-center max-w-2xl`}>
-            {!hideHeart && (
-              <div className="hidden md:flex items-center gap-2 justify-center mb-2 text-sm tracking-wider text-white">
-                <span className="w-8 h-[2px] bg-white inline-block" />
-                <span>BOOK NOW</span>
-                <span className="w-8 h-[2px] bg-white inline-block" />
+          {/* Sharp hero image */}
+          <img
+            src={src}
+            srcSet={srcSet}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 100vw"
+            alt={actData.tscName || actData.name || "Act hero image"}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-400 ${
+              loaded ? "opacity-100" : "opacity-0"
+            }`}
+            decoding="async"
+            loading="eager"          /* above the fold */
+            fetchpriority="high"     /* hint: start ASAP */
+            onLoad={() => setLoaded(true)}
+          />
+
+          {/* Top-left heart */}
+          {!hideHeart && (
+            <button
+              onClick={handleHeartClick}
+              disabled={isAnimating}
+              className="absolute top-4 left-4 p-2 z-20 hidden lg:block"
+              aria-label={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
+            >
+              <div className="relative flex items-center justify-center">
+                {isShortlisted ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="#ff6667"
+                    stroke="#cc5253"
+                    strokeWidth={1}
+                    viewBox="0 0 24 24"
+                    className={`w-8 h-8 transition-transform duration-200 ${isAnimating ? "scale-125" : ""}`}
+                  >
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill={isAnimating ? "#ff6667" : "none"}
+                    stroke="#ffffff"
+                    strokeWidth={1}
+                    viewBox="0 0 24 24"
+                    className={`w-8 h-8 transition-transform duration-200 ${isAnimating ? "scale-125" : ""}`}
+                  >
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                )}
               </div>
-            )}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-snug text-white">
-              {actData.tscName}
-            </h1>
-            <div className="hidden md:flex items-center gap-2 justify-center mt-4 text-sm tracking-wider text-white">
-              <span>{actData.tscDescription}</span>
+            </button>
+          )}
+
+          {/* Bestseller badge */}
+          {actData.bestseller && (
+            <img
+              src={assets.client_fave_icon}
+              alt="Client Favourite Badge"
+              className={`absolute ${hideHeart ? "top-2 right-2 w-[80px] h-[80px]" : "bottom-2 right-2 w-[150px] h-[150px] sm:w-[150px] sm:h-[150px]"} hidden lg:block`}
+              decoding="async"
+              loading="lazy"
+            />
+          )}
+
+          {/* Overlay content */}
+          <div className="absolute inset-0 grid place-items-center">
+            <div className={`bg-black/50 ${hideHeart ? "h-[50%] p-6 rounded" : "p-6 rounded"} text-center max-w-2xl`}>
+              {!hideHeart && (
+                <div className="hidden md:flex items-center gap-2 justify-center mb-2 text-sm tracking-wider text-white">
+                  <span className="w-8 h-[2px] bg-white inline-block" />
+                  <span>BOOK NOW</span>
+                  <span className="w-8 h-[2px] bg-white inline-block" />
+                </div>
+              )}
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-snug text-white">
+                {actData.tscName}
+              </h1>
+              <div className="hidden md:flex items-center gap-2 justify-center mt-4 text-sm tracking-wider text-white">
+                <span>{actData.tscDescription}</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
