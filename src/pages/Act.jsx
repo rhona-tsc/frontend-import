@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useRef } from "react";
+import React, { useContext, useState, useEffect, useRef, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
@@ -30,6 +30,7 @@ import {
 } from "./utils/helpersforAct";
 import useRenderTracker from "../hooks/useRenderTracker";
  import { logBadges } from "../utils/logger";
+import { readCachedAct, writeCachedAct } from "../utils/actCache";
 
 const Act = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -71,6 +72,14 @@ const Act = () => {
   // 🧹 Track locally cleared availability badges
   const [clearedBadges, setClearedBadges] = useState(new Set());
   const [price, setPrice] = useState(null);
+// at top of Act.jsx
+const RepertoireSectionLazy = React.lazy(() => import("../components/RepertoireSection"));
+const AcousticExtrasSelectorLazy = React.lazy(() => import("../components/AcousticExtrasSelector"));
+const ActPerformanceOverviewLazy = React.lazy(() => import("../components/ActPerformanceOverview"));
+const RelatedActsLazy = React.lazy(() => import("../components/RelatedActs"));
+const DEBUG = import.meta?.env?.DEV ?? false; // on in dev
+const log = (...a) => { if (DEBUG) console.log(...a); };
+
 
   useRenderTracker("Act", {
   actId,
@@ -82,6 +91,10 @@ const Act = () => {
 });
 
   const id = extractVideoId(video);
+const cld = (url, w = 900) =>
+  typeof url === "string" && url.includes("/upload/")
+    ? url.replace("/upload/", `/upload/f_auto,q_auto,w_${w}/`)
+    : url;
 
   // Gallery Carousel logic
   const galleryRef = useRef(null);
@@ -96,13 +109,37 @@ const lastActIdRef = React.useRef(null);
     }
   };
 
-  const handleInputChange = (actId, date, address) => {
-    // update local UI state first
-    setSelectedDate(date);
-    setSelectedAddress(address);
-    // then trigger backend update
-    handleDateOrAddressChange(actId);
-  };
+function VisibleOnScroll({ children, rootMargin = "200px", once = true }) {
+  const [show, setShow] = React.useState(false);
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    // If already shown (and once=true), don’t re-observe
+    if (show && once) return;
+
+    const el = ref.current;
+    // Fallback if IO isn’t available (SSR/old browser)
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setShow(true);
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShow(true);
+          if (once) io.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+
+    io.observe(el);
+    return () => io.disconnect();
+  }, [show, once, rootMargin]);
+
+  return <div ref={ref}>{show ? children : null}</div>;
+}
 
 const badgeVersion = (b = {}) => {
   const keys = Object.keys(b);
@@ -178,14 +215,12 @@ const visibleBadges = React.useMemo(() => {
 }, [actData?.availabilityBadges, clearedBadges]);
 
 useEffect(() => {
-  if (!actId) return;
+  if (!actId || !selectedDate || !actData) return;
 
-  // If we already have a live connection for this act, don't open another
-  if (sseRef.current && lastActIdRef.current === String(actId)) {
-    return;
-  }
+  // keep the existing connection if it's already for this actId
+  if (sseRef.current && lastActIdRef.current === String(actId)) return;
 
-  // Close any previous connection (e.g., StrictMode re-mount)
+  // close any previous connection
   if (sseRef.current) {
     try { sseRef.current.close(); } catch {}
     sseRef.current = null;
@@ -199,9 +234,7 @@ useEffect(() => {
   const onMessage = async (e) => {
     try {
       const data = JSON.parse(e.data);
-      // ✅ Only act on known types
       if (!["availability_yes","availability_deputy_yes","availability_badge_updated"].includes(data.type)) return;
-      // ✅ Only act on this act
       if (String(data.actId) !== String(actId)) return;
 
       const cleanDate = (data.dateISO || "").slice(0,10) || (selectedDate || "").slice(0,10);
@@ -212,62 +245,36 @@ useEffect(() => {
         return;
       }
 
-      const badge = await fetchBadgeForActAndDate(actId, cleanDate);
-      if (badge) {
-        setActData(prev => ({
-          ...prev,
-          availabilityBadges: {
-            ...(prev?.availabilityBadges || {}),
-            [cleanDate]: badge,
-          },
-        }));
-      }
+      await refreshBadgeFor(cleanDate);
     } catch (err) {
       console.error("⚠️ SSE message error", err);
     }
   };
 
-  const onError = (err) => {
-    console.warn("⚠️ SSE connection error", err);
-  };
+  const onError = (err) => console.warn("⚠️ SSE connection error", err);
+  const onOpen = () => console.log("📡 [SSE] Connection established");
 
   es.addEventListener("message", onMessage);
   es.addEventListener("error", onError);
-  es.addEventListener("open", () => console.log("📡 [SSE] Connection established"));
+  es.addEventListener("open", onOpen);
 
   return () => {
-    // Clean up *this* instance only
     es.removeEventListener("message", onMessage);
     es.removeEventListener("error", onError);
+    es.removeEventListener("open", onOpen);
     try { es.close(); } catch {}
     if (sseRef.current === es) {
       sseRef.current = null;
       lastActIdRef.current = null;
     }
   };
-// ❗️only reconnect if actId changes; NOT on selectedDate changes
-}, [actId]);
+}, [actId, selectedDate, !!actData]);
 
-  useEffect(() => {
-    if (!actId || !selectedDate) return;
-
-    const cleanDate = selectedDate.slice(0, 10);
-
-    fetchBadgeForActAndDate(actId, cleanDate).then((badge) => {
-      if (!badge) {
-        return;
-      }
-
-      // Merge the badge into actData
-      setActData((prev) => {
-        const updatedBadges = {
-          ...(prev?.availabilityBadges || {}),
-          [cleanDate]: badge,
-        };
-        return { ...prev, availabilityBadges: updatedBadges };
-      });
-    });
-  }, [actId, selectedDate]);
+useEffect(() => {
+  if (!actId || !selectedDate || !actData) return;
+  const cleanDate = selectedDate.slice(0,10);
+  refreshBadgeFor(cleanDate);
+}, [actId, selectedDate, !!actData]);
 
   // verify latest reply on this act+date (use stable actId to avoid stale state)
   useEffect(() => {
@@ -379,84 +386,65 @@ useEffect(() => {
     };
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      if (!actId) return;
+useEffect(() => {
+  if (!actId) return;
+  let cancelled = false;
 
-      // 1️⃣ Try to find act in cached list first
-      let foundAct = acts.find((item) => item._id === actId);
+  // 1) paint instantly if we have a cache
+  const cached = readCachedAct(actId);
+  if (cached) {
+    const avg = calculateAverageRating(cached.reviews || []);
+    setActData({ ...cached, averageRating: avg });
+    setSelectedLineup(cached.lineups?.[0] || null);
+    setVideo(cached.videos?.[0]?.url || "");
+  }
 
-      // 2️⃣ If not found or missing key fields, fetch full version from backend
-      if (
-        !foundAct ||
-        !foundAct.lineups ||
-        !Array.isArray(foundAct.lineups) ||
-        !foundAct.numberOfSets ||
-        !foundAct.lengthOfSets
-      ) {
-        try {
-          const res = await fetch(
-            `${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`,
-            { headers: { accept: "application/json" } }
-          );
-          const json = await res.json();
-          if (res.ok && json?.success && json?.act) {
-            foundAct = json.act;
-          }
-        } catch (err) {
-          console.error("⚠️ Failed to fetch full act:", err);
-        }
+  // 2) refresh in background with a short timeout
+  (async () => {
+    try {
+      const ctl = new AbortController();
+      const t0 = performance.now();
+      const timeout = setTimeout(() => ctl.abort(), 6000); // fail fast at 6s
+
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`,
+        { headers: { accept: "application/json" }, signal: ctl.signal }
+      );
+      clearTimeout(timeout);
+
+      const json = await res.json();
+      log("⏱️ /api/act fetch ms:", Math.round(performance.now() - t0));
+
+      if (!cancelled && res.ok && json?.success && json?.act) {
+        const act = json.act;
+        writeCachedAct(actId, act);
+        const avg = calculateAverageRating(act.reviews || []);
+        setActData({ ...act, averageRating: avg });
+        setSelectedLineup(act.lineups?.[0] || null);
+        setVideo(act.videos?.[0]?.url || "");
       }
+    } catch {
+      // keep cached UI if any
+    }
+  })();
 
-      // 3️⃣ If we have act data, populate state
-      if (foundAct) {
-        const avgRating = calculateAverageRating(foundAct.reviews || []);
-        setActData({
-          ...foundAct,
-          averageRating: avgRating,
-        });
-
-        setVideo(foundAct.videos?.[0]?.url || "");
-
-        if (Array.isArray(foundAct.lineups) && foundAct.lineups.length > 0) {
-          setSelectedLineup(foundAct.lineups?.[0] || null);
-        }
-      }
-    })();
-  }, [actId, acts]);
+  return () => { cancelled = true; };
+}, [actId]);
 
   const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
-  const handleLineupChange = async (lineup) => {
-    setSelectedLineup(lineup);
+const priceReqKey = React.useRef("");
 
-    const selectedCounty =
-      selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+async function handleLineupChange(lineup){
+  setSelectedLineup(lineup);
+  const lineupId = lineup?._id || lineup?.lineupId;
+  const key = `${actData?._id}|${lineupId}|${selectedDate}|${selectedAddress}|${selectedCounty||""}`;
+  priceReqKey.current = key;
 
-    try {
-
-
-      const result = await calculateActPricing(
-        actData,
-        selectedCounty,
-        selectedAddress,
-        selectedDate,
-        lineup
-      );
-
-
-      if (result) {
-        setPrice({ ...result, travelCalculated: result?.travelFeeTotal > 0 });
-        setFormattedPrice(result.total);
-        setFinalTravelPrice(result); // keep for fallback if needed
-      }
-    } catch (error) {
-      console.error(
-        "❌ Error in price calculation (handleLineupChange):",
-        error
-      );
-    }
-  };
+  const result = await calculateActPricing(/*...*/);
+  if (priceReqKey.current !== key) return; // discard stale result
+  if (result) { setPrice({ ...result, travelCalculated: result?.travelFeeTotal > 0 }); }
+}
 
   useEffect(() => {
     if (!actData?.lineups?.length) {
@@ -572,6 +560,37 @@ useEffect(() => {
     selectedAddress,
     selectedDate,
   ]);
+
+  const badgeReqKeyRef = React.useRef("");
+
+const versionOf = (b = {}) => {
+  let latest = 0, n = 0;
+  for (const k of Object.keys(b)) {
+    n++;
+    const t = new Date(b[k]?.setAt || 0).getTime();
+    if (t > latest) latest = t;
+  }
+  return `${n}:${latest}`;
+};
+
+async function refreshBadgeFor(dateYYYYMMDD) {
+  if (!actId || !dateYYYYMMDD) return;
+  const key = `${actId}|${dateYYYYMMDD}`;
+  badgeReqKeyRef.current = key;
+
+  const badge = await fetchBadgeForActAndDate(actId, dateYYYYMMDD);
+  if (badgeReqKeyRef.current !== key) return; // stale result – ignore
+
+  // no-op if same version
+  setActData(prev => {
+    if (!prev) return prev;
+    const prevBadges = prev.availabilityBadges || {};
+    const nextBadges = { ...prevBadges, [dateYYYYMMDD]: badge };
+
+    if (versionOf(prevBadges) === versionOf(nextBadges)) return prev;
+    return { ...prev, availabilityBadges: nextBadges };
+  });
+}
 
   // Calculate display price: prefer price?.total, then formattedPrice, then actData formattedPrice
   const rawTotal =
@@ -1622,14 +1641,18 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                   className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory"
                   style={{ scrollBehavior: "smooth" }}
                 >
-                  {actData.images.map((imgObj, index) => (
-                    <img
-                      key={index}
-                      src={imgObj.url}
-                      alt={`Gallery image ${index + 1}`}
-                      className="w-[600px] h-[400px] object-cover rounded shadow-sm flex-shrink-0 snap-start"
-                    />
-                  ))}
+                  {(actData.images || []).map((imgObj, index) => (
+  <img
+    key={index}
+    src={cld(imgObj?.url, 900)}
+    loading="lazy"
+    decoding="async"
+    width={900}
+    height={600}
+    className="w-[600px] h-[400px] object-cover rounded shadow-sm flex-shrink-0 snap-start"
+    alt={`Gallery image ${index + 1}`}
+  />
+))}
                 </div>
                 <button
                   onClick={() => scrollGallery("right")}
@@ -1655,11 +1678,11 @@ logBadges("🐊 [Lookup] All badges", allBadges);
         {/* Left Column (60%) */}
         <div className="flex flex-col sm:flex-row gap-12 mt-10">
           <div className="w-full">
-            <RepertoireSection
-              selectedSongs={actData?.selectedSongs || []}
-              actData={actData}
-              addToCart={addToCart}
-            />
+           <Suspense fallback={null}>
+  <VisibleOnScroll>
+    <RepertoireSectionLazy selectedSongs={actData?.selectedSongs || []} actData={actData} addToCart={addToCart} />
+  </VisibleOnScroll>
+</Suspense>
           </div>
         </div>
         {/* Reviews horizontal scroll gallery */}
@@ -1748,13 +1771,17 @@ logBadges("🐊 [Lookup] All badges", allBadges);
               <div className="relative z-10">
                 {(() => {
                   return (
-                    <AcousticExtrasSelector
-                      actData={actData}
-                      lineups={actData.lineups}
-                      selectedLineup={selectedLineup}
-                      addToCart={addToCart}
-                      selectedLineupId={selectedLineup?._id}
-                    />
+                   <Suspense fallback={null}>
+  <VisibleOnScroll>
+    <AcousticExtrasSelectorLazy
+      actData={actData}
+      lineups={actData.lineups}
+      selectedLineup={selectedLineup}
+      addToCart={addToCart}
+      selectedLineupId={selectedLineup?._id}
+    />
+  </VisibleOnScroll>
+</Suspense>
                   );
                 })()}
               </div>
@@ -1938,16 +1965,24 @@ logBadges("🐊 [Lookup] All badges", allBadges);
             />
           </div>
           <div className="relative ">
-            <ActPerformanceOverview actData={actData} />
+            <Suspense fallback={null}>
+  <VisibleOnScroll>
+    <ActPerformanceOverviewLazy actData={actData} />
+  </VisibleOnScroll>
+</Suspense>
           </div>
         </div>
 
-        <RelatedActs
-          genres={actData.genre || []}
-          instruments={actData.instruments || []}
-          vocalist={actData.vocalist || ""}
-          currentActId={actData._id}
-        />
+       <Suspense fallback={null}>
+  <VisibleOnScroll>
+    <RelatedActsLazy
+      genres={actData.genre || []}
+      instruments={actData.instruments || []}
+      vocalist={actData.vocalist || ""}
+      currentActId={actData._id}
+    />
+  </VisibleOnScroll>
+</Suspense>
       </div>
     </div>
   );
