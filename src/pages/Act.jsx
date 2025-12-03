@@ -137,7 +137,7 @@ const cld = (url, {
   return url.replace("/upload/", `/upload/${t}/`);
 };
 
-const rawHero = actData?.images?.[0]?.url || "";
+const rawHero = actData?.coverImage?.[0]?.url || actData?.images?.[0]?.url || "";
 const heroUrl   = cld(rawHero, { w: 1500, ar: "3:1", fill: true });
 const heroSrcSet = [
   `${cld(rawHero, { w: 768,  ar: "3:1", fill: true })} 768w`,
