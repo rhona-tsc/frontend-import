@@ -385,12 +385,13 @@ useEffect(() => {
       el.removeEventListener("touchend", onTouchEnd);
     };
   }, []);
-
+  
+// act loader
 useEffect(() => {
   if (!actId) return;
   let cancelled = false;
 
-  // 1) paint instantly if we have a cache
+  // 1) paint instantly from cache if present
   const cached = readCachedAct(actId);
   if (cached) {
     const avg = calculateAverageRating(cached.reviews || []);
@@ -399,22 +400,20 @@ useEffect(() => {
     setVideo(cached.videos?.[0]?.url || "");
   }
 
-  // 2) refresh in background with a short timeout
-  (async () => {
+  // 2) fetch with retry (helps Render cold starts)
+  let attempt = 0;
+  const load = async () => {
+    attempt += 1;
     try {
       const ctl = new AbortController();
-      const t0 = performance.now();
-      const timeout = setTimeout(() => ctl.abort(), 6000); // fail fast at 6s
-
+      const kill = setTimeout(() => ctl.abort(), 25000); // 25s
       const res = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`,
         { headers: { accept: "application/json" }, signal: ctl.signal }
       );
-      clearTimeout(timeout);
+      clearTimeout(kill);
 
-      const json = await res.json();
-      log("⏱️ /api/act fetch ms:", Math.round(performance.now() - t0));
-
+      const json = await res.json().catch(() => ({}));
       if (!cancelled && res.ok && json?.success && json?.act) {
         const act = json.act;
         writeCachedAct(actId, act);
@@ -422,12 +421,21 @@ useEffect(() => {
         setActData({ ...act, averageRating: avg });
         setSelectedLineup(act.lineups?.[0] || null);
         setVideo(act.videos?.[0]?.url || "");
+        return; // success
       }
-    } catch {
-      // keep cached UI if any
+      throw new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      if (cancelled) return;
+      // retry up to 3 times with small backoff
+      if (attempt < 3) {
+        setTimeout(load, attempt * 1500);
+      } else {
+        console.warn("⚠️ /api/act fetch failed after retries", e);
+      }
     }
-  })();
+  };
 
+  load();
   return () => { cancelled = true; };
 }, [actId]);
 
@@ -624,10 +632,13 @@ async function refreshBadgeFor(dateYYYYMMDD) {
       ? shortlistedActs.includes(actData._id)
       : false;
 
-  // Ensure hooks above always run; show loading UI after hooks are set up
-  if (!actData || !selectedLineup) {
-    return <div className="p-4 text-gray-500">Loading act details...</div>;
-  }
+// ✅ new: render as soon as actData exists; handle "no lineup" gracefully
+if (!actData) {
+  return <div className="p-4 text-gray-500">Loading act details...</div>;
+}
+
+// use a safe local reference everywhere you read selectedLineup
+const safeSelectedLineup = selectedLineup || actData.lineups?.[0] || null;
 
   return (
     <div className="p-4">
@@ -866,7 +877,7 @@ async function refreshBadgeFor(dateYYYYMMDD) {
                   </button>
                   <button
                     onClick={async () => {
-                      if (!selectedLineup) {
+                      if (!safeSelectedLineup) {
                         console.warn(
                           "⚠️ No lineup selected before adding to cart"
                         );
@@ -877,7 +888,7 @@ async function refreshBadgeFor(dateYYYYMMDD) {
                       if (!isInCart) {
                         addToCart(
                           actData._id,
-                          selectedLineup._id || selectedLineup.lineupId
+                          safeSelectedLineup._id || safeSelectedLineup.lineupId
                         );
                         toast(
                           <CustomToast
@@ -912,7 +923,7 @@ async function refreshBadgeFor(dateYYYYMMDD) {
                         );
                         addToCart(
                           actData._id,
-                          selectedLineup._id || selectedLineup.lineupId
+                          safeSelectedLineup._id || safeSelectedLineup.lineupId
                         );
                         toast(
                           <CustomToast
@@ -964,11 +975,11 @@ async function refreshBadgeFor(dateYYYYMMDD) {
               </p>
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">
-                  {generateDescription(selectedLineup) || "Add a Linuep"}
+                  {generateDescription(safeSelectedLineup) || "Add a Linuep"}
                 </p>
                 <div className="flex flex-wrap gap-2 text-lg justify-start ml-3">
                   {actData.lineups?.map((item, index) => {
-                    const isSelected = item === selectedLineup;
+                    const isSelected = item === safeSelectedLineup;
                     return (
                       <button
                         key={index}
@@ -1220,11 +1231,11 @@ logBadges("🐊 [Lookup] All badges", allBadges);
             {/* ✅ Lineup Selection (Now Updates Price Instantly) */}
             <div className="flex flex-col gap-4 my-2">
               <p className="text-lg text-gray-600 m-3">
-                {generateDescription(selectedLineup) || "Add a Linuep"}
+                {generateDescription(safeSelectedLineup) || "Add a Linuep"}
               </p>
               <div className="flex flex-wrap gap-2 text-lg justify-start ml-3">
                 {actData.lineups?.map((item, index) => {
-                  const isSelected = item === selectedLineup;
+                  const isSelected = item === safeSelectedLineup;
 
                   return (
                     <button
@@ -1573,7 +1584,7 @@ logBadges("🐊 [Lookup] All badges", allBadges);
 
               <button
                 onClick={async () => {
-                  if (!selectedLineup) {
+                  if (!safeSelectedLineup) {
                     console.warn("⚠️ No lineup selected before adding to cart");
                     return;
                   }
@@ -1597,7 +1608,7 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                     // add selected lineup
                     addToCart(
                       actData._id,
-                      selectedLineup._id || selectedLineup.lineupId
+                      safeSelectedLineup._id || safeSelectedLineup.lineupId
                     );
                     toast(
                       <CustomToast type="success" message="Added to cart!" />,
@@ -1776,9 +1787,9 @@ logBadges("🐊 [Lookup] All badges", allBadges);
     <AcousticExtrasSelectorLazy
       actData={actData}
       lineups={actData.lineups}
-      selectedLineup={selectedLineup}
+      safeSelectedLineup={safeSelectedLineup}
       addToCart={addToCart}
-      selectedLineupId={selectedLineup?._id}
+      safeSelectedLineupId={safeSelectedLineup?._id}
     />
   </VisibleOnScroll>
 </Suspense>
@@ -1808,10 +1819,10 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                       if (!price || isNaN(price)) return null;
 
                       const fee = price;
-                      // Use the actual selectedLineup size for per-member extras
+                      // Use the actual safeSelectedLineup size for per-member extras
                       const selectedLineupSize = parseInt(
-                        selectedLineup?.actSize ||
-                          selectedLineup?.bandMembers?.length ||
+                        safeSelectedLineup?.actSize ||
+                          safeSelectedLineup?.bandMembers?.length ||
                           0
                       );
                       const name = actData.name || "this act";
@@ -1923,9 +1934,9 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                             alt="Add to cart"
                             className="w-4 h-4 cursor-pointer justify-self-end"
                             onClick={() => {
-                              if (!selectedLineup || !actData?._id) return;
+                              if (!safeSelectedLineup || !actData?._id) return;
                               const lineupId =
-                                selectedLineup._id || selectedLineup.lineupId;
+                                safeSelectedLineup._id || safeSelectedLineup.lineupId;
                               const extra = {
                                 name: label,
                                 price: finalFee,
