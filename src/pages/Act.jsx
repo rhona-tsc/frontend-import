@@ -69,7 +69,8 @@ const Act = () => {
   // 🧹 Track locally cleared availability badges
   const [clearedBadges, setClearedBadges] = useState(new Set());
   const [price, setPrice] = useState(null);
-
+// UI shimmer while price computes
+const [isPriceLoading, setIsPriceLoading] = useState(false);
   // 🔎 Prefer reviews, fall back to tscReviews/testimonials
 const reviews = React.useMemo(() => {
   if (Array.isArray(actData?.reviews) && actData.reviews.length) return actData.reviews;
@@ -214,6 +215,45 @@ const badgeVersion = (b = {}) => {
   }
   return `${keys.length}:${latest}`;
 };
+
+async function handleLineupChange(lineup){
+  setSelectedLineup(lineup);
+  const lineupId = lineup?._id || lineup?.lineupId;
+  const key = `${actData?._id}|${lineupId}|${selectedDate}|${selectedAddress}|${selectedCounty||""}`;
+  priceReqKey.current = key;
+
+  // turn on shimmer
+  setIsPriceLoading(true);
+
+  const hasCountyTable =
+    actData?.useCountyTravelFee &&
+    actData?.countyFees &&
+    Object.keys(actData.countyFees).length > 0;
+
+  try {
+    const result = await calculateActPricing(
+      actData,
+      hasCountyTable ? selectedCounty : null,
+      selectedAddress,
+      selectedDate,
+      lineup
+    );
+
+    if (priceReqKey.current !== key) return; // stale result
+
+    if (result) {
+      setPrice({
+        ...result,
+        travelCalculated: !!result?.travelFeeTotal && result.travelFeeTotal > 0,
+      });
+      setFinalTravelPrice(result);
+    }
+  } catch (e) {
+    console.error("❌ handleLineupChange pricing failed", e);
+  } finally {
+    if (priceReqKey.current === key) setIsPriceLoading(false);
+  }
+}
 
 useEffect(() => {
   if (!actData) return;
@@ -570,120 +610,129 @@ async function handleLineupChange(lineup){
   if (result) { setPrice({ ...result, travelCalculated: result?.travelFeeTotal > 0 }); }
 }
 
-  useEffect(() => {
-    if (!actData?.lineups?.length) {
-      // show base if available and bail
-      const lineup = actData?.lineups?.[0];
-      const base =
-        actData?.formattedPrice?.total ??
-        lineup?.base_fee?.[0]?.total_fee ??
-        null;
-      if (base != null) {
-        setPrice({
-          total: Number(String(base).replace(/[^0-9.+-]/g, "")),
-          travelCalculated: false,
-        });
-      }
-      return;
+useEffect(() => {
+  if (!actData) return;
+
+  setIsPriceLoading(true);
+
+  if (!actData?.lineups?.length) {
+    // show base if available and bail
+    const lineup = actData?.lineups?.[0];
+    const base =
+      actData?.formattedPrice?.total ??
+      lineup?.base_fee?.[0]?.total_fee ??
+      null;
+    if (base != null) {
+      setPrice({
+        total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+        travelCalculated: false,
+      });
     }
+    setIsPriceLoading(false);
+    return;
+  }
 
-    const hasAnyLocation = !!(selectedAddress || selectedCounty);
-    if (!selectedDate || !hasAnyLocation) {
-      const lineup = actData.lineups[0];
-      const base =
-        actData?.formattedPrice?.total ??
-        lineup?.base_fee?.[0]?.total_fee ??
-        null;
-      if (base != null) {
-        setPrice({
-          total: Number(String(base).replace(/[^0-9.+-]/g, "")),
-          travelCalculated: false,
-        });
-      }
-      return;
-    }
-
-    const hasCountyTable =
-      actData.useCountyTravelFee &&
-      actData.countyFees &&
-      Object.keys(actData.countyFees).length > 0;
-
+  const hasAnyLocation = !!(selectedAddress || selectedCounty);
+  if (!selectedDate || !hasAnyLocation) {
     const lineup = actData.lineups[0];
-
-    const key = makePriceKey({
-      actId: actData._id,
-      lineupId: lineup?._id || lineup?.lineupId,
-      dateISO: selectedDate,
-      address: selectedAddress || "",
-      county: hasCountyTable ? selectedCounty : "",
-    });
-
-    const cached = priceCache.get(key);
-    if (cached) {
-      setPrice(cached);
-      setFinalTravelPrice(cached);
-      return;
+    const base =
+      actData?.formattedPrice?.total ??
+      lineup?.base_fee?.[0]?.total_fee ??
+      null;
+    if (base != null) {
+      setPrice({
+        total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+        travelCalculated: false,
+      });
     }
+    setIsPriceLoading(false);
+    return;
+  }
 
-    (async () => {
-      try {
-        const pricingResults = await calculateActPricing(
-          actData,
-          hasCountyTable ? selectedCounty : null,
-          selectedAddress,
-          selectedDate,
-          lineup
-        );
+  const hasCountyTable =
+    actData.useCountyTravelFee &&
+    actData.countyFees &&
+    Object.keys(actData.countyFees).length > 0;
 
-        const base =
-          actData?.formattedPrice?.total ??
-          lineup?.base_fee?.[0]?.total_fee ??
-          0;
+  const lineup = actData.lineups[0];
 
-        const final =
-          pricingResults && pricingResults.total != null
-            ? pricingResults
-            : {
-                total: Number(String(base).replace(/[^0-9.+-]/g, "")),
-                travelCalculated: false,
-              };
+  const key = makePriceKey({
+    actId: actData._id,
+    lineupId: lineup?._id || lineup?.lineupId,
+    dateISO: selectedDate,
+    address: selectedAddress || "",
+    county: hasCountyTable ? selectedCounty : "",
+  });
 
-        priceCache.set(key, final);
-        setFinalTravelPrice(final);
-        setPrice({
-          total: final.total,
-          travelCalculated: !!final.travelCalculated,
-          travelFeeTotal: final.travelFeeTotal ?? 0,
-        });
-      } catch (err) {
-        console.error("❌ Failed to calculate price:", {
-          err,
-          actId: actData?._id,
-          useCountyTravelFee: actData?.useCountyTravelFee,
-        });
-        const base =
-          actData?.formattedPrice?.total ??
-          lineup?.base_fee?.[0]?.total_fee ??
-          null;
-        if (base != null) {
-          const fallback = {
-            total: Number(String(base).replace(/[^0-9.+-]/g, "")),
-            travelCalculated: false,
-          };
-          setPrice(fallback);
-          setFinalTravelPrice(fallback);
-        }
+  const cached = priceCache.get(key);
+  if (cached) {
+    setPrice(cached);
+    setFinalTravelPrice(cached);
+    setIsPriceLoading(false);
+    return;
+  }
+
+  (async () => {
+    try {
+      const pricingResults = await calculateActPricing(
+        actData,
+        hasCountyTable ? selectedCounty : null,
+        selectedAddress,
+        selectedDate,
+        lineup
+      );
+
+      const base =
+        actData?.formattedPrice?.total ??
+        lineup?.base_fee?.[0]?.total_fee ??
+        0;
+
+      const final =
+        pricingResults && pricingResults.total != null
+          ? pricingResults
+          : {
+              total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+              travelCalculated: false,
+            };
+
+      priceCache.set(key, final);
+      setFinalTravelPrice(final);
+      setPrice({
+        total: final.total,
+        travelCalculated: !!final.travelCalculated,
+        travelFeeTotal: final.travelFeeTotal ?? 0,
+      });
+    } catch (err) {
+      console.error("❌ Failed to calculate price:", {
+        err,
+        actId: actData?._id,
+        useCountyTravelFee: actData?.useCountyTravelFee,
+      });
+      const base =
+        actData?.formattedPrice?.total ??
+        lineup?.base_fee?.[0]?.total_fee ??
+        null;
+      if (base != null) {
+        const fallback = {
+          total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+          travelCalculated: false,
+        };
+        setPrice(fallback);
+        setFinalTravelPrice(fallback);
       }
-    })();
-  }, [
-    actData?._id,
-    actData?.lineups?.length,
-    actData?.useCountyTravelFee,
-    actData?.countyFees && Object.keys(actData.countyFees).length,
-    selectedCounty,
-    selectedAddress,
-    selectedDate,
-  ]);
+    } finally {
+      setIsPriceLoading(false);
+    }
+  })();
+}, [
+  actData?._id,
+  actData?.lineups?.length,
+  actData?.useCountyTravelFee,
+  actData?.countyFees && Object.keys(actData.countyFees).length,
+  selectedCounty,
+  selectedAddress,
+  selectedDate,
+]);
 
   const badgeReqKeyRef = React.useRef("");
 
@@ -1085,32 +1134,24 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
                 </div>
               )}
               <p className="mt-5 text-3xl font-medium p-3">
-                {(() => {
-                  const rawTotal =
-                    price?.total ??
-                    formattedPrice ??
-                    actData?.formattedPrice?.total ??
-                    null;
-                  const cleanTotal =
-                    price?.total ??
-                    finalTravelPrice?.total ??
-                    actData?.formattedPrice ??
-                    null;
+             {isPriceLoading ? (
+  <span className="inline-block h-7 w-36 rounded bg-gray-200 animate-pulse align-middle" />
+) : (() => {
 
-                  // Prefer travelFeeTotal in price breakdowns if available
-                  const travelFeeDisplay =
-                    price?.travelFeeTotal ??
-                    finalTravelPrice?.travelFeeTotal ??
-                    null;
 
-                  if (cleanTotal != null) {
-                    return price?.travelCalculated ||
-                      finalTravelPrice?.travelCalculated
-                      ? `£${cleanTotal}`
-                      : `from £${cleanTotal}`;
-                  }
-                  return "Loading price...";
-                })()}
+  const cleanTotal =
+    price?.total ??
+    finalTravelPrice?.total ??
+    actData?.formattedPrice?.total ??
+    null;
+
+  if (cleanTotal != null) {
+    return price?.travelCalculated || finalTravelPrice?.travelCalculated
+      ? `£${cleanTotal}`
+      : `from £${cleanTotal}`;
+  }
+  return ""; // nothing if not ready
+})()}
               </p>
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">
