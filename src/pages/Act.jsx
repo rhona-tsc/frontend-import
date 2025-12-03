@@ -119,10 +119,32 @@ const log = (...a) => { if (DEBUG) console.log(...a); };
 });
 
   const id = extractVideoId(video);
-const cld = (url, w = 900) =>
-  typeof url === "string" && url.includes("/upload/")
-    ? url.replace("/upload/", `/upload/f_auto,q_auto,w_${w}/`)
-    : url;
+
+const cld = (url, {
+  w = 1500,        // target width
+  ar = "3:1",      // hero banner aspect
+  fill = true,     // crop to aspect
+  q = "auto:good", // good quality at small size
+} = {}) => {
+  if (!url || !url.includes("/upload/")) return url || "";
+  const t = [
+    "f_auto",           // AVIF/WebP/JPEG automatically
+    `q_${q}`,           // quality
+    "dpr_auto",         // retina-friendly
+    fill ? `c_fill,g_auto,ar_${ar}` : "c_scale",
+    `w_${w}`,
+  ].join(",");
+  return url.replace("/upload/", `/upload/${t}/`);
+};
+
+const rawHero = actData?.images?.[0]?.url || "";
+const heroUrl   = cld(rawHero, { w: 1500, ar: "3:1", fill: true });
+const heroSrcSet = [
+  `${cld(rawHero, { w: 768,  ar: "3:1", fill: true })} 768w`,
+  `${cld(rawHero, { w: 1200, ar: "3:1", fill: true })} 1200w`,
+  `${cld(rawHero, { w: 1800, ar: "3:1", fill: true })} 1800w`,
+].join(", ");
+const heroSizes = "(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1280px";
 
   // 🔺 Pre-compute hero URL for high-priority preload/render
   const heroUrlHigh = React.useMemo(() => {
@@ -796,8 +818,15 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
         />
       )}
 
-      <ActHero actId={actId} acts={acts} act={actData} heroUrl={heroUrlHigh} eager />
-      <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
+<ActHero
+  actId={actId}
+  acts={acts}
+  act={actData}
+  heroUrl={heroUrl}
+  heroSrcSet={heroSrcSet}
+  heroSizes={heroSizes}
+  eager
+/>      <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
         <div className="flex flex-col sm:flex-row gap-6 w-full">
           {/* Left: Video & Bio stacked together */}
           <div className="w-full sm:w-[60%] ">

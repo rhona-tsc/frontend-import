@@ -22,43 +22,58 @@ const cldBlur = (url) =>
 
 const widths = [480, 768, 1024, 1366, 1600, 1920];
 
-const ActHero = ({ actId, acts, hideHeart = false }) => {
+const ActHero = ({
+  actId,
+  acts,
+  act = null,
+  heroUrl = null,
+  heroSrcSet = "",
+  heroSizes = "100vw",
+  eager = false,
+  hideHeart = false,
+}) => {
   const [actData, setActData] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const { userId, shortlistAct, shortlistItems } = useContext(ShopContext);
 
   useEffect(() => {
+    if (act && act._id) {
+      setActData(act);
+      return;
+    }
     if (Array.isArray(acts) && acts.length) {
       const found = acts.find((a) => String(a._id) === String(actId));
       if (found) setActData(found);
     }
-  }, [actId, acts]);
+  }, [act, actId, acts]);
 
   if (!actData || !Array.isArray(actData.coverImage) || !actData.coverImage[0]?.url) {
     return null;
   }
 
-  const rawUrl = actData.coverImage[0].url; // Cloudinary URL
-  // Match your hero box: aspect-video (16:9)
-  const idealW = 1600;
-  const idealH = 900;
-
-  const src = cld(rawUrl, { w: idealW, h: idealH }); // main source
+  const rawUrl = actData.coverImage[0].url; // original Cloudinary URL
   const placeholder = cldBlur(rawUrl);
+
+  // Fallbacks if hero props aren't provided
+  const defaultW = 1500;
+  const defaultH = Math.round((defaultW * 9) / 16);
+  const fallbackSrc = cld(rawUrl, { w: defaultW, h: defaultH });
+  const fallbackSrcSet = widths
+    .map((w) => `${cld(rawUrl, { w, h: Math.round((w * 9) / 16) })} ${w}w`)
+    .join(", ");
+
+  const src = heroUrl || fallbackSrc;
+  const srcSet = heroSrcSet || fallbackSrcSet;
+  const sizes = heroSizes || "(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 100vw";
 
   const heroOrigin = (() => {
     try {
-      return new URL(rawUrl).origin;
+      return new URL(src).origin;
     } catch {
       return "https://res.cloudinary.com";
     }
   })();
-
-  // Build srcSet for DPR/width selection
-  const srcSet = widths
-    .map((w) => `${cld(rawUrl, { w, h: Math.round((w * 9) / 16) })} ${w}w`)
-    .join(", ");
 
   const isShortlisted =
     Array.isArray(shortlistItems) && actData?._id
@@ -90,14 +105,14 @@ const ActHero = ({ actId, acts, hideHeart = false }) => {
           as="image"
           href={src}
           imagesrcset={srcSet}
-          imagesizes="100vw"
+          imagesizes={sizes}
           crossOrigin="anonymous"
         />
       </Helmet>
 
       <div className="relative w-full max-w-full">
         {/* Image layer */}
-        <div className="relative w-full aspect-video rounded-md overflow-hidden">
+        <div className="relative w-full aspect-[3/1] rounded-md overflow-hidden">
           {/* LQIP placeholder */}
           <img
             src={placeholder}
@@ -110,16 +125,12 @@ const ActHero = ({ actId, acts, hideHeart = false }) => {
           <img
             src={src}
             srcSet={srcSet}
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 100vw"
+            sizes={sizes}
             alt={actData.tscName || actData.name || "Act hero image"}
-            width={idealW}
-            height={idealH}
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-400 ${
-              loaded ? "opacity-100" : "opacity-0"
-            }`}
-            decoding="sync"
-            loading="eager"          /* above the fold */
-            fetchpriority="high"     /* hint: start ASAP */
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+            decoding="async"
+            loading={eager ? "eager" : "lazy"}
+            fetchPriority={eager ? "high" : "auto"}
             onLoad={() => setLoaded(true)}
           />
 
@@ -197,6 +208,11 @@ const ActHero = ({ actId, acts, hideHeart = false }) => {
 ActHero.propTypes = {
   actId: PropTypes.string.isRequired,
   acts: PropTypes.array.isRequired,
+  act: PropTypes.object,
+  heroUrl: PropTypes.string,
+  heroSrcSet: PropTypes.string,
+  heroSizes: PropTypes.string,
+  eager: PropTypes.bool,
   hideHeart: PropTypes.bool,
 };
 
