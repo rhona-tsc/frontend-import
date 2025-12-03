@@ -47,6 +47,14 @@ const ActHero = ({ actId, acts, hideHeart = false }) => {
   const src = cld(rawUrl, { w: idealW, h: idealH }); // main source
   const placeholder = cldBlur(rawUrl);
 
+  const heroOrigin = (() => {
+    try {
+      return new URL(rawUrl).origin;
+    } catch {
+      return "https://res.cloudinary.com";
+    }
+  })();
+
   // Build srcSet for DPR/width selection
   const srcSet = widths
     .map((w) => `${cld(rawUrl, { w, h: Math.round((w * 9) / 16) })} ${w}w`)
@@ -75,6 +83,8 @@ const ActHero = ({ actId, acts, hideHeart = false }) => {
     <>
       {/* ✅ Preload THIS page’s hero at the correct size */}
       <Helmet prioritizeSeoTags>
+        <link rel="preconnect" href={heroOrigin} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={heroOrigin} />
         <link
           rel="preload"
           as="image"
@@ -102,10 +112,12 @@ const ActHero = ({ actId, acts, hideHeart = false }) => {
             srcSet={srcSet}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 100vw"
             alt={actData.tscName || actData.name || "Act hero image"}
+            width={idealW}
+            height={idealH}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-400 ${
               loaded ? "opacity-100" : "opacity-0"
             }`}
-            decoding="async"
+            decoding="sync"
             loading="eager"          /* above the fold */
             fetchpriority="high"     /* hint: start ASAP */
             onLoad={() => setLoaded(true)}
