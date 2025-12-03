@@ -391,7 +391,7 @@ useEffect(() => {
   if (!actId) return;
   let cancelled = false;
 
-  // 1) paint instantly from acts[] if present
+  // paint from acts[] if present
   let found = Array.isArray(acts)
     ? acts.find(a => String(a._id) === String(actId))
     : null;
@@ -402,42 +402,53 @@ useEffect(() => {
     setVideo(found.videos?.[0]?.url || "");
   }
 
-  // 2) then from cache if better
+  // paint from cache if present
   const cached = readCachedAct(actId);
   if (cached) {
     const avg = calculateAverageRating(cached.reviews || []);
     setActData(prev => {
-      // prefer whichever has more fields/lineups
-      const candidate = (cached?.lineups?.length || 0) >= (prev?.lineups?.length || 0) ? cached : prev;
-      return candidate ? { ...candidate, averageRating: calculateAverageRating(candidate.reviews || []) } : prev;
+      const better = (cached?.lineups?.length || 0) >= (prev?.lineups?.length || 0) ? cached : prev;
+      return better ? { ...better, averageRating: calculateAverageRating(better.reviews || []) } : prev;
     });
     setSelectedLineup(cached.lineups?.[0] || null);
     setVideo(cached.videos?.[0]?.url || "");
   }
 
-  // 3) fetch fresh (NO abort controller)
+  // fetch fresh — accept both response shapes
   (async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`, {
         headers: { accept: "application/json" },
       });
-      const text = await res.text();                // resilient parse
+      const text = await res.text();
       if (cancelled) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
       const json = text ? JSON.parse(text) : null;
-      if (json?.success && json?.act) {
-        const act = json.act;
-        writeCachedAct(actId, act);
-        const avg = calculateAverageRating(act.reviews || []);
-        setActData({ ...act, averageRating: avg });
-        setSelectedLineup(act.lineups?.[0] || null);
-        setVideo(act.videos?.[0]?.url || "");
-      } else {
+
+      // ✅ tolerate: { success, act }  OR  { ...actFields }
+      const act =
+        (json && json.act) ? json.act :
+        (json && json._id) ? json :
+        null;
+
+      if (!act) {
         console.warn("[Act] Unexpected payload for /api/act/:id", json);
+        return;
       }
+
+      writeCachedAct(actId, act);
+      const avg = calculateAverageRating(act.reviews || []);
+      setActData({ ...act, averageRating: avg });
+
+      const firstLineup = Array.isArray(act.lineups) ? act.lineups[0] : null;
+      setSelectedLineup(firstLineup || null);
+
+      // prefer videos[], fall back to tscVideos[]
+      const v = (act.videos?.[0]?.url) || (act.tscVideos?.[0]?.url) || "";
+      setVideo(v);
     } catch (e) {
       console.error("[Act] fetch failed", e);
-      // keep whatever we already painted (acts/cache)
     }
   })();
 
