@@ -3,11 +3,11 @@
 import outcodeToCounty from "./outcodeToCounty";
 import getTravelV2 from "./travelV2";
 
-const calculateActPricing = async (act, selectedCounty, selectedAddress, selectedDate, selectedLineup) => {
+const calculateActPricing = async (act, selectedCounty, selectedAddress, selectedDate, selectedLineup = null) => {
+  console.groupCollapsed("💷 calculateActPricing");
   
-
-  if (!act || !selectedLineup) {
-    console.warn("⚠️ Missing act or lineup");
+  if (!act) {
+    console.warn("⚠️ Missing act");
     console.groupEnd();
     return { total: 0, travelCalculated: false };
   }
