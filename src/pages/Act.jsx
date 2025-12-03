@@ -781,7 +781,22 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
         </div>
         <div></div>
       </div>
-      <ActHero actId={actId} acts={acts} act={actData} heroUrl={heroUrlHigh} />
+      {/* Eagerly fetch the hero image so it is not lazy-loaded by the browser */}
+      {heroUrlHigh && (
+        <img
+          src={heroUrlHigh}
+          alt=""
+          loading="eager"
+          fetchPriority="high"
+          decoding="sync"
+          width={1}
+          height={1}
+          style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
+          aria-hidden="true"
+        />
+      )}
+
+      <ActHero actId={actId} acts={acts} act={actData} heroUrl={heroUrlHigh} eager />
       <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
         <div className="flex flex-col sm:flex-row gap-6 w-full">
           {/* Left: Video & Bio stacked together */}
