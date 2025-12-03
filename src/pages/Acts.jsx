@@ -1,4 +1,12 @@
-import React, { useContext, useEffect, useState, useRef } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+  useDeferredValue
+} from "react";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import Title from "../components/Title";
@@ -13,6 +21,62 @@ const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 // Ensure all API requests hit the backend origin, not the Netlify origin
 const api = (p) => `${backendUrl}/${String(p).replace(/^\/+/, "")}`;
+
+// ----- Instruments normalisation helpers (module-level, cached once) -----
+const INSTR_ALIAS = new Map([
+  ["lead female vocal", "Lead Female Vocal"],
+  ["lead male vocal", "Lead Male Vocal"],
+  ["lead vocal", "Lead Vocal"],
+  ["mc", "MC/Rapper"],
+  ["rapper", "MC/Rapper"],
+  ["mc/rapper", "MC/Rapper"],
+  ["vocalist-guitarist", "Vocalist-Guitarist"],
+  ["vocalist-bassist", "Vocalist-Bassist"],
+  ["electric guitar", "Guitar"],
+  ["bass guitar", "Bass"],
+  ["double bass", "Bass"],
+  ["acoustic bass", "Bass"],
+  ["violin", "Violin / Fiddle"],
+  ["fiddle", "Violin / Fiddle"],
+  ["flute", "Flute & Clarinet"],
+  ["clarinet", "Flute & Clarinet"],
+]);
+
+const splitInstrumentTokens = (s) =>
+  String(s || "")
+    .split(/[,/;&]|\band\b|\bwith\b|\+|\s*-\s*/i)
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+const canonicaliseInstrument = (raw) => {
+  const key = String(raw || "").trim().toLowerCase();
+  const mapped = INSTR_ALIAS.get(key);
+  if (mapped) return mapped;
+  if (key === "guitarist") return "Guitar";
+  if (key === "sax") return "Saxophone";
+  if (key === "keys") return "Keyboard";
+  if (key === "drummer") return "Drums";
+  return String(raw).trim();
+};
+
+const deriveActInstruments = (act) => {
+  const fromTop = Array.isArray(act.instruments) ? act.instruments : [];
+  const fromLineups = (act.lineups || []).flatMap((l) =>
+    (Array.isArray(l.bandMembers) ? l.bandMembers : [])
+      .map((m) => m?.instrument)
+      .filter(Boolean)
+  );
+  const all = [...fromTop, ...fromLineups];
+  const expanded = all.flatMap((name) => splitInstrumentTokens(name));
+  const canonical = expanded.map((v) => {
+    const c = canonicaliseInstrument(v);
+    return c === "Rapper" ? "MC/Rapper" : c;
+  });
+  return Array.from(new Set(canonical));
+};
+
+// Small helper reused in a few places
+const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
 
 
 const Acts = ({ userRole, email }) => {
@@ -38,35 +102,44 @@ const Acts = ({ userRole, email }) => {
 const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
 
 // 🧩 Prefer prop from App, then localStorage
+// 🧩 Prefer prop from App, then localStorage
 const storedUser = JSON.parse(localStorage.getItem("user")) || {};
 const effectiveUserRole =
   userRole || storedUser.userRole || ""; // fallback to localStorage role
-
-// 🧩 Add userId fallback for agent detection
 const effectiveUserId = userId || storedUser.userId || "";
 const effectiveUserEmail = email || storedUser.email || "";
 
 // ✅ Agent override (your agent ID)
 const isAgent =
   effectiveUserRole === "agent" ||
-  effectiveUserId === "680fb453a2de6618675ca9ed" || // <-- your ID
+  effectiveUserId === "680fb453a2de6618675ca9ed" ||
   effectiveUserEmail === "rhona@thesupremecollective.co.uk";
 
-// ✅ Only use approved acts for filtering and display
-const approvedActs = acts.filter((act) => {
-  const isApproved =
-    act.status === "approved" || act.status === "Approved, changes pending";
+// ✅ Memoised, avoids re-filtering on every render
+const approvedActs = useMemo(() => {
+  return acts.filter((act) => {
+    const isApproved =
+      act.status === "approved" || act.status === "Approved, changes pending";
+    const isTest =
+      looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
+    return isAgent ? isApproved : isApproved && !isTest;
+  });
+}, [acts, isAgent]);
 
-  // detect test flag from either root or actData
-  const isTest =
-    looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
+// 🔎 Pre-index instruments for faster filtering
+const instrumentIndex = useMemo(() => {
+  const map = new Map();
+  for (const a of approvedActs) {
+    map.set(a._id, deriveActInstruments(a));
+  }
+  return map;
+}, [approvedActs]);
 
-  // 🧩 Agents see all approved acts
-  if (isAgent) return isApproved;
+// 🕓 Defer noisy inputs so filtering runs less per keystroke
+const deferredSearch = useDeferredValue(search);
+const deferredSongSearch = useDeferredValue(songSearch);
+const deferredActSearch = useDeferredValue(actSearch);
 
-  // 🧩 Non-agents: hide test acts
-  return isApproved && !isTest;
-});
   // --- Add isLoading state for fetching acts ---
     const filterRunIdRef = useRef(0);
 const [initializing, setInitializing] = useState(true);
@@ -111,7 +184,7 @@ const [updatingResults, setUpdatingResults] = useState(false);
   const [isPaAndLightsSelected, setIsPaAndLightsSelected] = useState(false); // Track if any checkbox is checked
   const [isPliSelected, setIsPliSelected] = useState(false); // Track if any checkbox is checked
   const [isExtraServicesSelected, setIsExtraServicesSelected] = useState(false); // Track if any checkbox is checked
-  const [sortType, setSortType] = useState("relavent");
+const [sortType, setSortType] = useState("relevant");
   const [actData, setActData] = useState(null);
 const [availableMap, setAvailableMap] = useState({}); 
 const [availLoading, setAvailLoading] = useState(false); 
@@ -140,262 +213,96 @@ const [availLoading, setAvailLoading] = useState(false);
   hasAddress: !!selectedAddress,
   badgeKeys: Object.keys(actData?.availabilityBadges || {}).length,
 });
-  const calculateActPricing = async (
-    act,
-    selectedCounty,
-    selectedAddress,
-    selectedDate,
-    selectedLineup
-  ) => {
-    // Canonical backend base (never the Netlify origin)
-    const BASE = (
-      import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com"
-    ).replace(/\/+$/, "");
 
-    // Helper: fetch travel JSON safely; supports new + legacy shapes
-    const fetchTravel = async (origin, destination, dateISO) => {
-      const url =
-        `${BASE}/api/v2/travel/travel-data` +
-        `?origin=${encodeURIComponent(origin)}` +
-        `&destination=${encodeURIComponent(destination)}` +
-        `&date=${encodeURIComponent(String(dateISO).slice(0, 10))}`;
+// ⚡ Concurrency limiter for pricing (prevents 50+ parallel fetches)
+const limit = useMemo(() => {
+  let active = 0;
+  const queue = [];
+  const max = 6; // tweak to taste
 
-      const res = await fetch(url, { headers: { accept: "application/json" } });
-      const text = await res.text();
+  const next = () => {
+    active--;
+    if (queue.length) queue.shift()();
+  };
 
-      let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        data = {};
-      }
-      if (!res.ok) throw new Error(`travel http ${res.status}`);
+  return (fn) =>
+    new Promise((resolve, reject) => {
+      const task = () => {
+        active++;
+        Promise.resolve()
+          .then(fn)
+          .then((v) => {
+            resolve(v);
+            next();
+          })
+          .catch((e) => {
+            reject(e);
+            next();
+          });
+      };
+      if (active < max) task();
+      else queue.push(task);
+    });
+}, []);
 
-      // --- Normalize shapes ---
-      // Legacy: { rows:[{ elements:[{ distance, duration, fare? }] }] }
-      const legacyEl = data?.rows?.[0]?.elements?.[0];
+// 💾 Per-session price cache
+const pricingCacheRef = useRef(new Map());
 
-      // Prefer new shape if present; otherwise build outbound from legacy element
-      const outbound =
-        data?.outbound ||
-        (legacyEl?.distance && legacyEl?.duration
-          ? {
-              distance: legacyEl.distance,
-              duration: legacyEl.duration,
-              fare: legacyEl.fare,
-            }
-          : undefined);
+const priceKeyForAct = useCallback(
+  (act) => {
+    const id = act?._id || act?.id || "";
+    const d = String(selectedDate || "").slice(0, 10);
+    const dest =
+      typeof selectedAddress === "string"
+        ? selectedAddress
+        : selectedAddress?.postcode || selectedAddress?.address || "";
+    const county = String(selectedCounty || "").toLowerCase();
+    const lineupId = selectedLineup?._id || "";
+    return `${id}|${d}|${dest}|${county}|${lineupId}`;
+  },
+  [selectedAddress, selectedCounty, selectedDate, selectedLineup]
+);
 
-      // returnTrip only exists in the new shape
-      const returnTrip = data?.returnTrip;
+const getFormattedPrice = useCallback(
+  async (act) => {
+    if (!selectedDate || !selectedAddress) return null;
 
-      return { outbound, returnTrip, raw: data };
-    };
+    const key = priceKeyForAct(act);
 
-    let travelFee = 0;
-
-    // ---- choose lineup (smallest or provided) ----
-    let smallestLineup = null;
-    if (selectedLineup && Array.isArray(selectedLineup.bandMembers)) {
-      smallestLineup = selectedLineup;
-    } else {
-      smallestLineup = act.lineups?.reduce((min, lineup) => {
-        if (!Array.isArray(lineup.bandMembers)) return min;
-        if (!min || lineup.bandMembers.length < min.bandMembers.length) return lineup;
-        return min;
-      }, null);
+    // in-memory cache
+    if (pricingCacheRef.current.has(key)) {
+      return pricingCacheRef.current.get(key);
     }
 
-    if (!smallestLineup || !Array.isArray(smallestLineup.bandMembers)) {
+    // session cache
+    try {
+      const hit = sessionStorage.getItem(`price:${key}`);
+      if (hit !== null) {
+        pricingCacheRef.current.set(key, hit);
+        return hit;
+      }
+    } catch {}
+
+    // Centralised util
+    try {
+      const price = await calculateActPricing(
+        act,
+        selectedCounty,
+        selectedAddress,
+        selectedDate,
+        selectedLineup
+      );
+      pricingCacheRef.current.set(key, price);
+      try {
+        sessionStorage.setItem(`price:${key}`, String(price));
+      } catch {}
+      return price;
+    } catch {
       return null;
     }
-
-    // ---- northern logic (for team swap) ----
-    const northernCounties = new Set([
-      "ceredigion",
-      "cheshire",
-      "cleveland",
-      "conway",
-      "cumbria",
-      "denbighshire",
-      "derbyshire",
-      "durham",
-      "flintshire",
-      "greater manchester",
-      "gwynedd",
-      "herefordshire",
-      "lancashire",
-      "leicestershire",
-      "lincolnshire",
-      "merseyside",
-      "north humberside",
-      "north yorkshire",
-      "northumberland",
-      "nottinghamshire",
-      "rutland",
-      "shropshire",
-      "south humberside",
-      "south yorkshire",
-      "staffordshire",
-      "tyne and wear",
-      "warwickshire",
-      "west midlands",
-      "west yorkshire",
-      "worcestershire",
-      "wrexham",
-      "rhondda cynon taf",
-      "torfaen",
-      "neath port talbot",
-      "bridgend",
-      "blaenau gwent",
-      "caerphilly",
-      "cardiff",
-      "merthyr tydfil",
-      "newport",
-      "aberdeen city",
-      "aberdeenshire",
-      "angus",
-      "argyll and bute",
-      "clackmannanshire",
-      "dumfries and galloway",
-      "dundee city",
-      "east ayrshire",
-      "east dunbartonshire",
-      "east lothian",
-      "east renfrewshire",
-      "edinburgh",
-      "falkirk",
-      "fife",
-      "glasgow",
-      "highland",
-      "inverclyde",
-      "midlothian",
-      "moray",
-      "na h eileanan siar",
-      "north ayrshire",
-      "north lanarkshire",
-      "orkney islands",
-      "perth and kinross",
-      "renfrewshire",
-      "scottish borders",
-      "shetland islands",
-      "south ayrshire",
-      "south lanarkshire",
-      "stirling",
-      "west dunbartonshire",
-      "west lothian",
-    ]);
-
-    const isNorthernGig = northernCounties.has(
-      String(selectedCounty || "").toLowerCase().trim()
-    );
-
-    const bandMembers =
-      act.useDifferentTeamForNorthernGigs && isNorthernGig
-        ? act.northernTeam || []
-        : smallestLineup.bandMembers || [];
-
-    // ---- essential fees (net) ----
-    const essentialFees = smallestLineup.bandMembers.flatMap((member) => {
-      const baseFee = member.isEssential ? Number(member.fee) || 0 : 0;
-      const additionalEssentialFees = (member.additionalRoles || [])
-        .filter((role) => role.isEssential)
-        .map((role) => Number(role.additionalFee) || 0);
-      return [baseFee, ...additionalEssentialFees];
-    });
-
-    const fee = essentialFees.reduce((sum, n) => sum + n, 0);
-
-    // ---- travel fee paths ----
-    const memberPostcodes = (bandMembers || [])
-      .map((m) => m?.postCode)
-      .filter(Boolean);
-
-    // 1) County table
-    if (act.useCountyTravelFee && act.countyFees) {
-      const countyKey = String(selectedCounty || "").toLowerCase();
-      const feePerMember = Number(act.countyFees[countyKey]) || 0;
-      travelFee = feePerMember * memberPostcodes.length;
-    }
-    // 2) Per-mile
-    else if (Number(act.costPerMile) > 0) {
-      for (const postCode of memberPostcodes) {
-        const destination =
-          typeof selectedAddress === "string"
-            ? selectedAddress
-            : selectedAddress?.postcode || selectedAddress?.address || "";
-        if (!destination) continue;
-
-        try {
-          const { outbound, raw } = await fetchTravel(
-            postCode,
-            destination,
-            selectedDate
-          );
-          const meters =
-            outbound?.distance?.value ??
-            raw?.rows?.[0]?.elements?.[0]?.distance?.value ??
-            0;
-          const miles = meters / 1609.34;
-          travelFee += miles * Number(act.costPerMile) * 25; // your round-trip multiplier
-        } catch (e) {
-          console.warn("⚠️ travel fetch failed (per-mile):", e?.message || e);
-        }
-      }
-    }
-    // 3) MU-style (fuel/time/late/tolls) using outbound+returnTrip
-    else {
-      for (const member of smallestLineup.bandMembers) {
-        const postCode = member?.postCode;
-        const destination =
-          typeof selectedAddress === "string"
-            ? selectedAddress
-            : selectedAddress?.postcode || selectedAddress?.address || "";
-        if (!postCode || !destination) continue;
-
-        try {
-          const { outbound, returnTrip } = await fetchTravel(
-            postCode,
-            destination,
-            selectedDate
-          );
-          if (!outbound || !returnTrip) continue;
-
-          const outboundDistance = outbound?.distance?.value;
-          const returnDistance = returnTrip?.distance?.value;
-          const outboundDuration = outbound?.duration?.value;
-          const returnDuration = returnTrip?.duration?.value;
-
-          if (
-            typeof outboundDistance !== "number" ||
-            typeof returnDistance !== "number" ||
-            typeof outboundDuration !== "number" ||
-            typeof returnDuration !== "number"
-          ) {
-            continue;
-          }
-
-          const totalDistanceMiles =
-            (outboundDistance + returnDistance) / 1609.34;
-          const totalDurationHours =
-            (outboundDuration + returnDuration) / 3600;
-
-          const fuelFee = totalDistanceMiles * 0.56;
-          const timeFee = totalDurationHours * 13.23;
-          const lateFee = returnDuration / 3600 > 1 ? 136 : 0;
-          const tollFee =
-            (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
-
-          travelFee += fuelFee + timeFee + lateFee + tollFee;
-        } catch (e) {
-          console.warn("⚠️ travel fetch failed (MU):", e?.message || e);
-        }
-      }
-    }
-
-    const totalPrice = Math.ceil((fee + travelFee) / 0.75);
-    return `${totalPrice}`;
-  };
+  },
+  [priceKeyForAct, selectedAddress, selectedCounty, selectedDate, selectedLineup]
+);
 
 useEffect(() => {
   const loadAvail = async () => {
@@ -713,68 +620,6 @@ const togglePli = (e) => {
     israeli_sets: "Israeli dancing sets",
   };
 
-
-
-  // ----- Instruments normalisation helpers -----
-const INSTR_ALIAS = new Map([
-  ["lead female vocal", "Lead Female Vocal"],
-  ["lead male vocal", "Lead Male Vocal"],
-  ["lead vocal", "Lead Vocal"],
-
-  ["mc", "MC/Rapper"],
-  ["rapper", "MC/Rapper"],
-  ["mc/rapper", "MC/Rapper"],
-
-  ["vocalist-guitarist", "Vocalist-Guitarist"],
-  ["vocalist-bassist", "Vocalist-Bassist"],
-
-  ["electric guitar", "Guitar"],
-  ["bass guitar", "Bass"],
-  ["double bass", "Bass"],
-  ["acoustic bass", "Bass"],
-
-  ["violin", "Violin / Fiddle"],
-  ["fiddle", "Violin / Fiddle"],
-
-  ["flute", "Flute & Clarinet"],
-  ["clarinet", "Flute & Clarinet"],
-]);
-
-
-
-
-// Split combos like "Trumpet/Trombone/Rapper", "Lead Male Vocal/Rapper & Guitarist"
-const splitInstrumentTokens = (s) =>
-  String(s || "")
-    .split(/[,/;&]|\\band\\b|\\bwith\\b|\\+|\\s*-\\s*/i) // / , ; & and with + hyphen separators
-    .map((t) => t.trim())
-    .filter(Boolean);
-
-// Canonicalise a single token to your filter labels
-const canonicaliseInstrument = (raw) => {
-  const key = String(raw || "").trim().toLowerCase();
-  const mapped = INSTR_ALIAS.get(key);
-  if (mapped) return mapped;
-
-  // tidy common variants
-  if (key === "guitarist") return "Guitar";
-  if (key === "sax") return "Saxophone";
-  if (key === "keys") return "Keyboard";
-  if (key === "drummer") return "Drums";
-  if (key === "trumpet/trombone/rapper") return "MC/Rapper"; // handled by splitter anyway
-
-  // leave as-is (e.g., "Trumpet", "Trombone", "Cello", etc.)
-  return String(raw).trim();
-};
-
-// Build a deduped list of instruments an act actually offers
-const deriveActInstruments = (act) => {
-  const fromTop = Array.isArray(act.instruments) ? act.instruments : [];
-  const fromLineups = (act.lineups || []).flatMap((l) =>
-    (Array.isArray(l.bandMembers) ? l.bandMembers : [])
-      .map((m) => m?.instrument)
-      .filter(Boolean)
-  );
 
   const all = [...fromTop, ...fromLineups];
 
@@ -1097,8 +942,8 @@ if (extraServices.length > 0) {
 }
 
   // --- OTHER FILTERS (unchanged) -------------------------------------------
-  if (showSearch && search) {
-    const q = String(search).toLowerCase();
+  if (showSearch && deferredSearch) {
+  const q = String(deferredSearch).toLowerCase();
     actsCopy = actsCopy.filter((item) => item.name?.toLowerCase().includes(q));
   }
 
@@ -1145,60 +990,52 @@ if (djServices.length > 0) {
   );
 }
 
-  if (instruments.length > 0) {
-    actsCopy = actsCopy.filter((act) => {
-      const actInstruments = deriveActInstruments(act);
-      return instruments.some((sel) => actInstruments.includes(sel));
-    });
-  }
+if (instruments.length > 0) {
+  actsCopy = actsCopy.filter((act) => {
+    const actInstruments = instrumentIndex.get(act._id) || [];
+    return instruments.some((sel) => actInstruments.includes(sel));
+  });
+}
 
-  if (songSearch.length > 0) {
-    actsCopy = actsCopy.filter((act) => {
-      const songs = Array.isArray(act.selectedSongs)
-        ? act.selectedSongs
-        : Array.isArray(act.repertoire)
-        ? act.repertoire
-        : [];
-      return songs.some((song) =>
-        songSearch.some((term) => {
-          const q = String(term).trim().toLowerCase();
-          const title = String(song.title ?? song.song_name ?? "").toLowerCase();
-          const artist = String(song.artist ?? "").toLowerCase();
-          return title.includes(q) || artist.includes(q);
-        })
-      );
-    });
-  }
-
-  if (actSearch.length > 0) {
-    actsCopy = actsCopy.filter((act) =>
-      actSearch.some((searchTerm) =>
-        act.name?.toLowerCase().includes(String(searchTerm).toLowerCase())
-      )
+if (deferredSongSearch.length > 0) {
+  actsCopy = actsCopy.filter((act) => {
+    const songs = Array.isArray(act.selectedSongs)
+      ? act.selectedSongs
+      : Array.isArray(act.repertoire)
+      ? act.repertoire
+      : [];
+    return songs.some((song) =>
+      deferredSongSearch.some((term) => {
+        const q = String(term).trim().toLowerCase();
+        const title = String(song.title ?? song.song_name ?? "").toLowerCase();
+        const artist = String(song.artist ?? "").toLowerCase();
+        return title.includes(q) || artist.includes(q);
+      })
     );
-  }
+  });
+}
+
+if (deferredActSearch.length > 0) {
+  actsCopy = actsCopy.filter((act) =>
+    deferredActSearch.some((searchTerm) =>
+      act.name?.toLowerCase().includes(String(searchTerm).toLowerCase())
+    )
+  );
+}
 
 
   // --- PRICING --------------------------------------------------------------
-  const updatedActs = await Promise.all(
-    actsCopy.map(async (act) => {
-      try {
-        // avoid noisy errors if inputs aren’t ready yet
-        if (!selectedDate || !selectedAddress) {
-          return { ...act, formattedPrice: null };
-        }
-        const price = await calculateActPricing(
-          act,
-          selectedCounty,
-          selectedAddress,
-          selectedDate
-        );
-        return { ...act, formattedPrice: price };
-      } catch (e) {
+const updatedActs = await Promise.all(
+  actsCopy.map((act) =>
+    limit(async () => {
+      if (!selectedDate || !selectedAddress) {
         return { ...act, formattedPrice: null };
-      }
+        }
+      const price = await getFormattedPrice(act);
+      return { ...act, formattedPrice: price };
     })
-  );
+  )
+);
 
   // Only let the latest run win
   if (runId === filterRunIdRef.current) {
@@ -1299,27 +1136,25 @@ useEffect(() => {
   };
   asyncApply();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [
+  }, [
   // search & UI toggles
-  search, showSearch,
+  deferredSearch, showSearch,
   genre, act_size, djServices, instruments,
-  songSearch, actSearch,
+  deferredSongSearch, deferredActSearch,
   soundLimiters, setupAndSoundcheck, paAndLights,
   pli, extraServices, wireless,
 
   // availability & date
   selectedDate,
-  availableMap,       // identity changes on setAvailableMap(map)
-  availLoading,       // re-run after it finishes
 
   // acts arriving
-  approvedActs.length // 0 → N triggers re-run
+  approvedActs.length
 ]);
 
 // ✅ Lightweight re-sort when the sort dropdown changes
 useEffect(() => {
   // do nothing for default relevance
-  if (sortType === "relavent") return;
+if (sortType === "relevant") return;
   if (!Array.isArray(filterProducts) || filterProducts.length === 0) return;
 
   const toNum = (v) => {
@@ -2759,7 +2594,7 @@ checked={pli.includes(20)}                />{" "}
               onChange={(e) => setSortType(e.target.value)}
               value={sortType}
             >
-              <option value="relevent">Sort by: Relevant</option>
+<option value="relevant">Sort by: Relevant</option>
               <option value="low-high">Sort by: Low to High</option>
               <option value="high-low">Sort by: High to Low</option>
             </select>
