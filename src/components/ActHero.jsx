@@ -48,11 +48,10 @@ const ActHero = ({
     }
   }, [act, actId, acts]);
 
-  if (!actData || !Array.isArray(actData.coverImage) || !actData.coverImage[0]?.url) {
+  const rawUrl = heroUrl || actData?.coverImage?.[0]?.url || actData?.images?.[0]?.url || "";
+  if (!rawUrl) {
     return null;
   }
-
-  const rawUrl = actData.coverImage[0].url; // original Cloudinary URL
   const placeholder = cldBlur(rawUrl);
 
   // Fallbacks if hero props aren't provided
