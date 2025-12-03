@@ -2,18 +2,15 @@ import React, { useContext, useState, useEffect, useRef, Suspense } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
-import RelatedActs from "../components/RelatedActs";
 import calculateActPricing from "./utils/pricing";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import CustomToast from "../components/CustomToast";
 import ActHero from "../components/ActHero";
 import ReviewCard from "../components/ReviewCard";
-import RepertoireSection from "../components/RepertoireSection";
 import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
-import AcousticExtrasSelector from "../components/AcousticExtrasSelector";
-import ActPerformanceOverview from "../components/ActPerformanceOverview";
+
 import { priceCache, makePriceKey } from "./utils/priceCache";
 import {
   FeaturedVocalistBadge,
@@ -72,6 +69,37 @@ const Act = () => {
   // 🧹 Track locally cleared availability badges
   const [clearedBadges, setClearedBadges] = useState(new Set());
   const [price, setPrice] = useState(null);
+
+  // 🔎 Prefer reviews, fall back to tscReviews/testimonials
+const reviews = React.useMemo(() => {
+  if (Array.isArray(actData?.reviews) && actData.reviews.length) return actData.reviews;
+  if (Array.isArray(actData?.tscReviews) && actData.tscReviews.length) return actData.tscReviews;
+  if (Array.isArray(actData?.testimonials) && actData.testimonials.length) return actData.testimonials;
+  return [];
+}, [actData]);
+
+// 🎵 Prefer selectedSongs, else flatten repertoireByYear, else repertoire
+const selectedSongs = React.useMemo(() => {
+  if (Array.isArray(actData?.selectedSongs) && actData.selectedSongs.length) return actData.selectedSongs;
+
+  // flatten { [year]: [{title,artist,genre,...}, ...] }
+  if (actData?.repertoireByYear && typeof actData.repertoireByYear === "object") {
+    return Object.entries(actData.repertoireByYear).flatMap(([year, arr]) =>
+      (arr || []).map(s => ({ ...s, year }))
+    );
+  }
+  if (Array.isArray(actData?.repertoire) && actData.repertoire.length) return actData.repertoire;
+  if (Array.isArray(actData?.tscRepertoire) && actData.tscRepertoire.length) return actData.tscRepertoire;
+  return [];
+}, [actData]);
+
+// ⭐ Recompute average rating from the same reviews you render
+const averageRating = React.useMemo(() => {
+  if (!reviews.length) return 0;
+  const sum = reviews.reduce((a, r) => a + (Number(r.rating) || 0), 0);
+  return Math.round((sum / reviews.length) * 2) / 2; // nearest 0.5
+}, [reviews]);
+
 // at top of Act.jsx
 const RepertoireSectionLazy = React.lazy(() => import("../components/RepertoireSection"));
 const AcousticExtrasSelectorLazy = React.lazy(() => import("../components/AcousticExtrasSelector"));
@@ -109,6 +137,12 @@ const lastActIdRef = React.useRef(null);
     }
   };
 
+  const scrollReviews = (direction) => {
+  if (reviewGalleryRef.current) {
+    const amt = direction === "left" ? -400 : 400;
+    reviewGalleryRef.current.scrollBy({ left: amt, behavior: "smooth" });
+  }
+};
 function VisibleOnScroll({ children, rootMargin = "200px", once = true }) {
   const [show, setShow] = React.useState(false);
   const ref = React.useRef(null);
@@ -655,6 +689,7 @@ if (!actData) {
 
 // use a safe local reference everywhere you read selectedLineup
 const safeSelectedLineup = selectedLineup || actData.lineups?.[0] || null;
+console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.length });
 
   return (
     <div className="p-4">
@@ -1707,7 +1742,11 @@ logBadges("🐊 [Lookup] All badges", allBadges);
           <div className="w-full">
            <Suspense fallback={null}>
   <VisibleOnScroll>
-    <RepertoireSectionLazy selectedSongs={actData?.selectedSongs || []} actData={actData} addToCart={addToCart} />
+    <RepertoireSectionLazy
+      selectedSongs={selectedSongs}
+      actData={actData}
+      addToCart={addToCart}
+    />
   </VisibleOnScroll>
 </Suspense>
           </div>
@@ -1754,11 +1793,16 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                     className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory px-4"
                     style={{ scrollBehavior: "smooth" }}
                   >
-                    {actData.reviews.map((review, index) => (
-                      <div key={index} className="flex-shrink-0 snap-start">
-                        <ReviewCard review={review} />
-                      </div>
-                    ))}
+                   {reviews.length > 0 ? (
+  // map over `reviews`
+  reviews.map((review, index) => (
+    <div key={index} className="flex-shrink-0 snap-start">
+      <ReviewCard review={review} />
+    </div>
+  ))
+) : (
+  <p className="text-sm text-gray-400 px-0 py-3">No reviews available.</p>
+)}
                   </div>
                   <button
                     onClick={() => scrollReviews("right")}
