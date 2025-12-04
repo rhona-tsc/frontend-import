@@ -2842,9 +2842,20 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
         }
       }
     }
+
     // Ensure extra rows array exists
     if (!Array.isArray(answers.schedule_simple_rows)) {
       handleAnswer("schedule_simple_rows", []);
+    } else {
+      // backfill ids/slots on existing rows
+      let changed = false;
+      const withMeta = answers.schedule_simple_rows.map((r, i) => {
+        let nr = { ...r };
+        if (!nr.id) { nr.id = `row_${Date.now()}_${i}`; changed = true; }
+        if (nr.slot == null) { nr.slot = 3; changed = true; } // default: before Start
+        return nr;
+      });
+      if (changed) handleAnswer("schedule_simple_rows", withMeta);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [booking?._id]);
@@ -2865,243 +2876,274 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
     />
   );
 
-  // Extra (user-added) rows
+  // --- Additional user-defined rows: draggable into slots between fixed items ---
+  const SLOT_TITLES = [
+    "Before Arrival",
+    "Before Setup",
+    "Before Soundcheck",
+    "Before Start",
+    "Before 1st Live Set",
+    "Before Intermission",
+    "Before 2nd Live Set",
+    "Before Finish",
+    "After Finish",
+  ];
+  const SLOT_COUNT = SLOT_TITLES.length; // 9
+
   const rows = Array.isArray(answers.schedule_simple_rows) ? answers.schedule_simple_rows : [];
-  const addRow = () => handleAnswer("schedule_simple_rows", [...rows, { label: "", time: "", notes: "" }]);
-  const updateRow = (idx, patch) => {
-    const next = rows.map((r, i) => (i === idx ? { ...r, ...patch } : r));
-    handleAnswer("schedule_simple_rows", next);
+  const setRows = (next) => handleAnswer("schedule_simple_rows", next);
+
+  const addRow = (slot = 3) =>
+    setRows([
+      ...rows,
+      { id: `row_${Date.now()}_${Math.round(Math.random()*1e6)}`, label: "", time: "", notes: "", slot },
+    ]);
+
+  const updateRowById = (id, patch) => {
+    const next = rows.map((r) => (r.id === id ? { ...r, ...patch } : r));
+    setRows(next);
   };
-  const removeRow = (idx) => handleAnswer("schedule_simple_rows", rows.filter((_, i) => i !== idx));
+
+  const removeRowById = (id) => setRows(rows.filter((r) => r.id !== id));
+
+  const moveRowToSlot = (id, slot) => {
+    const s = Math.max(0, Math.min(SLOT_COUNT - 1, slot));
+    updateRowById(id, { slot: s });
+  };
+
+  const moveRowWithinArray = (id, dir = -1) => {
+    // reorder within the same slot by shifting position in array
+    const idx = rows.findIndex((r) => r.id === id);
+    if (idx < 0) return;
+    const slot = rows[idx].slot ?? 3;
+    // indices of rows in same slot
+    const indices = rows
+      .map((r, i) => [r, i])
+      .filter(([r]) => (r.slot ?? 3) === slot)
+      .map(([, i]) => i);
+    const pos = indices.indexOf(idx);
+    const targetPos = pos + dir;
+    if (targetPos < 0 || targetPos >= indices.length) return;
+    const a = indices[pos];
+    const b = indices[targetPos];
+    const next = [...rows];
+    const [moved] = next.splice(a, 1);
+    next.splice(b, 0, moved);
+    setRows(next);
+  };
+
+  const dragRowIdRef = React.useRef(null);
+  const onDragStartRow = (id) => (e) => {
+    dragRowIdRef.current = id;
+    try { e.dataTransfer.setData("text/plain", id); } catch {}
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const onDropToSlot = (slot) => (e) => {
+    e.preventDefault();
+    const id = dragRowIdRef.current || e.dataTransfer.getData("text/plain");
+    if (id) moveRowToSlot(id, slot);
+    dragRowIdRef.current = null;
+  };
+  const allowDrop = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; };
+
+  const RowsInSlot = ({ slot }) => (
+    <div className="space-y-2">
+      {rows.filter((r) => (r.slot ?? 3) === slot).map((row) => (
+        <div
+          key={row.id}
+          className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm"
+          draggable={!readOnly}
+          onDragStart={onDragStartRow(row.id)}
+          title="Drag to another position"
+        >
+          <input
+            type="text"
+            className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
+            placeholder="Label (e.g. First Dance, Toasts)"
+            value={row.label || ""}
+            onChange={(e) => updateRowById(row.id, { label: e.target.value })}
+            disabled={readOnly}
+          />
+          <div className="md:col-span-3">
+            <TimeBox
+              value={row.time || ""}
+              onChange={(v) => updateRowById(row.id, { time: v })}
+              disabled={readOnly}
+            />
+          </div>
+          <textarea
+            rows={2}
+            className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
+            placeholder="Notes (optional)"
+            value={row.notes || ""}
+            onChange={(e) => updateRowById(row.id, { notes: e.target.value })}
+            disabled={readOnly}
+          />
+          <div className="md:col-span-1 flex items-center justify-end gap-1">
+            {!readOnly && (
+              <>
+                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowWithinArray(row.id, -1)} title="Move up within this slot">↑</button>
+                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowWithinArray(row.id, +1)} title="Move down within this slot">↓</button>
+                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) - 1)} title="Move to previous slot">⟵</button>
+                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) + 1)} title="Move to next slot">⟶</button>
+                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => removeRowById(row.id)} title="Remove">✕</button>
+              </>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const DropZone = ({ slot }) => (
+    <div
+      className="my-2 border-2 border-dashed rounded px-3 py-2 bg-white/50"
+      onDragOver={allowDrop}
+      onDrop={onDropToSlot(slot)}
+      aria-label={`Drop additional rows here (${SLOT_TITLES[slot]})`}
+      title={SLOT_TITLES[slot]}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-xs text-gray-600">{SLOT_TITLES[slot]}</div>
+        {!readOnly && (
+          <button type="button" className="border rounded px-2 py-0.5 text-xs" onClick={() => addRow(slot)}>+ Add here</button>
+        )}
+      </div>
+      <RowsInSlot slot={slot} />
+    </div>
+  );
 
   return (
     <div className="space-y-4">
-      {/* Explicit simple timetable-style rows */}
-      <div className="flex flex-col gap-2">
-        {/* Arrival — FIXED (unchangeable) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
-          <div className="md:col-span-4 text-sm font-medium text-gray-800">Arrival Time</div>
-          <div className="md:col-span-3">
-            <div className="border rounded px-2 py-2 text-sm w-full bg-gray-50 text-gray-900">
-              {fmtFixed(answers.schedule_simple_arrival || "17:00")}
-            </div>
-          </div>
-          <div className="md:col-span-4">
-            <textarea
-              rows={2}
-              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
-              placeholder="Notes (optional)"
-              value={answers.schedule_simple_arrival_notes || ""}
-              onChange={(e) => handleAnswer("schedule_simple_arrival_notes", e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
+      {/* Quick add control */}
+      {!readOnly && (
+        <div className="flex items-center justify-end">
+          <button type="button" className="border rounded px-2 py-1 text-sm" onClick={() => addRow(3)}>
+            + Add custom row
+          </button>
         </div>
+      )}
 
-        {/* Setup — editable */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
-          <div className="md:col-span-4 text-sm font-medium text-gray-800">Setup</div>
-          <div className="md:col-span-3">
-            <TimeBox
-              value={answers.schedule_simple_setup || ""}
-              onChange={(v) => handleAnswer("schedule_simple_setup", v)}
-              disabled={readOnly}
-            />
-          </div>
-          <div className="md:col-span-4">
-            <textarea
-              rows={2}
-              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
-              placeholder="Notes (optional)"
-              value={answers.schedule_simple_setup_notes || ""}
-              onChange={(e) => handleAnswer("schedule_simple_setup_notes", e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
+      {/* The scheduler layout with interleaved drop-zones */}
+      {/* Slot 0 */}
+      <DropZone slot={0} />
+
+      {/* Arrival — FIXED (unchangeable) */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+        <div className="md:col-span-4 text-sm font-medium text-gray-800">Arrival Time</div>
+        <div className="md:col-span-3">
+          <div className="border rounded px-2 py-2 text-sm w-full bg-gray-50 text-gray-900">{fmtFixed(answers.schedule_simple_arrival || "17:00")}</div>
         </div>
-
-        {/* Soundcheck — editable */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
-          <div className="md:col-span-4 text-sm font-medium text-gray-800">Soundcheck</div>
-          <div className="md:col-span-3">
-            <TimeBox
-              value={answers.schedule_simple_soundcheck || ""}
-              onChange={(v) => handleAnswer("schedule_simple_soundcheck", v)}
-              disabled={readOnly}
-            />
-          </div>
-          <div className="md:col-span-4">
-            <textarea
-              rows={2}
-              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
-              placeholder="Notes (optional)"
-              value={answers.schedule_simple_soundcheck_notes || ""}
-              onChange={(e) => handleAnswer("schedule_simple_soundcheck_notes", e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
-        </div>
-
-        {/* Start — editable */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
-          <div className="md:col-span-4 text-sm font-medium text-gray-800">Start Time</div>
-          <div className="md:col-span-3">
-            <TimeBox
-              value={answers.schedule_simple_start || ""}
-              onChange={(v) => handleAnswer("schedule_simple_start", v)}
-              disabled={readOnly}
-            />
-          </div>
-          <div className="md:col-span-4">
-            <textarea
-              rows={2}
-              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
-              placeholder="Notes (optional)"
-              value={answers.schedule_simple_start_notes || ""}
-              onChange={(e) => handleAnswer("schedule_simple_start_notes", e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
-        </div>
-
-        {/* 1st Live Set — editable */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
-          <div className="md:col-span-4 text-sm font-medium text-gray-800">1st Live Set</div>
-          <div className="md:col-span-3">
-            <TimeBox
-              value={answers.schedule_simple_set1 || ""}
-              onChange={(v) => handleAnswer("schedule_simple_set1", v)}
-              disabled={readOnly}
-            />
-          </div>
-          <div className="md:col-span-4">
-            <textarea
-              rows={2}
-              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
-              placeholder="Notes (optional)"
-              value={answers.schedule_simple_set1_notes || ""}
-              onChange={(e) => handleAnswer("schedule_simple_set1_notes", e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
-        </div>
-
-        {/* Intermission — editable */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
-          <div className="md:col-span-4 text-sm font-medium text-gray-800">Intermission</div>
-          <div className="md:col-span-3">
-            <TimeBox
-              value={answers.schedule_simple_between1 || ""}
-              onChange={(v) => handleAnswer("schedule_simple_between1", v)}
-              disabled={readOnly}
-            />
-          </div>
-          <div className="md:col-span-4">
-            <textarea
-              rows={2}
-              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
-              placeholder="Notes (optional)"
-              value={answers.schedule_simple_between1_notes || ""}
-              onChange={(e) => handleAnswer("schedule_simple_between1_notes", e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
-        </div>
-
-        {/* 2nd Live Set — editable */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
-          <div className="md:col-span-4 text-sm font-medium text-gray-800">2nd Live Set</div>
-          <div className="md:col-span-3">
-            <TimeBox
-              value={answers.schedule_simple_set2 || ""}
-              onChange={(v) => handleAnswer("schedule_simple_set2", v)}
-              disabled={readOnly}
-            />
-          </div>
-          <div className="md:col-span-4">
-            <textarea
-              rows={2}
-              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
-              placeholder="Notes (optional)"
-              value={answers.schedule_simple_set2_notes || ""}
-              onChange={(e) => handleAnswer("schedule_simple_set2_notes", e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
-        </div>
-
-        {/* Finish — FIXED (unchangeable) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
-          <div className="md:col-span-4 text-sm font-medium text-gray-800">Finish Time</div>
-          <div className="md:col-span-3">
-            <div className="border rounded px-2 py-2 text-sm w-full bg-gray-50 text-gray-900">
-              {fmtFixed(answers.schedule_simple_finish_time || "")}
-              {Number(answers.schedule_simple_finish_dayOffset || 0) === 1 ? (
-                <span className="ml-2 text-xs text-gray-500">(next day)</span>
-              ) : null}
-            </div>
-          </div>
-          <div className="md:col-span-4">
-            <textarea
-              rows={2}
-              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
-              placeholder="Notes (optional)"
-              value={answers.schedule_simple_finish_notes || ""}
-              onChange={(e) => handleAnswer("schedule_simple_finish_notes", e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
+        <div className="md:col-span-4">
+          <textarea rows={2} className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800" placeholder="Notes (optional)" value={answers.schedule_simple_arrival_notes || ""} onChange={(e) => handleAnswer("schedule_simple_arrival_notes", e.target.value)} disabled={readOnly} />
         </div>
       </div>
 
-      {/* Additional user-defined rows */}
-      <div className="mt-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm text-gray-700">Additional activities</div>
-          {!readOnly && (
-            <button type="button" className="border rounded px-2 py-1 text-sm" onClick={addRow}>
-              + Add row
-            </button>
-          )}
-        </div>
+      {/* Slot 1 */}
+      <DropZone slot={1} />
 
-        <div className="flex flex-col gap-2">
-          {rows.map((row, idx) => (
-            <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
-              <input
-                type="text"
-                className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
-                placeholder="Label (e.g. First Dance, Toasts)"
-                value={row.label || ""}
-                onChange={(e) => updateRow(idx, { label: e.target.value })}
-                disabled={readOnly}
-              />
-              <div className="md:col-span-3">
-                <TimeBox
-                  value={row.time || ""}
-                  onChange={(v) => updateRow(idx, { time: v })}
-                  disabled={readOnly}
-                />
-              </div>
-              <textarea
-                rows={2}
-                className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
-                placeholder="Notes (optional)"
-                value={row.notes || ""}
-                onChange={(e) => updateRow(idx, { notes: e.target.value })}
-                disabled={readOnly}
-              />
-              <div className="md:col-span-1 flex items-center justify-end">
-                {!readOnly && (
-                  <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => removeRow(idx)} title="Remove">
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+      {/* Setup — editable */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+        <div className="md:col-span-4 text-sm font-medium text-gray-800">Setup</div>
+        <div className="md:col-span-3">
+          <TimeBox value={answers.schedule_simple_setup || ""} onChange={(v) => handleAnswer("schedule_simple_setup", v)} disabled={readOnly} />
+        </div>
+        <div className="md:col-span-4">
+          <textarea rows={2} className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800" placeholder="Notes (optional)" value={answers.schedule_simple_setup_notes || ""} onChange={(e) => handleAnswer("schedule_simple_setup_notes", e.target.value)} disabled={readOnly} />
         </div>
       </div>
+
+      {/* Slot 2 */}
+      <DropZone slot={2} />
+
+      {/* Soundcheck — editable */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+        <div className="md:col-span-4 text-sm font-medium text-gray-800">Soundcheck</div>
+        <div className="md:col-span-3">
+          <TimeBox value={answers.schedule_simple_soundcheck || ""} onChange={(v) => handleAnswer("schedule_simple_soundcheck", v)} disabled={readOnly} />
+        </div>
+        <div className="md:col-span-4">
+          <textarea rows={2} className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800" placeholder="Notes (optional)" value={answers.schedule_simple_soundcheck_notes || ""} onChange={(e) => handleAnswer("schedule_simple_soundcheck_notes", e.target.value)} disabled={readOnly} />
+        </div>
+      </div>
+
+      {/* Slot 3 */}
+      <DropZone slot={3} />
+
+      {/* Start — editable */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+        <div className="md:col-span-4 text-sm font-medium text-gray-800">Start Time</div>
+        <div className="md:col-span-3">
+          <TimeBox value={answers.schedule_simple_start || ""} onChange={(v) => handleAnswer("schedule_simple_start", v)} disabled={readOnly} />
+        </div>
+        <div className="md:col-span-4">
+          <textarea rows={2} className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800" placeholder="Notes (optional)" value={answers.schedule_simple_start_notes || ""} onChange={(e) => handleAnswer("schedule_simple_start_notes", e.target.value)} disabled={readOnly} />
+        </div>
+      </div>
+
+      {/* Slot 4 */}
+      <DropZone slot={4} />
+
+      {/* 1st Live Set — editable */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+        <div className="md:col-span-4 text-sm font-medium text-gray-800">1st Live Set</div>
+        <div className="md:col-span-3">
+          <TimeBox value={answers.schedule_simple_set1 || ""} onChange={(v) => handleAnswer("schedule_simple_set1", v)} disabled={readOnly} />
+        </div>
+        <div className="md:col-span-4">
+          <textarea rows={2} className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800" placeholder="Notes (optional)" value={answers.schedule_simple_set1_notes || ""} onChange={(e) => handleAnswer("schedule_simple_set1_notes", e.target.value)} disabled={readOnly} />
+        </div>
+      </div>
+
+      {/* Slot 5 */}
+      <DropZone slot={5} />
+
+      {/* Intermission — editable */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+        <div className="md:col-span-4 text-sm font-medium text-gray-800">Intermission</div>
+        <div className="md:col-span-3">
+          <TimeBox value={answers.schedule_simple_between1 || ""} onChange={(v) => handleAnswer("schedule_simple_between1", v)} disabled={readOnly} />
+        </div>
+        <div className="md:col-span-4">
+          <textarea rows={2} className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800" placeholder="Notes (optional)" value={answers.schedule_simple_between1_notes || ""} onChange={(e) => handleAnswer("schedule_simple_between1_notes", e.target.value)} disabled={readOnly} />
+        </div>
+      </div>
+
+      {/* Slot 6 */}
+      <DropZone slot={6} />
+
+      {/* 2nd Live Set — editable */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+        <div className="md:col-span-4 text-sm font-medium text-gray-800">2nd Live Set</div>
+        <div className="md:col-span-3">
+          <TimeBox value={answers.schedule_simple_set2 || ""} onChange={(v) => handleAnswer("schedule_simple_set2", v)} disabled={readOnly} />
+        </div>
+        <div className="md:col-span-4">
+          <textarea rows={2} className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800" placeholder="Notes (optional)" value={answers.schedule_simple_set2_notes || ""} onChange={(e) => handleAnswer("schedule_simple_set2_notes", e.target.value)} disabled={readOnly} />
+        </div>
+      </div>
+
+      {/* Slot 7 */}
+      <DropZone slot={7} />
+
+      {/* Finish — FIXED (unchangeable) */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+        <div className="md:col-span-4 text-sm font-medium text-gray-800">Finish Time</div>
+        <div className="md:col-span-3">
+          <div className="border rounded px-2 py-2 text-sm w-full bg-gray-50 text-gray-900">
+            {fmtFixed(answers.schedule_simple_finish_time || "")}
+            {Number(answers.schedule_simple_finish_dayOffset || 0) === 1 ? (
+              <span className="ml-2 text-xs text-gray-500">(next day)</span>
+            ) : null}
+          </div>
+        </div>
+        <div className="md:col-span-4">
+          <textarea rows={2} className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800" placeholder="Notes (optional)" value={answers.schedule_simple_finish_notes || ""} onChange={(e) => handleAnswer("schedule_simple_finish_notes", e.target.value)} disabled={readOnly} />
+        </div>
+      </div>
+
+      {/* Slot 8 */}
+      <DropZone slot={8} />
     </div>
   );
 }
