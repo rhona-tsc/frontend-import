@@ -18,14 +18,32 @@ const group = (label, fn) => {
   try { fn(); } finally { console.groupEnd(); }
 };
 
-// Cloudinary helper: preserve original aspect (no fixed height)
+// 🔧 Resolve a usable hero image URL from multiple possible shapes/fields
+const pickHeroImage = (act) => {
+  const candidates = [
+    act?.profileImage?.[0],
+    act?.images?.[0],
+    act?.heroImage,
+    act?.coverImage,
+    act?.mainImage,
+    act?.photo,
+  ];
+  for (const c of candidates) {
+    if (!c) continue;
+    const url = typeof c === 'string' ? c : (c.secure_url || c.url || c.src || c.path || '');
+    if (typeof url === 'string' && url.trim()) return url.trim();
+  }
+  return '';
+};
+
+// Cloudinary helper: normalize protocol + preserve original aspect (no fixed height)
 const cld = (url, { w = 1200, crop = 'limit' } = {}) => {
-  if (typeof url !== 'string') return '';
-  if (!url.includes('/upload/')) return url || '';
-  return url.replace(
-    '/upload/',
-    `/upload/f_auto,q_auto,dpr_auto,c_${crop},w_${w}/`
-  );
+  if (typeof url !== 'string' || !url) return '';
+  let u = url.trim();
+  if (u.startsWith('//')) u = 'https:' + u;
+  if (u.startsWith('http:')) u = u.replace(/^http:/, 'https:');
+  if (!u.includes('/upload/')) return u; // only transform proper Cloudinary URLs
+  return u.replace('/upload/', `/upload/f_auto,q_auto,dpr_auto,c_${crop},w_${w}/`);
 };
 
 const ActItem = ({ actData, shortlistCount, lite = false }) => {
@@ -35,6 +53,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
   const cardRef = React.useRef(null);
   const isOnScreen = useOnScreen(cardRef);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   // Robust initial love count (DB source preferred) -> fallbacks
   const initialLove =
@@ -379,6 +398,18 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     ? !!isShortlistedCtx(actData._id)
     : !!(shortlistedActs?.includes(String(actData?._id)));
 
+  // 🖼️ resolve image once per act + log
+  const rawHero = useMemo(() => pickHeroImage(actData), [actData]);
+  const resolvedImage = useMemo(() => cld(rawHero, { w: 1200, crop: 'limit' }), [rawHero]);
+  useEffect(() => {
+    log('🖼️ image resolve', {
+      actId: actData?._id,
+      name: actData?.tscName || actData?.name,
+      picked: rawHero || '(none)',
+      resolved: resolvedImage || '(empty)'
+    });
+  }, [actData?._id, actData?.tscName, rawHero, resolvedImage]);
+
   return (
     <div ref={cardRef} className="relative group">
       <Link
@@ -387,21 +418,21 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
         className="block text-gray-700"
       >
         <div className="overflow-hidden h-full w-full">
-          {(() => {
-            const raw = actData?.profileImage?.[0]?.url || '/placeholder.jpg';
-            const resolvedImage = cld(raw, { w: 1200, crop: 'limit' });
-            DBG && log('🖼️ image resolved', { actId: actData?._id, raw, resolvedImage });
-            return (
-              <img
-                loading="lazy"
-                decoding="async"
-                fetchPriority="low"
-                className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
-                src={resolvedImage}
-                alt={actData?.tscName || 'Act'}
-              />
-            );
-          })()}
+          <img
+            loading="lazy"
+            decoding="async"
+            fetchPriority="low"
+            className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
+            style={{ aspectRatio: '4 / 3' }}
+            src={imgError || !resolvedImage ? '/placeholder.jpg' : resolvedImage}
+            alt={actData?.tscName || 'Act'}
+            onError={() => {
+              if (!imgError) {
+                setImgError(true);
+                warn('🖼️ image failed → fallback', { actId: actData?._id, tried: resolvedImage });
+              }
+            }}
+          />
         </div>
 
         <div className="flex justify-between items-center pt-3 pb-1">
@@ -476,8 +507,8 @@ function areEqualActItem(prev, next) {
   // Use only the fields the card actually renders/needs
   const sameId = String(p._id) === String(n._id);
   const sameName = (p.tscName || p.name) === (n.tscName || n.name);
-  const sameImg =
-    (p.profileImage?.[0]?.url || "") === (n.profileImage?.[0]?.url || "");
+  // Compare based on resolved hero to avoid needless re-renders when other media arrays change
+  const sameImg = pickHeroImage(p) === pickHeroImage(n);
   const sameLineupCount = (p.lineups?.length || 0) === (n.lineups?.length || 0);
   const sameTimesShortlisted =
     (p.timesShortlisted ?? 0) === (n.timesShortlisted ?? 0);
