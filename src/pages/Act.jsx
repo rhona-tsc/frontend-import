@@ -736,6 +736,7 @@ const versionOf = (b = {}) => {
   return `${n}:${latest}`;
 };
 
+
 async function refreshBadgeFor(dateYYYYMMDD) {
   if (!actId || !dateYYYYMMDD) return;
   const key = `${actId}|${dateYYYYMMDD}`;
@@ -753,6 +754,58 @@ async function refreshBadgeFor(dateYYYYMMDD) {
     if (versionOf(prevBadges) === versionOf(nextBadges)) return prev;
     return { ...prev, availabilityBadges: nextBadges };
   });
+}
+
+// 🔔 Trigger availability request when an act is added/updated in cart
+async function requestAvailabilityForCart({ reason = "cart_add" } = {}) {
+  try {
+    if (!actData?._id) return;
+    // Prefer the user-selected lineup, else the first lineup
+    const lineup = selectedLineup || (Array.isArray(actData?.lineups) ? actData.lineups[0] : null);
+    const lineupId = lineup?._id || lineup?.lineupId;
+    if (!lineupId) return;
+
+    const dateISO = selectedDate ? new Date(selectedDate).toISOString().slice(0, 10) : null;
+    const address = typeof selectedAddress === "string" ? selectedAddress.trim() : "";
+    const formattedAddress = storedPlace || "";
+
+    const payload = {
+      actId: actData._id,
+      lineupId,
+      date: dateISO,           // controller tolerates either `date` or `dateISO`
+      dateISO,
+      address,
+      formattedAddress,
+      userId: userId || null,  // backend will enrich name/email from userId if available
+      reason,
+    };
+
+    const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+
+    // Try common endpoints in order; succeed-fast, fail-silent
+    const endpoints = [
+      "/api/availability/trigger-request",
+      "/api/availability/trigger",
+      "/api/v2/availability/trigger-request",
+    ];
+
+    for (const path of endpoints) {
+      try {
+        const resp = await fetch(`${base}${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", accept: "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (resp.ok) {
+          // Optionally refresh the badge for this date after a small delay
+          if (dateISO) setTimeout(() => { try { refreshBadgeFor(dateISO); } catch {} }, 250);
+          return;
+        }
+      } catch {}
+    }
+  } catch (err) {
+    console.warn("⚠️ Availability request failed (non-blocking)", err);
+  }
 }
 
   // Calculate display price: prefer price?.total, then formattedPrice, then actData formattedPrice
@@ -1055,63 +1108,52 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
                   </button>
                   <button
                     onClick={async () => {
-                      if (!safeSelectedLineup) {
-                        console.warn(
-                          "⚠️ No lineup selected before adding to cart"
-                        );
-                        return;
-                      }
+  if (!safeSelectedLineup) {
+    console.warn("⚠️ No lineup selected before adding to cart");
+    return;
+  }
 
-                      // --- existing add/remove logic below ---
-                      if (!isInCart) {
-                        addToCart(
-                          actData._id,
-                          safeSelectedLineup._id || safeSelectedLineup.lineupId
-                        );
-                        toast(
-                          <CustomToast
-                            type="success"
-                            message="Added to cart!"
-                          />,
-                          { position: "top-right", autoClose: 1600 }
-                        );
-                        return;
-                      }
+  // --- existing add/remove logic below ---
+  if (!isInCart) {
+    addToCart(
+      actData._id,
+      safeSelectedLineup._id || safeSelectedLineup.lineupId
+    );
 
-                      if (isSameLineupAsCart) {
-                        const lineupIds = Object.keys(
-                          cartItems[actData._id] || {}
-                        );
-                        lineupIds.forEach((lineupId) =>
-                          removeFromCart(actData._id, lineupId)
-                        );
-                        toast(
-                          <CustomToast
-                            type="success"
-                            message="Removed from cart."
-                          />,
-                          { position: "top-right", autoClose: 1600 }
-                        );
-                      } else {
-                        const lineupIds = Object.keys(
-                          cartItems[actData._id] || {}
-                        );
-                        lineupIds.forEach((lineupId) =>
-                          removeFromCart(actData._id, lineupId)
-                        );
-                        addToCart(
-                          actData._id,
-                          safeSelectedLineup._id || safeSelectedLineup.lineupId
-                        );
-                        toast(
-                          <CustomToast
-                            type="success"
-                            message="Lineup updated in cart!"
-                          />,
-                          { position: "top-right", autoClose: 1600 }
-                        );
-                      }
-                    }}
+    // 🔔 NEW: trigger availability request on cart add (mobile)
+    await requestAvailabilityForCart({ reason: "cart_add_mobile" });
+
+    toast(
+      <CustomToast type="success" message="Added to cart!" />,
+      { position: "top-right", autoClose: 1600 }
+    );
+    return;
+  }
+
+  if (isSameLineupAsCart) {
+    const lineupIds = Object.keys(cartItems[actData._id] || {});
+    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
+    toast(
+      <CustomToast type="success" message="Removed from cart." />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  } else {
+    const lineupIds = Object.keys(cartItems[actData._id] || {});
+    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
+    addToCart(
+      actData._id,
+      safeSelectedLineup._id || safeSelectedLineup.lineupId
+    );
+
+    // 🔔 NEW: trigger availability request on lineup update (mobile)
+    await requestAvailabilityForCart({ reason: "cart_update_mobile" });
+
+    toast(
+      <CustomToast type="success" message="Lineup updated in cart!" />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  }
+}}
                     className="flex-1 px-4 py-3 rounded text-sm font-medium bg-black text-white hover:bg-[#ff6667] transition"
                     aria-pressed={!!isInCart}
                   >
@@ -1754,38 +1796,39 @@ logBadges("🐊 [Lookup] All badges", allBadges);
 
               <button
                 onClick={async () => {
-                  if (!safeSelectedLineup) {
-                    console.warn("⚠️ No lineup selected before adding to cart");
-                    return;
-                  }
+  if (!safeSelectedLineup) {
+    console.warn("⚠️ No lineup selected before adding to cart");
+    return;
+  }
 
-                  // --- existing add/remove logic below ---
-                  if (isInCart) {
-                    // remove all lineups for this act
-                    const lineupIds = Object.keys(cartItems[actData._id] || {});
-                    lineupIds.forEach((lineupId) =>
-                      removeFromCart(actData._id, lineupId)
-                    );
+  if (isInCart) {
+    // remove all lineups for this act
+    const lineupIds = Object.keys(cartItems[actData._id] || {});
+    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
 
-                    toast(
-                      <CustomToast
-                        type="success"
-                        message="Removed from cart."
-                      />,
-                      { position: "top-right", autoClose: 1600 }
-                    );
-                  } else {
-                    // add selected lineup
-                    addToCart(
-                      actData._id,
-                      safeSelectedLineup._id || safeSelectedLineup.lineupId
-                    );
-                    toast(
-                      <CustomToast type="success" message="Added to cart!" />,
-                      { position: "top-right", autoClose: 1600 }
-                    );
-                  }
-                }}
+    toast(
+      <CustomToast
+        type="success"
+        message="Removed from cart."
+      />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  } else {
+    // add selected lineup
+    addToCart(
+      actData._id,
+      safeSelectedLineup._id || safeSelectedLineup.lineupId
+    );
+
+    // 🔔 NEW: trigger availability request on cart add (desktop)
+    await requestAvailabilityForCart({ reason: "cart_add_desktop" });
+
+    toast(
+      <CustomToast type="success" message="Added to cart!" />,
+      { position: "top-right", autoClose: 1600 }
+    );
+  }
+}}
                 className="bg-black text-white px-8 py-3 text-m active:bg-gray-700 hover:bg-[#ff6667] transition-colors duration-200 rounded"
                 aria-pressed={!!isInCart}
               >

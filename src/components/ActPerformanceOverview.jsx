@@ -165,17 +165,17 @@ const ActPerformanceOverview = ({ actData }) => {
         Peace of Mind, Guaranteed
       </h2>
 
-      <div className="flex gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
         {/* Risk Assessment */}
-        <div className="flex items-start gap-2 flex-1 min-w-0">
+        <div className="flex items-start gap-3 min-w-0">
           <img
             src={assets.tick}
             alt="Tick icon"
-            className="w-6 h-6 mt-1 shrink-0"
+            className="w-5 h-5 md:w-6 md:h-6 mt-0.5 shrink-0"
           />
-          <div className="text-gray-600 text-[17px]">
+          <div className="text-gray-600 text-sm md:text-[17px]">
             <strong>Risk Assessment</strong>
-            <p className="text-base">
+            <p className="text-sm md:text-base break-words">
               {usesGenericRiskAssessment
                 ? "Risk assessment provided"
                 : "Bespoke risk assessment provided"}
@@ -185,46 +185,49 @@ const ActPerformanceOverview = ({ actData }) => {
 
         {/* PAT Certified */}
         {patCert && (
-          <div className="flex items-start gap-2 flex-1 min-w-0">
+          <div className="flex items-start gap-3 min-w-0">
             <img
               src={assets.tick}
               alt="Tick icon"
-              className="w-6 h-6 mt-1 shrink-0"
+              className="w-5 h-5 md:w-6 md:h-6 mt-0.5 shrink-0"
             />
-            <div className="text-gray-600 text-[17px]">
+            <div className="text-gray-600 text-sm md:text-[17px]">
               <strong>PAT Certified</strong>
-              <p className="text-base">Certified safe for use at events</p>
+              <p className="text-sm md:text-base break-words">
+                Certified safe for use at events
+              </p>
             </div>
           </div>
         )}
 
         {/* PLI */}
         {pli && (
-          <div className="flex items-start gap-2 flex-1 min-w-0">
+          <div className="flex items-start gap-3 min-w-0">
             <img
               src={assets.tick}
               alt="Tick icon"
-              className="w-6 h-6 mt-1 shrink-0"
+              className="w-5 h-5 md:w-6 md:h-6 mt-0.5 shrink-0"
             />
-            <div className="text-gray-600 text-[17px]">
+            <div className="text-gray-600 text-sm md:text-[17px]">
               <strong>Public Liability Insurance</strong>
-              <p className="text-base">Up to £{pliAmount} million</p>
+              <p className="text-sm md:text-base break-words">
+                Up to £{pliAmount} million
+              </p>
             </div>
           </div>
         )}
 
         {/* VAT */}
-        <div className="flex items-start gap-2 flex-1 min-w-0">
+        <div className="flex items-start gap-3 min-w-0">
           <img
             src={assets.vat}
             alt="VAT icon"
-            className="w-6 h-6 mt-1 shrink-0"
+            className="w-5 h-5 md:w-6 md:h-6 mt-0.5 shrink-0"
           />
-          <div className="text-gray-600 text-[17px]">
+          <div className="text-gray-600 text-sm md:text-[17px]">
             <strong>No Hidden Charges</strong>
-            <p className="text-base">
-              VAT is included and applicable to {vatRegistered ? "100%" : "25%"} of the booking
-              value
+            <p className="text-sm md:text-base break-words">
+              VAT is included and applicable to {vatRegistered ? "100%" : "25%"} of the booking value
             </p>
           </div>
         </div>

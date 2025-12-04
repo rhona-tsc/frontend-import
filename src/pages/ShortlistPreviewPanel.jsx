@@ -29,7 +29,8 @@ const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
     selectedDate,
     addToCart,
     cartItems,
-    setCartItems
+    setCartItems,
+    userId,               // 🔹 needed for availability trigger enrichment
   } = useContext(ShopContext);
   // Helper to migrate the lineup in the cart when user selects a different lineup
 
@@ -471,6 +472,56 @@ const handleLineupChange = async (lineup) => {
   }
 };
 
+  // 🔔 Trigger availability request when adding to cart from the preview panel
+  const requestAvailabilityForCart = async ({ reason = "cart_add_preview" } = {}) => {
+    try {
+      if (!actData?._id || !selectedDate) return false;
+
+      const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+      const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
+
+      const payload = {
+        actId: String(actData._id),
+        lineupId: String((selectedLineup && (selectedLineup._id || selectedLineup.lineupId)) || ""),
+        date: selectedDate,
+        dateISO,
+        address: selectedAddress || "",
+        formattedAddress: selectedAddress || "",
+        userId: userId || undefined,
+        skipDuplicateCheck: false,
+        _client: "frontend/ShortlistPreviewPanel",
+        _reason: reason,
+      };
+
+      const endpoints = [
+        "/api/availability/trigger-request",
+        "/api/availability/trigger",
+        "/api/v2/availability/trigger-request",
+      ];
+
+      for (const path of endpoints) {
+        try {
+          const res = await fetch(`${base}${path}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              accept: "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            return true; // success on the first working endpoint
+          }
+        } catch (err) {
+          // try next endpoint
+        }
+      }
+    } catch (e) {
+      console.warn("⚠️ requestAvailabilityForCart failed:", e);
+    }
+    return false;
+  };
+
   
   
 
@@ -697,9 +748,14 @@ const handleLineupChange = async (lineup) => {
                   );
                 }
 
-                setTimeout(() => {
+                setTimeout(async () => {
                   console.log("🛒 addToCart called from Shortlist preview:", { actId, lineupId });
                   addToCart(actId, lineupId);
+
+                  // 🔔 Fire availability trigger non-blocking (ignore errors; SSE will update badges)
+                  requestAvailabilityForCart({
+                    reason: hoveredAct.isInCart ? "cart_update_preview" : "cart_add_preview",
+                  });
                 }, 0);
               }}
               className="bg-black text-white px-8 py-3 text-m active:bg-gray-700 hover:bg-[#ff6667] transition-colors duration-200 rounded"

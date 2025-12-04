@@ -308,7 +308,6 @@ const userHasEditedRef = React.useRef(false);
       try {
         const resp = await axios.post(url, payload, {
           headers: {
-            "X-EventSheet-Client": "frontend",
             "Content-Type": "application/json",
           },
         });
@@ -1913,7 +1912,19 @@ useEffect(() => {
       next.splice(to, 0, moved);
       handleAnswer("schedule_order", enforceRules(next));
     };
-const isFixed = (k) => readOnly || k === "finish";
+const isFixed = (k) => readOnly || k === "finish" || k === "arrival";
+    // Fixed-time helpers
+    const FIXED_TIME_KEYS = new Set(["arrival", "finish"]);
+    const formatFixedTime = (hhmm) => {
+      const s = String(hhmm || "").trim();
+      if (!s) return "—";
+      // ensure HH:MM zero-padded and preserve 00:MM (midnight)
+      const m = s.match(/^(\d{1,2}):(\d{1,2})$/);
+      if (!m) return s; // fallback
+      const H = String(parseInt(m[1], 10)).padStart(2, "0");
+      const M = String(parseInt(m[2], 10)).padStart(2, "0");
+      return `${H}:${M}`;
+    };
 
     // Add / remove custom intermissions
     const nextBetweenKey = () => {
@@ -2022,7 +2033,7 @@ const isFixed = (k) => readOnly || k === "finish";
               role="button"
               aria-label="Drag to reorder"
               draggable={!isFixed(k) && !readOnly}
-className={`select-none text-gray-400 ${(isFixed(k) || readOnly) ? "cursor-not-allowed" : "cursor-grab"}`}
+              className={`select-none text-gray-400 ${(isFixed(k) || readOnly) ? "cursor-not-allowed" : "cursor-grab"}`}
               onDragStart={(e) => {
                 if (isFixed(k)) return;
                 dragIndexRef.current = idx;
@@ -2070,28 +2081,37 @@ className={`select-none text-gray-400 ${(isFixed(k) || readOnly) ? "cursor-not-a
 
           {/* middle: time */}
           <div className="md:col-span-4">
-            <CustomTimePicker
-              value={answers[timeKey(k)] || ""}
-              minuteStep={5}
-              enableDayOffset={k === "finish"}
-              dayOffset={
-                k === "finish" ? Number(answers[offKey("finish")] || 0) : 0
-              }
-              onDayOffsetChange={(v) =>
-                k === "finish" && handleAnswer(offKey("finish"), v)
-              }
-              onChange={(newHHMM) => {
-    userHasEditedRef.current = true;
-    handleAnswer(timeKey(k), newHHMM);
-}}
-              {...(placeholderRows.has(k)
-                ? {
-                    hourPlaceholder: "Select",
-                    minutePlaceholder: "--",
-                    defaultPeriod: "PM",
-                  }
-                : {})}
-            />
+            {FIXED_TIME_KEYS.has(k) ? (
+              <div className="border rounded px-2 py-2 text-sm w-full bg-gray-50 text-gray-900">
+                {formatFixedTime(answers[timeKey(k)])}
+                {k === "finish" && Number(answers[offKey("finish")] || 0) === 1 ? (
+                  <span className="ml-2 text-xs text-gray-500">(next day)</span>
+                ) : null}
+              </div>
+            ) : (
+              <CustomTimePicker
+                value={answers[timeKey(k)] || ""}
+                minuteStep={5}
+                enableDayOffset={k === "finish"}
+                dayOffset={
+                  k === "finish" ? Number(answers[offKey("finish")] || 0) : 0
+                }
+                onDayOffsetChange={(v) =>
+                  k === "finish" && handleAnswer(offKey("finish"), v)
+                }
+                onChange={(newHHMM) => {
+                  userHasEditedRef.current = true;
+                  handleAnswer(timeKey(k), newHHMM);
+                }}
+                {...(placeholderRows.has(k)
+                  ? {
+                      hourPlaceholder: "Select",
+                      minutePlaceholder: "--",
+                      defaultPeriod: "PM",
+                    }
+                  : {})}
+              />
+            )}
           </div>
 
           {/* right: notes (and extras if provided) */}
