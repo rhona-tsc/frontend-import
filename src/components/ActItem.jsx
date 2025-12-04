@@ -21,12 +21,78 @@ const log  = (...a) => DBG && console.log('🎸[ActItem]', ...a);
 const warn = (...a) => DBG && console.warn('🎸[ActItem]', ...a);
 const group = (label, fn) => { if (!DBG) return fn(); console.groupCollapsed(`🎸[ActItem] ${label}`); try { fn(); } finally { console.groupEnd(); } };
 
+// Cloudinary support (for public_id → URL)
+const CLOUD_NAME =
+  import.meta.env.VITE_CLOUDINARY_CLOUD_NAME ||
+  import.meta.env.VITE_CLOUD_NAME ||
+  '';
+
+const buildFromPublicId = (publicId) => {
+  if (!publicId || !CLOUD_NAME) return '';
+  const pid = String(publicId).trim().replace(/^\/+/, '');
+  // Produce a vanilla upload URL; `cld()` will add transforms later
+  return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${pid}`;
+};
+
+// Extra debugging of the incoming image shapes
+const debugImageShape = (act) => {
+  if (!DBG) return;
+  try {
+    const peek = (x) => {
+      if (Array.isArray(x)) {
+        return x.slice(0, 3).map((it) =>
+          typeof it === 'string'
+            ? it
+            : Object.fromEntries(
+                Object.keys(it || {}).slice(0, 6).map((k) => [k, it[k]])
+              )
+        );
+      }
+      if (x && typeof x === 'object') {
+        const keys = Object.keys(x);
+        return Object.fromEntries(keys.slice(0, 8).map((k) => [k, x[k]]));
+      }
+      return x ?? null;
+    };
+
+    group('🧪 image-shape', () => {
+      log('CLOUD_NAME present:', !!CLOUD_NAME);
+      log('Top-level fields', {
+        heroImage: act?.heroImage,
+        coverImage: act?.coverImage,
+        image: act?.image,
+      });
+      log('Arrays snapshot', {
+        profileImage: peek(act?.profileImage),
+        images: peek(act?.images),
+        photos: peek(act?.photos),
+        gallery: peek(act?.gallery),
+      });
+    });
+  } catch (e) {
+    console.error('🎸[ActItem] debugImageShape failed', e);
+  }
+};
+
 /* ------------------------------- URL helpers ------------------------------ */
 
 // Normalise a possibly-empty/relative value into a usable URL or "".
 const valueToUrl = (v) => {
   if (!v) return '';
-  if (typeof v === 'string') return v.trim();
+  // If it's already a string
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return '';
+    if (s.startsWith('http')) return s; // already a URL
+    // Likely a Cloudinary public_id (no spaces, not starting with a slash)
+    const looksLikePublicId = !s.startsWith('/') && !s.includes(' ');
+    if (looksLikePublicId) {
+      const built = buildFromPublicId(s);
+      if (built) return built;
+    }
+    return '';
+  }
+  // If it's an object (various shapes)
   if (typeof v === 'object') {
     return (
       v.url ||
@@ -34,6 +100,7 @@ const valueToUrl = (v) => {
       v.src ||
       v.link ||
       v.path ||
+      (v.public_id ? buildFromPublicId(v.public_id) : '') ||
       ''
     );
   }
@@ -128,6 +195,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
         hasLineups: !!actData?.lineups?.length,
         initialLove,
       });
+      debugImageShape(actData);
     });
     return () => log('unmount', { actId: actData?._id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -361,6 +429,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
       name: actData?.tscName || actData?.name,
       picked: pickedUrl || '(placeholder)',
       resolved: resolvedUrl || '(placeholder)',
+      cloudNamePresent: !!CLOUD_NAME,
       imagesLen: Array.isArray(actData?.images) ? actData.images.length : 0,
       profileLen: Array.isArray(actData?.profileImage) ? actData.profileImage.length : 0,
     });
