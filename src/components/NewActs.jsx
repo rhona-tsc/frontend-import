@@ -109,33 +109,34 @@ const NewActs = () => {
   };
 
   // ————— Data slice for this widget —————
-  const newestApprovedSlice = useMemo(() => {
+  const newestSlice = useMemo(() => {
     const list = Array.isArray(deferredActs) ? deferredActs : [];
-    const approved = list.filter(
-      (act) =>
-        act &&
-        (act.status === "approved" || act.status === "Approved, changes pending")
+    const withLineups = list.filter(
+      (act) => act && Array.isArray(act.lineups) && act.lineups.length > 0
     );
 
-    // Sort once, then slice; keep object references stable
-    approved.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-    return approved.slice(0, maxToShow);
+    // Sort newest-first (fallback to updatedAt if needed)
+    withLineups.sort((a, b) => {
+      const aTime = new Date(a.createdAt || a.updatedAt || 0).getTime();
+      const bTime = new Date(b.createdAt || b.updatedAt || 0).getTime();
+      return bTime - aTime;
+    });
+
+    return withLineups.slice(0, maxToShow);
   }, [deferredActs, maxToShow]);
 
   const [, startTransition] = useTransition();
 
   useEffect(() => {
     // Phase 1: fast paint with just the act references (no cloning, no price yet)
-    setNewestActs(newestApprovedSlice);
+    setNewestActs(newestSlice);
 
     // Phase 2: compute prices off the main critical path
     const id = scheduleIdle(() => {
       startTransition(() => {
         setPriceMap((prev) => {
           const next = new Map(prev);
-          for (const act of newestApprovedSlice) {
+          for (const act of newestSlice) {
             const id = act?._id;
             if (!id) continue;
             if (!next.has(id)) {
@@ -153,7 +154,7 @@ const NewActs = () => {
         else clearTimeout(id);
       }
     };
-  }, [newestApprovedSlice]);
+  }, [newestSlice]);
 
   return (
     <div className="my-10">
