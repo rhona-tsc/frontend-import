@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useMemo, useDeferredValue } from 'react';
 import { toast } from 'react-toastify';
 import CustomToast from './CustomToast';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -7,6 +7,16 @@ import { ShopContext } from '../context/ShopContext';
 import useOnScreen from '../hooks/useOnScreen';
 import { priceCache, makePriceKey } from '../pages/utils/priceCache';
 import useRenderTracker from '../hooks/useRenderTracker'; // 👈 add this import
+
+// Cloudinary helper: add responsive transforms
+const cld = (url, { w = 600, h = 400, crop = 'fill', gravity = 'auto' } = {}) => {
+  if (typeof url !== 'string') return '';
+  if (!url.includes('/upload/')) return url || '';
+  return url.replace(
+    '/upload/',
+    `/upload/f_auto,q_auto,dpr_auto,c_${crop},g_${gravity},w_${w},h_${h}/`
+  );
+};
 
 const ActItem = ({ actData, shortlistCount }) => {
   const navigate = useNavigate();
@@ -29,7 +39,7 @@ const ActItem = ({ actData, shortlistCount }) => {
     ) || 0;
 
 
-  const [loveCount, setLoveCount] = useState(initialLove);
+  const [loveCount, setLoveCount] = useState(() => initialLove);
   const [price, setPrice] = useState(null);
 
   // ✅ render tracker — place after you have basic props you want to log
@@ -49,7 +59,26 @@ const ActItem = ({ actData, shortlistCount }) => {
     selectedCounty,
     selectedAddress,
     selectedDate,
+    isShortlisted: isShortlistedCtx,
   } = useContext(ShopContext);
+
+  // Defer rapidly changing inputs (stabilises pricing effect)
+  const defAddr = useDeferredValue(selectedAddress);
+  const defDate = useDeferredValue(selectedDate);
+
+  // Memoize county fee size so deps are stable
+  const countyFeesLen = useMemo(() => (
+    actData?.useCountyTravelFee && actData?.countyFees
+      ? Object.keys(actData.countyFees).length
+      : 0
+  ), [actData?.useCountyTravelFee, actData?.countyFees]);
+
+  // Base price memo
+  const basePrice = useMemo(() => {
+    const lineup = actData?.lineups?.[0] || null;
+    const base = actData?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
+    return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
+  }, [actData]);
 
   const getBasePrice = (act) => {
     const lineup = act?.lineups?.[0] || null;
@@ -93,16 +122,14 @@ useEffect(() => {
   useEffect(() => {
     // 0) If no lineups yet, show base if possible and bail
     if (!actData?.lineups?.length) {
-      const base = getBasePrice(actData);
-      if (base != null) setPrice({ total: base, travelCalculated: false });
+      if (basePrice != null) setPrice({ total: basePrice, travelCalculated: false });
       return;
     }
 
     // 1) If no date or no location/county, show base and bail (no heavy calc)
-    const hasAnyLocation = !!(selectedAddress || selectedCounty);
-    if (!selectedDate || !hasAnyLocation) {
-      const base = getBasePrice(actData);
-      if (base != null) setPrice({ total: base, travelCalculated: false });
+    const hasAnyLocation = !!(defAddr || selectedCounty);
+    if (!defDate || !hasAnyLocation) {
+      if (basePrice != null) setPrice({ total: basePrice, travelCalculated: false });
       return;
     }
 
@@ -110,16 +137,13 @@ useEffect(() => {
     if (!isOnScreen) return;
 
     const lineup = actData.lineups[0];
-    const hasCountyTable =
-      actData.useCountyTravelFee &&
-      actData.countyFees &&
-      Object.keys(actData.countyFees).length > 0;
+    const hasCountyTable = actData.useCountyTravelFee && countyFeesLen > 0;
 
     const key = makePriceKey({
       actId: actData._id,
       lineupId: lineup?._id || lineup?.lineupId,
-      dateISO: selectedDate,
-      address: selectedAddress || '',
+      dateISO: defDate,
+      address: defAddr || '',
       county: hasCountyTable ? selectedCounty : '',
     });
 
@@ -130,28 +154,23 @@ useEffect(() => {
       return;
     }
 
-    // 4) Defer heavy work slightly so initial paint is smooth
-    const schedule = window.requestIdleCallback
-      ? (fn) => requestIdleCallback(fn, { timeout: 1000 })
-      : (fn) => setTimeout(fn, 0);
+    // 4) Defer heavy work slightly so initial paint is smooth, with cleanup
+    let idleId = null;
+    let timeoutId = null;
 
-    schedule(async () => {
+    const run = async () => {
       try {
         const result = await calculateActPricing(
           actData,
-          hasCountyTable ? selectedCounty : null, // only pass county if configured
-          selectedAddress,
-          selectedDate,
+          hasCountyTable ? selectedCounty : null,
+          defAddr,
+          defDate,
           lineup
         );
 
-        const base = getBasePrice(actData);
-        const final =
-          result && result.total != null
-            ? result
-            : base != null
-            ? { total: base, travelCalculated: false }
-            : null;
+        const final = result && result.total != null
+          ? result
+          : (basePrice != null ? { total: basePrice, travelCalculated: false } : null);
 
         if (final) {
           priceCache.set(key, final);
@@ -163,19 +182,30 @@ useEffect(() => {
           actId: actData?._id,
           useCountyTravelFee: actData?.useCountyTravelFee,
         });
-        const base = getBasePrice(actData);
-        if (base != null) setPrice({ total: base, travelCalculated: false });
+        if (basePrice != null) setPrice({ total: basePrice, travelCalculated: false });
       }
-    });
+    };
+
+    if ('requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(run, { timeout: 1200 });
+    } else {
+      timeoutId = setTimeout(run, 50);
+    }
+
+    return () => {
+      if (idleId && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [
     actData?._id,
     actData?.lineups?.length,
     actData?.useCountyTravelFee,
-    actData?.countyFees && Object.keys(actData.countyFees).length,
+    countyFeesLen,
     selectedCounty,
-    selectedAddress,
-    selectedDate,
+    defAddr,
+    defDate,
     isOnScreen,
+    basePrice,
   ]);
 
   const rawTotal = (actData?.formattedPrice?.total ?? price?.total);
@@ -238,23 +268,30 @@ useEffect(() => {
     return count;
   };
 
-  const isShortlisted = shortlistedActs?.includes(String(actData?._id));
+  const scrollTop = useCallback(() => window.scrollTo(0, 0), []);
+
+  const isShortlisted = (isShortlistedCtx && actData?._id)
+    ? !!isShortlistedCtx(actData._id)
+    : !!(shortlistedActs?.includes(String(actData?._id)));
 
   return (
     <div ref={cardRef} className="relative group">
       <Link
         to={`/act/${actData?._id}`}
-        onClick={() => window.scrollTo(0, 0)}
+        onClick={scrollTop}
         className="block text-gray-700"
       >
         <div className="overflow-hidden h-full w-full">
           {(() => {
-            const resolvedImage =
-              (actData?.profileImage?.[0]?.url || '/placeholder.jpg');
-
+            const raw = actData?.profileImage?.[0]?.url || '/placeholder.jpg';
+            const resolvedImage = cld(raw, { w: 600, h: 400 });
             return (
               <img
                 loading="lazy"
+                decoding="async"
+                fetchPriority="low"
+                width="600"
+                height="400"
                 className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
                 src={resolvedImage}
                 alt={actData?.tscName || 'Act'}
