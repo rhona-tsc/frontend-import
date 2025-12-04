@@ -1,4 +1,10 @@
-import React, { useContext, useState, useEffect, useRef, Suspense } from "react";
+import React, {
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  Suspense,
+} from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
@@ -26,7 +32,7 @@ import {
   calculateAverageRating,
 } from "./utils/helpersforAct";
 import useRenderTracker from "../hooks/useRenderTracker";
- import { logBadges } from "../utils/logger";
+import { logBadges } from "../utils/logger";
 import { readCachedAct, writeCachedAct } from "../utils/actCache";
 
 const Act = () => {
@@ -69,98 +75,121 @@ const Act = () => {
   // 🧹 Track locally cleared availability badges
   const [clearedBadges, setClearedBadges] = useState(new Set());
   const [price, setPrice] = useState(null);
-// UI shimmer while price computes
-const [isPriceLoading, setIsPriceLoading] = useState(false);
+  // UI shimmer while price computes
+  const [isPriceLoading, setIsPriceLoading] = useState(false);
   // 🔎 Prefer reviews, fall back to tscReviews/testimonials
-const reviews = React.useMemo(() => {
-  if (Array.isArray(actData?.reviews) && actData.reviews.length) return actData.reviews;
-  if (Array.isArray(actData?.tscReviews) && actData.tscReviews.length) return actData.tscReviews;
-  if (Array.isArray(actData?.testimonials) && actData.testimonials.length) return actData.testimonials;
-  return [];
-}, [actData]);
+  const reviews = React.useMemo(() => {
+    if (Array.isArray(actData?.reviews) && actData.reviews.length)
+      return actData.reviews;
+    if (Array.isArray(actData?.tscReviews) && actData.tscReviews.length)
+      return actData.tscReviews;
+    if (Array.isArray(actData?.testimonials) && actData.testimonials.length)
+      return actData.testimonials;
+    return [];
+  }, [actData]);
 
-// 🎵 Prefer selectedSongs, else flatten repertoireByYear, else repertoire
-const selectedSongs = React.useMemo(() => {
-  if (Array.isArray(actData?.selectedSongs) && actData.selectedSongs.length) return actData.selectedSongs;
+  // 🎵 Prefer selectedSongs, else flatten repertoireByYear, else repertoire
+  const selectedSongs = React.useMemo(() => {
+    if (Array.isArray(actData?.selectedSongs) && actData.selectedSongs.length)
+      return actData.selectedSongs;
 
-  // flatten { [year]: [{title,artist,genre,...}, ...] }
-  if (actData?.repertoireByYear && typeof actData.repertoireByYear === "object") {
-    return Object.entries(actData.repertoireByYear).flatMap(([year, arr]) =>
-      (arr || []).map(s => ({ ...s, year }))
-    );
-  }
-  if (Array.isArray(actData?.repertoire) && actData.repertoire.length) return actData.repertoire;
-  if (Array.isArray(actData?.tscRepertoire) && actData.tscRepertoire.length) return actData.tscRepertoire;
-  return [];
-}, [actData]);
+    // flatten { [year]: [{title,artist,genre,...}, ...] }
+    if (
+      actData?.repertoireByYear &&
+      typeof actData.repertoireByYear === "object"
+    ) {
+      return Object.entries(actData.repertoireByYear).flatMap(([year, arr]) =>
+        (arr || []).map((s) => ({ ...s, year }))
+      );
+    }
+    if (Array.isArray(actData?.repertoire) && actData.repertoire.length)
+      return actData.repertoire;
+    if (Array.isArray(actData?.tscRepertoire) && actData.tscRepertoire.length)
+      return actData.tscRepertoire;
+    return [];
+  }, [actData]);
 
-// ⭐ Recompute average rating from the same reviews you render
-const averageRating = React.useMemo(() => {
-  if (!reviews.length) return 0;
-  const sum = reviews.reduce((a, r) => a + (Number(r.rating) || 0), 0);
-  return Math.round((sum / reviews.length) * 2) / 2; // nearest 0.5
-}, [reviews]);
+  // ⭐ Recompute average rating from the same reviews you render
+  const averageRating = React.useMemo(() => {
+    if (!reviews.length) return 0;
+    const sum = reviews.reduce((a, r) => a + (Number(r.rating) || 0), 0);
+    return Math.round((sum / reviews.length) * 2) / 2; // nearest 0.5
+  }, [reviews]);
 
-// at top of Act.jsx
-const RepertoireSectionLazy = React.lazy(() => import("../components/RepertoireSection"));
-const AcousticExtrasSelectorLazy = React.lazy(() => import("../components/AcousticExtrasSelector"));
-const ActPerformanceOverviewLazy = React.lazy(() => import("../components/ActPerformanceOverview"));
-const RelatedActsLazy = React.lazy(() => import("../components/RelatedActs"));
-const DEBUG = import.meta?.env?.DEV ?? false; // on in dev
-const log = (...a) => { if (DEBUG) console.log(...a); };
-
+  // at top of Act.jsx
+  const RepertoireSectionLazy = React.lazy(
+    () => import("../components/RepertoireSection")
+  );
+  const AcousticExtrasSelectorLazy = React.lazy(
+    () => import("../components/AcousticExtrasSelector")
+  );
+  const ActPerformanceOverviewLazy = React.lazy(
+    () => import("../components/ActPerformanceOverview")
+  );
+  const RelatedActsLazy = React.lazy(() => import("../components/RelatedActs"));
+  const DEBUG = import.meta?.env?.DEV ?? false; // on in dev
+  const log = (...a) => {
+    if (DEBUG) console.log(...a);
+  };
 
   useRenderTracker("Act", {
-  actId,
-  hasActData: !!actData,
-  lineupCount: actData?.lineups?.length || 0,
-  selectedDate: selectedDate ? selectedDate.slice(0,10) : null,
-  hasAddress: !!selectedAddress,
-  badgeKeys: Object.keys(actData?.availabilityBadges || {}).length,
-});
+    actId,
+    hasActData: !!actData,
+    lineupCount: actData?.lineups?.length || 0,
+    selectedDate: selectedDate ? selectedDate.slice(0, 10) : null,
+    hasAddress: !!selectedAddress,
+    badgeKeys: Object.keys(actData?.availabilityBadges || {}).length,
+  });
 
   const id = extractVideoId(video);
 
-const cld = (url, {
-  w = 1500,        // target width
-  ar = "3:1",      // hero banner aspect
-  fill = true,     // crop to aspect
-  q = "auto:good", // good quality at small size
-} = {}) => {
-  if (!url || !url.includes("/upload/")) return url || "";
-  const t = [
-    "f_auto",           // AVIF/WebP/JPEG automatically
-    `q_${q}`,           // quality
-    "dpr_auto",         // retina-friendly
-    fill ? `c_fill,g_auto,ar_${ar}` : "c_scale",
-    `w_${w}`,
-  ].join(",");
-  return url.replace("/upload/", `/upload/${t}/`);
-};
+  const cld = (
+    url,
+    {
+      w = 1500, // target width
+      ar = "3:1", // hero banner aspect
+      fill = true, // crop to aspect
+      q = "auto:good", // good quality at small size
+    } = {}
+  ) => {
+    if (!url || !url.includes("/upload/")) return url || "";
+    const t = [
+      "f_auto", // AVIF/WebP/JPEG automatically
+      `q_${q}`, // quality
+      "dpr_auto", // retina-friendly
+      fill ? `c_fill,g_auto,ar_${ar}` : "c_scale",
+      `w_${w}`,
+    ].join(",");
+    return url.replace("/upload/", `/upload/${t}/`);
+  };
 
-const rawHero = actData?.coverImage?.[0]?.url || actData?.images?.[0]?.url || "";
-const heroUrl   = cld(rawHero, { w: 1500, ar: "3:1", fill: true });
-const heroSrcSet = [
-  `${cld(rawHero, { w: 768,  ar: "3:1", fill: true })} 768w`,
-  `${cld(rawHero, { w: 1200, ar: "3:1", fill: true })} 1200w`,
-  `${cld(rawHero, { w: 1800, ar: "3:1", fill: true })} 1800w`,
-].join(", ");
-const heroSizes = "(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1280px";
+  const rawHero =
+    actData?.coverImage?.[0]?.url || actData?.images?.[0]?.url || "";
+  const heroUrl = cld(rawHero, { w: 1500, ar: "3:1", fill: true });
+  const heroSrcSet = [
+    `${cld(rawHero, { w: 768, ar: "3:1", fill: true })} 768w`,
+    `${cld(rawHero, { w: 1200, ar: "3:1", fill: true })} 1200w`,
+    `${cld(rawHero, { w: 1800, ar: "3:1", fill: true })} 1800w`,
+  ].join(", ");
+  const heroSizes =
+    "(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1280px";
 
   // 🔺 Pre-compute hero URL for high-priority preload/render
   const heroUrlHigh = React.useMemo(() => {
     try {
       const u = actData?.images?.[0]?.url || "";
       return u ? cld(u, 1600) : "";
-    } catch { return ""; }
+    } catch {
+      return "";
+    }
   }, [actData?.images]);
 
   // Gallery Carousel logic
   const galleryRef = useRef(null);
   const reviewGalleryRef = useRef(null); // ✅ fix
-// at top of the component
-const sseRef = React.useRef(null);
-const lastActIdRef = React.useRef(null);
+  // at top of the component
+  const sseRef = React.useRef(null);
+  const lastActIdRef = React.useRef(null);
   const scrollGallery = (direction) => {
     if (galleryRef.current) {
       const scrollAmount = direction === "left" ? -400 : 400;
@@ -169,113 +198,114 @@ const lastActIdRef = React.useRef(null);
   };
 
   const scrollReviews = (direction) => {
-  if (reviewGalleryRef.current) {
-    const amt = direction === "left" ? -400 : 400;
-    reviewGalleryRef.current.scrollBy({ left: amt, behavior: "smooth" });
-  }
-};
-function VisibleOnScroll({ children, rootMargin = "200px", once = true }) {
-  const [show, setShow] = React.useState(false);
-  const ref = React.useRef(null);
-
-  React.useEffect(() => {
-    // If already shown (and once=true), don’t re-observe
-    if (show && once) return;
-
-    const el = ref.current;
-    // Fallback if IO isn’t available (SSR/old browser)
-    if (!el || typeof IntersectionObserver === "undefined") {
-      setShow(true);
-      return;
+    if (reviewGalleryRef.current) {
+      const amt = direction === "left" ? -400 : 400;
+      reviewGalleryRef.current.scrollBy({ left: amt, behavior: "smooth" });
     }
+  };
+  function VisibleOnScroll({ children, rootMargin = "200px", once = true }) {
+    const [show, setShow] = React.useState(false);
+    const ref = React.useRef(null);
 
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShow(true);
-          if (once) io.disconnect();
-        }
-      },
-      { rootMargin }
-    );
+    React.useEffect(() => {
+      // If already shown (and once=true), don’t re-observe
+      if (show && once) return;
 
-    io.observe(el);
-    return () => io.disconnect();
-  }, [show, once, rootMargin]);
+      const el = ref.current;
+      // Fallback if IO isn’t available (SSR/old browser)
+      if (!el || typeof IntersectionObserver === "undefined") {
+        setShow(true);
+        return;
+      }
 
-  return <div ref={ref}>{show ? children : null}</div>;
-}
+      const io = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setShow(true);
+            if (once) io.disconnect();
+          }
+        },
+        { rootMargin }
+      );
 
-const badgeVersion = (b = {}) => {
-  const keys = Object.keys(b);
-  let latest = 0;
-  for (const k of keys) {
-    const t = new Date(b[k]?.setAt || 0).getTime();
-    if (t > latest) latest = t;
+      io.observe(el);
+      return () => io.disconnect();
+    }, [show, once, rootMargin]);
+
+    return <div ref={ref}>{show ? children : null}</div>;
   }
-  return `${keys.length}:${latest}`;
-};
 
-async function handleLineupChange(lineup){
-  setSelectedLineup(lineup);
-  const lineupId = lineup?._id || lineup?.lineupId;
-  const key = `${actData?._id}|${lineupId}|${selectedDate}|${selectedAddress}|${selectedCounty||""}`;
-  priceReqKey.current = key;
+  const badgeVersion = (b = {}) => {
+    const keys = Object.keys(b);
+    let latest = 0;
+    for (const k of keys) {
+      const t = new Date(b[k]?.setAt || 0).getTime();
+      if (t > latest) latest = t;
+    }
+    return `${keys.length}:${latest}`;
+  };
 
-  // turn on shimmer
-  setIsPriceLoading(true);
+  async function handleLineupChange(lineup) {
+    setSelectedLineup(lineup);
+    const lineupId = lineup?._id || lineup?.lineupId;
+    const key = `${actData?._id}|${lineupId}|${selectedDate}|${selectedAddress}|${selectedCounty || ""}`;
+    priceReqKey.current = key;
 
-  const hasCountyTable =
-    actData?.useCountyTravelFee &&
-    actData?.countyFees &&
-    Object.keys(actData.countyFees).length > 0;
+    // turn on shimmer
+    setIsPriceLoading(true);
 
-  try {
-    const result = await calculateActPricing(
-      actData,
-      hasCountyTable ? selectedCounty : null,
-      selectedAddress,
-      selectedDate,
-      lineup
-    );
+    const hasCountyTable =
+      actData?.useCountyTravelFee &&
+      actData?.countyFees &&
+      Object.keys(actData.countyFees).length > 0;
 
-    if (priceReqKey.current !== key) return; // stale result
+    try {
+      const result = await calculateActPricing(
+        actData,
+        hasCountyTable ? selectedCounty : null,
+        selectedAddress,
+        selectedDate,
+        lineup
+      );
 
-    if (result) {
-      setPrice({
-        ...result,
-        travelCalculated: !!result?.travelFeeTotal && result.travelFeeTotal > 0,
+      if (priceReqKey.current !== key) return; // stale result
+
+      if (result) {
+        setPrice({
+          ...result,
+          travelCalculated:
+            !!result?.travelFeeTotal && result.travelFeeTotal > 0,
+        });
+        setFinalTravelPrice(result);
+      }
+    } catch (e) {
+      console.error("❌ handleLineupChange pricing failed", e);
+    } finally {
+      if (priceReqKey.current === key) setIsPriceLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!actData) return;
+
+    setActData((prev) => {
+      if (!prev) return prev;
+
+      const source = actData?.availabilityBadges || {};
+      const filtered = { ...source };
+      clearedBadges.forEach((d) => {
+        delete filtered[d];
+        delete filtered[`${d}_tbc`];
       });
-      setFinalTravelPrice(result);
-    }
-  } catch (e) {
-    console.error("❌ handleLineupChange pricing failed", e);
-  } finally {
-    if (priceReqKey.current === key) setIsPriceLoading(false);
-  }
-}
 
-useEffect(() => {
-  if (!actData) return;
+      const prevV = badgeVersion(prev.availabilityBadges || {});
+      const nextV = badgeVersion(filtered);
 
-  setActData(prev => {
-    if (!prev) return prev;
+      if (prevV === nextV) return prev; // no change
 
-    const source = actData?.availabilityBadges || {};
-    const filtered = { ...source };
-    clearedBadges.forEach((d) => {
-      delete filtered[d];
-      delete filtered[`${d}_tbc`];
+      return { ...prev, ...actData, availabilityBadges: filtered };
     });
-
-    const prevV = badgeVersion(prev.availabilityBadges || {});
-    const nextV = badgeVersion(filtered);
-
-    if (prevV === nextV) return prev; // no change
-
-    return { ...prev, ...actData, availabilityBadges: filtered };
-  });
-}, [actData?.availabilityBadges, clearedBadges]);
+  }, [actData?.availabilityBadges, clearedBadges]);
 
   useEffect(() => {
     if (location.hash) {
@@ -295,13 +325,23 @@ useEffect(() => {
       const el = document.createElement("link");
       el.rel = rel;
       el.setAttribute("data-auto", "act-hero");
-      Object.entries(attrs).forEach(([k, v]) => v != null && el.setAttribute(k, String(v)));
+      Object.entries(attrs).forEach(
+        ([k, v]) => v != null && el.setAttribute(k, String(v))
+      );
       document.head.appendChild(el);
     };
-    if (!document.head.querySelector('link[rel="preconnect"][href="https://res.cloudinary.com"]')) {
+    if (
+      !document.head.querySelector(
+        'link[rel="preconnect"][href="https://res.cloudinary.com"]'
+      )
+    ) {
       add("preconnect", { href: host, crossOrigin: "" });
     }
-    if (!document.head.querySelector('link[rel="dns-prefetch"][href="https://res.cloudinary.com"]')) {
+    if (
+      !document.head.querySelector(
+        'link[rel="dns-prefetch"][href="https://res.cloudinary.com"]'
+      )
+    ) {
       add("dns-prefetch", { href: host });
     }
   }, []);
@@ -310,7 +350,9 @@ useEffect(() => {
   useEffect(() => {
     if (!heroUrlHigh) return;
     // Avoid duplicates
-    const existing = document.head.querySelector(`link[rel="preload"][as="image"][href="${heroUrlHigh}"]`);
+    const existing = document.head.querySelector(
+      `link[rel="preload"][as="image"][href="${heroUrlHigh}"]`
+    );
     if (existing) return;
     const l = document.createElement("link");
     l.rel = "preload";
@@ -320,7 +362,9 @@ useEffect(() => {
     l.setAttribute("data-auto", "act-hero-preload");
     document.head.appendChild(l);
     return () => {
-      try { document.head.removeChild(l); } catch {}
+      try {
+        document.head.removeChild(l);
+      } catch {}
     };
   }, [heroUrlHigh]);
 
@@ -341,80 +385,93 @@ useEffect(() => {
     navigate("/login");
   };
 
-// Derive what you actually render
-const visibleBadges = React.useMemo(() => {
-  const base = actData?.availabilityBadges || {};
-  if (!clearedBadges?.size) return base;
+  // Derive what you actually render
+  const visibleBadges = React.useMemo(() => {
+    const base = actData?.availabilityBadges || {};
+    if (!clearedBadges?.size) return base;
 
-  const out = { ...base };
-  clearedBadges.forEach((d) => {
-    delete out[d];
-    delete out[`${d}_tbc`];
-  });
-  return out;
-}, [actData?.availabilityBadges, clearedBadges]);
+    const out = { ...base };
+    clearedBadges.forEach((d) => {
+      delete out[d];
+      delete out[`${d}_tbc`];
+    });
+    return out;
+  }, [actData?.availabilityBadges, clearedBadges]);
 
-useEffect(() => {
-  if (!actId || !selectedDate || !actData) return;
+  useEffect(() => {
+    if (!actId || !selectedDate || !actData) return;
 
-  // keep the existing connection if it's already for this actId
-  if (sseRef.current && lastActIdRef.current === String(actId)) return;
+    // keep the existing connection if it's already for this actId
+    if (sseRef.current && lastActIdRef.current === String(actId)) return;
 
-  // close any previous connection
-  if (sseRef.current) {
-    try { sseRef.current.close(); } catch {}
-    sseRef.current = null;
-  }
-
-  const url = `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`;
-  const es = new EventSource(url);
-  sseRef.current = es;
-  lastActIdRef.current = String(actId);
-
-  const onMessage = async (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      if (!["availability_yes","availability_deputy_yes","availability_badge_updated"].includes(data.type)) return;
-      if (String(data.actId) !== String(actId)) return;
-
-      const cleanDate = (data.dateISO || "").slice(0,10) || (selectedDate || "").slice(0,10);
-      if (!cleanDate) return;
-
-      if (data.type === "availability_badge_updated" && data.badge === null) {
-        setClearedBadges(prev => new Set(prev).add(cleanDate));
-        return;
-      }
-
-      await refreshBadgeFor(cleanDate);
-    } catch (err) {
-      console.error("⚠️ SSE message error", err);
-    }
-  };
-
-  const onError = (err) => console.warn("⚠️ SSE connection error", err);
-  const onOpen = () => console.log("📡 [SSE] Connection established");
-
-  es.addEventListener("message", onMessage);
-  es.addEventListener("error", onError);
-  es.addEventListener("open", onOpen);
-
-  return () => {
-    es.removeEventListener("message", onMessage);
-    es.removeEventListener("error", onError);
-    es.removeEventListener("open", onOpen);
-    try { es.close(); } catch {}
-    if (sseRef.current === es) {
+    // close any previous connection
+    if (sseRef.current) {
+      try {
+        sseRef.current.close();
+      } catch {}
       sseRef.current = null;
-      lastActIdRef.current = null;
     }
-  };
-}, [actId, selectedDate, !!actData]);
 
-useEffect(() => {
-  if (!actId || !selectedDate || !actData) return;
-  const cleanDate = selectedDate.slice(0,10);
-  refreshBadgeFor(cleanDate);
-}, [actId, selectedDate, !!actData]);
+    const url = `${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`;
+    const es = new EventSource(url);
+    sseRef.current = es;
+    lastActIdRef.current = String(actId);
+
+    const onMessage = async (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (
+          ![
+            "availability_yes",
+            "availability_deputy_yes",
+            "availability_badge_updated",
+          ].includes(data.type)
+        )
+          return;
+        if (String(data.actId) !== String(actId)) return;
+
+        const cleanDate =
+          (data.dateISO || "").slice(0, 10) ||
+          (selectedDate || "").slice(0, 10);
+        if (!cleanDate) return;
+
+        if (data.type === "availability_badge_updated" && data.badge === null) {
+          setClearedBadges((prev) => new Set(prev).add(cleanDate));
+          return;
+        }
+
+        await refreshBadgeFor(cleanDate);
+      } catch (err) {
+        console.error("⚠️ SSE message error", err);
+      }
+    };
+
+    const onError = (err) => console.warn("⚠️ SSE connection error", err);
+    const onOpen = () => console.log("📡 [SSE] Connection established");
+
+    es.addEventListener("message", onMessage);
+    es.addEventListener("error", onError);
+    es.addEventListener("open", onOpen);
+
+    return () => {
+      es.removeEventListener("message", onMessage);
+      es.removeEventListener("error", onError);
+      es.removeEventListener("open", onOpen);
+      try {
+        es.close();
+      } catch {}
+      if (sseRef.current === es) {
+        sseRef.current = null;
+        lastActIdRef.current = null;
+      }
+    };
+  }, [actId, selectedDate, !!actData]);
+
+  useEffect(() => {
+    if (!actId || !selectedDate || !actData) return;
+    const cleanDate = selectedDate.slice(0, 10);
+    refreshBadgeFor(cleanDate);
+  }, [actId, selectedDate, !!actData]);
 
   // verify latest reply on this act+date (use stable actId to avoid stale state)
   useEffect(() => {
@@ -526,289 +583,317 @@ useEffect(() => {
     };
   }, []);
 
-// act loader
-useEffect(() => {
-  if (!actId) return;
-  let cancelled = false;
+  // act loader
+  useEffect(() => {
+    if (!actId) return;
+    let cancelled = false;
 
-  // paint from acts[] if present
-  let found = Array.isArray(acts)
-    ? acts.find(a => String(a._id) === String(actId))
-    : null;
-  if (found) {
-    const avg = calculateAverageRating(found.reviews || []);
-    setActData({ ...found, averageRating: avg });
-    setSelectedLineup(found.lineups?.[0] || null);
-    setVideo(found.videos?.[0]?.url || "");
-  }
-
-  // paint from cache if present
-  const cached = readCachedAct(actId);
-  if (cached) {
-    const avg = calculateAverageRating(cached.reviews || []);
-    setActData(prev => {
-      const better = (cached?.lineups?.length || 0) >= (prev?.lineups?.length || 0) ? cached : prev;
-      return better ? { ...better, averageRating: calculateAverageRating(better.reviews || []) } : prev;
-    });
-    setSelectedLineup(cached.lineups?.[0] || null);
-    setVideo(cached.videos?.[0]?.url || "");
-  }
-
-  
-
-  // fetch fresh — accept both response shapes
-  (async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`, {
-        headers: { accept: "application/json" },
-      });
-      const text = await res.text();
-      if (cancelled) return;
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const json = text ? JSON.parse(text) : null;
-
-      // ✅ tolerate: { success, act }  OR  { ...actFields }
-      const act =
-        (json && json.act) ? json.act :
-        (json && json._id) ? json :
-        null;
-
-      if (!act) {
-        console.warn("[Act] Unexpected payload for /api/act/:id", json);
-        return;
-      }
-
-      writeCachedAct(actId, act);
-      const avg = calculateAverageRating(act.reviews || []);
-      setActData({ ...act, averageRating: avg });
-
-      const firstLineup = Array.isArray(act.lineups) ? act.lineups[0] : null;
-      setSelectedLineup(firstLineup || null);
-
-      // prefer videos[], fall back to tscVideos[]
-      const v = (act.videos?.[0]?.url) || (act.tscVideos?.[0]?.url) || "";
-      setVideo(v);
-    } catch (e) {
-      console.error("[Act] fetch failed", e);
+    // paint from acts[] if present
+    let found = Array.isArray(acts)
+      ? acts.find((a) => String(a._id) === String(actId))
+      : null;
+    if (found) {
+      const avg = calculateAverageRating(found.reviews || []);
+      setActData({ ...found, averageRating: avg });
+      setSelectedLineup(found.lineups?.[0] || null);
+      setVideo(found.videos?.[0]?.url || "");
     }
-  })();
 
-  return () => { cancelled = true; };
-}, [actId, acts]);
+    // paint from cache if present
+    const cached = readCachedAct(actId);
+    if (cached) {
+      const avg = calculateAverageRating(cached.reviews || []);
+      setActData((prev) => {
+        const better =
+          (cached?.lineups?.length || 0) >= (prev?.lineups?.length || 0)
+            ? cached
+            : prev;
+        return better
+          ? {
+              ...better,
+              averageRating: calculateAverageRating(better.reviews || []),
+            }
+          : prev;
+      });
+      setSelectedLineup(cached.lineups?.[0] || null);
+      setVideo(cached.videos?.[0]?.url || "");
+    }
+
+    // fetch fresh — accept both response shapes
+    (async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`,
+          {
+            headers: { accept: "application/json" },
+          }
+        );
+        const text = await res.text();
+        if (cancelled) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json = text ? JSON.parse(text) : null;
+
+        // ✅ tolerate: { success, act }  OR  { ...actFields }
+        const act =
+          json && json.act ? json.act : json && json._id ? json : null;
+
+        if (!act) {
+          console.warn("[Act] Unexpected payload for /api/act/:id", json);
+          return;
+        }
+
+        writeCachedAct(actId, act);
+        const avg = calculateAverageRating(act.reviews || []);
+        setActData({ ...act, averageRating: avg });
+
+        const firstLineup = Array.isArray(act.lineups) ? act.lineups[0] : null;
+        setSelectedLineup(firstLineup || null);
+
+        // prefer videos[], fall back to tscVideos[]
+        const v = act.videos?.[0]?.url || act.tscVideos?.[0]?.url || "";
+        setVideo(v);
+      } catch (e) {
+        console.error("[Act] fetch failed", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [actId, acts]);
 
   const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
-const priceReqKey = React.useRef("");
+  const priceReqKey = React.useRef("");
 
+  useEffect(() => {
+    if (!actData) return;
 
-useEffect(() => {
-  if (!actData) return;
+    setIsPriceLoading(true);
 
-  setIsPriceLoading(true);
-
-  if (!actData?.lineups?.length) {
-    // show base if available and bail
-    const lineup = actData?.lineups?.[0];
-    const base =
-      actData?.formattedPrice?.total ??
-      lineup?.base_fee?.[0]?.total_fee ??
-      null;
-    if (base != null) {
-      setPrice({
-        total: Number(String(base).replace(/[^0-9.+-]/g, "")),
-        travelCalculated: false,
-      });
-    }
-    setIsPriceLoading(false);
-    return;
-  }
-
-  const hasAnyLocation = !!(selectedAddress || selectedCounty);
-  if (!selectedDate || !hasAnyLocation) {
-    const lineup = actData.lineups[0];
-    const base =
-      actData?.formattedPrice?.total ??
-      lineup?.base_fee?.[0]?.total_fee ??
-      null;
-    if (base != null) {
-      setPrice({
-        total: Number(String(base).replace(/[^0-9.+-]/g, "")),
-        travelCalculated: false,
-      });
-    }
-    setIsPriceLoading(false);
-    return;
-  }
-
-  const hasCountyTable =
-    actData.useCountyTravelFee &&
-    actData.countyFees &&
-    Object.keys(actData.countyFees).length > 0;
-
-  const lineup = actData.lineups[0];
-
-  const key = makePriceKey({
-    actId: actData._id,
-    lineupId: lineup?._id || lineup?.lineupId,
-    dateISO: selectedDate,
-    address: selectedAddress || "",
-    county: hasCountyTable ? selectedCounty : "",
-  });
-
-  const cached = priceCache.get(key);
-  if (cached) {
-    setPrice(cached);
-    setFinalTravelPrice(cached);
-    setIsPriceLoading(false);
-    return;
-  }
-
-  (async () => {
-    try {
-      const pricingResults = await calculateActPricing(
-        actData,
-        hasCountyTable ? selectedCounty : null,
-        selectedAddress,
-        selectedDate,
-        lineup
-      );
-
-      const base =
-        actData?.formattedPrice?.total ??
-        lineup?.base_fee?.[0]?.total_fee ??
-        0;
-
-      const final =
-        pricingResults && pricingResults.total != null
-          ? pricingResults
-          : {
-              total: Number(String(base).replace(/[^0-9.+-]/g, "")),
-              travelCalculated: false,
-            };
-
-      priceCache.set(key, final);
-      setFinalTravelPrice(final);
-      setPrice({
-        total: final.total,
-        travelCalculated: !!final.travelCalculated,
-        travelFeeTotal: final.travelFeeTotal ?? 0,
-      });
-    } catch (err) {
-      console.error("❌ Failed to calculate price:", {
-        err,
-        actId: actData?._id,
-        useCountyTravelFee: actData?.useCountyTravelFee,
-      });
+    if (!actData?.lineups?.length) {
+      // show base if available and bail
+      const lineup = actData?.lineups?.[0];
       const base =
         actData?.formattedPrice?.total ??
         lineup?.base_fee?.[0]?.total_fee ??
         null;
       if (base != null) {
-        const fallback = {
+        setPrice({
           total: Number(String(base).replace(/[^0-9.+-]/g, "")),
           travelCalculated: false,
-        };
-        setPrice(fallback);
-        setFinalTravelPrice(fallback);
+        });
       }
-    } finally {
       setIsPriceLoading(false);
+      return;
     }
-  })();
-}, [
-  actData?._id,
-  actData?.lineups?.length,
-  actData?.useCountyTravelFee,
-  actData?.countyFees && Object.keys(actData.countyFees).length,
-  selectedCounty,
-  selectedAddress,
-  selectedDate,
-]);
+
+    const hasAnyLocation = !!(selectedAddress || selectedCounty);
+    if (!selectedDate || !hasAnyLocation) {
+      const lineup = actData.lineups[0];
+      const base =
+        actData?.formattedPrice?.total ??
+        lineup?.base_fee?.[0]?.total_fee ??
+        null;
+      if (base != null) {
+        setPrice({
+          total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+          travelCalculated: false,
+        });
+      }
+      setIsPriceLoading(false);
+      return;
+    }
+
+    const hasCountyTable =
+      actData.useCountyTravelFee &&
+      actData.countyFees &&
+      Object.keys(actData.countyFees).length > 0;
+
+    const lineup = actData.lineups[0];
+
+    const key = makePriceKey({
+      actId: actData._id,
+      lineupId: lineup?._id || lineup?.lineupId,
+      dateISO: selectedDate,
+      address: selectedAddress || "",
+      county: hasCountyTable ? selectedCounty : "",
+    });
+
+    const cached = priceCache.get(key);
+    if (cached) {
+      setPrice(cached);
+      setFinalTravelPrice(cached);
+      setIsPriceLoading(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        const pricingResults = await calculateActPricing(
+          actData,
+          hasCountyTable ? selectedCounty : null,
+          selectedAddress,
+          selectedDate,
+          lineup
+        );
+
+        const base =
+          actData?.formattedPrice?.total ??
+          lineup?.base_fee?.[0]?.total_fee ??
+          0;
+
+        const final =
+          pricingResults && pricingResults.total != null
+            ? pricingResults
+            : {
+                total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+                travelCalculated: false,
+              };
+
+        priceCache.set(key, final);
+        setFinalTravelPrice(final);
+        setPrice({
+          total: final.total,
+          travelCalculated: !!final.travelCalculated,
+          travelFeeTotal: final.travelFeeTotal ?? 0,
+        });
+      } catch (err) {
+        console.error("❌ Failed to calculate price:", {
+          err,
+          actId: actData?._id,
+          useCountyTravelFee: actData?.useCountyTravelFee,
+        });
+        const base =
+          actData?.formattedPrice?.total ??
+          lineup?.base_fee?.[0]?.total_fee ??
+          null;
+        if (base != null) {
+          const fallback = {
+            total: Number(String(base).replace(/[^0-9.+-]/g, "")),
+            travelCalculated: false,
+          };
+          setPrice(fallback);
+          setFinalTravelPrice(fallback);
+        }
+      } finally {
+        setIsPriceLoading(false);
+      }
+    })();
+  }, [
+    actData?._id,
+    actData?.lineups?.length,
+    actData?.useCountyTravelFee,
+    actData?.countyFees && Object.keys(actData.countyFees).length,
+    selectedCounty,
+    selectedAddress,
+    selectedDate,
+  ]);
 
   const badgeReqKeyRef = React.useRef("");
 
-const versionOf = (b = {}) => {
-  let latest = 0, n = 0;
-  for (const k of Object.keys(b)) {
-    n++;
-    const t = new Date(b[k]?.setAt || 0).getTime();
-    if (t > latest) latest = t;
-  }
-  return `${n}:${latest}`;
-};
-
-
-async function refreshBadgeFor(dateYYYYMMDD) {
-  if (!actId || !dateYYYYMMDD) return;
-  const key = `${actId}|${dateYYYYMMDD}`;
-  badgeReqKeyRef.current = key;
-
-  const badge = await fetchBadgeForActAndDate(actId, dateYYYYMMDD);
-  if (badgeReqKeyRef.current !== key) return; // stale result – ignore
-
-  // no-op if same version
-  setActData(prev => {
-    if (!prev) return prev;
-    const prevBadges = prev.availabilityBadges || {};
-    const nextBadges = { ...prevBadges, [dateYYYYMMDD]: badge };
-
-    if (versionOf(prevBadges) === versionOf(nextBadges)) return prev;
-    return { ...prev, availabilityBadges: nextBadges };
-  });
-}
-
-// 🔔 Trigger availability request when an act is added/updated in cart
-async function requestAvailabilityForCart({ reason = "cart_add" } = {}) {
-  try {
-    if (!actData?._id) return;
-    // Prefer the user-selected lineup, else the first lineup
-    const lineup = selectedLineup || (Array.isArray(actData?.lineups) ? actData.lineups[0] : null);
-    const lineupId = lineup?._id || lineup?.lineupId;
-    if (!lineupId) return;
-
-    const dateISO = selectedDate ? new Date(selectedDate).toISOString().slice(0, 10) : null;
-    const address = typeof selectedAddress === "string" ? selectedAddress.trim() : "";
-    const formattedAddress = storedPlace || "";
-
-    const payload = {
-      actId: actData._id,
-      lineupId,
-      date: dateISO,           // controller tolerates either `date` or `dateISO`
-      dateISO,
-      address,
-      formattedAddress,
-      userId: userId || null,  // backend will enrich name/email from userId if available
-      reason,
-    };
-
-    const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
-
-    // Try common endpoints in order; succeed-fast, fail-silent
-    const endpoints = [
-      "/api/availability/trigger-request",
-      "/api/availability/trigger",
-      "/api/v2/availability/trigger-request",
-    ];
-
-    for (const path of endpoints) {
-      try {
-        const resp = await fetch(`${base}${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", accept: "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (resp.ok) {
-          // Optionally refresh the badge for this date after a small delay
-          if (dateISO) setTimeout(() => { try { refreshBadgeFor(dateISO); } catch {} }, 250);
-          return;
-        }
-      } catch {}
+  const versionOf = (b = {}) => {
+    let latest = 0,
+      n = 0;
+    for (const k of Object.keys(b)) {
+      n++;
+      const t = new Date(b[k]?.setAt || 0).getTime();
+      if (t > latest) latest = t;
     }
-  } catch (err) {
-    console.warn("⚠️ Availability request failed (non-blocking)", err);
+    return `${n}:${latest}`;
+  };
+
+  async function refreshBadgeFor(dateYYYYMMDD) {
+    if (!actId || !dateYYYYMMDD) return;
+    const key = `${actId}|${dateYYYYMMDD}`;
+    badgeReqKeyRef.current = key;
+
+    const badge = await fetchBadgeForActAndDate(actId, dateYYYYMMDD);
+    if (badgeReqKeyRef.current !== key) return; // stale result – ignore
+
+    // no-op if same version
+    setActData((prev) => {
+      if (!prev) return prev;
+      const prevBadges = prev.availabilityBadges || {};
+      const nextBadges = { ...prevBadges, [dateYYYYMMDD]: badge };
+
+      if (versionOf(prevBadges) === versionOf(nextBadges)) return prev;
+      return { ...prev, availabilityBadges: nextBadges };
+    });
   }
-}
+
+  // 🔔 Trigger availability request when an act is added/updated in cart
+  async function requestAvailabilityForCart({ reason = "cart_add" } = {}) {
+    try {
+      if (!actData?._id) return;
+      // Prefer the user-selected lineup, else the first lineup
+      const lineup =
+        selectedLineup ||
+        (Array.isArray(actData?.lineups) ? actData.lineups[0] : null);
+      const lineupId = lineup?._id || lineup?.lineupId;
+      if (!lineupId) return;
+
+      const dateISO = selectedDate
+        ? new Date(selectedDate).toISOString().slice(0, 10)
+        : null;
+      if (!dateISO) {
+        console.warn("⚠️ Availability request skipped: no selectedDate set");
+        return;
+      }
+      const address =
+        typeof selectedAddress === "string" ? selectedAddress.trim() : "";
+      const formattedAddress = storedPlace || "";
+
+      const payload = {
+        actId: actData._id,
+        lineupId,
+        date: dateISO, // controller tolerates either `date` or `dateISO`
+        dateISO,
+        address,
+        formattedAddress,
+        userId: userId || null, // backend will enrich name/email from userId if available
+        reason,
+      };
+
+      const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+
+      // Try common endpoints in order; succeed-fast, fail-silent
+      const endpoints = [
+        "/api/availability/request",              // primary (matches ActItem.jsx)
+        "/api/availability/trigger-request",      // legacy
+        "/api/v2/availability/trigger-request",   // v2
+        "/api/availability/trigger",              // fallback
+      ];
+
+      for (const path of endpoints) {
+        try {
+          const resp = await fetch(`${base}${path}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              accept: "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+          if (resp.ok) {
+            setTimeout(() => {
+              try { refreshBadgeFor(dateISO); } catch {}
+            }, 250);
+            console.log(`✅ Availability request ok via ${path}`);
+            return;
+          } else {
+            const errText = await resp.text().catch(() => "");
+            console.warn(`❕ Availability ${path} -> ${resp.status}`, errText);
+          }
+        } catch (e) {
+          console.error(`❌ Availability fetch error for ${path}:`, e);
+        }
+      }
+    } catch (err) {
+      console.warn("⚠️ Availability request failed (non-blocking)", err);
+    }
+  }
 
   // Calculate display price: prefer price?.total, then formattedPrice, then actData formattedPrice
   const rawTotal =
@@ -842,14 +927,17 @@ async function requestAvailabilityForCart({ reason = "cart_add" } = {}) {
       ? shortlistedActs.includes(actData._id)
       : false;
 
-// ✅ new: render as soon as actData exists; handle "no lineup" gracefully
-if (!actData) {
-  return <div className="p-4 text-gray-500">Loading act details...</div>;
-}
+  // ✅ new: render as soon as actData exists; handle "no lineup" gracefully
+  if (!actData) {
+    return <div className="p-4 text-gray-500">Loading act details...</div>;
+  }
 
-// use a safe local reference everywhere you read selectedLineup
-const safeSelectedLineup = selectedLineup || actData.lineups?.[0] || null;
-console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.length });
+  // use a safe local reference everywhere you read selectedLineup
+  const safeSelectedLineup = selectedLineup || actData.lineups?.[0] || null;
+  console.log("[Act] counts", {
+    reviews: reviews.length,
+    songs: selectedSongs.length,
+  });
 
   return (
     <div className="p-4">
@@ -907,20 +995,26 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
           decoding="sync"
           width={1}
           height={1}
-          style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
+          style={{
+            position: "absolute",
+            width: 0,
+            height: 0,
+            opacity: 0,
+            pointerEvents: "none",
+          }}
           aria-hidden="true"
         />
       )}
-
-<ActHero
-  actId={actId}
-  acts={acts}
-  act={actData}
-  heroUrl={heroUrl}
-  heroSrcSet={heroSrcSet}
-  heroSizes={heroSizes}
-  eager
-/>      <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
+      <ActHero
+        actId={actId}
+        acts={acts}
+        act={actData}
+        heroUrl={heroUrl}
+        heroSrcSet={heroSrcSet}
+        heroSizes={heroSizes}
+        eager
+      />{" "}
+      <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
         <div className="flex flex-col sm:flex-row gap-6 w-full">
           {/* Left: Video & Bio stacked together */}
           <div className="w-full sm:w-[60%] ">
@@ -1110,68 +1204,98 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
                   </button>
                   <button
                     onClick={async () => {
-  if (!safeSelectedLineup) {
-    console.warn("⚠️ No lineup selected before adding to cart");
-    return;
-  }
+                      if (!safeSelectedLineup) {
+                        console.warn(
+                          "⚠️ No lineup selected before adding to cart"
+                        );
+                        return;
+                      }
 
-  // --- existing add/remove logic below ---
-  if (!isInCart) {
-        // ✅ Require login before adding, and do NOT toast if we're redirecting
-    if (!userId) {
-      try {
-        sessionStorage.setItem("pendingCartActId", String(actData._id));
-        sessionStorage.setItem(
-          "pendingCartLineupId",
-          String(safeSelectedLineup._id || safeSelectedLineup.lineupId || "")
-        );
-      } catch {}
-      promptLogin(
-        "Please log in to add acts to your cart and receive availability updates.",
-        actData._id
-      );
-      return; // 🚫 no toast here
-    }
+                      // --- existing add/remove logic below ---
+                      if (!isInCart) {
+                        // ✅ Require login before adding, and do NOT toast if we're redirecting
+                        if (!userId) {
+                          try {
+                            sessionStorage.setItem(
+                              "pendingCartActId",
+                              String(actData._id)
+                            );
+                            sessionStorage.setItem(
+                              "pendingCartLineupId",
+                              String(
+                                safeSelectedLineup._id ||
+                                  safeSelectedLineup.lineupId ||
+                                  ""
+                              )
+                            );
+                          } catch {}
+                          promptLogin(
+                            "Please log in to add acts to your cart and receive availability updates.",
+                            actData._id
+                          );
+                          return; // 🚫 no toast here
+                        }
 
-    addToCart(
-      actData._id,
-      safeSelectedLineup._id || safeSelectedLineup.lineupId
-    );
+                        addToCart(
+                          actData._id,
+                          safeSelectedLineup._id || safeSelectedLineup.lineupId
+                        );
 
-    // 🔔 NEW: trigger availability request on cart add (mobile)
-    await requestAvailabilityForCart({ reason: "cart_add_mobile" });
+                        // 🔔 NEW: trigger availability request on cart add (mobile)
+                        await requestAvailabilityForCart({
+                          reason: "cart_add_mobile",
+                        });
 
-    toast(
-      <CustomToast type="success" message="Added to cart!" />,
-      { position: "top-right", autoClose: 1600 }
-    );
-    return;
-  }
+                        toast(
+                          <CustomToast
+                            type="success"
+                            message="Added to cart!"
+                          />,
+                          { position: "top-right", autoClose: 1600 }
+                        );
+                        return;
+                      }
 
-  if (isSameLineupAsCart) {
-    const lineupIds = Object.keys(cartItems[actData._id] || {});
-    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
-    toast(
-      <CustomToast type="success" message="Removed from cart." />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  } else {
-    const lineupIds = Object.keys(cartItems[actData._id] || {});
-    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
-    addToCart(
-      actData._id,
-      safeSelectedLineup._id || safeSelectedLineup.lineupId
-    );
+                      if (isSameLineupAsCart) {
+                        const lineupIds = Object.keys(
+                          cartItems[actData._id] || {}
+                        );
+                        lineupIds.forEach((lineupId) =>
+                          removeFromCart(actData._id, lineupId)
+                        );
+                        toast(
+                          <CustomToast
+                            type="success"
+                            message="Removed from cart."
+                          />,
+                          { position: "top-right", autoClose: 1600 }
+                        );
+                      } else {
+                        const lineupIds = Object.keys(
+                          cartItems[actData._id] || {}
+                        );
+                        lineupIds.forEach((lineupId) =>
+                          removeFromCart(actData._id, lineupId)
+                        );
+                        addToCart(
+                          actData._id,
+                          safeSelectedLineup._id || safeSelectedLineup.lineupId
+                        );
 
-    // 🔔 NEW: trigger availability request on lineup update (mobile)
-    await requestAvailabilityForCart({ reason: "cart_update_mobile" });
+                        // 🔔 NEW: trigger availability request on lineup update (mobile)
+                        await requestAvailabilityForCart({
+                          reason: "cart_update_mobile",
+                        });
 
-    toast(
-      <CustomToast type="success" message="Lineup updated in cart!" />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  }
-}}
+                        toast(
+                          <CustomToast
+                            type="success"
+                            message="Lineup updated in cart!"
+                          />,
+                          { position: "top-right", autoClose: 1600 }
+                        );
+                      }
+                    }}
                     className="flex-1 px-4 py-3 rounded text-sm font-medium bg-black text-white hover:bg-[#ff6667] transition"
                     aria-pressed={!!isInCart}
                   >
@@ -1184,24 +1308,25 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
                 </div>
               )}
               <p className="mt-5 text-3xl font-medium p-3">
-             {isPriceLoading ? (
-  <span className="inline-block h-7 w-36 rounded bg-gray-200 animate-pulse align-middle" />
-) : (() => {
+                {isPriceLoading ? (
+                  <span className="inline-block h-7 w-36 rounded bg-gray-200 animate-pulse align-middle" />
+                ) : (
+                  (() => {
+                    const cleanTotal =
+                      price?.total ??
+                      finalTravelPrice?.total ??
+                      actData?.formattedPrice?.total ??
+                      null;
 
-
-  const cleanTotal =
-    price?.total ??
-    finalTravelPrice?.total ??
-    actData?.formattedPrice?.total ??
-    null;
-
-  if (cleanTotal != null) {
-    return price?.travelCalculated || finalTravelPrice?.travelCalculated
-      ? `£${cleanTotal}`
-      : `from £${cleanTotal}`;
-  }
-  return ""; // nothing if not ready
-})()}
+                    if (cleanTotal != null) {
+                      return price?.travelCalculated ||
+                        finalTravelPrice?.travelCalculated
+                        ? `£${cleanTotal}`
+                        : `from £${cleanTotal}`;
+                    }
+                    return ""; // nothing if not ready
+                  })()
+                )}
               </p>
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">
@@ -1301,8 +1426,8 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
               <div className="my-3 mt-5 flex justify-left z-10">
                 {(() => {
                   const allBadges = visibleBadges;
-                 
-logBadges("🐊 [Lookup] All badges", allBadges);
+
+                  logBadges("🐊 [Lookup] All badges", allBadges);
 
                   if (!allBadges || !selectedDate) {
                     console.warn("🐊 [Lookup] Missing badges or date");
@@ -1321,7 +1446,6 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                   }
 
                   const badgeForDate = allBadges[matchedKey];
-                 
 
                   const slots = Array.isArray(badgeForDate?.slots)
                     ? badgeForDate.slots
@@ -1329,61 +1453,84 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                   if (!slots.length) return null;
 
                   return (
-               <div className="flex items-center gap-3 mt-2 flex-wrap">
-  {slots.map((slot) => {
-    const cacheBuster =
-      slot?.primary?.setAt || slot?.setAt || badgeForDate?.setAt || "";
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      {slots.map((slot) => {
+                        const cacheBuster =
+                          slot?.primary?.setAt ||
+                          slot?.setAt ||
+                          badgeForDate?.setAt ||
+                          "";
 
+                        return (
+                          <React.Fragment
+                            key={`${matchedKey}_slot_${slot.slotIndex}`}
+                          >
+                            {/* Primary bubble (auto-switches to a covering deputy with YES) */}
+                            <VocalistFeaturedAvailable
+                              slot={slot}
+                              size={140}
+                              cacheBuster={cacheBuster}
+                              className="mt-2"
+                            />
 
-    return (
-      <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
-        {/* Primary bubble (auto-switches to a covering deputy with YES) */}
-        <VocalistFeaturedAvailable
-          slot={slot}
-          size={140}
-          cacheBuster={cacheBuster}
-          className="mt-2"
-        />
+                            {/* Deputies — force their own names so we never inherit the lead’s */}
+                            {/* Deputies — force their own names so we never inherit the lead’s */}
+                            {Array.isArray(slot.deputies) &&
+                              slot.deputies.map((dep, i) => {
+                                // Prefer explicit deputy name fields only
+                                const rawDeputyName =
+                                  typeof dep.vocalistName === "string" &&
+                                  dep.vocalistName.trim()
+                                    ? dep.vocalistName.trim()
+                                    : typeof dep.displayName === "string" &&
+                                        dep.displayName.trim()
+                                      ? dep.displayName.trim()
+                                      : typeof dep.preferredName === "string" &&
+                                          dep.preferredName.trim()
+                                        ? dep.preferredName.trim()
+                                        : "";
 
-        {/* Deputies — force their own names so we never inherit the lead’s */}
-       {/* Deputies — force their own names so we never inherit the lead’s */}
-{Array.isArray(slot.deputies) &&
-  slot.deputies.map((dep, i) => {
-    // Prefer explicit deputy name fields only
-    const rawDeputyName =
-      (typeof dep.vocalistName === "string" && dep.vocalistName.trim()) ? dep.vocalistName.trim()
-      : (typeof dep.displayName  === "string" && dep.displayName.trim())  ? dep.displayName.trim()
-      : (typeof dep.preferredName=== "string" && dep.preferredName.trim())? dep.preferredName.trim()
-      : "";
+                                const short = (full) => {
+                                  const parts = String(full || "")
+                                    .trim()
+                                    .split(/\s+/);
+                                  if (!parts.length) return "";
+                                  if (parts.length === 1) return parts[0];
+                                  const lastInitial =
+                                    parts[
+                                      parts.length - 1
+                                    ]?.[0]?.toUpperCase() || "";
+                                  return `${parts[0]} ${lastInitial}`;
+                                };
 
-    const short = (full) => {
-      const parts = String(full || "").trim().split(/\s+/);
-      if (!parts.length) return "";
-      if (parts.length === 1) return parts[0];
-      const lastInitial = parts[parts.length - 1]?.[0]?.toUpperCase() || "";
-      return `${parts[0]} ${lastInitial}`;
-    };
+                                const displayName = short(rawDeputyName);
 
-    const displayName = short(rawDeputyName);
-
-    return (
-      <FeaturedVocalistBadge
-        key={`${matchedKey}_slot_${slot.slotIndex}_dep_${dep.musicianId || i}`}
-        imageUrl={dep.photoUrl || assets?.placeholderMusician}
-        size={120}
-        cacheBuster={dep.setAt || dep.repliedAt || slot.setAt || ""}
-        className="mt-2"
-        musicianId={dep.musicianId}
-        profileUrl={dep.profileUrl}
-        variant="deputy"
-        displayName={displayName}
-      />
-    );
-  })}
-      </React.Fragment>
-    );
-  })}
-</div>
+                                return (
+                                  <FeaturedVocalistBadge
+                                    key={`${matchedKey}_slot_${slot.slotIndex}_dep_${dep.musicianId || i}`}
+                                    imageUrl={
+                                      dep.photoUrl ||
+                                      assets?.placeholderMusician
+                                    }
+                                    size={120}
+                                    cacheBuster={
+                                      dep.setAt ||
+                                      dep.repliedAt ||
+                                      slot.setAt ||
+                                      ""
+                                    }
+                                    className="mt-2"
+                                    musicianId={dep.musicianId}
+                                    profileUrl={dep.profileUrl}
+                                    variant="deputy"
+                                    displayName={displayName}
+                                  />
+                                );
+                              })}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
                   );
                 })()}
               </div>
@@ -1731,9 +1878,10 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                                 deputy?.deputyName,
                               ].find((v) => typeof v === "string" && v.trim());
 
-                              const label = deputyFirstLabel || (!item.isDeputy ? slotVocalistName : "");
+                              const label =
+                                deputyFirstLabel ||
+                                (!item.isDeputy ? slotVocalistName : "");
                               const displayName = shortName(label || "");
-
 
                               return (
                                 <FeaturedVocalistBadge
@@ -1814,39 +1962,58 @@ logBadges("🐊 [Lookup] All badges", allBadges);
 
               <button
                 onClick={async () => {
-  if (!safeSelectedLineup) {
-    console.warn("⚠️ No lineup selected before adding to cart");
-    return;
-  }
+                  if (!safeSelectedLineup) {
+                    console.warn("⚠️ No lineup selected before adding to cart");
+                    return;
+                  }
+                  // 🔒 Require login before adding/removing cart items
+                  if (!userId) {
+                    try {
+                      sessionStorage.setItem("pendingCartActId", String(actData._id));
+                      sessionStorage.setItem(
+                        "pendingCartLineupId",
+                        String(safeSelectedLineup._id || safeSelectedLineup.lineupId || "")
+                      );
+                    } catch {}
+                    promptLogin(
+                      "Please log in to add acts to your cart and receive availability updates.",
+                      actData._id
+                    );
+                    return;
+                  }
 
-  if (isInCart) {
-    // remove all lineups for this act
-    const lineupIds = Object.keys(cartItems[actData._id] || {});
-    lineupIds.forEach((lineupId) => removeFromCart(actData._id, lineupId));
+                  if (isInCart) {
+                    // remove all lineups for this act
+                    const lineupIds = Object.keys(cartItems[actData._id] || {});
+                    lineupIds.forEach((lineupId) =>
+                      removeFromCart(actData._id, lineupId)
+                    );
 
-    toast(
-      <CustomToast
-        type="success"
-        message="Removed from cart."
-      />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  } else {
-    // add selected lineup
-    addToCart(
-      actData._id,
-      safeSelectedLineup._id || safeSelectedLineup.lineupId
-    );
+                    toast(
+                      <CustomToast
+                        type="success"
+                        message="Removed from cart."
+                      />,
+                      { position: "top-right", autoClose: 1600 }
+                    );
+                  } else {
+                    // add selected lineup
+                    addToCart(
+                      actData._id,
+                      safeSelectedLineup._id || safeSelectedLineup.lineupId
+                    );
 
-    // 🔔 NEW: trigger availability request on cart add (desktop)
-    await requestAvailabilityForCart({ reason: "cart_add_desktop" });
+                    // 🔔 NEW: trigger availability request on cart add (desktop)
+                    await requestAvailabilityForCart({
+                      reason: "cart_add_desktop",
+                    });
 
-    toast(
-      <CustomToast type="success" message="Added to cart!" />,
-      { position: "top-right", autoClose: 1600 }
-    );
-  }
-}}
+                    toast(
+                      <CustomToast type="success" message="Added to cart!" />,
+                      { position: "top-right", autoClose: 1600 }
+                    );
+                  }
+                }}
                 className="bg-black text-white px-8 py-3 text-m active:bg-gray-700 hover:bg-[#ff6667] transition-colors duration-200 rounded"
                 aria-pressed={!!isInCart}
               >
@@ -1884,17 +2051,17 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                   style={{ scrollBehavior: "smooth" }}
                 >
                   {(actData.images || []).map((imgObj, index) => (
-  <img
-    key={index}
-    src={cld(imgObj?.url, 900)}
-    loading="lazy"
-    decoding="async"
-    width={900}
-    height={600}
-    className="w-[600px] h-[400px] object-cover rounded shadow-sm flex-shrink-0 snap-start"
-    alt={`Gallery image ${index + 1}`}
-  />
-))}
+                    <img
+                      key={index}
+                      src={cld(imgObj?.url, 900)}
+                      loading="lazy"
+                      decoding="async"
+                      width={900}
+                      height={600}
+                      className="w-[600px] h-[400px] object-cover rounded shadow-sm flex-shrink-0 snap-start"
+                      alt={`Gallery image ${index + 1}`}
+                    />
+                  ))}
                 </div>
                 <button
                   onClick={() => scrollGallery("right")}
@@ -1920,15 +2087,15 @@ logBadges("🐊 [Lookup] All badges", allBadges);
         {/* Left Column (60%) */}
         <div className="flex flex-col sm:flex-row gap-12 mt-10">
           <div className="w-full">
-           <Suspense fallback={null}>
-  <VisibleOnScroll>
-    <RepertoireSectionLazy
-      selectedSongs={selectedSongs}
-      actData={actData}
-      addToCart={addToCart}
-    />
-  </VisibleOnScroll>
-</Suspense>
+            <Suspense fallback={null}>
+              <VisibleOnScroll>
+                <RepertoireSectionLazy
+                  selectedSongs={selectedSongs}
+                  actData={actData}
+                  addToCart={addToCart}
+                />
+              </VisibleOnScroll>
+            </Suspense>
           </div>
         </div>
         {/* Reviews horizontal scroll gallery */}
@@ -1973,16 +2140,18 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                     className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory px-4"
                     style={{ scrollBehavior: "smooth" }}
                   >
-                   {reviews.length > 0 ? (
-  // map over `reviews`
-  reviews.map((review, index) => (
-    <div key={index} className="flex-shrink-0 snap-start">
-      <ReviewCard review={review} />
-    </div>
-  ))
-) : (
-  <p className="text-sm text-gray-400 px-0 py-3">No reviews available.</p>
-)}
+                    {reviews.length > 0 ? (
+                      // map over `reviews`
+                      reviews.map((review, index) => (
+                        <div key={index} className="flex-shrink-0 snap-start">
+                          <ReviewCard review={review} />
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-400 px-0 py-3">
+                        No reviews available.
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => scrollReviews("right")}
@@ -2022,17 +2191,17 @@ logBadges("🐊 [Lookup] All badges", allBadges);
               <div className="relative z-10">
                 {(() => {
                   return (
-                   <Suspense fallback={null}>
-  <VisibleOnScroll>
-    <AcousticExtrasSelectorLazy
-      actData={actData}
-      lineups={actData.lineups}
-      safeSelectedLineup={safeSelectedLineup}
-      addToCart={addToCart}
-      safeSelectedLineupId={safeSelectedLineup?._id}
-    />
-  </VisibleOnScroll>
-</Suspense>
+                    <Suspense fallback={null}>
+                      <VisibleOnScroll>
+                        <AcousticExtrasSelectorLazy
+                          actData={actData}
+                          lineups={actData.lineups}
+                          safeSelectedLineup={safeSelectedLineup}
+                          addToCart={addToCart}
+                          safeSelectedLineupId={safeSelectedLineup?._id}
+                        />
+                      </VisibleOnScroll>
+                    </Suspense>
                   );
                 })()}
               </div>
@@ -2176,7 +2345,8 @@ logBadges("🐊 [Lookup] All badges", allBadges);
                             onClick={() => {
                               if (!safeSelectedLineup || !actData?._id) return;
                               const lineupId =
-                                safeSelectedLineup._id || safeSelectedLineup.lineupId;
+                                safeSelectedLineup._id ||
+                                safeSelectedLineup.lineupId;
                               const extra = {
                                 name: label,
                                 price: finalFee,
@@ -2217,23 +2387,23 @@ logBadges("🐊 [Lookup] All badges", allBadges);
           </div>
           <div className="relative ">
             <Suspense fallback={null}>
-  <VisibleOnScroll>
-    <ActPerformanceOverviewLazy actData={actData} />
-  </VisibleOnScroll>
-</Suspense>
+              <VisibleOnScroll>
+                <ActPerformanceOverviewLazy actData={actData} />
+              </VisibleOnScroll>
+            </Suspense>
           </div>
         </div>
 
-       <Suspense fallback={null}>
-  <VisibleOnScroll>
-    <RelatedActsLazy
-      genres={actData.genre || []}
-      instruments={actData.instruments || []}
-      vocalist={actData.vocalist || ""}
-      currentActId={actData._id}
-    />
-  </VisibleOnScroll>
-</Suspense>
+        <Suspense fallback={null}>
+          <VisibleOnScroll>
+            <RelatedActsLazy
+              genres={actData.genre || []}
+              instruments={actData.instruments || []}
+              vocalist={actData.vocalist || ""}
+              currentActId={actData._id}
+            />
+          </VisibleOnScroll>
+        </Suspense>
       </div>
     </div>
   );
