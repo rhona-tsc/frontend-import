@@ -548,109 +548,69 @@ const handleLineupChange = async (lineup) => {
             })}
           </div>
 
-      <div className="my-3 mt-5">
+<div className="my-3 mt-5">
   {(() => {
     const allBadges = actData?.availabilityBadges;
     if (!allBadges || !selectedDate) return null;
 
     const cleanDate = selectedDate.slice(0, 10);
-    const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
-    if (!badgeKey) return null;
+    const matchedKey = Object.keys(allBadges).find((k) => k.includes(cleanDate));
+    if (!matchedKey) return null;
 
-    const badgeForDate = allBadges[badgeKey];
-    const slots = badgeForDate?.slots || [];
+    const badgeForDate = allBadges[matchedKey];
+    const slots = Array.isArray(badgeForDate?.slots) ? badgeForDate.slots : [];
     if (!slots.length) return null;
 
-    const isHttp = (u) => typeof u === "string" && u.startsWith("http");
-    const isYes  = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
-    const uniqBy = (arr, getKey) => {
-      const seen = new Set();
-      const out = [];
-      for (const item of arr) {
-        const key = getKey(item);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        out.push(item);
-      }
-      return out;
+    const short = (full) => {
+      const parts = String(full || "").trim().split(/\s+/);
+      if (!parts.length) return "";
+      if (parts.length === 1) return parts[0];
+      const lastInitial = parts[parts.length - 1]?.[0]?.toUpperCase() || "";
+      return `${parts[0]} ${lastInitial}`;
     };
-
-    // OPTIONAL: if you want "lead-first across all slots", use sortedSlots instead of slots below
-    const sortedSlots = [...slots].sort((a, b) => {
-      const aLead = (a?.state === "yes" && isHttp(a?.photoUrl)) ? 1 : 0;
-      const bLead = (b?.state === "yes" && isHttp(b?.photoUrl)) ? 1 : 0;
-      return bLead - aLead; // any slot with a lead-YES comes first
-    });
 
     return (
       <div className="flex items-center gap-3 mt-2 flex-wrap">
-        {(sortedSlots /* or slots */).map((slot) => {
-          const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
-
-          // 1) lead (featured) item IF available and has photo – always prepend
-          const leadIsAvailable = slot?.state === "yes";
-          const leadHasPhoto    = isHttp(slot?.photoUrl);
-          const leadItem = (leadIsAvailable && leadHasPhoto)
-            ? {
-                isDeputy: false,
-                musicianId: slot.musicianId,
-                photoUrl: slot.photoUrl,
-                profileUrl: slot.profileUrl,
-                setAt: slot.setAt,
-              }
-            : null;
-
-          // 2) server primary only if it's a deputy (but lead still goes first)
-          const primaryDep = (slot?.primary && slot.primary.isDeputy && isHttp(slot.primary.photoUrl))
-            ? slot.primary
-            : null;
-
-          // 3) YES deputies (newest first)
-          const yesDeps = deps
-            .filter(d => isYes(d) && isHttp(d?.photoUrl))
-            .sort((a, b) => new Date(b.repliedAt || b.setAt || 0) - new Date(a.repliedAt || a.setAt || 0));
-
-          // Build render list: lead first if present → primary deputy → other YES deputies
-          const combined = [
-            ...(leadItem ? [leadItem] : []),
-            ...(primaryDep ? [primaryDep] : []),
-            ...yesDeps.filter(d => !primaryDep || String(d.musicianId) !== String(primaryDep.musicianId)),
-          ];
-
-          // de-dupe by musicianId, cap to 3
-          let renderList = uniqBy(combined, d => String(d.musicianId)).slice(0, 3);
-
-          // fallback: if nothing to show, pick first deputy with any photo
-          if (!renderList.length) {
-            const firstWithPhoto = deps.find(d => isHttp(d?.photoUrl));
-            if (firstWithPhoto) renderList = [{ ...firstWithPhoto, isDeputy: true }];
-            // (intentionally not showing lead when unavailable)
-          }
-
-          if (!renderList.length) return null;
+        {slots.map((slot) => {
+          const cacheBuster =
+            slot?.primary?.setAt || slot?.setAt || badgeForDate?.setAt || "";
 
           return (
-            <div key={`${badgeKey}_slotwrap_${slot.slotIndex}`} className="flex items-center gap-3 flex-wrap">
-              {renderList.map((item, idx) => {
-                const cache = item.setAt || slot.setAt || badgeForDate.setAt || "";
-                const prof =
-                  item.profileUrl ||
-                  (item.musicianId ? `${window.location.origin}/musician/${item.musicianId}` : "");
+            <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
+              {/* Primary bubble (auto-switches to covering deputy with YES) */}
+              <VocalistFeaturedAvailable
+                slot={slot}
+                size={140}
+                cacheBuster={cacheBuster}
+                className="mt-2"
+              />
 
-                return (
-                  <FeaturedVocalistBadge
-                    key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}
-                    imageUrl={item.photoUrl}
-                    size={140}
-                    cacheBuster={cache}
-                    className="mt-2"
-                    musicianId={String(item.musicianId || "")}
-                    profileUrl={prof}
-                    variant={item.isDeputy ? "deputy" : "lead"}
-                  />
-                );
-              })}
-            </div>
+              {/* Deputies — show their own names */}
+              {Array.isArray(slot.deputies) &&
+                slot.deputies.map((dep, i) => {
+                  const rawDeputyName =
+                    (typeof dep.vocalistName === "string" && dep.vocalistName.trim()) ? dep.vocalistName.trim() :
+                    (typeof dep.displayName === "string" && dep.displayName.trim()) ? dep.displayName.trim() :
+                    (typeof dep.preferredName === "string" && dep.preferredName.trim()) ? dep.preferredName.trim() :
+                    "";
+
+                  const displayName = short(rawDeputyName);
+
+                  return (
+                    <FeaturedVocalistBadge
+                      key={`${matchedKey}_slot_${slot.slotIndex}_dep_${dep.musicianId || i}`}
+                      imageUrl={dep.photoUrl || assets?.placeholderMusician}
+                      size={120}
+                      cacheBuster={dep.setAt || dep.repliedAt || slot.setAt || ""}
+                      className="mt-2"
+                      musicianId={dep.musicianId}
+                      profileUrl={dep.profileUrl}
+                      variant="deputy"
+                      displayName={displayName}
+                    />
+                  );
+                })}
+            </React.Fragment>
           );
         })}
       </div>

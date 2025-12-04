@@ -1,4 +1,13 @@
-import React, { useContext, useEffect, useMemo, useState, useRef, useCallback, useDeferredValue, useTransition } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+  useDeferredValue,
+  useTransition,
+} from "react";
 import { ShopContext } from "../context/ShopContext";
 import Title from "./Title";
 import ActItem from "./ActItem";
@@ -8,7 +17,9 @@ const useMaxToShow = () => {
   const [maxToShow, setMaxToShow] = useState(10);
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
-    const mqTablet = window.matchMedia("(min-width: 640px) and (max-width: 1023.98px)");
+    const mqTablet = window.matchMedia(
+      "(min-width: 640px) and (max-width: 1023.98px)"
+    );
     const update = () => setMaxToShow(mqTablet.matches ? 8 : 10);
     update();
     mqTablet.addEventListener("change", update);
@@ -28,23 +39,34 @@ const scheduleIdle = (fn) => {
 const NewActs = () => {
   const { acts, userId, shortlistAct, shortlistItems } = useContext(ShopContext);
 
+  // Defer large arrays so typing/search/state updates don’t stall rendering
   const deferredActs = useDeferredValue(acts);
   const deferredShortlist = useDeferredValue(shortlistItems);
 
-  const shortlistSet = useMemo(() => new Set(Array.isArray(deferredShortlist) ? deferredShortlist : []), [deferredShortlist]);
-
-  const isShortlisted = useCallback((actId) => shortlistSet.has(actId), [shortlistSet]);
-
-  const handleShortlistToggle = useCallback((id) => {
-    return shortlistAct(userId, id);
-  }, [shortlistAct, userId]);
+  // Stable shortlist membership lookup
+  const shortlistSet = useMemo(
+    () => new Set(Array.isArray(deferredShortlist) ? deferredShortlist : []),
+    [deferredShortlist]
+  );
+  const isShortlisted = useCallback(
+    (actId) => shortlistSet.has(actId),
+    [shortlistSet]
+  );
+  const handleShortlistToggle = useCallback(
+    (id) => shortlistAct(userId, id),
+    [shortlistAct, userId]
+  );
 
   const maxToShow = useMaxToShow();
 
+  // Display list is kept as references to the original act objects (no cloning)
   const [newestActs, setNewestActs] = useState([]);
 
+  // Cache raw computed prices by act id + version timestamp
   const priceCacheRef = useRef(new Map()); // key: actId, value: { value, version }
+  const [priceMap, setPriceMap] = useState(() => new Map()); // key: actId, value: number|null
 
+  // ————— Price helpers —————
   const calculatePrice = (act) => {
     if (!act?.lineups?.length) return null;
     const sorted = [...act.lineups].sort(
@@ -52,16 +74,26 @@ const NewActs = () => {
     );
     const smallest = sorted[0];
     if (!smallest?.bandMembers) return null;
+
+    // 1) Prefer lineup.base_fee if present (fast path)
+    const baseFeeTotal = smallest?.base_fee?.total_fee;
+    if (typeof baseFeeTotal === "number" && baseFeeTotal > 0) {
+      // Apply your 20% margin (same rule you use elsewhere)
+      return Math.ceil(baseFeeTotal * 1.2);
+    }
+
+    // 2) Fallback: derive from essential musician + additional roles
     const essentialFees = smallest.bandMembers.flatMap((m) => {
       const fees = [];
       if (m.isEssential && typeof m.fee === "number") fees.push(m.fee);
       m.additionalRoles?.forEach((r) => {
-        if (r.isEssential && typeof r.additionalFee === "number") fees.push(r.additionalFee);
+        if (r.isEssential && typeof r.additionalFee === "number")
+          fees.push(r.additionalFee);
       });
       return fees;
     });
     const total = essentialFees.reduce((s, f) => s + f, 0);
-    return total ? Math.ceil(total / 0.75) : null;
+    return total ? Math.ceil(total / 0.75) : null; // maintain your original margin rule
   };
 
   const calculatePriceCached = (act) => {
@@ -76,30 +108,42 @@ const NewActs = () => {
     return value;
   };
 
+  // ————— Data slice for this widget —————
   const newestApprovedSlice = useMemo(() => {
     const list = Array.isArray(deferredActs) ? deferredActs : [];
     const approved = list.filter(
-      (act) => act && (act.status === "approved" || act.status === "Approved, changes pending")
+      (act) =>
+        act &&
+        (act.status === "approved" || act.status === "Approved, changes pending")
     );
-    approved.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    // Sort once, then slice; keep object references stable
+    approved.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
     return approved.slice(0, maxToShow);
   }, [deferredActs, maxToShow]);
 
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
-    // Phase 1: fast paint without price
+    // Phase 1: fast paint with just the act references (no cloning, no price yet)
     setNewestActs(newestApprovedSlice);
 
     // Phase 2: compute prices off the main critical path
     const id = scheduleIdle(() => {
       startTransition(() => {
-        setNewestActs((prev) =>
-          prev.map((act) => ({
-            ...act,
-            formattedPrice: calculatePriceCached(act),
-          }))
-        );
+        setPriceMap((prev) => {
+          const next = new Map(prev);
+          for (const act of newestApprovedSlice) {
+            const id = act?._id;
+            if (!id) continue;
+            if (!next.has(id)) {
+              next.set(id, calculatePriceCached(act));
+            }
+          }
+          return next;
+        });
       });
     });
 
@@ -124,13 +168,17 @@ const NewActs = () => {
         {newestActs.map(
           (item) =>
             item?.lineups?.length > 0 && (
-              <ActItem
+              <div
                 key={item._id}
-                actData={item}
-                isShortlisted={isShortlisted(item._id)}
-                onShortlistToggle={() => handleShortlistToggle(item._id)}
-                price={item.formattedPrice}
-              />
+                style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
+              >
+                <ActItem
+                  actData={item}
+                  isShortlisted={isShortlisted(item._id)}
+                  onShortlistToggle={() => handleShortlistToggle(item._id)}
+                  price={priceMap.get(item._id) ?? null}
+                />
+              </div>
             )
         )}
       </div>

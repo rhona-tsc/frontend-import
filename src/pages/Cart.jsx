@@ -1494,33 +1494,50 @@ const displayCartDetails = Array.isArray(cartDetails)
     slotsCount: slots.length,
   });
 
-  // lead card (render info)
-  const leadSlot = slots.find(s => s?.state !== "unavailable" && isHttp(s?.photoUrl)) || null;
-  const leadItem = leadSlot ? {
-    isDeputy: false,
-    musicianId: String(leadSlot.musicianId || ""),
-    photoUrl: leadSlot.photoUrl,
-    profileUrl: leadSlot.profileUrl || (leadSlot.musicianId ? `${window.location.origin}/musician/${leadSlot.musicianId}` : ""),
-    setAt: leadSlot.setAt || null,
-    vocalistName: leadSlot.vocalistName || "",
-  } : null;
-  console.log('[leadSlot]', leadSlot ? { musicianId: leadItem?.musicianId, hasPhoto: !!leadItem?.photoUrl } : null);
+  // Build a unique selection of ALL people who positively replied (lead + deputies)
+  const seen = new Set();
+  const selection = [];
 
-  // deputies who said YES with a photo (any slot)
-  const depYes = slots.flatMap(s => (Array.isArray(s.deputies) ? s.deputies : []))
-    .filter(d => isYes(d) && isHttp(d?.photoUrl))
-    .map(d => ({
-      ...d,
-      isDeputy: true,
-      musicianId: String(d.musicianId || ""),
-      profileUrl: d.profileUrl || (d.musicianId ? `${window.location.origin}/musician/${d.musicianId}` : ""),
-      setAt: d.setAt || d.repliedAt || null,
-      vocalistName: d.vocalistName || d.resolvedName || "",
-    }));
-  console.log('[depYes]', depYes.map(d => ({ id: d.musicianId, hasPhoto: !!d.photoUrl })));
+  const pushUnique = (p, extra = {}) => {
+    const musicianId = String(p?.musicianId || p?.id || p?._id || "").trim();
+    if (!musicianId || seen.has(musicianId)) return;
+    seen.add(musicianId);
+    selection.push({
+      isDeputy: !!p?.isDeputy || !!extra.isDeputy,
+      musicianId,
+      photoUrl:
+        p?.photoUrl ||
+        p?.imageUrl ||
+        p?.profilePicture ||
+        p?.musicianProfileImage ||
+        "",
+      profileUrl:
+        p?.profileUrl ||
+        (musicianId ? `${window.location.origin}/musician/${musicianId}` : ""),
+      setAt: p?.setAt || p?.repliedAt || null,
+      vocalistName:
+        p?.vocalistName ||
+        p?.resolvedName ||
+        p?.displayName ||
+        p?.name ||
+        `${p?.firstName || ""} ${p?.lastName || ""}`.trim(),
+    });
+  };
 
-  // order: lead first (if any), then deputies
-  const selection = [leadItem, ...depYes].filter(Boolean);
+  // Include LEADS with positive replies
+  slots.forEach((slot) => {
+    if (isYes(slot) && isHttp(slot?.photoUrl)) {
+      pushUnique(slot, { isDeputy: false });
+    }
+    // Include any deputies with positive replies for this slot
+    const deps = Array.isArray(slot?.deputies) ? slot.deputies : [];
+    deps.forEach((dep) => {
+      if (isYes(dep) && isHttp(dep?.photoUrl)) {
+        pushUnique(dep, { isDeputy: true });
+      }
+    });
+  });
+
   console.log('[selection]', selection.map(p => ({ id: p.musicianId, type: p.isDeputy ? 'deputy' : 'lead' })));
 
   // Prefer badge slot count (each slot = a vocalist position), fallback to lineup-based detection
@@ -1578,6 +1595,16 @@ const displayCartDetails = Array.isArray(cartDetails)
           </span>
         )}
       </h3>
+
+      {/* Reassurance note when fewer can be picked than required */}
+      {requiredVocalCount > 1 && selection.length < requiredVocalCount && (
+        <p className="ml-4 mt-1 text-sm text-gray-600 max-w-prose">
+          Can’t see all {requiredVocalCount} vocalists right now? You’re welcome to book
+          with {Math.min(chosenCount || 1, requiredVocalCount)} selected — we’ll allocate
+          the other lead vocalist if they’re available, or a like‑for‑like deputy.
+          We’ll always confirm with you before anything is final.
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-4 items-left ml-4">
         {selection.slice(0, 8).map((person, idx) => {
