@@ -76,34 +76,46 @@ const debugImageShape = (act) => {
 
 /* ------------------------------- URL helpers ------------------------------ */
 
+// Is this a Cloudinary public_id-like string?
+const isPublicIdString = (s) => typeof s === 'string' && !!s.trim() && !s.startsWith('http') && !s.startsWith('/') && !s.includes(' ');
+
 // Normalise a possibly-empty/relative value into a usable URL or "".
 const valueToUrl = (v) => {
   if (!v) return '';
+
+  // If an array sneaks in here, delegate properly
+  if (Array.isArray(v)) return fromArray(v);
+
   // If it's already a string
   if (typeof v === 'string') {
     const s = v.trim();
     if (!s) return '';
     if (s.startsWith('http')) return s; // already a URL
-    // Likely a Cloudinary public_id (no spaces, not starting with a slash)
-    const looksLikePublicId = !s.startsWith('/') && !s.includes(' ');
-    if (looksLikePublicId) {
+    // Treat as Cloudinary public_id if it looks like one
+    if (isPublicIdString(s)) {
       const built = buildFromPublicId(s);
+      return built || '';
+    }
+    return '';
+  }
+
+  // If it's an object (various shapes)
+  if (typeof v === 'object') {
+    const u = (v.url || v.secure_url || v.src || v.link || v.path || '').trim();
+    if (u) {
+      if (u.startsWith('http')) return u; // full URL
+      if (isPublicIdString(u)) {
+        const built = buildFromPublicId(u);
+        if (built) return built;
+      }
+    }
+    if (v.public_id) {
+      const built = buildFromPublicId(String(v.public_id));
       if (built) return built;
     }
     return '';
   }
-  // If it's an object (various shapes)
-  if (typeof v === 'object') {
-    return (
-      v.url ||
-      v.secure_url ||
-      v.src ||
-      v.link ||
-      v.path ||
-      (v.public_id ? buildFromPublicId(v.public_id) : '') ||
-      ''
-    );
-  }
+
   return '';
 };
 
@@ -128,16 +140,17 @@ const fromArray = (arr) => {
 const pickHeroImage = (act) => {
   // Common fields in your data across generations
   const cands = [
-    // Explicit hero-ish fields first
+    // Explicit hero-ish fields first (string/object)
     valueToUrl(act?.heroImage),
-    valueToUrl(act?.coverImage),
-    // Arrays
+
+    // Arrays first-class (schema shows arrays for coverImage/profileImage/images/photos/gallery)
+    fromArray(act?.coverImage),
     fromArray(act?.profileImage),
     fromArray(act?.images),
     fromArray(act?.photos),
     fromArray(act?.gallery),
-    // Single directly-stored string/object
-    valueToUrl(act?.profileImage),
+
+    // Single directly-stored string/object fallbacks
     valueToUrl(act?.image),
   ];
 
@@ -196,6 +209,9 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
         initialLove,
       });
       debugImageShape(actData);
+      if (!CLOUD_NAME) {
+        warn('⚠️ No Cloudinary cloud name found (VITE_CLOUDINARY_CLOUD_NAME or VITE_CLOUD_NAME). If image fields contain public_id strings, thumbnails will fall back to placeholder.');
+      }
     });
     return () => log('unmount', { actId: actData?._id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
