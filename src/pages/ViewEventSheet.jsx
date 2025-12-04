@@ -4611,7 +4611,7 @@ const peopleSection = isWedding
   id: "schedule",
   title: "Schedule",
   help:
-    "We’ve pulled any arrival/start/finish times from the booking. Add exact set times (and other key moments) below — no fixed rules.",
+    "We’ve pulled any arrival/start/finish times from the booking. Add exact set times (and other key moments) below.",
   fields: [
     {
       key: "schedule_simple",
