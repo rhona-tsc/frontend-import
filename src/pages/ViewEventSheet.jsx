@@ -2689,6 +2689,190 @@ className={`select-none text-gray-400 ${(isFixed(k) || readOnly) ? "cursor-not-a
     );
   }
 
+  // --- Simple Schedule (no rigid rules) ---
+function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false }) {
+  // Light normaliser → returns { hhmm, dayOffset } or null
+  const normalizeFinishLike = (raw) => {
+    if (!raw) return null;
+    let s = String(raw).trim().toLowerCase();
+    if (s === "midnight") return { hhmm: "00:00", dayOffset: 1 };
+    if (s === "noon") return { hhmm: "12:00", dayOffset: 0 };
+    s = s.replace(/[.\-]/g, ":").replace(/\s+/g, "");
+    const ampm = (s.match(/(am|pm)$/) || [])[1] || null;
+    if (ampm) s = s.replace(/(am|pm)$/i, "");
+    let h = 0, m = 0;
+    if (/^\d{1,2}:\d{2}$/.test(s)) {
+      const [hh, mm] = s.split(":").map(Number); h = hh; m = mm;
+    } else if (/^\d{3,4}$/.test(s)) {
+      const mm = s.slice(-2), hh = s.slice(0, s.length - 2) || "0";
+      h = Number(hh); m = Number(mm);
+    } else if (/^\d{1,2}$/.test(s)) { h = Number(s); m = 0; }
+    else { return null; }
+
+    if (ampm) { const isPM = ampm === "pm"; const h12 = h % 12; h = isPM ? h12 + 12 : h12; }
+    h = Math.max(0, Math.min(23, h));
+    m = Math.max(0, Math.min(59, m));
+    const toHHMM = (H, M) => `${String(H).padStart(2, "0")}:${String(M).padStart(2, "0")}`;
+    return { hhmm: toHHMM(h, m), dayOffset: 0 };
+  };
+
+  // Try to pull perf times from helper if present; else fall back to common fields
+  const perf = (
+    typeof getPerformanceTimesFromBooking === "function"
+      ? (getPerformanceTimesFromBooking(booking) || {})
+      : {
+          arrivalTime: booking?.arrivalTime || booking?.setup?.arrivalTime || null,
+          startTime: booking?.startTime || booking?.performance?.startTime || null,
+          finishTime: booking?.finishTime || booking?.performance?.finishTime || null,
+          finishDayOffset: booking?.finishDayOffset || 0,
+        }
+  ) || {};
+
+  // Seed core times + default rows once
+  React.useEffect(() => {
+    if (perf.arrivalTime && !answers.schedule_simple_arrival) {
+      const n = normalizeFinishLike(perf.arrivalTime);
+      if (n?.hhmm) handleAnswer("schedule_simple_arrival", n.hhmm);
+    }
+    if (perf.startTime && !answers.schedule_simple_start) {
+      const n = normalizeFinishLike(perf.startTime);
+      if (n?.hhmm) handleAnswer("schedule_simple_start", n.hhmm);
+    }
+    if (perf.finishTime && !answers.schedule_simple_finish_time) {
+      const n = normalizeFinishLike(perf.finishTime);
+      if (n?.hhmm) {
+        handleAnswer("schedule_simple_finish_time", n.hhmm);
+        const dbOff = Number.isFinite(Number(perf.finishDayOffset)) ? Number(perf.finishDayOffset) : (n.dayOffset || 0);
+        if (answers.schedule_simple_finish_dayOffset == null) {
+          handleAnswer("schedule_simple_finish_dayOffset", dbOff);
+        }
+      }
+    }
+    if (!Array.isArray(answers.schedule_simple_rows)) {
+      handleAnswer("schedule_simple_rows", [
+        { label: "1st Live Set", time: "", notes: "" },
+        { label: "2nd Live Set", time: "", notes: "" },
+      ]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booking?._id]);
+
+  const rows = Array.isArray(answers.schedule_simple_rows) ? answers.schedule_simple_rows : [];
+
+  const updateRow = (idx, patch) => {
+    const next = rows.map((r, i) => (i === idx ? { ...r, ...patch } : r));
+    handleAnswer("schedule_simple_rows", next);
+  };
+  const addRow = () => handleAnswer("schedule_simple_rows", [...rows, { label: "", time: "", notes: "" }]);
+  const removeRow = (idx) => handleAnswer("schedule_simple_rows", rows.filter((_, i) => i !== idx));
+
+  return (
+    <div className="space-y-4">
+      {/* Core booking times */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="text-sm text-gray-700 mb-1 block">Arrival time</label>
+          <CustomTimePicker
+            value={answers.schedule_simple_arrival || ""}
+            minuteStep={5}
+            onChange={(v) => handleAnswer("schedule_simple_arrival", v)}
+            hourPlaceholder="Select"
+            minutePlaceholder="--"
+            defaultPeriod="PM"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-gray-700 mb-1 block">Start time</label>
+          <CustomTimePicker
+            value={answers.schedule_simple_start || ""}
+            minuteStep={5}
+            onChange={(v) => handleAnswer("schedule_simple_start", v)}
+            hourPlaceholder="Select"
+            minutePlaceholder="--"
+            defaultPeriod="PM"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-gray-700 mb-1 block">Finish time</label>
+          <CustomTimePicker
+            value={answers.schedule_simple_finish_time || ""}
+            enableDayOffset
+            dayOffset={Number(answers.schedule_simple_finish_dayOffset || 0)}
+            onDayOffsetChange={(val) => handleAnswer("schedule_simple_finish_dayOffset", val)}
+            minuteStep={5}
+            onChange={(v) => handleAnswer("schedule_simple_finish_time", v)}
+            hourPlaceholder="Select"
+            minutePlaceholder="--"
+            defaultPeriod="PM"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            If the finish is after midnight, toggle the day accordingly.
+          </p>
+        </div>
+      </div>
+
+      {/* Free-form rows (sets, speeches, first dance, etc.) */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm text-gray-700">Activities & set times</div>
+          {!readOnly && (
+            <button type="button" className="border rounded px-2 py-1 text-sm" onClick={addRow}>
+              + Add row
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {rows.map((row, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm"
+            >
+              <input
+                type="text"
+                className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
+                placeholder="Label (e.g. 1st Live Set, First Dance)"
+                value={row.label || ""}
+                onChange={(e) => updateRow(idx, { label: e.target.value })}
+              />
+              <div className="md:col-span-3">
+                <CustomTimePicker
+                  value={row.time || ""}
+                  minuteStep={5}
+                  onChange={(v) => updateRow(idx, { time: v })}
+                  hourPlaceholder="Select"
+                  minutePlaceholder="--"
+                  defaultPeriod="PM"
+                />
+              </div>
+              <textarea
+                className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
+                placeholder="Notes (optional)"
+                rows={2}
+                value={row.notes || ""}
+                onChange={(e) => updateRow(idx, { notes: e.target.value })}
+              />
+              <div className="md:col-span-1 flex items-center justify-end">
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="border rounded px-2 py-1 text-xs"
+                    onClick={() => removeRow(idx)}
+                    title="Remove"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
   // --- Sections definition (labels + required fields) ---
   const sections = useMemo(() => {
     // Derive packdown time (minutes) from the selected lineup; fallback to 60
@@ -4278,25 +4462,25 @@ const peopleSection = isWedding
           },
         ],
       },
-      {
-        id: "schedule",
-        title: "Schedule",
-        help: "Arrival & finish are taken from your booking. Choose a set configuration and what you’d like between sets. Drag to reorder.",
-        fields: [
-          {
-            key: "schedule_custom",
-            type: "custom",
-            render: () => (
-              <ScheduleEditor
-                booking={booking}
-                acts={acts}
-                answers={answers}
-                handleAnswer={handleAnswer}
-              />
-            ),
-          },
-        ],
-      },
+  {
+  id: "schedule",
+  title: "Schedule",
+  help:
+    "We’ve pulled any arrival/start/finish times from the booking. Add exact set times (and other key moments) below — no fixed rules.",
+  fields: [
+    {
+      key: "schedule_simple",
+      type: "custom",
+      render: () => (
+        <SimpleScheduleEditor
+          booking={booking}
+          answers={answers}
+          handleAnswer={handleAnswer}
+        />
+      ),
+    },
+  ],
+},
     {
   id: "first_dance",
   title: isWedding
