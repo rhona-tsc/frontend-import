@@ -8,6 +8,16 @@ import useOnScreen from '../hooks/useOnScreen';
 import { priceCache, makePriceKey } from '../pages/utils/priceCache';
 import useRenderTracker from '../hooks/useRenderTracker'; // 👈 add this import
 
+// 🪵 Debug helpers
+const DBG = true;
+const log = (...args) => DBG && console.log('🎸[ActItem]', ...args);
+const warn = (...args) => DBG && console.warn('🎸[ActItem]', ...args);
+const group = (label, fn) => {
+  if (!DBG) return fn();
+  console.groupCollapsed(`🎸[ActItem] ${label}`);
+  try { fn(); } finally { console.groupEnd(); }
+};
+
 // Cloudinary helper: preserve original aspect (no fixed height)
 const cld = (url, { w = 1200, crop = 'limit' } = {}) => {
   if (typeof url !== 'string') return '';
@@ -26,8 +36,6 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
   const isOnScreen = useOnScreen(cardRef);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  
-
   // Robust initial love count (DB source preferred) -> fallbacks
   const initialLove =
     Number(
@@ -38,9 +46,28 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
       0
     ) || 0;
 
-
   const [loveCount, setLoveCount] = useState(() => initialLove);
   const [price, setPrice] = useState(null);
+
+  // Mount / unmount
+  useEffect(() => {
+    group('mount', () => {
+      log('mounted', {
+        actId: actData?._id,
+        name: actData?.tscName || actData?.name,
+        lite,
+        hasLineups: !!actData?.lineups?.length,
+        initialLove,
+      });
+    });
+    return () => log('unmounted', { actId: actData?._id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // on-screen tracker
+  useEffect(() => {
+    log('👀 onScreen changed →', isOnScreen, { actId: actData?._id });
+  }, [isOnScreen, actData?._id]);
 
   // ✅ render tracker — place after you have basic props you want to log
   useRenderTracker('ActItem', {
@@ -66,6 +93,17 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
   const defAddr = useDeferredValue(selectedAddress);
   const defDate = useDeferredValue(selectedDate);
 
+  useEffect(() => {
+    log('🔁 context changed', {
+      userId,
+      selectedCounty,
+      selectedAddress,
+      selectedDate,
+      defAddr,
+      defDate,
+    });
+  }, [userId, selectedCounty, selectedAddress, selectedDate, defAddr, defDate]);
+
   // Memoize county fee size so deps are stable
   const countyFeesLen = useMemo(() => (
     actData?.useCountyTravelFee && actData?.countyFees
@@ -77,7 +115,9 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
   const basePrice = useMemo(() => {
     const lineup = actData?.lineups?.[0] || null;
     const base = actData?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
-    return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
+    const numeric = base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
+    log('💷 basePrice memo', { actId: actData?._id, base: numeric });
+    return numeric;
   }, [actData]);
 
   const getBasePrice = (act) => {
@@ -90,15 +130,20 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
   };
 
   const setPriceIfChanged = React.useCallback((next) => {
-  setPrice((prev) => {
-    if (!prev) return next;
-    const same =
-      prev.total === next.total &&
-      !!prev.travelCalculated === !!next.travelCalculated &&
-      (prev.travelFeeTotal ?? 0) === (next.travelFeeTotal ?? 0);
-    return same ? prev : next;
-  });
-}, []);
+    setPrice((prev) => {
+      if (!prev) {
+        log('💰 price set (initial)', next);
+        return next;
+      }
+      const same =
+        prev.total === next.total &&
+        !!prev.travelCalculated === !!next.travelCalculated &&
+        (prev.travelFeeTotal ?? 0) === (next.travelFeeTotal ?? 0);
+      if (same) return prev;
+      log('💰 price updated', { from: prev, to: next });
+      return next;
+    });
+  }, []);
 
   // Keep loveCount in sync with DB when actData changes
   useEffect(() => {
@@ -112,7 +157,10 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
         0
       ) || 0;
 
-    setLoveCount((prev) => (prev === next ? prev : next));
+    setLoveCount((prev) => {
+      if (prev !== next) log('💗 loveCount sync', { prev, next, actId: actData?._id });
+      return prev === next ? prev : next;
+    });
   }, [
     lite,
     actData?.timesShortlisted,
@@ -124,11 +172,13 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
   useEffect(() => {
     // Skip all pricing work in lite mode
     if (lite) {
+      log('⏭️ lite mode: skip pricing');
       setPrice(null);
       return;
     }
     // 0) If no lineups yet, show base if possible and bail
     if (!actData?.lineups?.length) {
+      log('⏭️ no lineups: using base price', { basePrice });
       if (basePrice != null) setPrice({ total: basePrice, travelCalculated: false });
       return;
     }
@@ -136,12 +186,18 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     // 1) If no date or no location/county, show base and bail (no heavy calc)
     const hasAnyLocation = !!(defAddr || selectedCounty);
     if (!defDate || !hasAnyLocation) {
+      log('⏭️ missing date or location: using base price', {
+        defDate, defAddr, selectedCounty, basePrice
+      });
       if (basePrice != null) setPrice({ total: basePrice, travelCalculated: false });
       return;
     }
 
     // 2) Only calculate when the card is on-screen
-    if (!isOnScreen) return;
+    if (!isOnScreen) {
+      log('⏸️ not on-screen → skip pricing this frame');
+      return;
+    }
 
     const lineup = actData.lineups[0];
     const hasCountyTable = actData.useCountyTravelFee && countyFeesLen > 0;
@@ -157,9 +213,19 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     // 3) Serve from cache if present
     const cached = priceCache.get(key);
     if (cached) {
+      log('📦 cache hit', { key, cached });
       setPrice(cached);
       return;
     }
+    log('🧮 cache miss → calculating', {
+      key,
+      actId: actData?._id,
+      hasCountyTable,
+      countyFeesLen,
+      selectedCounty,
+      defAddr,
+      defDate
+    });
 
     // 4) Defer heavy work slightly so initial paint is smooth, with cleanup
     let idleId = null;
@@ -181,7 +247,10 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
 
         if (final) {
           priceCache.set(key, final);
+          log('✅ pricing done', { key, final });
           setPriceIfChanged(final);
+        } else {
+          warn('⚠️ pricing returned no result and no base price available', { key });
         }
       } catch (err) {
         console.error('❌ Failed to calculate price:', {
@@ -202,6 +271,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     return () => {
       if (idleId && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleId);
       if (timeoutId) clearTimeout(timeoutId);
+      log('🧽 cleanup pricing scheduler', { key });
     };
   }, [
     actData?._id,
@@ -214,11 +284,20 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     isOnScreen,
     basePrice,
     lite,
+    setPriceIfChanged,
   ]);
 
   const rawTotal = (actData?.formattedPrice?.total ?? price?.total);
   const displayTotal =
     rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
+
+  // log when display price changes
+  useEffect(() => {
+    log('🏷️ displayTotal changed →', displayTotal, {
+      actId: actData?._id,
+      travelCalculated: price?.travelCalculated ?? null,
+    });
+  }, [displayTotal, price?.travelCalculated, actData?._id]);
 
   const handleHeartClick = async (e) => {
     if (lite) return;
@@ -232,6 +311,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
         `${location.pathname || ''}${location.search || ''}${location.hash || ''}` || '/acts';
       const actUrl = actData?._id ? `/act/${actData._id}` : '/';
       const fallback = fromActsListing ? listUrl : actUrl;
+      log('🔐 redirecting to login (shortlist requires auth)', { fallback });
       sessionStorage.setItem('postLoginNext', fallback);
       navigate('/login', { state: { from: fallback } });
       return;
@@ -241,14 +321,26 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
 
     // ✅ Optimistic local count change layered on top of DB value
     const isShortlistedNow = shortlistedActs?.includes(String(actData?._id));
+    log('💗 heart click', { actId: actData?._id, isShortlistedNow });
     setLoveCount((prev) => {
       const safe = Number(prev) || 0;
-      return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
+      const next = isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
+      log('💗 optimistic loveCount', { prev: safe, next });
+      return next;
     });
 
     shortlistAct(userId, actData._id);
     try {
       const lineupId = actData?.lineups?.[0]?._id;
+
+      log('📤 POST /api/availability/request', {
+        userId,
+        actId: actData._id,
+        lineupId,
+        selectedDate,
+        selectedAddress,
+        selectedCounty,
+      });
 
       await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/availability/request`, {
         method: "POST",
@@ -266,10 +358,14 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
         }),
       });
 
+      log('✅ availability request sent');
     } catch (err) {
       console.error("❌ Failed to POST /api/availability/request:", err);
     }
-    setTimeout(() => setIsAnimating(false), 300);
+    setTimeout(() => {
+      setIsAnimating(false);
+      log('🎞️ heart animation reset');
+    }, 300);
   };
 
   const formatLoveCount = (count) => {
@@ -294,6 +390,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
           {(() => {
             const raw = actData?.profileImage?.[0]?.url || '/placeholder.jpg';
             const resolvedImage = cld(raw, { w: 1200, crop: 'limit' });
+            DBG && log('🖼️ image resolved', { actId: actData?._id, raw, resolvedImage });
             return (
               <img
                 loading="lazy"
@@ -387,8 +484,9 @@ function areEqualActItem(prev, next) {
   const sameFormattedPrice =
     (p.formattedPrice?.total ?? null) === (n.formattedPrice?.total ?? null);
   const sameShortlistCount = (prev.shortlistCount ?? 0) === (next.shortlistCount ?? 0);
+  const sameLite = (prev.lite === next.lite);
 
-  return (
+  const equal =
     sameId &&
     sameName &&
     sameImg &&
@@ -396,8 +494,27 @@ function areEqualActItem(prev, next) {
     sameTimesShortlisted &&
     sameFormattedPrice &&
     sameShortlistCount &&
-    (prev.lite === next.lite)
-  );
+    sameLite;
+
+  if (DBG && !equal) {
+    const diffs = [];
+    if (!sameId) diffs.push('id');
+    if (!sameName) diffs.push('name');
+    if (!sameImg) diffs.push('image');
+    if (!sameLineupCount) diffs.push('lineupCount');
+    if (!sameTimesShortlisted) diffs.push('timesShortlisted');
+    if (!sameFormattedPrice) diffs.push('formattedPrice.total');
+    if (!sameShortlistCount) diffs.push('prop.shortlistCount');
+    if (!sameLite) diffs.push('prop.lite');
+    console.log('🟥[ActItem.memo] unequal → re-render', {
+      idPrev: p._id, idNext: n._id, diffs
+    });
+  } else if (DBG && equal) {
+    // Uncomment if you want to see every memo pass
+    // console.log('🟩[ActItem.memo] equal → skip render', { id: n._id });
+  }
+
+  return equal;
 }
 
 export default React.memo(ActItem, areEqualActItem);

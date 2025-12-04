@@ -12,6 +12,14 @@ import { ShopContext } from "../context/ShopContext";
 import Title from "./Title";
 import ActItem from "./ActItem";
 
+const DBG = true;
+const log = (...args) => DBG && console.log("🆕[NewActs]", ...args);
+const group = (label, fn) => {
+  if (!DBG) return fn();
+  console.groupCollapsed(`🆕[NewActs] ${label}`);
+  try { fn(); } finally { console.groupEnd(); }
+};
+
 // Prefer matchMedia over resize listeners for fewer layout thrashes
 const useMaxToShow = () => {
   const [maxToShow, setMaxToShow] = useState(10);
@@ -43,6 +51,14 @@ const NewActs = () => {
   const deferredActs = useDeferredValue(acts);
   const deferredShortlist = useDeferredValue(shortlistItems);
 
+  useEffect(() => {
+    group("Context snapshot", () => {
+      log("userId:", userId);
+      log("acts len:", Array.isArray(acts) ? acts.length : acts);
+      log("shortlistItems len:", Array.isArray(shortlistItems) ? shortlistItems.length : shortlistItems);
+    });
+  }, [acts, shortlistItems, userId]);
+
   // Stable shortlist membership lookup
   const shortlistSet = useMemo(
     () => new Set(Array.isArray(deferredShortlist) ? deferredShortlist : []),
@@ -53,7 +69,10 @@ const NewActs = () => {
     [shortlistSet]
   );
   const handleShortlistToggle = useCallback(
-    (id) => shortlistAct(userId, id),
+    (id) => {
+      log("shortlist toggle ->", id);
+      shortlistAct(userId, id);
+    },
     [shortlistAct, userId]
   );
 
@@ -105,6 +124,7 @@ const NewActs = () => {
     if (hit && hit.version === version) return hit.value;
     const value = calculatePrice(act);
     cache.set(key, { value, version });
+    log("price cached", { actId: key, version, value });
     return value;
   };
 
@@ -115,6 +135,11 @@ const NewActs = () => {
       (act) => act && Array.isArray(act.lineups) && act.lineups.length > 0
     );
 
+    group("Compute newestSlice", () => {
+      log("incoming acts len:", list.length);
+      log("with lineups len:", withLineups.length);
+    });
+
     // Sort newest-first (fallback to updatedAt if needed)
     withLineups.sort((a, b) => {
       const aTime = new Date(a.createdAt || a.updatedAt || 0).getTime();
@@ -122,7 +147,9 @@ const NewActs = () => {
       return bTime - aTime;
     });
 
-    return withLineups.slice(0, maxToShow);
+    const sliced = withLineups.slice(0, maxToShow);
+    log("maxToShow:", maxToShow, "→ slice len:", sliced.length);
+    return sliced;
   }, [deferredActs, maxToShow]);
 
   const [, startTransition] = useTransition();
@@ -130,6 +157,10 @@ const NewActs = () => {
   useEffect(() => {
     // Phase 1: fast paint with just the act references (no cloning, no price yet)
     setNewestActs(newestSlice);
+    group("Phase 1 setNewestActs", () => {
+      log("ids:", newestSlice.map(a => a?._id));
+      log("names:", newestSlice.map(a => a?.tscName || a?.name));
+    });
 
     // Phase 2: compute prices off the main critical path
     const id = scheduleIdle(() => {
@@ -137,10 +168,12 @@ const NewActs = () => {
         setPriceMap((prev) => {
           const next = new Map(prev);
           for (const act of newestSlice) {
-            const id = act?._id;
-            if (!id) continue;
-            if (!next.has(id)) {
-              next.set(id, calculatePriceCached(act));
+            const aid = act?._id;
+            if (!aid) continue;
+            if (!next.has(aid)) {
+              const price = calculatePriceCached(act);
+              next.set(aid, price);
+              log("price computed", { actId: aid, price });
             }
           }
           return next;
@@ -156,6 +189,17 @@ const NewActs = () => {
     };
   }, [newestSlice]);
 
+  useEffect(() => {
+    group("priceMap updated", () => {
+      const arr = Array.from(priceMap.entries()).map(([id, price]) => ({ id, price }));
+      log(arr);
+    });
+  }, [priceMap]);
+
+  useEffect(() => {
+    log("newestActs changed:", newestActs.length);
+  }, [newestActs]);
+
   return (
     <div className="my-10">
       <div className="text-center py-8 text-3xl">
@@ -164,6 +208,20 @@ const NewActs = () => {
           Our most recent additions to The Supreme Collective, raring to make your event stellar.
         </p>
       </div>
+
+      {DBG && (
+        <pre className="text-xs text-gray-500 p-2 overflow-auto">
+          {JSON.stringify(
+            {
+              newestActsLen: newestActs.length,
+              renderPriceCount: Array.from(priceMap.keys()).length,
+              maxToShow,
+            },
+            null,
+            2
+          )}
+        </pre>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
         {newestActs.map(
