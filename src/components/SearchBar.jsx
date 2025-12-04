@@ -2,7 +2,6 @@ import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 import GoogleAutocomplete from "./GoogleAutocomplete";
-import calculateActPricing from "../pages/utils/pricing";
 
 const SearchBar = () => {
   const {
@@ -15,7 +14,6 @@ const SearchBar = () => {
   } = useContext(ShopContext);
 
   const [county, setCounty] = useState("");
-  const [filteredActs, setFilteredActs] = useState([]);
   const navigate = useNavigate();
 
   // Local controlled inputs
@@ -46,21 +44,6 @@ const SearchBar = () => {
     setSelectedAddress(localAddress);
     setSelectedDate(localDate);
 
-    // Recalculate act prices for chosen location/date
-    const updatedActs = await Promise.all(
-      acts.map(async (act) => ({
-        ...act,
-        formattedPrice: await calculateActPricing(
-          act,
-          county,
-          localAddress,
-          localDate
-        ),
-      }))
-    );
-
-    setFilteredActs(updatedActs);
-
     navigate("/acts", {
       state: {
         county,
@@ -76,16 +59,19 @@ const SearchBar = () => {
      update all shortlisted acts and request availability.
   -------------------------------------------------------- */
   useEffect(() => {
-    if (!localDate || !localAddress) return;
+    // Only trigger when both date and a confirmed Google place (county) exist
+    if (!localDate || !localAddress || !county) return;
     const dateISO = new Date(localDate).toISOString().slice(0, 10);
 
     shortlistedActs.forEach(async (actId) => {
-      // Update shortlist record (so backend stores new date/address)
-      await handleDateOrAddressChange(actId, dateISO);
-      // Trigger vocalist availability WhatsApp flow
-      await requestVocalistAvailability({ actId, lineupId: null });
+      try {
+        await handleDateOrAddressChange(actId, dateISO);
+        await requestVocalistAvailability({ actId, lineupId: null });
+      } catch (e) {
+        // swallow per-item failures
+      }
     });
-  }, [localDate, localAddress]);
+  }, [localDate, localAddress, county]);
 
   return (
     <section className="w-full bg-black py-6">
@@ -130,7 +116,7 @@ const SearchBar = () => {
               setCounty={setCounty}
               className="w-full text-base px-3 py-2 border-2 border-gray-300 rounded"
               placeholder="Start typing your venue..."
-              inputId="qs-venue"
+              id="qs-venue"
             />
           </div>
 
