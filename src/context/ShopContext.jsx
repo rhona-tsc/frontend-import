@@ -52,8 +52,22 @@ const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
     localStorage.setItem("user", JSON.stringify(userObj));
   }
 };
-  const [shortlistedActs, setShortlistedActs] = useState([]); // array of actId strings
-  const [shortlistItems, setShortlistItems] = useState([]); // legacy mirror (array of actId strings)
+  const [shortlistedActs, setShortlistedActs] = useState(() => {
+    try {
+      const s = localStorage.getItem("shortlistItems");
+      return s ? JSON.parse(s) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [shortlistItems, setShortlistItems] = useState(() => {
+    try {
+      const s = localStorage.getItem("shortlistItems");
+      return s ? JSON.parse(s) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // --- Availability map for selectedDate (tri-state: true / false / undefined) ---
   const [availableMap, setAvailableMap] = useState({});
@@ -297,6 +311,50 @@ const toggleVocalistForAct = useCallback((actId, musicianId) => {
       } catch (err) {}
     })();
   }, [backendUrl]);
+
+  // 🧷 Persist shortlist locally whenever it changes (mirrors the cart pattern)
+  useEffect(() => {
+    try {
+      localStorage.setItem("shortlistItems", JSON.stringify(shortlistedActs));
+    } catch {}
+  }, [shortlistedActs]);
+
+  // Mirror shortlistItems to always track shortlistedActs
+  useEffect(() => {
+    setShortlistItems(shortlistedActs);
+  }, [shortlistedActs]);
+
+  // ✅ After login, resume any pending "Add to Cart" action we saved pre-login
+useEffect(() => {
+  (async () => {
+    try {
+      const raw = sessionStorage.getItem("pendingCartPayload");
+      const storedUserRaw = localStorage.getItem("user");
+      const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+      const uid = storedUser?._id || userId;
+      if (!raw || !uid) return;
+
+      // Clear first to avoid re-entry loops
+      sessionStorage.removeItem("pendingCartPayload");
+
+      let p = {};
+      try { p = JSON.parse(raw) || {}; } catch {}
+      if (!p?.actId || !p?.lineupId) return;
+
+      await addToCart(
+        p.actId,
+        p.lineupId,
+        Array.isArray(p.selectedExtras) ? p.selectedExtras : [],
+        Array.isArray(p.selectedAfternoonSets) ? p.selectedAfternoonSets : [],
+        Array.isArray(p.songSuggestions) ? p.songSuggestions : []
+      );
+
+      try {
+        toast(<CustomToast type="success" message="Act added to your cart." />);
+      } catch {}
+    } catch {}
+  })();
+}, [userId]);
 
   // Keep sessionStorage in sync for date/address
   useEffect(() => {
@@ -961,99 +1019,121 @@ const shortlistAct = async (uid, actId) => {
 
   // Accepts: actId, lineupId, selectedExtras, selectedAfternoonSets, songSuggestions
 const addToCart = async (
-    actId,
-    lineupId,
-    selectedExtras = [],
-    selectedAfternoonSets = [],
-    songSuggestions = []
-  ) => {
-    if (!actId || !lineupId) {
-      return;
+  actId,
+  lineupId,
+  selectedExtras = [],
+  selectedAfternoonSets = [],
+  songSuggestions = []
+) => {
+  if (!actId || !lineupId) {
+    return;
+  }
+  const actKey = String(actId);
+  const lineupKey = String(lineupId);
+
+  // Normalize inputs: accept a single object or an array
+  const extrasInput = Array.isArray(selectedExtras)
+    ? selectedExtras.filter(Boolean)
+    : selectedExtras
+      ? [selectedExtras]
+      : [];
+
+  const afternoonInput = Array.isArray(selectedAfternoonSets)
+    ? selectedAfternoonSets.filter(Boolean)
+    : selectedAfternoonSets
+      ? [selectedAfternoonSets]
+      : [];
+
+  const suggestionsInput = Array.isArray(songSuggestions)
+    ? songSuggestions.filter(Boolean)
+    : songSuggestions
+      ? [songSuggestions]
+      : [];
+
+  // Split extras vs ceremony/afternoon sets
+  const allSelectedExtras = [];
+  const allAfternoonSets = [];
+  extrasInput.forEach((item) => {
+    if (["ceremony", "afternoon", "both"].includes(item?.type)) {
+      allAfternoonSets.push(item);
+    } else {
+      allSelectedExtras.push(item);
     }
-    const actKey = String(actId);
-    const lineupKey = String(lineupId);
+  });
 
-    // Normalize inputs: accept a single object or an array
-    const extrasInput = Array.isArray(selectedExtras)
-      ? selectedExtras.filter(Boolean)
-      : selectedExtras
-        ? [selectedExtras]
-        : [];
-
-    const afternoonInput = Array.isArray(selectedAfternoonSets)
-      ? selectedAfternoonSets.filter(Boolean)
-      : selectedAfternoonSets
-        ? [selectedAfternoonSets]
-        : [];
-
-    const suggestionsInput = Array.isArray(songSuggestions)
-      ? songSuggestions.filter(Boolean)
-      : songSuggestions
-        ? [songSuggestions]
-        : [];
-
-    // Clone cart
-    const updated = structuredClone(cartItems || {});
-    // single-lineup-per-act model: clear existing
-    if (updated[actKey]) {
-      delete updated[actKey];
-    }
-
-    // Split extras vs ceremony/afternoon sets
-    const allSelectedExtras = [];
-    const allAfternoonSets = [];
-    extrasInput.forEach((item) => {
-      if (["ceremony", "afternoon", "both"].includes(item?.type)) {
-        allAfternoonSets.push(item);
-      } else {
-        allSelectedExtras.push(item);
-      }
-    });
-
-    updated[actKey] = {
-      [lineupKey]: {
-        quantity: 1,
-        selectedExtras: allSelectedExtras,
+  // 🔐 Require login to proceed; save pending payload and redirect to login
+  const storedUserRaw = localStorage.getItem("user");
+  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+  const uid = storedUser?._id || userId;
+  if (!uid) {
+    try {
+      const pending = {
+        actId: actKey,
+        lineupId: lineupKey,
+        selectedExtras: allSelectedExtras.length ? allSelectedExtras : extrasInput,
         selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
         songSuggestions: suggestionsInput,
-        dismissedExtras: [],
-        performance: {
-          // 👈 new
-          arrivalTime: "",
-          setupAndSoundcheckedBy: "",
-          startTime: "",
-          finishTime: "",
-          finishDayOffset: 0,
-          paLightsFinishTime: "",
-          paLightsFinishDayOffset: 0,
-        },
+      };
+      sessionStorage.setItem("pendingCartPayload", JSON.stringify(pending));
+    } catch {}
+    promptLogin(
+      "Please log in to add this act to your cart and get availability updates.",
+      actKey,
+      null
+    );
+    return;
+  }
+
+  // Clone cart
+  const updated = structuredClone(cartItems || {});
+  // single-lineup-per-act model: clear existing
+  if (updated[actKey]) {
+    delete updated[actKey];
+  }
+
+  updated[actKey] = {
+    [lineupKey]: {
+      quantity: 1,
+      selectedExtras: allSelectedExtras,
+      selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
+      songSuggestions: suggestionsInput,
+      dismissedExtras: [],
+      performance: {
+        arrivalTime: "",
+        setupAndSoundcheckedBy: "",
+        startTime: "",
+        finishTime: "",
+        finishDayOffset: 0,
+        paLightsFinishTime: "",
+        paLightsFinishDayOffset: 0,
       },
-    };
-
-    setCartItems(updated);
-
-    // Trigger availability (gated) if we have date+address
-    if (selectedDate && selectedAddress && isActAllowed(actKey)) {
-      requestVocalistAvailability({ actId: actKey, lineupId: lineupKey });
-    }
-
-    // Optional: sync cart to backend
-    if (token) {
-      try {
-        await axios.post(
-          `${backendUrl}/api/cart/add`,
-          {
-            actId: actKey,
-            lineupId: lineupKey,
-            selectedExtras: allSelectedExtras,
-            selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
-            songSuggestions: suggestionsInput,
-          },
-          { headers: { token } }
-        );
-      } catch (err) {}
-    }
+    },
   };
+
+  setCartItems(updated);
+
+  // Trigger availability (gated) if we have date+address and the act is allowed
+  if (selectedDate && selectedAddress && isActAllowed(actKey)) {
+    requestVocalistAvailability({ actId: actKey, lineupId: lineupKey });
+  }
+
+  // Optional: sync cart to backend
+  if (token) {
+    try {
+      await axios.post(
+        `${backendUrl}/api/cart/add`,
+        {
+          actId: actKey,
+          lineupId: lineupKey,
+          selectedExtras: allSelectedExtras,
+          selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
+          songSuggestions: suggestionsInput,
+        },
+        { headers: { token } }
+      );
+    } catch (err) {}
+  }
+};
 
   const getCartCount = () => {
     return Object.values(cartItems).reduce((total, act) => {
@@ -1209,7 +1289,7 @@ const addToCart = async (
     sessionStorage.removeItem("selectedAddress");
     sessionStorage.removeItem("selectedDate");
   localStorage.removeItem("cartItems"); // 🧹 clear cart
-
+sessionStorage.removeItem("pendingCartPayload");
     setToken("");
     setUserId(null);
     setShortlistItems([]);
