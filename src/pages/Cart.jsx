@@ -999,6 +999,99 @@ const permittedOnSiteMinutes =
     return ret;
   };
 
+  // --- Standard timings helpers ---
+// Build derived "standard" performance times for an item using your existing helpers.
+const deriveStandardTimesForItem = (item, performancePlans, selectedDate) => {
+  const times = calculateAdjustedTimes(
+    item.lineup,
+    item.selectedExtras,
+    performancePlans[item.actId]?.startTime,
+    performancePlans[item.actId]?.setupAndSoundcheckedBy,
+    item.actData,
+    performancePlans,
+    selectedDate
+  );
+
+  const arrivalHHMM = toHHMM(times.arrivalTime) || "17:00";
+  const totalPre =
+    (times.setupTime || 0) + (times.soundcheckTime || 0) + (times.changeTime || 0);
+
+  // Setup & soundcheck complete = Arrival + (setup + soundcheck + change)
+  const { hhmm: scByHHMM } = addMinutesHHMM(arrivalHHMM, totalPre);
+
+  // Start time = SC complete + 15 mins
+  const { hhmm: startHHMM, dayOffset: startOffset } = addMinutesHHMM(scByHHMM, 15);
+
+  // Default finish (when untouched) = 00:00 next day
+  const finishHHMM = "00:00";
+  const finishDayOffset = 1;
+
+  return {
+    arrivalTime: arrivalHHMM,
+    setupAndSoundcheckedBy: scByHHMM,
+    startTime: startHHMM,
+    startDayOffset: startOffset || 0,
+    finishTime: finishHHMM,
+    finishDayOffset,
+  };
+};
+
+// Commit defaults for any missing fields in the cart's performance block
+const useCommitStandardTimesIfMissing = ({
+  displayCartDetails,
+  cartItems,
+  updatePerformance,
+  setPerformancePlans,
+  performancePlans,
+  selectedDate,
+}) => {
+  return useCallback(() => {
+    (displayCartDetails || []).forEach((item) => {
+      const perf = cartItems?.[item.actId]?.[item.lineupId]?.performance || {};
+      const needs =
+        !perf?.arrivalTime ||
+        !perf?.setupAndSoundcheckedBy ||
+        !perf?.startTime ||
+        !perf?.finishTime;
+
+      if (!needs) return;
+
+      const std = deriveStandardTimesForItem(item, performancePlans, selectedDate);
+
+      // Write to authoritative cart state (what the booking payload uses)
+      updatePerformance(item.actId, item.lineupId, {
+        arrivalTime: perf.arrivalTime || std.arrivalTime,
+        setupAndSoundcheckedBy: perf.setupAndSoundcheckedBy || std.setupAndSoundcheckedBy,
+        startTime: perf.startTime || std.startTime,
+        finishTime: perf.finishTime || std.finishTime,
+        finishDayOffset:
+          Number.isInteger(perf.finishDayOffset) ? perf.finishDayOffset : std.finishDayOffset,
+      });
+
+      // Mirror to local UI so pickers display the committed defaults
+      setPerformancePlans((prev) => ({
+        ...prev,
+        [item.actId]: {
+          ...(prev?.[item.actId] || {}),
+          arrivalTime: perf.arrivalTime || std.arrivalTime,
+          setupAndSoundcheckedBy: perf.setupAndSoundcheckedBy || std.setupAndSoundcheckedBy,
+          startTime: perf.startTime || std.startTime,
+          finishTime: perf.finishTime || std.finishTime,
+          finishDayOffset:
+            Number.isInteger(perf.finishDayOffset) ? perf.finishDayOffset : std.finishDayOffset,
+        },
+      }));
+    });
+  }, [
+    displayCartDetails,
+    cartItems,
+    updatePerformance,
+    setPerformancePlans,
+    performancePlans,
+    selectedDate,
+  ]);
+};
+
   useEffect(() => {
     if (!Array.isArray(cartDetails) || cartDetails.length === 0) return;
     if (!acts || acts.length === 0) return;
@@ -1288,6 +1381,21 @@ const lateBlocks = roundUpTo60(minutesPastMidnight);
 const displayCartDetails = Array.isArray(cartDetails)
   ? cartDetails.filter((item) => !isActUnavailableForSelectedDate(item.actId))
   : [];
+
+  const commitStandardTimesIfMissing = useCommitStandardTimesIfMissing({
+  displayCartDetails,
+  cartItems,
+  updatePerformance,
+  setPerformancePlans,
+  performancePlans,
+  selectedDate,
+});
+
+useEffect(() => {
+  if (!selectedDate || !selectedAddress) return;
+  if (!displayCartDetails || displayCartDetails.length === 0) return;
+  commitStandardTimesIfMissing();
+}, [selectedDate, selectedAddress, displayCartDetails, commitStandardTimesIfMissing]);
 
   return (
     <div className="border-t pt-14">
@@ -1724,20 +1832,12 @@ const displayCartDetails = Array.isArray(cartDetails)
                                         <div className="flex items-center">
                                           <button
                                             className="text-gray-400 hover:text-red-500 text-sm flex items-center"
-                                            onClick={() => {
-                                              const updated = { ...cartItems };
-                                              const currentSets =
-                                                updated[item.actId][
-                                                  item.lineupId
-                                                ].selectedAfternoonSets || [];
-                                              updated[item.actId][
-                                                item.lineupId
-                                              ].selectedAfternoonSets =
-                                                currentSets.filter(
-                                                  (s) => s.key !== set.key
-                                                );
-                                              setCartItems(updated);
-                                            }}
+                                           onClick={() => {
+  if (selectedDate && selectedAddress) {
+    commitStandardTimesIfMissing();
+    navigate("/place-booking");
+  }
+}}
                                           >
                                             <img
                                               className="w-3 h-3 ml-2"
@@ -2356,11 +2456,11 @@ const displayCartDetails = Array.isArray(cartDetails)
 )}
           <div className="w-full text-end">
            <button
-  onClick={() => {
-    if (selectedDate && selectedAddress) {
-      navigate("/place-booking");
-    }
-  }}
+ onClick={() => {
+  if (!selectedDate || !selectedAddress) return;
+  commitStandardTimesIfMissing();
+  navigate("/place-booking");
+}}
   className={`hidden sm:inline-block bg-black text-white text-sm my-8 px-8 py-3 rounded transition-colors duration-300 ${
     selectedDate && selectedAddress
       ? "hover:bg-[#ff6667] cursor-pointer"
