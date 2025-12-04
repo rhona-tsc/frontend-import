@@ -90,7 +90,7 @@ const ActHero = ({
   const handleHeartClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!actData?._id || !userId) return;
+    if (!actData?._id) return; // allow shortlistAct to prompt login if needed
     setIsAnimating(true);
     try {
       await shortlistAct(userId, actData._id.toString());

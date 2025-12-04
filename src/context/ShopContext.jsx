@@ -1,5 +1,11 @@
 // frontend/src/context/ShopContext.jsx
-import React, { createContext, useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import axios from "axios";
 import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
@@ -20,38 +26,38 @@ const ShopProvider = (props) => {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [acts, setActs] = useState([]);
-// --- CART STATE ---
-const [cartItems, setCartItems] = useState(() => {
-  try {
-    const stored = localStorage.getItem("cartItems");
-    return stored ? JSON.parse(stored) : {};
-  } catch {
-    return {};
-  }
-});
-const [cartUpdated, setCartUpdated] = useState(false);
+  // --- CART STATE ---
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const stored = localStorage.getItem("cartItems");
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [cartUpdated, setCartUpdated] = useState(false);
 
-// --- Persist cart to localStorage whenever it changes ---
-useEffect(() => {
-  try {
-    localStorage.setItem("cartItems", JSON.stringify(cartItems));
-  } catch (err) {
-    console.warn("⚠️ Failed to persist cartItems:", err.message);
-  }
-}, [cartItems]);
+  // --- Persist cart to localStorage whenever it changes ---
+  useEffect(() => {
+    try {
+      localStorage.setItem("cartItems", JSON.stringify(cartItems));
+    } catch (err) {
+      console.warn("⚠️ Failed to persist cartItems:", err.message);
+    }
+  }, [cartItems]);
 
-const [token, setToken] = useState(localStorage.getItem("token") || "");
+  const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [selectedVocalists, setSelectedVocalists] = useState({});
-const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
+  const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
   // --- User / shortlist (single sources of truth) ---
   const [userId, setUserId] = useState(null);
   const setUser = (userObj) => {
-  if (userObj?._id) {
-    setUserId(userObj._id);
-    localStorage.setItem("user", JSON.stringify(userObj));
-  }
-};
+    if (userObj?._id) {
+      setUserId(userObj._id);
+      localStorage.setItem("user", JSON.stringify(userObj));
+    }
+  };
   const [shortlistedActs, setShortlistedActs] = useState(() => {
     try {
       const s = localStorage.getItem("shortlistItems");
@@ -81,7 +87,6 @@ const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
     sessionStorage.getItem("selectedDate") || ""
   );
 
-
   // Always build absolute API URLs
   const api = (path) =>
     `${backendUrl}${path.startsWith("/") ? path : `/${path}`}`;
@@ -94,23 +99,23 @@ const toArray = v => Array.isArray(v) ? v : v ? [v] : [];
   };
 
   const ensureLeadIncluded = useCallback((actId, leadId) => {
-  setSelectedVocalists(prev => {
-    const s = new Set(toArray(prev?.[actId]));
-    if (leadId) s.add(String(leadId));
-    const after = Array.from(s);
-    return { ...prev, [actId]: after };
-  });
-}, []);
+    setSelectedVocalists((prev) => {
+      const s = new Set(toArray(prev?.[actId]));
+      if (leadId) s.add(String(leadId));
+      const after = Array.from(s);
+      return { ...prev, [actId]: after };
+    });
+  }, []);
 
-const toggleVocalistForAct = useCallback((actId, musicianId) => {
-  setSelectedVocalists(prev => {
-    const before = new Set(toArray(prev?.[actId]));
-    if (before.has(String(musicianId))) before.delete(String(musicianId));
-    else before.add(String(musicianId));
-    const after = Array.from(before);
-    return { ...prev, [actId]: after };
-  });
-}, []);
+  const toggleVocalistForAct = useCallback((actId, musicianId) => {
+    setSelectedVocalists((prev) => {
+      const before = new Set(toArray(prev?.[actId]));
+      if (before.has(String(musicianId))) before.delete(String(musicianId));
+      else before.add(String(musicianId));
+      const after = Array.from(before);
+      return { ...prev, [actId]: after };
+    });
+  }, []);
 
   const getActById = async (actId) => {
     try {
@@ -325,36 +330,40 @@ const toggleVocalistForAct = useCallback((actId, musicianId) => {
   }, [shortlistedActs]);
 
   // ✅ After login, resume any pending "Add to Cart" action we saved pre-login
-useEffect(() => {
-  (async () => {
-    try {
-      const raw = sessionStorage.getItem("pendingCartPayload");
-      const storedUserRaw = localStorage.getItem("user");
-      const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-      const uid = storedUser?._id || userId;
-      if (!raw || !uid) return;
-
-      // Clear first to avoid re-entry loops
-      sessionStorage.removeItem("pendingCartPayload");
-
-      let p = {};
-      try { p = JSON.parse(raw) || {}; } catch {}
-      if (!p?.actId || !p?.lineupId) return;
-
-      await addToCart(
-        p.actId,
-        p.lineupId,
-        Array.isArray(p.selectedExtras) ? p.selectedExtras : [],
-        Array.isArray(p.selectedAfternoonSets) ? p.selectedAfternoonSets : [],
-        Array.isArray(p.songSuggestions) ? p.songSuggestions : []
-      );
-
+  useEffect(() => {
+    (async () => {
       try {
-        toast(<CustomToast type="success" message="Act added to your cart." />);
+        const raw = sessionStorage.getItem("pendingCartPayload");
+        const storedUserRaw = localStorage.getItem("user");
+        const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+        const uid = storedUser?._id || userId;
+        if (!raw || !uid) return;
+
+        // Clear first to avoid re-entry loops
+        sessionStorage.removeItem("pendingCartPayload");
+
+        let p = {};
+        try {
+          p = JSON.parse(raw) || {};
+        } catch {}
+        if (!p?.actId || !p?.lineupId) return;
+
+        await addToCart(
+          p.actId,
+          p.lineupId,
+          Array.isArray(p.selectedExtras) ? p.selectedExtras : [],
+          Array.isArray(p.selectedAfternoonSets) ? p.selectedAfternoonSets : [],
+          Array.isArray(p.songSuggestions) ? p.songSuggestions : []
+        );
+
+        try {
+          toast(
+            <CustomToast type="success" message="Act added to your cart." />
+          );
+        } catch {}
       } catch {}
-    } catch {}
-  })();
-}, [userId]);
+    })();
+  }, [userId]);
 
   // Keep sessionStorage in sync for date/address
   useEffect(() => {
@@ -482,7 +491,6 @@ useEffect(() => {
           headers: { accept: "application/json" },
           timeout: 15000,
         });
-
       } catch (err) {
         console.warn(
           "⚠️ requestVocalistAvailability failed:",
@@ -541,214 +549,205 @@ useEffect(() => {
     })();
   }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
 
+  // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
+  useEffect(() => {
+    let sse;
+    // 🔒 Deduplicate identical toasts (e.g., legacy "availability_yes" + "leadYes")
+    const recentToastKeys = new Map();
+    // ⏳ Delay single-token lead names to "prefer" the richer (first+last) event
+    const pendingLeadTimers = new Map(); // key: `${actId}|${dateISO}` → timeoutId
 
-  
-// 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
-useEffect(() => {
-  let sse;
-  // 🔒 Deduplicate identical toasts (e.g., legacy "availability_yes" + "leadYes")
-  const recentToastKeys = new Map();
-  // ⏳ Delay single-token lead names to "prefer" the richer (first+last) event
-  const pendingLeadTimers = new Map(); // key: `${actId}|${dateISO}` → timeoutId
-
-  const buildDedupeKey = (normalizedType, p) => {
-    // For LEAD: key only by act+date so double-emits (different musicianName shapes) collapse.
-    if (normalizedType === "leadYes") {
-      return ["leadYes", p?.actId || "", p?.dateISO || ""].join("|");
-    }
-    // For DEPUTY: keep musician in the key so multiple deputies can each toast.
-    return [
-      normalizedType,
-      p?.actId || "",
-      (p?.musicianId || p?.musicianName || "").toString(),
-      p?.dateISO || ""
-    ].join("|");
-  };
-
-  const shouldToast = (normalizedType, p) => {
-    try {
-      const k = buildDedupeKey(normalizedType, p);
-      const now = Date.now();
-      const last = recentToastKeys.get(k) || 0;
-      if (now - last < 5000) return false; // 5s hold-off window
-      recentToastKeys.set(k, now);
-      return true;
-    } catch {
-      return true;
-    }
-  };
-  // put this near the top of the useEffect, before sse.addEventListener("message", …)
-  const shortDisplayName = (full) => {
-    if (!full) return "";
-    const cleaned = String(full).trim().replace(/\s+/g, " ");
-    const parts = cleaned.split(" ");
-    if (parts.length === 1) return parts[0];       // mononym
-    const first = parts[0];
-    // last token, strip non-letters but keep hyphen/apostrophe edge cases
-    const last = parts[parts.length - 1].replace(/[^A-Za-zÀ-ÿ'-]/g, "");
-    const initial = last ? last[0].toUpperCase() : "";
-    return initial ? `${first} ${initial}` : first;
-  };
-  try {
-    const url = api("api/availability/subscribe");
-    sse = new EventSource(url);
-
-    console.log("🔌 [SSE] Initialized:", url);
-
-    /* -------------------------------------------------------------------------- */
-    /* 🔵 Open                                                                    */
-    /* -------------------------------------------------------------------------- */
-    sse.addEventListener("open", () => {
-      console.log("📡 [SSE] Connection established");
-    });
-
-    /* -------------------------------------------------------------------------- */
-    /* 📨 Message received                                                        */
-    /* -------------------------------------------------------------------------- */
-    sse.addEventListener("message", async (evt) => {
-      if (!evt?.data) {
-        console.log("⚪ [SSE] Empty message event received");
-        return;
+    const buildDedupeKey = (normalizedType, p) => {
+      // For LEAD: key only by act+date so double-emits (different musicianName shapes) collapse.
+      if (normalizedType === "leadYes") {
+        return ["leadYes", p?.actId || "", p?.dateISO || ""].join("|");
       }
+      // For DEPUTY: keep musician in the key so multiple deputies can each toast.
+      return [
+        normalizedType,
+        p?.actId || "",
+        (p?.musicianId || p?.musicianName || "").toString(),
+        p?.dateISO || "",
+      ].join("|");
+    };
 
-      let payload = null;
+    const shouldToast = (normalizedType, p) => {
       try {
-        payload = JSON.parse(evt.data);
-      } catch (err) {
-        console.warn("⚠️ [SSE] JSON parse failed:", err, evt.data);
-        return;
+        const k = buildDedupeKey(normalizedType, p);
+        const now = Date.now();
+        const last = recentToastKeys.get(k) || 0;
+        if (now - last < 5000) return false; // 5s hold-off window
+        recentToastKeys.set(k, now);
+        return true;
+      } catch {
+        return true;
       }
+    };
+    // put this near the top of the useEffect, before sse.addEventListener("message", …)
+    const shortDisplayName = (full) => {
+      if (!full) return "";
+      const cleaned = String(full).trim().replace(/\s+/g, " ");
+      const parts = cleaned.split(" ");
+      if (parts.length === 1) return parts[0]; // mononym
+      const first = parts[0];
+      // last token, strip non-letters but keep hyphen/apostrophe edge cases
+      const last = parts[parts.length - 1].replace(/[^A-Za-zÀ-ÿ'-]/g, "");
+      const initial = last ? last[0].toUpperCase() : "";
+      return initial ? `${first} ${initial}` : first;
+    };
+    try {
+      const url = api("api/availability/subscribe");
+      sse = new EventSource(url);
 
-      console.log("📨 [SSE] RAW PAYLOAD:", payload);
+      console.log("🔌 [SSE] Initialized:", url);
 
-      if (!payload?.actId) {
-        console.log("⚪ [SSE] Ignored payload (no actId)", payload);
-        return;
-      }
+      /* -------------------------------------------------------------------------- */
+      /* 🔵 Open                                                                    */
+      /* -------------------------------------------------------------------------- */
+      sse.addEventListener("open", () => {
+        console.log("📡 [SSE] Connection established");
+      });
 
-      /* ---------------------------------------------------------------------- */
-      /* 🟦 AVAILABILITY_BADGE_UPDATED (slot-based badge)                        */
-      /* ---------------------------------------------------------------------- */
-      if (payload.type === "availability_badge_updated") {
-        const badge = payload.badge;
-
-        // ✅ Check if ANY slot contains a real singer before doing anything
-        const slotHasValidSinger = badge?.slots?.some(
-          (s) => s.musicianId && s.photoUrl?.startsWith("http")
-        );
-
-       
-
-        if (!slotHasValidSinger) {
-        
+      /* -------------------------------------------------------------------------- */
+      /* 📨 Message received                                                        */
+      /* -------------------------------------------------------------------------- */
+      sse.addEventListener("message", async (evt) => {
+        if (!evt?.data) {
+          console.log("⚪ [SSE] Empty message event received");
           return;
         }
 
-        // 🔬 Deep slot-level debugging
-        if (badge?.slots?.length) {
-          badge.slots.forEach((s) => {
-          
-          });
-        } else {
-          console.warn(
-            "🧹 [SSE] ❌ No slots[] array found in badge broadcast"
-          );
+        let payload = null;
+        try {
+          payload = JSON.parse(evt.data);
+        } catch (err) {
+          console.warn("⚠️ [SSE] JSON parse failed:", err, evt.data);
+          return;
         }
 
-   
+        console.log("📨 [SSE] RAW PAYLOAD:", payload);
 
-        /* --------------------------------------------- */
-        /* ♻️ Refresh Act                                 */
-        /* --------------------------------------------- */
-        await refreshActById(payload.actId);
+        if (!payload?.actId) {
+          console.log("⚪ [SSE] Ignored payload (no actId)", payload);
+          return;
+        }
 
-        return; // ✅ done handling badge update
-      }
+        /* ---------------------------------------------------------------------- */
+        /* 🟦 AVAILABILITY_BADGE_UPDATED (slot-based badge)                        */
+        /* ---------------------------------------------------------------------- */
+        if (payload.type === "availability_badge_updated") {
+          const badge = payload.badge;
 
-      /* ---------------------------------------------------------------------- */
-      /* 🟩 NORMAL YES EVENTS (lead or deputy)                                   */
-      /* ---------------------------------------------------------------------- */
-      const normalizedType = payload.type === "availability_yes" ? "leadYes" : payload.type;
+          // ✅ Check if ANY slot contains a real singer before doing anything
+          const slotHasValidSinger = badge?.slots?.some(
+            (s) => s.musicianId && s.photoUrl?.startsWith("http")
+          );
 
-      const isLead =
-        normalizedType === "leadYes";
+          if (!slotHasValidSinger) {
+            return;
+          }
 
-      const isDeputy =
-        normalizedType === "availability_deputy_yes" || payload.isDeputy === true;
+          // 🔬 Deep slot-level debugging
+          if (badge?.slots?.length) {
+            badge.slots.forEach((s) => {});
+          } else {
+            console.warn(
+              "🧹 [SSE] ❌ No slots[] array found in badge broadcast"
+            );
+          }
 
+          /* --------------------------------------------- */
+          /* ♻️ Refresh Act                                 */
+          /* --------------------------------------------- */
+          await refreshActById(payload.actId);
 
+          return; // ✅ done handling badge update
+        }
 
-      const shortDate = formatShortDate(payload.dateISO);
-      const nameForToast = shortDisplayName(payload.musicianName) || (isDeputy ? "Deputy" : "Lead vocalist");
-      const toastMsg = isDeputy
-        ? `${nameForToast} is available to perform with ${payload.actName} on ${shortDate}.`
-        : `${nameForToast} from ${payload.actName} is available for ${shortDate}.`;
+        /* ---------------------------------------------------------------------- */
+        /* 🟩 NORMAL YES EVENTS (lead or deputy)                                   */
+        /* ---------------------------------------------------------------------- */
+        const normalizedType =
+          payload.type === "availability_yes" ? "leadYes" : payload.type;
 
+        const isLead = normalizedType === "leadYes";
 
-      // Helpers for lead: prefer richer "first + last initial" over bare first-name
-      const keyLead = `${payload?.actId || ""}|${payload?.dateISO || ""}`;
-      const hasSurname = /\s/.test(String(payload?.musicianName || ""));
+        const isDeputy =
+          normalizedType === "availability_deputy_yes" ||
+          payload.isDeputy === true;
 
-      const pushToast = () => {
+        const shortDate = formatShortDate(payload.dateISO);
+        const nameForToast =
+          shortDisplayName(payload.musicianName) ||
+          (isDeputy ? "Deputy" : "Lead vocalist");
+        const toastMsg = isDeputy
+          ? `${nameForToast} is available to perform with ${payload.actName} on ${shortDate}.`
+          : `${nameForToast} from ${payload.actName} is available for ${shortDate}.`;
+
+        // Helpers for lead: prefer richer "first + last initial" over bare first-name
+        const keyLead = `${payload?.actId || ""}|${payload?.dateISO || ""}`;
+        const hasSurname = /\s/.test(String(payload?.musicianName || ""));
+
+        const pushToast = () => {
+          if (normalizedType === "leadYes") {
+            if (shouldToast("leadYes", payload)) {
+              toast(<CustomToast type="success" message={toastMsg} />);
+            }
+          } else if (normalizedType === "availability_deputy_yes") {
+            if (shouldToast("availability_deputy_yes", payload)) {
+              toast(<CustomToast type="success" message={toastMsg} />);
+            }
+          }
+        };
+
         if (normalizedType === "leadYes") {
-          if (shouldToast("leadYes", payload)) {
-            toast(<CustomToast type="success" message={toastMsg} />);
+          if (hasSurname) {
+            // ✅ Prefer this richer event: cancel any pending bare-first timer, then toast.
+            const t = pendingLeadTimers.get(keyLead);
+            if (t) {
+              clearTimeout(t);
+              pendingLeadTimers.delete(keyLead);
+            }
+            pushToast();
+          } else {
+            // ⏳ Bare first name — queue briefly in case a richer one lands shortly.
+            if (!pendingLeadTimers.has(keyLead)) {
+              const t = setTimeout(() => {
+                pendingLeadTimers.delete(keyLead);
+                pushToast();
+              }, 600);
+              pendingLeadTimers.set(keyLead, t);
+            }
           }
         } else if (normalizedType === "availability_deputy_yes") {
-          if (shouldToast("availability_deputy_yes", payload)) {
-            toast(<CustomToast type="success" message={toastMsg} />);
-          }
-        }
-      };
-
-      if (normalizedType === "leadYes") {
-        if (hasSurname) {
-          // ✅ Prefer this richer event: cancel any pending bare-first timer, then toast.
-          const t = pendingLeadTimers.get(keyLead);
-          if (t) {
-            clearTimeout(t);
-            pendingLeadTimers.delete(keyLead);
-          }
+          // Deputies toast immediately (deduped by musician)
           pushToast();
-        } else {
-          // ⏳ Bare first name — queue briefly in case a richer one lands shortly.
-          if (!pendingLeadTimers.has(keyLead)) {
-            const t = setTimeout(() => {
-              pendingLeadTimers.delete(keyLead);
-              pushToast();
-            }, 600);
-            pendingLeadTimers.set(keyLead, t);
-          }
         }
-      } else if (normalizedType === "availability_deputy_yes") {
-        // Deputies toast immediately (deduped by musician)
-        pushToast();
-      }
 
-      await refreshActById(payload.actId);
-    });
+        await refreshActById(payload.actId);
+      });
 
-    /* -------------------------------------------------------------------------- */
-    /* ❌ Error                                                                    */
-    /* -------------------------------------------------------------------------- */
-    sse.addEventListener("error", (err) => {
-      console.warn("❌ [SSE] ERROR:", err);
-    });
-  } catch (e) {
-    console.error("❌ [SSE] Initialization FAILED:", e);
-  }
-
-  return () => {
-    // 🧹 Clear any pending lead timers
-    try {
-      pendingLeadTimers.forEach((t) => clearTimeout(t));
-      pendingLeadTimers.clear();
-    } catch {}
-    if (sse) {
-      sse.close();
+      /* -------------------------------------------------------------------------- */
+      /* ❌ Error                                                                    */
+      /* -------------------------------------------------------------------------- */
+      sse.addEventListener("error", (err) => {
+        console.warn("❌ [SSE] ERROR:", err);
+      });
+    } catch (e) {
+      console.error("❌ [SSE] Initialization FAILED:", e);
     }
-  };
-}, []); // ✅ run once on mount
+
+    return () => {
+      // 🧹 Clear any pending lead timers
+      try {
+        pendingLeadTimers.forEach((t) => clearTimeout(t));
+        pendingLeadTimers.clear();
+      } catch {}
+      if (sse) {
+        sse.close();
+      }
+    };
+  }, []); // ✅ run once on mount
 
   // --- Auto-sync backend when both date + address are present ---
   const handleDateOrAddressChange = debounce(async (actId) => {
@@ -776,7 +775,6 @@ useEffect(() => {
           userId,
         }),
       });
-
     } catch (err) {
       console.warn("⚠️ [ShopContext] Failed to update shortlist:", err.message);
     }
@@ -814,26 +812,26 @@ useEffect(() => {
   const location = useLocation();
 
   // Small helper: nudge user to log in and remember where they were
-const promptLogin = (
-  msg = "Please log in to save acts to your shortlist.",
-  actId = null,
-  actName = null
-) => {
-  try {
-    toast(<CustomToast type="info" message={msg} />);
-  } catch {}
+  const promptLogin = (
+    msg = "Please log in to save acts to your shortlist.",
+    actId = null,
+    actName = null
+  ) => {
+    try {
+      toast(<CustomToast type="info" message={msg} />);
+    } catch {}
 
-  const next = `${location.pathname}${location.search || ""}`;
-  sessionStorage.setItem("postLoginNext", next);
+    const next = `${location.pathname}${location.search || ""}`;
+    sessionStorage.setItem("postLoginNext", next);
 
-  // 🪄 Store act info so we can auto-add and show act name in toast after login
-  if (actId) {
-    sessionStorage.setItem("pendingShortlistActId", actId);
-    if (actName) sessionStorage.setItem("pendingShortlistActName", actName);
-  }
+    // 🪄 Store act info so we can auto-add and show act name in toast after login
+    if (actId) {
+      sessionStorage.setItem("pendingShortlistActId", actId);
+      if (actName) sessionStorage.setItem("pendingShortlistActName", actName);
+    }
 
-  navigate("/login");
-};
+    navigate("/login");
+  };
 
   // Add to shortlist (uses toggle route + triggers availability if date/address present)
   const addToShortlist = async (itemId, selectedLineup) => {
@@ -848,101 +846,96 @@ const promptLogin = (
     await shortlistAct(u, String(itemId));
   };
 
-// ✅ Toggle shortlist via PATCH routes with optimistic UI
-const shortlistAct = async (uid, actId) => {
-  if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
+  // ✅ Toggle shortlist via PATCH routes with optimistic UI
+  const shortlistAct = async (uid, actId) => {
+    if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
 
-  const storedUserRaw = localStorage.getItem("user");
-  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-  const userId = uid || storedUser?._id; // ✅ consistent naming
+    const storedUserRaw = localStorage.getItem("user");
+    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+    const userId = uid || storedUser?._id; // ✅ consistent naming
 
-  if (!actId) return;
+    if (!actId) return;
 
-  const selectedDateFinal =
-    selectedDate || new Date().toISOString().slice(0, 10);
-  const selectedAddressFinal = selectedAddress || "TBC";
+    const selectedDateFinal =
+      selectedDate || new Date().toISOString().slice(0, 10);
+    const selectedAddressFinal = selectedAddress || "TBC";
 
-  const clientPayload = {
-    userId,
-    clientEmail: storedUser?.email || "",
-    clientName:
-      storedUser?.firstName ||
-      storedUser?.name ||
-      storedUser?.surname ||
-      "",
-    selectedDate: selectedDateFinal,
-    selectedAddress: selectedAddressFinal,
-  };
+    const clientPayload = {
+      userId,
+      clientEmail: storedUser?.email || "",
+      clientName:
+        storedUser?.firstName || storedUser?.name || storedUser?.surname || "",
+      selectedDate: selectedDateFinal,
+      selectedAddress: selectedAddressFinal,
+    };
 
-  if (!userId) {
-    promptLogin("Please log in to manage your shortlist.");
-    return;
-  }
-
-  const idStr = String(actId);
-  const isShortlistedNow =
-    Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
-
-  // ⚡ Optimistic update
-  const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
-  const next = isShortlistedNow
-    ? prev.filter((id) => id !== idStr)
-    : [...new Set([...prev, idStr])];
-
-  setShortlistedActs(next);
-  setShortlistItems(next);
-  try {
-    localStorage.setItem("shortlistItems", JSON.stringify(next));
-  } catch {}
-
-  try {
-    if (isShortlistedNow) {
-      // 🔵 Removing from shortlist
-  
-
-      await axios.patch(
-        `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
-        clientPayload
-      );
-    } else {
-      // 🟢 Adding to shortlist
-   
-
-      await axios.patch(
-        `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
-        clientPayload
-      );
-
-      // 🩵 Optional: force a shortlist sync to ensure frontend UI matches backend
-      if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
-        const dateISO = new Date(selectedDateFinal).toISOString().slice(0, 10);
-     
-
-        await axios.patch(`${backendUrl}/api/shortlist/update`, {
-          actId: idStr,
-          dateISO,
-          formattedAddress: selectedAddressFinal,
-          ...clientPayload,
-        });
-
-      }
+    if (!userId) {
+      promptLogin("Please log in to manage your shortlist.");
+      return;
     }
-  } catch (err) {
-    console.error("❌ shortlistAct error:", err.message);
 
-    // 🔁 Revert on failure
-    setShortlistedActs(prev);
-    setShortlistItems(prev);
+    const idStr = String(actId);
+    const isShortlistedNow =
+      Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
+
+    // ⚡ Optimistic update
+    const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
+    const next = isShortlistedNow
+      ? prev.filter((id) => id !== idStr)
+      : [...new Set([...prev, idStr])];
+
+    setShortlistedActs(next);
+    setShortlistItems(next);
     try {
-      localStorage.setItem("shortlistItems", JSON.stringify(prev));
+      localStorage.setItem("shortlistItems", JSON.stringify(next));
     } catch {}
+
     try {
-      toast(
-        <CustomToast type="error" message="Could not update shortlist." />
-      );
-    } catch {}
-  }
-};
+      if (isShortlistedNow) {
+        // 🔵 Removing from shortlist
+
+        await axios.patch(
+          `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
+          clientPayload
+        );
+      } else {
+        // 🟢 Adding to shortlist
+
+        await axios.patch(
+          `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
+          clientPayload
+        );
+
+        // 🩵 Optional: force a shortlist sync to ensure frontend UI matches backend
+        if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
+          const dateISO = new Date(selectedDateFinal)
+            .toISOString()
+            .slice(0, 10);
+
+          await axios.patch(`${backendUrl}/api/shortlist/update`, {
+            actId: idStr,
+            dateISO,
+            formattedAddress: selectedAddressFinal,
+            ...clientPayload,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("❌ shortlistAct error:", err.message);
+
+      // 🔁 Revert on failure
+      setShortlistedActs(prev);
+      setShortlistItems(prev);
+      try {
+        localStorage.setItem("shortlistItems", JSON.stringify(prev));
+      } catch {}
+      try {
+        toast(
+          <CustomToast type="error" message="Could not update shortlist." />
+        );
+      } catch {}
+    }
+  };
 
   // ============ Invoicing helpers ============
   const computeBalanceDueDate = (eventISO) => {
@@ -1018,122 +1011,124 @@ const shortlistAct = async (uid, actId) => {
   };
 
   // Accepts: actId, lineupId, selectedExtras, selectedAfternoonSets, songSuggestions
-const addToCart = async (
-  actId,
-  lineupId,
-  selectedExtras = [],
-  selectedAfternoonSets = [],
-  songSuggestions = []
-) => {
-  if (!actId || !lineupId) {
-    return;
-  }
-  const actKey = String(actId);
-  const lineupKey = String(lineupId);
-
-  // Normalize inputs: accept a single object or an array
-  const extrasInput = Array.isArray(selectedExtras)
-    ? selectedExtras.filter(Boolean)
-    : selectedExtras
-      ? [selectedExtras]
-      : [];
-
-  const afternoonInput = Array.isArray(selectedAfternoonSets)
-    ? selectedAfternoonSets.filter(Boolean)
-    : selectedAfternoonSets
-      ? [selectedAfternoonSets]
-      : [];
-
-  const suggestionsInput = Array.isArray(songSuggestions)
-    ? songSuggestions.filter(Boolean)
-    : songSuggestions
-      ? [songSuggestions]
-      : [];
-
-  // Split extras vs ceremony/afternoon sets
-  const allSelectedExtras = [];
-  const allAfternoonSets = [];
-  extrasInput.forEach((item) => {
-    if (["ceremony", "afternoon", "both"].includes(item?.type)) {
-      allAfternoonSets.push(item);
-    } else {
-      allSelectedExtras.push(item);
+  const addToCart = async (
+    actId,
+    lineupId,
+    selectedExtras = [],
+    selectedAfternoonSets = [],
+    songSuggestions = []
+  ) => {
+    if (!actId || !lineupId) {
+      return;
     }
-  });
+    const actKey = String(actId);
+    const lineupKey = String(lineupId);
 
-  // 🔐 Require login to proceed; save pending payload and redirect to login
-  const storedUserRaw = localStorage.getItem("user");
-  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-  const uid = storedUser?._id || userId;
-  if (!uid) {
-    try {
-      const pending = {
-        actId: actKey,
-        lineupId: lineupKey,
-        selectedExtras: allSelectedExtras.length ? allSelectedExtras : extrasInput,
-        selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
-        songSuggestions: suggestionsInput,
-      };
-      sessionStorage.setItem("pendingCartPayload", JSON.stringify(pending));
-    } catch {}
-    promptLogin(
-      "Please log in to add this act to your cart and get availability updates.",
-      actKey,
-      null
-    );
-    return;
-  }
+    // Normalize inputs: accept a single object or an array
+    const extrasInput = Array.isArray(selectedExtras)
+      ? selectedExtras.filter(Boolean)
+      : selectedExtras
+        ? [selectedExtras]
+        : [];
 
-  // Clone cart
-  const updated = structuredClone(cartItems || {});
-  // single-lineup-per-act model: clear existing
-  if (updated[actKey]) {
-    delete updated[actKey];
-  }
+    const afternoonInput = Array.isArray(selectedAfternoonSets)
+      ? selectedAfternoonSets.filter(Boolean)
+      : selectedAfternoonSets
+        ? [selectedAfternoonSets]
+        : [];
 
-  updated[actKey] = {
-    [lineupKey]: {
-      quantity: 1,
-      selectedExtras: allSelectedExtras,
-      selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
-      songSuggestions: suggestionsInput,
-      dismissedExtras: [],
-      performance: {
-        arrivalTime: "",
-        setupAndSoundcheckedBy: "",
-        startTime: "",
-        finishTime: "",
-        finishDayOffset: 0,
-        paLightsFinishTime: "",
-        paLightsFinishDayOffset: 0,
-      },
-    },
-  };
+    const suggestionsInput = Array.isArray(songSuggestions)
+      ? songSuggestions.filter(Boolean)
+      : songSuggestions
+        ? [songSuggestions]
+        : [];
 
-  setCartItems(updated);
+    // Split extras vs ceremony/afternoon sets
+    const allSelectedExtras = [];
+    const allAfternoonSets = [];
+    extrasInput.forEach((item) => {
+      if (["ceremony", "afternoon", "both"].includes(item?.type)) {
+        allAfternoonSets.push(item);
+      } else {
+        allSelectedExtras.push(item);
+      }
+    });
 
-  // Trigger availability (gated) if we have date+address and the act is allowed
-  if (selectedDate && selectedAddress && isActAllowed(actKey)) {
-    requestVocalistAvailability({ actId: actKey, lineupId: lineupKey });
-  }
-
-  // Optional: sync cart to backend
-  if (token) {
-    try {
-      await axios.post(
-        `${backendUrl}/api/cart/add`,
-        {
+    // 🔐 Require login to proceed; save pending payload and redirect to login
+    const storedUserRaw = localStorage.getItem("user");
+    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+    const uid = storedUser?._id || userId;
+    if (!uid) {
+      try {
+        const pending = {
           actId: actKey,
           lineupId: lineupKey,
-          selectedExtras: allSelectedExtras,
+          selectedExtras: allSelectedExtras.length
+            ? allSelectedExtras
+            : extrasInput,
           selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
           songSuggestions: suggestionsInput,
-        },
-        { headers: { token } }
+        };
+        sessionStorage.setItem("pendingCartPayload", JSON.stringify(pending));
+      } catch {}
+      promptLogin(
+        "Please log in to add this act to your cart and get availability updates.",
+        actKey,
+        null
       );
-    } catch (err) {}
-  }
-};
+      return;
+    }
+
+    // Clone cart
+    const updated = structuredClone(cartItems || {});
+    // single-lineup-per-act model: clear existing
+    if (updated[actKey]) {
+      delete updated[actKey];
+    }
+
+    updated[actKey] = {
+      [lineupKey]: {
+        quantity: 1,
+        selectedExtras: allSelectedExtras,
+        selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
+        songSuggestions: suggestionsInput,
+        dismissedExtras: [],
+        performance: {
+          arrivalTime: "",
+          setupAndSoundcheckedBy: "",
+          startTime: "",
+          finishTime: "",
+          finishDayOffset: 0,
+          paLightsFinishTime: "",
+          paLightsFinishDayOffset: 0,
+        },
+      },
+    };
+
+    setCartItems(updated);
+
+    // Trigger availability (gated) if we have date+address and the act is allowed
+    if (selectedDate && selectedAddress && isActAllowed(actKey)) {
+      requestVocalistAvailability({ actId: actKey, lineupId: lineupKey });
+    }
+
+    // Optional: sync cart to backend
+    if (token) {
+      try {
+        await axios.post(
+          `${backendUrl}/api/cart/add`,
+          {
+            actId: actKey,
+            lineupId: lineupKey,
+            selectedExtras: allSelectedExtras,
+            selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
+            songSuggestions: suggestionsInput,
+          },
+          { headers: { token } }
+        );
+      } catch (err) {}
+    }
+  };
 
   const getCartCount = () => {
     return Object.values(cartItems).reduce((total, act) => {
@@ -1288,8 +1283,8 @@ const addToCart = async (
     localStorage.removeItem("shortlistItems");
     sessionStorage.removeItem("selectedAddress");
     sessionStorage.removeItem("selectedDate");
-  localStorage.removeItem("cartItems"); // 🧹 clear cart
-sessionStorage.removeItem("pendingCartPayload");
+    localStorage.removeItem("cartItems"); // 🧹 clear cart
+    sessionStorage.removeItem("pendingCartPayload");
     setToken("");
     setUserId(null);
     setShortlistItems([]);
@@ -1299,7 +1294,7 @@ sessionStorage.removeItem("pendingCartPayload");
     setSelectedDate("");
     setActs([]);
     setAvailabilityStatus({});
-navigate("/"); // clean redirect without reload
+    navigate("/"); // clean redirect without reload
   };
 
   const value = {

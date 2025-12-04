@@ -554,6 +554,8 @@ useEffect(() => {
     setVideo(cached.videos?.[0]?.url || "");
   }
 
+  
+
   // fetch fresh — accept both response shapes
   (async () => {
     try {
@@ -1115,6 +1117,22 @@ console.log("[Act] counts", { reviews: reviews.length, songs: selectedSongs.leng
 
   // --- existing add/remove logic below ---
   if (!isInCart) {
+        // ✅ Require login before adding, and do NOT toast if we're redirecting
+    if (!userId) {
+      try {
+        sessionStorage.setItem("pendingCartActId", String(actData._id));
+        sessionStorage.setItem(
+          "pendingCartLineupId",
+          String(safeSelectedLineup._id || safeSelectedLineup.lineupId || "")
+        );
+      } catch {}
+      promptLogin(
+        "Please log in to add acts to your cart and receive availability updates.",
+        actData._id
+      );
+      return; // 🚫 no toast here
+    }
+
     addToCart(
       actData._id,
       safeSelectedLineup._id || safeSelectedLineup.lineupId
