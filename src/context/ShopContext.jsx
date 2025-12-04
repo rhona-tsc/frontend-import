@@ -257,12 +257,83 @@ const ShopProvider = (props) => {
   });
 
   // ============ Data loaders ============
-  const getActsData = async () => {
-    const res = await axios.get(`${backendUrl}/api/act/list`);
-    if (res.data?.success) {
-      setActs(res.data.acts.reverse());
+// ============ Data loaders ============
+const getActsData = async () => {
+  const base = String(backendUrl || "").replace(/\/+$/, "");
+  const candidates = [
+    "/api/act/list",      // primary
+    "/api/acts/list",     // common alt
+  ];
+
+  for (const path of candidates) {
+    const url = `${base}${path}`;
+    console.log("🛒[ShopContext] Fetching acts:", { url });
+
+    try {
+      const res = await axios.get(url, { headers: { accept: "application/json" } });
+      const data = res?.data;
+
+      // Accept either {success, acts: []} or a bare [] payload
+      const actsArr = Array.isArray(data?.acts)
+        ? data.acts
+        : Array.isArray(data)
+        ? data
+        : [];
+
+      console.log("🛒[ShopContext] Acts response:", {
+        status: res.status,
+        success: data?.success,
+        count: actsArr.length,
+        sampleId: actsArr?.[0]?._id,
+        sampleName: actsArr?.[0]?.tscName || actsArr?.[0]?.name,
+        sampleLineupsType: Array.isArray(actsArr?.[0]?.lineups)
+          ? "array"
+          : typeof actsArr?.[0]?.lineups,
+      });
+
+      if (actsArr.length > 0) {
+        // Don’t mutate source; keep ordering predictable (newest first)
+        const sorted = [...actsArr].sort((a, b) => {
+          const at = new Date(a.createdAt || a.updatedAt || 0).getTime();
+          const bt = new Date(b.createdAt || b.updatedAt || 0).getTime();
+          return bt - at;
+        });
+        setActs(sorted);
+        // expose for quick dev inspection
+        try { window.__TSC_ACTS__ = sorted; } catch {}
+        return; // ✅ success path
+      }
+
+      // If success true but empty, still set [] and fall through to try next candidate
+      setActs([]);
+    } catch (err) {
+      const status = err?.response?.status;
+      const body = err?.response?.data;
+      console.warn("⚠️[ShopContext] Acts fetch failed:", { url, status, body, msg: err?.message });
+      // try next candidate…
     }
-  };
+  }
+
+  // If all candidates fail, keep acts as [] but log loudly
+  console.error("❌[ShopContext] Could not load acts from any known endpoint.", { backendUrl });
+};
+
+/* --------------------- PLACE (2) RIGHT BELOW getActsData --------------------- */
+useEffect(() => {
+  console.log("🛒[ShopContext] Mount — backendUrl:", backendUrl);
+  getActsData().catch((e) => console.error("❌[ShopContext] getActsData threw:", e));
+}, [backendUrl]); // ⬅️ replaces your old empty-deps mount effect
+
+/* --------------------- PLACE (3) RIGHT BELOW (2) --------------------- */
+useEffect(() => {
+  console.log("🛒[ShopContext] acts updated:", {
+    length: Array.isArray(acts) ? acts.length : "non-array",
+    first: acts?.[0]?._id,
+    firstName: acts?.[0]?.tscName || acts?.[0]?.name,
+    firstHasLineups: Array.isArray(acts?.[0]?.lineups),
+  });
+}, [acts]);
+
 
   // Try to refresh one act (used after SSE inbound). If single-act endpoint is missing,
   // we fall back to reloading the list.
@@ -292,9 +363,7 @@ const ShopProvider = (props) => {
     }
   };
 
-  useEffect(() => {
-    getActsData().catch(() => {});
-  }, []);
+
 
   // ✅ Hydrate logged-in user + shortlist once
   useEffect(() => {
