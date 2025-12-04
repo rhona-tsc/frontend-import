@@ -1,61 +1,110 @@
-import React, { useState, useEffect, useContext, useCallback, useMemo, useDeferredValue } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useContext,
+  useCallback,
+  useMemo,
+  useDeferredValue,
+  useRef,
+} from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import CustomToast from './CustomToast';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
 import calculateActPricing from '../pages/utils/pricing';
 import { ShopContext } from '../context/ShopContext';
 import useOnScreen from '../hooks/useOnScreen';
 import { priceCache, makePriceKey } from '../pages/utils/priceCache';
-import useRenderTracker from '../hooks/useRenderTracker'; // 👈 add this import
+import useRenderTracker from '../hooks/useRenderTracker';
 
-// 🪵 Debug helpers
 const DBG = true;
-const log = (...args) => DBG && console.log('🎸[ActItem]', ...args);
-const warn = (...args) => DBG && console.warn('🎸[ActItem]', ...args);
-const group = (label, fn) => {
-  if (!DBG) return fn();
-  console.groupCollapsed(`🎸[ActItem] ${label}`);
-  try { fn(); } finally { console.groupEnd(); }
-};
+const log  = (...a) => DBG && console.log('🎸[ActItem]', ...a);
+const warn = (...a) => DBG && console.warn('🎸[ActItem]', ...a);
+const group = (label, fn) => { if (!DBG) return fn(); console.groupCollapsed(`🎸[ActItem] ${label}`); try { fn(); } finally { console.groupEnd(); } };
 
-// 🔧 Resolve a usable hero image URL from multiple possible shapes/fields
-const pickHeroImage = (act) => {
-  const candidates = [
-    act?.profileImage?.[0],
-    act?.images?.[0],
-    act?.heroImage,
-    act?.coverImage,
-    act?.mainImage,
-    act?.photo,
-  ];
-  for (const c of candidates) {
-    if (!c) continue;
-    const url = typeof c === 'string' ? c : (c.secure_url || c.url || c.src || c.path || '');
-    if (typeof url === 'string' && url.trim()) return url.trim();
+/* ------------------------------- URL helpers ------------------------------ */
+
+// Normalise a possibly-empty/relative value into a usable URL or "".
+const valueToUrl = (v) => {
+  if (!v) return '';
+  if (typeof v === 'string') return v.trim();
+  if (typeof v === 'object') {
+    return (
+      v.url ||
+      v.secure_url ||
+      v.src ||
+      v.link ||
+      v.path ||
+      ''
+    );
   }
   return '';
 };
 
-// Cloudinary helper: normalize protocol + preserve original aspect (no fixed height)
-const cld = (url, { w = 1200, crop = 'limit' } = {}) => {
-  if (typeof url !== 'string' || !url) return '';
-  let u = url.trim();
-  if (u.startsWith('//')) u = 'https:' + u;
-  if (u.startsWith('http:')) u = u.replace(/^http:/, 'https:');
-  if (!u.includes('/upload/')) return u; // only transform proper Cloudinary URLs
-  return u.replace('/upload/', `/upload/f_auto,q_auto,dpr_auto,c_${crop},w_${w}/`);
+// Try to pick the first usable URL from an array of strings/objects.
+// Prefer items flagged with isPrimary/isHero/primary.
+const fromArray = (arr) => {
+  if (!Array.isArray(arr) || arr.length === 0) return '';
+  const pref = arr.find(
+    (it) =>
+      !!(it && (it.isPrimary || it.isHero || it.primary))
+  );
+  const candidates = pref ? [pref, ...arr] : arr;
+  for (const it of candidates) {
+    const u = valueToUrl(it);
+    if (u) return u;
+  }
+  return '';
 };
+
+// Resolve an act's best hero image across many shapes.
+// Always returns a non-empty string by falling back to '/placeholder.jpg'.
+const pickHeroImage = (act) => {
+  // Common fields in your data across generations
+  const cands = [
+    // Explicit hero-ish fields first
+    valueToUrl(act?.heroImage),
+    valueToUrl(act?.coverImage),
+    // Arrays
+    fromArray(act?.profileImage),
+    fromArray(act?.images),
+    fromArray(act?.photos),
+    fromArray(act?.gallery),
+    // Single directly-stored string/object
+    valueToUrl(act?.profileImage),
+    valueToUrl(act?.image),
+  ];
+
+  let chosen = cands.find(Boolean) || '';
+  // If Cloudinary public_id leaked in by mistake (no protocol), keep as-is;
+  // cld() will leave it if it can't transform.
+  if (!chosen) chosen = '/placeholder.jpg';
+
+  return chosen;
+};
+
+// Cloudinary transformer. If it isn't a Cloudinary URL, return as-is.
+// Also guard against empty values so <img src> is never "".
+const cld = (url, { w = 1200, crop = 'limit' } = {}) => {
+  const src = url || '/placeholder.jpg';
+  if (typeof src !== 'string') return '/placeholder.jpg';
+  if (!src.includes('/upload/')) return src; // non-cloudinary (or public_id only)
+  return src.replace(
+    '/upload/',
+    `/upload/f_auto,q_auto,dpr_auto,c_${crop},w_${w}/`
+  );
+};
+
+/* -------------------------------- Component ------------------------------- */
 
 const ActItem = ({ actData, shortlistCount, lite = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const cardRef = React.useRef(null);
+  const cardRef = useRef(null);
   const isOnScreen = useOnScreen(cardRef);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [imgError, setImgError] = useState(false);
 
-  // Robust initial love count (DB source preferred) -> fallbacks
+  // --- loves
   const initialLove =
     Number(
       actData?.timesShortlisted ??
@@ -64,14 +113,15 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
       actData?.metrics?.shortlists ??
       0
     ) || 0;
-
   const [loveCount, setLoveCount] = useState(() => initialLove);
+
+  // --- price
   const [price, setPrice] = useState(null);
 
   // Mount / unmount
   useEffect(() => {
     group('mount', () => {
-      log('mounted', {
+      log('mount', {
         actId: actData?._id,
         name: actData?.tscName || actData?.name,
         lite,
@@ -79,16 +129,14 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
         initialLove,
       });
     });
-    return () => log('unmounted', { actId: actData?._id });
+    return () => log('unmount', { actId: actData?._id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // on-screen tracker
   useEffect(() => {
     log('👀 onScreen changed →', isOnScreen, { actId: actData?._id });
   }, [isOnScreen, actData?._id]);
 
-  // ✅ render tracker — place after you have basic props you want to log
   useRenderTracker('ActItem', {
     actId: actData?._id,
     name: actData?.tscName,
@@ -97,7 +145,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     onScreen: isOnScreen,
   });
 
-  // ✅ use shortlist from context
+  // Context
   const {
     shortlistedActs,
     shortlistAct,
@@ -108,7 +156,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     isShortlisted: isShortlistedCtx,
   } = useContext(ShopContext);
 
-  // Defer rapidly changing inputs (stabilises pricing effect)
+  // Defer fast-changing state for the pricing effect
   const defAddr = useDeferredValue(selectedAddress);
   const defDate = useDeferredValue(selectedDate);
 
@@ -123,14 +171,14 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     });
   }, [userId, selectedCounty, selectedAddress, selectedDate, defAddr, defDate]);
 
-  // Memoize county fee size so deps are stable
+  // --- county fees length
   const countyFeesLen = useMemo(() => (
     actData?.useCountyTravelFee && actData?.countyFees
       ? Object.keys(actData.countyFees).length
       : 0
   ), [actData?.useCountyTravelFee, actData?.countyFees]);
 
-  // Base price memo
+  // --- base price memo
   const basePrice = useMemo(() => {
     const lineup = actData?.lineups?.[0] || null;
     const base = actData?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
@@ -139,16 +187,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     return numeric;
   }, [actData]);
 
-  const getBasePrice = (act) => {
-    const lineup = act?.lineups?.[0] || null;
-    const base =
-      act?.formattedPrice?.total ??
-      lineup?.base_fee?.[0]?.total_fee ??
-      null;
-    return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
-  };
-
-  const setPriceIfChanged = React.useCallback((next) => {
+  const setPriceIfChanged = useCallback((next) => {
     setPrice((prev) => {
       if (!prev) {
         log('💰 price set (initial)', next);
@@ -164,7 +203,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     });
   }, []);
 
-  // Keep loveCount in sync with DB when actData changes
+  // --- keep loveCount in sync
   useEffect(() => {
     if (lite) return;
     const next =
@@ -176,10 +215,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
         0
       ) || 0;
 
-    setLoveCount((prev) => {
-      if (prev !== next) log('💗 loveCount sync', { prev, next, actId: actData?._id });
-      return prev === next ? prev : next;
-    });
+    setLoveCount((prev) => (prev === next ? prev : next));
   }, [
     lite,
     actData?.timesShortlisted,
@@ -188,21 +224,19 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     actData?.metrics?.shortlists
   ]);
 
+  // --- pricing effect
   useEffect(() => {
-    // Skip all pricing work in lite mode
     if (lite) {
       log('⏭️ lite mode: skip pricing');
       setPrice(null);
       return;
     }
-    // 0) If no lineups yet, show base if possible and bail
     if (!actData?.lineups?.length) {
       log('⏭️ no lineups: using base price', { basePrice });
       if (basePrice != null) setPrice({ total: basePrice, travelCalculated: false });
       return;
     }
 
-    // 1) If no date or no location/county, show base and bail (no heavy calc)
     const hasAnyLocation = !!(defAddr || selectedCounty);
     if (!defDate || !hasAnyLocation) {
       log('⏭️ missing date or location: using base price', {
@@ -212,7 +246,6 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
       return;
     }
 
-    // 2) Only calculate when the card is on-screen
     if (!isOnScreen) {
       log('⏸️ not on-screen → skip pricing this frame');
       return;
@@ -229,7 +262,6 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
       county: hasCountyTable ? selectedCounty : '',
     });
 
-    // 3) Serve from cache if present
     const cached = priceCache.get(key);
     if (cached) {
       log('📦 cache hit', { key, cached });
@@ -246,7 +278,6 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
       defDate
     });
 
-    // 4) Defer heavy work slightly so initial paint is smooth, with cleanup
     let idleId = null;
     let timeoutId = null;
 
@@ -306,11 +337,11 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     setPriceIfChanged,
   ]);
 
+  // --- display price
   const rawTotal = (actData?.formattedPrice?.total ?? price?.total);
   const displayTotal =
     rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
 
-  // log when display price changes
   useEffect(() => {
     log('🏷️ displayTotal changed →', displayTotal, {
       actId: actData?._id,
@@ -318,12 +349,29 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
     });
   }, [displayTotal, price?.travelCalculated, actData?._id]);
 
+  // --- image resolution (robust + guaranteed fallback)
+  const pickedUrl = useMemo(() => pickHeroImage(actData), [actData]);
+  const resolvedUrl = useMemo(() => cld(pickedUrl, { w: 1200, crop: 'limit' }), [pickedUrl]);
+  const [imgSrc, setImgSrc] = useState(resolvedUrl);
+
+  useEffect(() => {
+    setImgSrc(resolvedUrl);
+    DBG && log('🖼️ image picked', {
+      actId: actData?._id,
+      name: actData?.tscName || actData?.name,
+      picked: pickedUrl || '(placeholder)',
+      resolved: resolvedUrl || '(placeholder)',
+      imagesLen: Array.isArray(actData?.images) ? actData.images.length : 0,
+      profileLen: Array.isArray(actData?.profileImage) ? actData.profileImage.length : 0,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedUrl]);
+
   const handleHeartClick = async (e) => {
     if (lite) return;
     e.preventDefault();
     e.stopPropagation();
 
-    // 🔒 Require login before shortlisting
     if (!userId) {
       const fromActsListing = String(location.pathname || '').startsWith('/acts');
       const listUrl =
@@ -338,34 +386,18 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
 
     setIsAnimating(true);
 
-    // ✅ Optimistic local count change layered on top of DB value
     const isShortlistedNow = shortlistedActs?.includes(String(actData?._id));
-    log('💗 heart click', { actId: actData?._id, isShortlistedNow });
     setLoveCount((prev) => {
       const safe = Number(prev) || 0;
-      const next = isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
-      log('💗 optimistic loveCount', { prev: safe, next });
-      return next;
+      return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
     });
 
     shortlistAct(userId, actData._id);
     try {
       const lineupId = actData?.lineups?.[0]?._id;
-
-      log('📤 POST /api/availability/request', {
-        userId,
-        actId: actData._id,
-        lineupId,
-        selectedDate,
-        selectedAddress,
-        selectedCounty,
-      });
-
       await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/availability/request`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
           actId: actData._id,
@@ -376,39 +408,19 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
           source: "Website",
         }),
       });
-
       log('✅ availability request sent');
     } catch (err) {
       console.error("❌ Failed to POST /api/availability/request:", err);
     }
-    setTimeout(() => {
-      setIsAnimating(false);
-      log('🎞️ heart animation reset');
-    }, 300);
+    setTimeout(() => setIsAnimating(false), 300);
   };
 
-  const formatLoveCount = (count) => {
-    if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}K`;
-    return count;
-  };
-
+  const formatLoveCount = (count) => (count >= 1000 ? `${(count / 1000).toFixed(1).replace(/\.0$/, '')}K` : count);
   const scrollTop = useCallback(() => window.scrollTo(0, 0), []);
 
   const isShortlisted = (isShortlistedCtx && actData?._id)
     ? !!isShortlistedCtx(actData._id)
     : !!(shortlistedActs?.includes(String(actData?._id)));
-
-  // 🖼️ resolve image once per act + log
-  const rawHero = useMemo(() => pickHeroImage(actData), [actData]);
-  const resolvedImage = useMemo(() => cld(rawHero, { w: 1200, crop: 'limit' }), [rawHero]);
-  useEffect(() => {
-    log('🖼️ image resolve', {
-      actId: actData?._id,
-      name: actData?.tscName || actData?.name,
-      picked: rawHero || '(none)',
-      resolved: resolvedImage || '(empty)'
-    });
-  }, [actData?._id, actData?.tscName, rawHero, resolvedImage]);
 
   return (
     <div ref={cardRef} className="relative group">
@@ -423,13 +435,16 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
             decoding="async"
             fetchPriority="low"
             className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
-            style={{ aspectRatio: '4 / 3' }}
-            src={imgError || !resolvedImage ? '/placeholder.jpg' : resolvedImage}
-            alt={actData?.tscName || 'Act'}
+            style={{ aspectRatio: '4 / 3' }} // helps layout shift; remove if not desired
+            src={imgSrc || '/placeholder.jpg'}
+            alt={actData?.tscName || actData?.name || 'Act'}
             onError={() => {
-              if (!imgError) {
-                setImgError(true);
-                warn('🖼️ image failed → fallback', { actId: actData?._id, tried: resolvedImage });
+              if (imgSrc !== '/placeholder.jpg') {
+                warn('🖼️ image error → falling back to placeholder', {
+                  actId: actData?._id,
+                  badSrc: imgSrc,
+                });
+                setImgSrc('/placeholder.jpg');
               }
             }}
           />
@@ -437,7 +452,7 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
 
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
-            <p className="text-sm">{actData?.tscName}</p>
+            <p className="text-sm">{actData?.tscName || actData?.name}</p>
             {!lite && (
               <div className="act-price">
                 {displayTotal !== null
@@ -457,27 +472,17 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
                 title={isShortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
               >
                 {isShortlisted ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="-1 -1 34 32"
-                    className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
-                    fill="#ff6667"
-                    stroke="#cc5253"
-                    strokeWidth="1.5"
-                  >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 34 32"
+                       className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
+                       fill="#ff6667" stroke="#cc5253" strokeWidth="1.5">
                     <path d="M23.6,0c-3.4,0-6.4,2.2-7.6,5.4C14.8,2.2,11.8,0,8.4,0C3.8,0,0,3.9,0,8.7c0,4.5,3.2,7.7,8,12.2
                       c3.4,3.2,6.5,5.8,7.3,6.4c0.2,0.2,0.5,0.3,0.7,0.3s0.5-0.1,0.7-0.3c0.8-0.6,3.9-3.2,7.3-6.4c4.8-4.5,8-7.7,8-12.2
                       C32,3.9,28.2,0,23.6,0z" />
                   </svg>
                 ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="-1 -1 34 32"
-                    className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
-                    fill="none"
-                    stroke="#000"
-                    strokeWidth="1.5"
-                  >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 34 32"
+                       className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
+                       fill="none" stroke="#000" strokeWidth="1.5">
                     <path d="M23.6,0c-3.4,0-6.4,2.2-7.6,5.4C14.8,2.2,11.8,0,8.4,0C3.8,0,0,3.9,0,8.7c0,4.5,3.2,7.7,8,12.2
                       c3.4,3.2,6.5,5.8,7.3,6.4c0.2,0.2,0.5,0.3,0.7,0.3s0.5-0.1,0.7-0.3c0.8-0.6,3.9-3.2,7.3-6.4c4.8-4.5,8-7.7,8-12.2
                       C32,3.9,28.2,0,23.6,0z" />
@@ -485,11 +490,8 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
                 )}
               </button>
 
-              {/* Always show a readable label */}
               <p className={`text-xs ${loveCount === 0 ? 'text-gray-400' : 'text-gray-700'} text-center w-full self-center lg:self-end`}>
-                {loveCount === 0
-                  ? 'love me'
-                  : `${formatLoveCount(loveCount)} ${loveCount === 1 ? 'love' : 'loves'}`}
+                {loveCount === 0 ? 'love me' : `${formatLoveCount(loveCount)} ${loveCount === 1 ? 'love' : 'loves'}`}
               </p>
             </div>
           )}
@@ -499,21 +501,23 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
   );
 };
 
+/* ----------------------------- Memoised compare ---------------------------- */
 
 function areEqualActItem(prev, next) {
   const p = prev.actData || {};
   const n = next.actData || {};
 
-  // Use only the fields the card actually renders/needs
   const sameId = String(p._id) === String(n._id);
   const sameName = (p.tscName || p.name) === (n.tscName || n.name);
-  // Compare based on resolved hero to avoid needless re-renders when other media arrays change
-  const sameImg = pickHeroImage(p) === pickHeroImage(n);
+
+  // Compare resolved hero URLs rather than the raw arrays/objects
+  const heroP = pickHeroImage(p);
+  const heroN = pickHeroImage(n);
+  const sameImg = heroP === heroN;
+
   const sameLineupCount = (p.lineups?.length || 0) === (n.lineups?.length || 0);
-  const sameTimesShortlisted =
-    (p.timesShortlisted ?? 0) === (n.timesShortlisted ?? 0);
-  const sameFormattedPrice =
-    (p.formattedPrice?.total ?? null) === (n.formattedPrice?.total ?? null);
+  const sameTimesShortlisted = (p.timesShortlisted ?? 0) === (n.timesShortlisted ?? 0);
+  const sameFormattedPrice = (p.formattedPrice?.total ?? null) === (n.formattedPrice?.total ?? null);
   const sameShortlistCount = (prev.shortlistCount ?? 0) === (next.shortlistCount ?? 0);
   const sameLite = (prev.lite === next.lite);
 
@@ -540,11 +544,7 @@ function areEqualActItem(prev, next) {
     console.log('🟥[ActItem.memo] unequal → re-render', {
       idPrev: p._id, idNext: n._id, diffs
     });
-  } else if (DBG && equal) {
-    // Uncomment if you want to see every memo pass
-    // console.log('🟩[ActItem.memo] equal → skip render', { id: n._id });
   }
-
   return equal;
 }
 
