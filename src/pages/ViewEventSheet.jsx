@@ -2709,7 +2709,7 @@ const isFixed = (k) => readOnly || k === "finish" || k === "arrival";
     );
   }
 
-  // --- Simple Schedule (no rigid rules) ---
+// --- Simple Schedule (no rigid rules) ---
 function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false }) {
   // Light normaliser → returns { hhmm, dayOffset } or null
   const normalizeFinishLike = (raw) => {
@@ -2720,16 +2720,29 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
     s = s.replace(/[.\-]/g, ":").replace(/\s+/g, "");
     const ampm = (s.match(/(am|pm)$/) || [])[1] || null;
     if (ampm) s = s.replace(/(am|pm)$/i, "");
-    let h = 0, m = 0;
+    let h = 0,
+      m = 0;
     if (/^\d{1,2}:\d{2}$/.test(s)) {
-      const [hh, mm] = s.split(":").map(Number); h = hh; m = mm;
+      const [hh, mm] = s.split(":").map(Number);
+      h = hh;
+      m = mm;
     } else if (/^\d{3,4}$/.test(s)) {
-      const mm = s.slice(-2), hh = s.slice(0, s.length - 2) || "0";
-      h = Number(hh); m = Number(mm);
-    } else if (/^\d{1,2}$/.test(s)) { h = Number(s); m = 0; }
-    else { return null; }
+      const mm = s.slice(-2),
+        hh = s.slice(0, s.length - 2) || "0";
+      h = Number(hh);
+      m = Number(mm);
+    } else if (/^\d{1,2}$/.test(s)) {
+      h = Number(s);
+      m = 0;
+    } else {
+      return null;
+    }
 
-    if (ampm) { const isPM = ampm === "pm"; const h12 = h % 12; h = isPM ? h12 + 12 : h12; }
+    if (ampm) {
+      const isPM = ampm === "pm";
+      const h12 = h % 12;
+      h = isPM ? h12 + 12 : h12;
+    }
     h = Math.max(0, Math.min(23, h));
     m = Math.max(0, Math.min(59, m));
     const toHHMM = (H, M) => `${String(H).padStart(2, "0")}:${String(M).padStart(2, "0")}`;
@@ -2739,7 +2752,7 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
   // Try to pull perf times from helper if present; else fall back to common fields
   const perf = (
     typeof getPerformanceTimesFromBooking === "function"
-      ? (getPerformanceTimesFromBooking(booking) || {})
+      ? getPerformanceTimesFromBooking(booking) || {}
       : {
           arrivalTime: booking?.arrivalTime || booking?.setup?.arrivalTime || null,
           startTime: booking?.startTime || booking?.performance?.startTime || null,
@@ -2748,144 +2761,256 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
         }
   ) || {};
 
-  // Seed core times + default rows once
+  // simple formatter for the fixed-time display boxes
+  const fmtFixed = (s) => {
+    const v = String(s || "").trim();
+    if (!v) return "—";
+    const m = v.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (!m) return v;
+    const H = String(parseInt(m[1], 10)).padStart(2, "0");
+    const M = String(parseInt(m[2], 10)).padStart(2, "0");
+    return `${H}:${M}`;
+  };
+
+  // Seed core fixed times + keep defaults once
   React.useEffect(() => {
-    if (perf.arrivalTime && !answers.schedule_simple_arrival) {
-      const n = normalizeFinishLike(perf.arrivalTime);
-      if (n?.hhmm) handleAnswer("schedule_simple_arrival", n.hhmm);
+    // ARRIVAL — prefer booking/perf; else default to 17:00 (5pm)
+    if (!answers.schedule_simple_arrival) {
+      if (perf.arrivalTime) {
+        const n = normalizeFinishLike(perf.arrivalTime);
+        if (n?.hhmm) handleAnswer("schedule_simple_arrival", n.hhmm);
+      } else {
+        handleAnswer("schedule_simple_arrival", "17:00");
+      }
     }
+
+    // START — prefer booking/perf
     if (perf.startTime && !answers.schedule_simple_start) {
       const n = normalizeFinishLike(perf.startTime);
       if (n?.hhmm) handleAnswer("schedule_simple_start", n.hhmm);
     }
+
+    // FINISH — locked to contract-derived value
     if (perf.finishTime && !answers.schedule_simple_finish_time) {
       const n = normalizeFinishLike(perf.finishTime);
       if (n?.hhmm) {
         handleAnswer("schedule_simple_finish_time", n.hhmm);
-        const dbOff = Number.isFinite(Number(perf.finishDayOffset)) ? Number(perf.finishDayOffset) : (n.dayOffset || 0);
+        const dbOff = Number.isFinite(Number(perf.finishDayOffset))
+          ? Number(perf.finishDayOffset)
+          : n.dayOffset || 0;
         if (answers.schedule_simple_finish_dayOffset == null) {
           handleAnswer("schedule_simple_finish_dayOffset", dbOff);
         }
       }
     }
-    if (!Array.isArray(answers.schedule_simple_rows)) {
-      handleAnswer("schedule_simple_rows", [
-        { label: "1st Live Set", time: "", notes: "" },
-        { label: "2nd Live Set", time: "", notes: "" },
-      ]);
-    }
+
+    // do not seed schedule_simple_rows anymore; we now use explicit rows below
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [booking?._id]);
 
-  const rows = Array.isArray(answers.schedule_simple_rows) ? answers.schedule_simple_rows : [];
-
-  const updateRow = (idx, patch) => {
-    const next = rows.map((r, i) => (i === idx ? { ...r, ...patch } : r));
-    handleAnswer("schedule_simple_rows", next);
-  };
-  const addRow = () => handleAnswer("schedule_simple_rows", [...rows, { label: "", time: "", notes: "" }]);
-  const removeRow = (idx) => handleAnswer("schedule_simple_rows", rows.filter((_, i) => i !== idx));
+  const finishOffset = Number(answers.schedule_simple_finish_dayOffset || 0);
 
   return (
     <div className="space-y-4">
-      {/* Core booking times */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div>
-          <label className="text-sm text-gray-700 mb-1 block">Arrival time</label>
-          <CustomTimePicker
-            value={answers.schedule_simple_arrival || ""}
-            minuteStep={5}
-            onChange={(v) => handleAnswer("schedule_simple_arrival", v)}
-            hourPlaceholder="Select"
-            minutePlaceholder="--"
-            defaultPeriod="PM"
-          />
-        </div>
-        <div>
-          <label className="text-sm text-gray-700 mb-1 block">Start time</label>
-          <CustomTimePicker
-            value={answers.schedule_simple_start || ""}
-            minuteStep={5}
-            onChange={(v) => handleAnswer("schedule_simple_start", v)}
-            hourPlaceholder="Select"
-            minutePlaceholder="--"
-            defaultPeriod="PM"
-          />
-        </div>
-        <div>
-          <label className="text-sm text-gray-700 mb-1 block">Finish time</label>
-          <CustomTimePicker
-            value={answers.schedule_simple_finish_time || ""}
-            enableDayOffset
-            dayOffset={Number(answers.schedule_simple_finish_dayOffset || 0)}
-            onDayOffsetChange={(val) => handleAnswer("schedule_simple_finish_dayOffset", val)}
-            minuteStep={5}
-            onChange={(v) => handleAnswer("schedule_simple_finish_time", v)}
-            hourPlaceholder="Select"
-            minutePlaceholder="--"
-            defaultPeriod="PM"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            If the finish is after midnight, toggle the day accordingly.
-          </p>
-        </div>
-      </div>
-
-      {/* Free-form rows (sets, speeches, first dance, etc.) */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm text-gray-700">Activities & set times</div>
-          {!readOnly && (
-            <button type="button" className="border rounded px-2 py-1 text-sm" onClick={addRow}>
-              + Add row
-            </button>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          {rows.map((row, idx) => (
-            <div
-              key={idx}
-              className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm"
-            >
-              <input
-                type="text"
-                className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
-                placeholder="Label (e.g. 1st Live Set, First Dance)"
-                value={row.label || ""}
-                onChange={(e) => updateRow(idx, { label: e.target.value })}
-              />
-              <div className="md:col-span-3">
-                <CustomTimePicker
-                  value={row.time || ""}
-                  minuteStep={5}
-                  onChange={(v) => updateRow(idx, { time: v })}
-                  hourPlaceholder="Select"
-                  minutePlaceholder="--"
-                  defaultPeriod="PM"
-                />
-              </div>
-              <textarea
-                className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
-                placeholder="Notes (optional)"
-                rows={2}
-                value={row.notes || ""}
-                onChange={(e) => updateRow(idx, { notes: e.target.value })}
-              />
-              <div className="md:col-span-1 flex items-center justify-end">
-                {!readOnly && (
-                  <button
-                    type="button"
-                    className="border rounded px-2 py-1 text-xs"
-                    onClick={() => removeRow(idx)}
-                    title="Remove"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
+      {/* Explicit simple timetable-style rows */}
+      <div className="flex flex-col gap-2">
+        {/* Arrival — FIXED (unchangeable) */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+          <div className="md:col-span-4 text-sm font-medium text-gray-800">Arrival Time</div>
+          <div className="md:col-span-3">
+            <div className="border rounded px-2 py-2 text-sm w-full bg-gray-50 text-gray-900">
+              {fmtFixed(answers.schedule_simple_arrival || "17:00")}
             </div>
-          ))}
+          </div>
+          <div className="md:col-span-4">
+            <textarea
+              rows={2}
+              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
+              placeholder="Notes (optional)"
+              value={answers.schedule_simple_arrival_notes || ""}
+              onChange={(e) => handleAnswer("schedule_simple_arrival_notes", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+
+        {/* Setup — editable */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+          <div className="md:col-span-4 text-sm font-medium text-gray-800">Setup</div>
+          <div className="md:col-span-3">
+            <CustomTimePicker
+              value={answers.schedule_simple_setup || ""}
+              minuteStep={5}
+              onChange={(v) => handleAnswer("schedule_simple_setup", v)}
+              hourPlaceholder="Select"
+              minutePlaceholder="--"
+              defaultPeriod="PM"
+              disabled={readOnly}
+            />
+          </div>
+          <div className="md:col-span-4">
+            <textarea
+              rows={2}
+              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
+              placeholder="Notes (optional)"
+              value={answers.schedule_simple_setup_notes || ""}
+              onChange={(e) => handleAnswer("schedule_simple_setup_notes", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+
+        {/* Soundcheck — editable */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+          <div className="md:col-span-4 text-sm font-medium text-gray-800">Soundcheck</div>
+          <div className="md:col-span-3">
+            <CustomTimePicker
+              value={answers.schedule_simple_soundcheck || ""}
+              minuteStep={5}
+              onChange={(v) => handleAnswer("schedule_simple_soundcheck", v)}
+              hourPlaceholder="Select"
+              minutePlaceholder="--"
+              defaultPeriod="PM"
+              disabled={readOnly}
+            />
+          </div>
+          <div className="md:col-span-4">
+            <textarea
+              rows={2}
+              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
+              placeholder="Notes (optional)"
+              value={answers.schedule_simple_soundcheck_notes || ""}
+              onChange={(e) => handleAnswer("schedule_simple_soundcheck_notes", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+
+        {/* Start — editable */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+          <div className="md:col-span-4 text-sm font-medium text-gray-800">Start Time</div>
+          <div className="md:col-span-3">
+            <CustomTimePicker
+              value={answers.schedule_simple_start || ""}
+              minuteStep={5}
+              onChange={(v) => handleAnswer("schedule_simple_start", v)}
+              hourPlaceholder="Select"
+              minutePlaceholder="--"
+              defaultPeriod="PM"
+              disabled={readOnly}
+            />
+          </div>
+          <div className="md:col-span-4">
+            <textarea
+              rows={2}
+              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
+              placeholder="Notes (optional)"
+              value={answers.schedule_simple_start_notes || ""}
+              onChange={(e) => handleAnswer("schedule_simple_start_notes", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+
+        {/* 1st Live Set — editable */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+          <div className="md:col-span-4 text-sm font-medium text-gray-800">1st Live Set</div>
+          <div className="md:col-span-3">
+            <CustomTimePicker
+              value={answers.schedule_simple_set1 || ""}
+              minuteStep={5}
+              onChange={(v) => handleAnswer("schedule_simple_set1", v)}
+              hourPlaceholder="Select"
+              minutePlaceholder="--"
+              defaultPeriod="PM"
+              disabled={readOnly}
+            />
+          </div>
+          <div className="md:col-span-4">
+            <textarea
+              rows={2}
+              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
+              placeholder="Notes (optional)"
+              value={answers.schedule_simple_set1_notes || ""}
+              onChange={(e) => handleAnswer("schedule_simple_set1_notes", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+
+        {/* Intermission — editable */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+          <div className="md:col-span-4 text-sm font-medium text-gray-800">Intermission</div>
+          <div className="md:col-span-3">
+            <CustomTimePicker
+              value={answers.schedule_simple_between1 || ""}
+              minuteStep={5}
+              onChange={(v) => handleAnswer("schedule_simple_between1", v)}
+              hourPlaceholder="Select"
+              minutePlaceholder="--"
+              defaultPeriod="PM"
+              disabled={readOnly}
+            />
+          </div>
+          <div className="md:col-span-4">
+            <textarea
+              rows={2}
+              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
+              placeholder="Notes (optional)"
+              value={answers.schedule_simple_between1_notes || ""}
+              onChange={(e) => handleAnswer("schedule_simple_between1_notes", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+
+        {/* 2nd Live Set — editable */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+          <div className="md:col-span-4 text-sm font-medium text-gray-800">2nd Live Set</div>
+          <div className="md:col-span-3">
+            <CustomTimePicker
+              value={answers.schedule_simple_set2 || ""}
+              minuteStep={5}
+              onChange={(v) => handleAnswer("schedule_simple_set2", v)}
+              hourPlaceholder="Select"
+              minutePlaceholder="--"
+              defaultPeriod="PM"
+              disabled={readOnly}
+            />
+          </div>
+          <div className="md:col-span-4">
+            <textarea
+              rows={2}
+              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
+              placeholder="Notes (optional)"
+              value={answers.schedule_simple_set2_notes || ""}
+              onChange={(e) => handleAnswer("schedule_simple_set2_notes", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+
+        {/* Finish — FIXED (unchangeable) */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
+          <div className="md:col-span-4 text-sm font-medium text-gray-800">Finish Time</div>
+          <div className="md:col-span-3">
+            <div className="border rounded px-2 py-2 text-sm w-full bg-gray-50 text-gray-900">
+              {fmtFixed(answers.schedule_simple_finish_time || "")}
+              {finishOffset === 1 ? (
+                <span className="ml-2 text-xs text-gray-500">(next day)</span>
+              ) : null}
+            </div>
+          </div>
+          <div className="md:col-span-4">
+            <textarea
+              rows={2}
+              className="border rounded px-2 py-1 text-sm w-full resize-y text-gray-800"
+              placeholder="Notes (optional)"
+              value={answers.schedule_simple_finish_notes || ""}
+              onChange={(e) => handleAnswer("schedule_simple_finish_notes", e.target.value)}
+              disabled={readOnly}
+            />
+          </div>
         </div>
       </div>
     </div>
