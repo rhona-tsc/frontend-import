@@ -1969,15 +1969,22 @@ const Act = () => {
                   // 🔒 Require login before adding/removing cart items
                   if (!userId) {
                     try {
-                      sessionStorage.setItem("pendingCartActId", String(actData._id));
-                      sessionStorage.setItem(
-                        "pendingCartLineupId",
-                        String(safeSelectedLineup._id || safeSelectedLineup.lineupId || "")
-                      );
+                      const pending = {
+                        actId: String(actData._id),
+                        lineupId: String(
+                          safeSelectedLineup._id || safeSelectedLineup.lineupId || ""
+                        ),
+                        selectedExtras: [],
+                        selectedAfternoonSets: [],
+                        songSuggestions: [],
+                      };
+                      // ShopContext looks for this exact key after login
+                      sessionStorage.setItem("pendingCartPayload", JSON.stringify(pending));
                     } catch {}
+                    // IMPORTANT: pass null so promptLogin does NOT set pendingShortlistActId
                     promptLogin(
                       "Please log in to add acts to your cart and receive availability updates.",
-                      actData._id
+                      null
                     );
                     return;
                   }
