@@ -1757,7 +1757,12 @@ useEffect(() => {
     const customBetween = Array.isArray(answers.schedule_between_custom)
       ? answers.schedule_between_custom
       : [];
+    // User-created custom rows (persisted as array)
+    const customRows = Array.isArray(answers.schedule_custom_rows)
+      ? answers.schedule_custom_rows
+      : [];
     for (const k of customBetween) if (!base.includes(k)) base.push(k);
+    for (const k of customRows) if (!base.includes(k)) base.push(k);
 
     // ===== Order and constraints =====
     const currentOrder = Array.isArray(answers.schedule_order)
@@ -1945,14 +1950,43 @@ const isFixed = (k) => readOnly || k === "finish" || k === "arrival";
       next.splice(anchor === -1 ? next.length - 1 : anchor, 0, key);
       handleAnswer("schedule_order", enforceRules(next));
     };
-    const removeRow = (k) => {
-      if (!/^between_extra_/.test(k)) return;
-      const list = customBetween.filter((x) => x !== k);
-      handleAnswer("schedule_between_custom", list);
-      const next = order.filter((x) => x !== k);
+    // Custom rows helpers
+    const nextCustomRowKey = () => {
+      let n = 1;
+      while (
+        customRows.includes(`custom_row_${n}`) ||
+        order.includes(`custom_row_${n}`)
+      ) n++;
+      return `custom_row_${n}`;
+    };
+    const addCustomRow = () => {
+      const key = nextCustomRowKey();
+      const list = [...customRows, key];
+      handleAnswer("schedule_custom_rows", list);
+      const next = [...order];
+      const anchor = next.indexOf("after_final");
+      next.splice(anchor === -1 ? next.length - 1 : anchor, 0, key);
       handleAnswer("schedule_order", enforceRules(next));
-      if (answers[timeKey(k)]) handleAnswer(timeKey(k), "");
-      if (answers[notesKey(k)]) handleAnswer(notesKey(k), "");
+    };
+    const removeRow = (k) => {
+      if (/^between_extra_/.test(k)) {
+        const list = customBetween.filter((x) => x !== k);
+        handleAnswer("schedule_between_custom", list);
+        const next = order.filter((x) => x !== k);
+        handleAnswer("schedule_order", enforceRules(next));
+        if (answers[timeKey(k)]) handleAnswer(timeKey(k), "");
+        if (answers[notesKey(k)]) handleAnswer(notesKey(k), "");
+        return;
+      }
+      if (/^custom_row_/.test(k)) {
+        const list = customRows.filter((x) => x !== k);
+        handleAnswer("schedule_custom_rows", list);
+        const next = order.filter((x) => x !== k);
+        handleAnswer("schedule_order", enforceRules(next));
+        if (answers[timeKey(k)]) handleAnswer(timeKey(k), "");
+        if (answers[notesKey(k)]) handleAnswer(notesKey(k), "");
+        if (answers[`schedule_label_${k}`]) handleAnswer(`schedule_label_${k}`, "");
+      }
     };
 
     // ---- labels ----
@@ -2011,6 +2045,7 @@ const isFixed = (k) => readOnly || k === "finish" || k === "arrival";
       "between_3",
       ...aftIntermissionKeys,
       ...customBetween,
+      ...customRows,
     ]);
 
     const Row = ({
@@ -2021,6 +2056,7 @@ const isFixed = (k) => readOnly || k === "finish" || k === "arrival";
       rightExtras,
     }) => {
       const idx = order.indexOf(k);
+      const isCustom = /^custom_row_/.test(k);
       return (
         <div
           className={`border rounded px-3 py-2 bg-white shadow-sm grid grid-cols-1 md:grid-cols-12 gap-2 items-center ${isFixed(k) ? "opacity-95" : ""}`}
@@ -2044,9 +2080,17 @@ const isFixed = (k) => readOnly || k === "finish" || k === "arrival";
             >
               ⋮⋮
             </div>
-            <div className="text-sm font-medium text-gray-800 truncate">
-              {title}
-            </div>
+            {isCustom ? (
+              <input
+                type="text"
+                className="border rounded px-2 py-1 text-sm text-gray-800 w-full"
+                placeholder="Row title (e.g. Cake Cutting)"
+                value={answers[`schedule_label_${k}`] || ""}
+                onChange={(e) => handleAnswer(`schedule_label_${k}`, e.target.value)}
+              />
+            ) : (
+              <div className="text-sm font-medium text-gray-800 truncate">{title}</div>
+            )}
             {!isFixed(k) && !readOnly && (
               <div className="ml-auto flex items-center gap-1">
                 <button
@@ -2065,12 +2109,16 @@ const isFixed = (k) => readOnly || k === "finish" || k === "arrival";
                 >
                   ↓
                 </button>
-                {/^between_extra_/.test(k) && (
+                {(/^between_extra_/.test(k) || /^custom_row_/.test(k)) && (
                   <button
                     type="button"
                     className="border rounded px-1 text-xs"
                     onClick={() => removeRow(k)}
-                    title="Remove this intermission"
+                    title={
+                      /^between_extra_/.test(k)
+                        ? "Remove this intermission"
+                        : "Remove this row"
+                    }
                   >
                     ✕
                   </button>
@@ -2089,27 +2137,15 @@ const isFixed = (k) => readOnly || k === "finish" || k === "arrival";
                 ) : null}
               </div>
             ) : (
-              <CustomTimePicker
+              <input
+                type="text"
+                className="border rounded px-2 py-2 text-sm w-full text-gray-900"
+                placeholder={placeholderRows.has(k) ? "HH:MM (e.g., 19:30)" : "HH:MM"}
                 value={answers[timeKey(k)] || ""}
-                minuteStep={5}
-                enableDayOffset={k === "finish"}
-                dayOffset={
-                  k === "finish" ? Number(answers[offKey("finish")] || 0) : 0
-                }
-                onDayOffsetChange={(v) =>
-                  k === "finish" && handleAnswer(offKey("finish"), v)
-                }
-                onChange={(newHHMM) => {
+                onChange={(e) => {
                   userHasEditedRef.current = true;
-                  handleAnswer(timeKey(k), newHHMM);
+                  handleAnswer(timeKey(k), e.target.value);
                 }}
-                {...(placeholderRows.has(k)
-                  ? {
-                      hourPlaceholder: "Select",
-                      minutePlaceholder: "--",
-                      defaultPeriod: "PM",
-                    }
-                  : {})}
               />
             )}
           </div>
@@ -2188,19 +2224,40 @@ const isFixed = (k) => readOnly || k === "finish" || k === "arrival";
             </select>
           </div>
 
-         {!readOnly && ( <button
-            type="button"
-            className="ml-auto border rounded px-2 py-1 text-sm"
-            onClick={addIntermission}
-            title="Add an extra intermission bar"
-          >
-            + Add Intermission
-          </button>)}
-        </div> 
+          {!readOnly && (
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                className="border rounded px-2 py-1 text-sm"
+                onClick={addCustomRow}
+                title="Add a custom row"
+              >
+                + Add row
+              </button>
+              <button
+                type="button"
+                className="border rounded px-2 py-1 text-sm"
+                onClick={addIntermission}
+                title="Add an extra intermission bar"
+              >
+                + Add Intermission
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* The schedule list */}
         <div className="flex flex-col gap-2">
           {order.map((k) => {
+            if (/^custom_row_/.test(k)) {
+              return (
+                <Row
+                  key={k}
+                  k={k}
+                  title={answers[`schedule_label_${k}`] || "Custom Row"}
+                />
+              );
+            }
             // ceremony
             if (k === "ceremony_setup")
               return (
