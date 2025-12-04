@@ -847,7 +847,7 @@ const ShopProvider = (props) => {
   };
 
   // ✅ Toggle shortlist via PATCH routes with optimistic UI
-  const shortlistAct = async (uid, actId) => {
+ const shortlistAct = async (uid, actId) => {
     if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
 
     const storedUserRaw = localStorage.getItem("user");
@@ -856,18 +856,26 @@ const ShopProvider = (props) => {
 
     if (!actId) return;
 
-    const selectedDateFinal =
-      selectedDate || new Date().toISOString().slice(0, 10);
-    const selectedAddressFinal = selectedAddress || "TBC";
+    // ✅ Only consider date/address if user actually provided BOTH (no placeholders)
+    const hasDate = !!selectedDate;
+    const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
 
+    const selectedDateFinal = hasDate
+      ? new Date(selectedDate).toISOString().slice(0, 10)
+      : null;
+    const selectedAddressFinal = hasAddress ? String(selectedAddress).trim() : null;
+
+    // Build payload WITHOUT placeholder date/address to avoid accidental availability triggers
     const clientPayload = {
       userId,
       clientEmail: storedUser?.email || "",
       clientName:
         storedUser?.firstName || storedUser?.name || storedUser?.surname || "",
-      selectedDate: selectedDateFinal,
-      selectedAddress: selectedAddressFinal,
     };
+    if (selectedDateFinal && selectedAddressFinal) {
+      clientPayload.selectedDate = selectedDateFinal;
+      clientPayload.selectedAddress = selectedAddressFinal;
+    }
 
     if (!userId) {
       promptLogin("Please log in to manage your shortlist.");
@@ -893,28 +901,22 @@ const ShopProvider = (props) => {
     try {
       if (isShortlistedNow) {
         // 🔵 Removing from shortlist
-
         await axios.patch(
           `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
           clientPayload
         );
       } else {
         // 🟢 Adding to shortlist
-
         await axios.patch(
           `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
           clientPayload
         );
 
-        // 🩵 Optional: force a shortlist sync to ensure frontend UI matches backend
+        // 🩵 Only sync date/address (and any downstream availability) when BOTH are present
         if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
-          const dateISO = new Date(selectedDateFinal)
-            .toISOString()
-            .slice(0, 10);
-
           await axios.patch(`${backendUrl}/api/shortlist/update`, {
             actId: idStr,
-            dateISO,
+            dateISO: selectedDateFinal,
             formattedAddress: selectedAddressFinal,
             ...clientPayload,
           });
