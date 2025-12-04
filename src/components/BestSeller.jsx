@@ -1,48 +1,68 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useMemo, useState, useEffect, useDeferredValue } from "react";
 import { ShopContext } from "../context/ShopContext";
 import Title from "./Title";
 import ActItem from "./ActItem";
 
-const BestSeller = () => {
-  const [bestSeller, setBestSeller] = useState([]);
-  const [maxToShow, setMaxToShow] = useState(5); // default for desktop
-  const { acts, userId, shortlistAct, isShortlisted } = useContext(ShopContext);
+// Responsive item-count without listening to every resize pixel
+function useMaxToShow() {
+  const [max, setMax] = useState(5); // desktop default
 
-  // 🔹 detect screen size and limit items
   useEffect(() => {
-    const updateLimit = () => {
-      const width = window.innerWidth;
-      if (width < 640) setMaxToShow(4); // phones
-      else if (width < 1024) setMaxToShow(4); // tablets
-      else setMaxToShow(5); // desktop
+    if (typeof window === "undefined" || typeof window.matchMedia === "undefined") return;
+
+    const mqPhone = window.matchMedia("(max-width: 639px)"); // <640
+    const mqTablet = window.matchMedia("(min-width: 640px) and (max-width: 1023px)"); // 640–1023
+
+    const compute = () => setMax(mqPhone.matches || mqTablet.matches ? 4 : 5);
+    compute();
+
+    const onChange = () => compute();
+    mqPhone.addEventListener("change", onChange);
+    mqTablet.addEventListener("change", onChange);
+
+    return () => {
+      mqPhone.removeEventListener("change", onChange);
+      mqTablet.removeEventListener("change", onChange);
     };
-    updateLimit();
-    window.addEventListener("resize", updateLimit);
-    return () => window.removeEventListener("resize", updateLimit);
   }, []);
 
-  // 🔹 Build bestsellers with fallback
-  useEffect(() => {
-    const list = Array.isArray(acts) ? acts : [];
-    const approvedActs = list.filter(
+  return max;
+}
+
+const BestSeller = () => {
+  const { acts, userId, shortlistAct, isShortlisted } = useContext(ShopContext);
+
+  // Defer heavy list ops if acts is being updated
+  const deferredActs = useDeferredValue(acts);
+  const maxToShow = useMaxToShow();
+
+  // 1) Only approved acts
+  const approvedActs = useMemo(() => {
+    const list = Array.isArray(deferredActs) ? deferredActs : [];
+    return list.filter(
       (a) => a?.status === "approved" || a?.status === "Approved, changes pending"
     );
+  }, [deferredActs]);
 
-    let flagged = approvedActs.filter(
-      (a) => Boolean(a?.bestseller) || Boolean(a?.bestSeller)
-    );
+  // 2) Choose best sellers (flagged first, fallback to popularity), memoized
+  const bestSeller = useMemo(() => {
+    if (!approvedActs.length) return [];
 
-    if (flagged.length === 0) {
-      const byPopularity = [...approvedActs].sort(
-        (A, B) => (B?.timesShortlisted || 0) - (A?.timesShortlisted || 0)
-      );
-      flagged = byPopularity.slice(0, maxToShow);
-    } else {
-      flagged = flagged.slice(0, maxToShow);
-    }
+    const flagged = approvedActs.filter((a) => Boolean(a?.bestseller) || Boolean(a?.bestSeller));
+    if (flagged.length) return flagged.slice(0, maxToShow);
 
-    setBestSeller(flagged);
-  }, [acts, maxToShow]);
+    // Fallback: most popular by timesShortlisted, then newest
+    return [...approvedActs]
+      .sort((A, B) => {
+        const tA = A?.timesShortlisted || 0;
+        const tB = B?.timesShortlisted || 0;
+        if (tB !== tA) return tB - tA;
+        const dA = new Date(A?.createdAt || 0).getTime();
+        const dB = new Date(B?.createdAt || 0).getTime();
+        return dB - dA;
+      })
+      .slice(0, maxToShow);
+  }, [approvedActs, maxToShow]);
 
   return (
     <div className="my-10">
