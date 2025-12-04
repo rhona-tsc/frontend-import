@@ -118,12 +118,27 @@ const ShopProvider = (props) => {
   }, []);
 
   const getActById = async (actId) => {
-    try {
-      const res = await axios.get(`${backendUrl}/api/act/${actId}`);
-      if (res.data?.success && res.data?.act) return res.data.act;
-    } catch (err) {
-      console.warn("Failed to fetch act by ID:", err?.message || err);
+    if (!actId) return null;
+    const base = String(backendUrl || "").replace(/\/+$/, "");
+    const candidates = [
+      `${base}/api/act/${actId}`,
+      `${base}/api/acts/${actId}`,
+      `${base}/api/v2/acts/${actId}`,
+    ];
+
+    for (const url of candidates) {
+      try {
+        const res = await axios.get(url, { headers: { accept: "application/json" } });
+        const data = res?.data;
+        const act = data?.act || data?.data || data?.result || data;
+        if (act && typeof act === "object" && act._id) {
+          return act;
+        }
+      } catch (err) {
+        // try next
+      }
     }
+    console.warn("⚠️ getActById: no act found via any endpoint", { actId });
     return null;
   };
 
@@ -256,83 +271,121 @@ const ShopProvider = (props) => {
     shortlistItems: {},
   });
 
-  // ============ Data loaders ============
-// ============ Data loaders ============
-const getActsData = async () => {
-  const base = String(backendUrl || "").replace(/\/+$/, "");
-  const candidates = [
-    "/api/act/list",      // primary
-    "/api/acts/list",     // common alt
-  ];
+  // Normalise various list payload shapes into an array of acts
+  const coerceActsArray = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (!payload || typeof payload !== "object") return [];
 
-  for (const path of candidates) {
-    const url = `${base}${path}`;
-    console.log("🛒[ShopContext] Fetching acts:", { url });
+    // common nests
+    if (Array.isArray(payload.acts)) return payload.acts;
+    if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload.results)) return payload.results;
+    if (Array.isArray(payload.docs)) return payload.docs;
+    if (Array.isArray(payload.items)) return payload.items;
 
-    try {
-      const res = await axios.get(url, { headers: { accept: "application/json" } });
-      const data = res?.data;
-
-      // Accept either {success, acts: []} or a bare [] payload
-      const actsArr = Array.isArray(data?.acts)
-        ? data.acts
-        : Array.isArray(data)
-        ? data
-        : [];
-
-      console.log("🛒[ShopContext] Acts response:", {
-        status: res.status,
-        success: data?.success,
-        count: actsArr.length,
-        sampleId: actsArr?.[0]?._id,
-        sampleName: actsArr?.[0]?.tscName || actsArr?.[0]?.name,
-        sampleLineupsType: Array.isArray(actsArr?.[0]?.lineups)
-          ? "array"
-          : typeof actsArr?.[0]?.lineups,
-      });
-
-      if (actsArr.length > 0) {
-        // Don’t mutate source; keep ordering predictable (newest first)
-        const sorted = [...actsArr].sort((a, b) => {
-          const at = new Date(a.createdAt || a.updatedAt || 0).getTime();
-          const bt = new Date(b.createdAt || b.updatedAt || 0).getTime();
-          return bt - at;
-        });
-        setActs(sorted);
-        // expose for quick dev inspection
-        try { window.__TSC_ACTS__ = sorted; } catch {}
-        return; // ✅ success path
-      }
-
-      // If success true but empty, still set [] and fall through to try next candidate
-      setActs([]);
-    } catch (err) {
-      const status = err?.response?.status;
-      const body = err?.response?.data;
-      console.warn("⚠️[ShopContext] Acts fetch failed:", { url, status, body, msg: err?.message });
-      // try next candidate…
+    // nested under acts: { docs/items }
+    if (payload.acts && typeof payload.acts === "object") {
+      if (Array.isArray(payload.acts.docs)) return payload.acts.docs;
+      if (Array.isArray(payload.acts.items)) return payload.acts.items;
     }
-  }
 
-  // If all candidates fail, keep acts as [] but log loudly
-  console.error("❌[ShopContext] Could not load acts from any known endpoint.", { backendUrl });
-};
+    return [];
+  };
 
-/* --------------------- PLACE (2) RIGHT BELOW getActsData --------------------- */
-useEffect(() => {
-  console.log("🛒[ShopContext] Mount — backendUrl:", backendUrl);
-  getActsData().catch((e) => console.error("❌[ShopContext] getActsData threw:", e));
-}, [backendUrl]); // ⬅️ replaces your old empty-deps mount effect
+  // ============ Data loaders ============
+  const getActsData = async () => {
+    const base = String(backendUrl || "").replace(/\/+$/, "");
 
-/* --------------------- PLACE (3) RIGHT BELOW (2) --------------------- */
-useEffect(() => {
-  console.log("🛒[ShopContext] acts updated:", {
-    length: Array.isArray(acts) ? acts.length : "non-array",
-    first: acts?.[0]?._id,
-    firstName: acts?.[0]?.tscName || acts?.[0]?.name,
-    firstHasLineups: Array.isArray(acts?.[0]?.lineups),
-  });
-}, [acts]);
+    // Try several endpoints & query variants
+    const candidates = [
+      "/api/act/list",
+      "/api/acts/list",
+      "/api/act/list?status=live",
+      "/api/acts/list?status=live",
+      "/api/v2/acts/list",
+      "/api/actV2/list",
+      "/api/v2/act/list",
+      // some backends expose un-paginated or different names
+      "/api/act/all",
+      "/api/acts",
+    ];
+
+    for (const path of candidates) {
+      const url = `${base}${path}`;
+      console.log("🛒[ShopContext] Fetching acts:", { url });
+      try {
+        const res = await axios.get(url, { headers: { accept: "application/json" } });
+        const data = res?.data;
+
+        // Log keys for shape discovery
+        console.log("🛒[ShopContext] Raw list payload keys:", Object.keys(data || {}));
+
+        const actsArr = coerceActsArray(data);
+        const meta = data?.meta || data?.pagination || data?.acts || {};
+        const hintedTotal = meta?.total || meta?.totalDocs || data?.total || data?.count || actsArr.length;
+
+        console.log("🛒[ShopContext] Acts response:", {
+          status: res.status,
+          success: data?.success,
+          count: actsArr.length,
+          hintedTotal,
+          sampleId: actsArr?.[0]?._id,
+          sampleName: actsArr?.[0]?.tscName || actsArr?.[0]?.name,
+          sampleLineupsType: Array.isArray(actsArr?.[0]?.lineups) ? "array" : typeof actsArr?.[0]?.lineups,
+        });
+
+        if (actsArr.length > 0) {
+          // newest first by createdAt/updatedAt
+          const sorted = [...actsArr].sort((a, b) => {
+            const at = new Date(a.createdAt || a.updatedAt || 0).getTime();
+            const bt = new Date(b.createdAt || b.updatedAt || 0).getTime();
+            return bt - at;
+          });
+          setActs(sorted);
+          try { window.__TSC_ACTS__ = sorted; } catch {}
+          return; // ✅ success
+        }
+
+        // If server says there should be data (hintedTotal > 0) but our parser found none,
+        // stash raw for inspection and keep trying alternates.
+        if ((hintedTotal || 0) > 0) {
+          try { window.__TSC_ACTS_RAW__ = data; } catch {}
+          console.warn("⚠️[ShopContext] list response hinted non-zero total but no parsed acts; trying next endpoint");
+        }
+      } catch (err) {
+        const status = err?.response?.status;
+        const body = err?.response?.data;
+        console.warn("⚠️[ShopContext] Acts fetch failed:", { url, status, body, msg: err?.message });
+        // try next candidate…
+      }
+    }
+
+    // If all candidates fail or return empty
+    console.error("❌[ShopContext] Could not load acts from any known endpoint.", { backendUrl });
+    try { window.__TSC_ACTS_FAILED__ = { backendUrl }; } catch {}
+    setActs([]);
+  };
+
+  // Mount: load acts when backendUrl is available/changes
+  useEffect(() => {
+    console.log("🛒[ShopContext] Mount — backendUrl:", backendUrl);
+    if (!backendUrl) {
+      console.warn("⚠️[ShopContext] VITE_BACKEND_URL is missing; cannot fetch acts");
+      setActs([]);
+      return;
+    }
+    getActsData().catch((e) => console.error("❌[ShopContext] getActsData threw:", e));
+  }, [backendUrl]);
+
+  // Log any updates to acts for quick visibility
+  useEffect(() => {
+    console.log("🛒[ShopContext] acts updated:", {
+      length: Array.isArray(acts) ? acts.length : "non-array",
+      first: acts?.[0]?._id,
+      firstName: acts?.[0]?.tscName || acts?.[0]?.name,
+      firstHasLineups: Array.isArray(acts?.[0]?.lineups),
+    });
+  }, [acts]);
 
 
   // Try to refresh one act (used after SSE inbound). If single-act endpoint is missing,
