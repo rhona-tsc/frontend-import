@@ -2982,10 +2982,9 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
           <div className="md:col-span-1 flex items-center justify-end gap-1">
             {!readOnly && (
               <>
-                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowWithinArray(row.id, -1)} title="Move up within this slot">↑</button>
-                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowWithinArray(row.id, +1)} title="Move down within this slot">↓</button>
-                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) - 1)} title="Move to previous slot">⟵</button>
-                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) + 1)} title="Move to next slot">⟶</button>
+
+                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) - 1)} title="Move to previous slot">↑</button>
+                <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) + 1)} title="Move to next slot">↓</button>
                 <button type="button" className="border rounded px-2 py-1 text-xs" onClick={() => removeRowById(row.id)} title="Remove">✕</button>
               </>
             )}
@@ -3006,7 +3005,7 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
       <div className="flex items-center justify-between mb-1">
         <div className="text-xs text-gray-600">{SLOT_TITLES[slot]}</div>
         {!readOnly && (
-          <button type="button" className="border rounded px-2 py-0.5 text-xs" onClick={() => addRow(slot)}>+ Add here</button>
+          <button type="button" className="border rounded px-2 py-0.5 text-xs" onClick={() => addRow(slot)}>+ Add item</button>
         )}
       </div>
       <RowsInSlot slot={slot} />
