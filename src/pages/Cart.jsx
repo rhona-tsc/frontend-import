@@ -1695,24 +1695,22 @@ useEffect(() => {
   console.groupEnd();
   return (
     <>
-      <h3 className="block font-semibold text-gray-600 text-base mb-1 mt-2">
-        Choose your {titlePlural}
-        {requiredVocalCount > 1 && (
-          <span className="ml-1 text-gray-500 font-normal">
-            ({Math.min(chosenCount, requiredVocalCount)}/{requiredVocalCount} selected)
-          </span>
-        )}
-      </h3>
+    <h3 className="text-base font-semibold text-gray-600 mb-1 mt-2 leading-tight">
+  <span className="block">Choose your {titlePlural}</span>
+  {requiredVocalCount > 1 && (
+    <span className="block mt-0.5 text-gray-500 font-normal">
+      ({Math.min(chosenCount, requiredVocalCount)}/{requiredVocalCount} selected)
+    </span>
+  )}
+</h3>
 
-      {/* Reassurance note when fewer can be picked than required */}
-      {requiredVocalCount > 1 && selection.length < requiredVocalCount && (
-        <p className="ml-4 mt-1 text-sm text-gray-600 max-w-prose">
-          Can’t see all {requiredVocalCount} vocalists right now? You’re welcome to book
-          with {Math.min(chosenCount || 1, requiredVocalCount)} selected — we’ll allocate
-          the other lead vocalist if they’re available, or a like‑for‑like deputy.
-          We’ll always confirm with you before anything is final.
-        </p>
-      )}
+{requiredVocalCount > 1 && selection.length < requiredVocalCount && (
+  <p className="mt-1 text-sm text-gray-600 max-w-prose">
+    Can’t see all {requiredVocalCount} vocalists right now? You’re welcome to book
+    with {Math.min(chosenCount || 1, requiredVocalCount)} selected — we’ll allocate
+    the other lead vocalist if they’re available, or a like-for-like deputy.
+  </p>
+)}
 
       <div className="flex flex-wrap gap-4 items-left ml-4">
         {selection.slice(0, 8).map((person, idx) => {
