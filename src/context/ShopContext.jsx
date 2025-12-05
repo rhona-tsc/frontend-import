@@ -26,6 +26,8 @@ const ShopProvider = (props) => {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [acts, setActs] = useState([]);
+  // Lightweight listing cards from /api/act/cards
+  const [actCards, setActCards] = useState([]);
   // --- CART STATE ---
   const [cartItems, setCartItems] = useState(() => {
     try {
@@ -292,6 +294,83 @@ const ShopProvider = (props) => {
     return [];
   };
 
+  // Pick the smallest lineup for a quick "from" price
+  const pickSmallestLineup = (act) => {
+    try {
+      if (!act || !Array.isArray(act.lineups) || !act.lineups.length) return null;
+      const parseSize = (s) => {
+        if (!s) return Infinity;
+        const m = String(s).match(/(\d+)/);
+        return m ? parseInt(m[1], 10) : Infinity;
+      };
+      const scored = act.lineups.map((l, i) => ({
+        l,
+        n: Number.isFinite(parseSize(l?.act_size || l?.actSize))
+          ? parseSize(l?.act_size || l?.actSize)
+          : (Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999),
+        i,
+      }));
+      scored.sort((a, b) => a.n - b.n || a.i - b.i);
+      return scored[0]?.l || act.lineups[0];
+    } catch {
+      return Array.isArray(act?.lineups) ? act.lineups[0] : null;
+    }
+  };
+
+  // ============ Fast card list loader ============
+  const getActCardsData = async () => {
+    const base = String(backendUrl || "").replace(/\/+$/, "");
+    const url = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
+    console.log("🛒[ShopContext] Fetching act cards:", { url });
+    try {
+      const res = await axios.get(url, { headers: { accept: "application/json" } });
+      const data = res?.data || {};
+      // Reuse the coerce helper – our endpoint returns { acts: [...] }
+      const arr = coerceActsArray(data);
+      const slim = (Array.isArray(arr) ? arr : []).map((c) => ({
+        actId: String(c.actId || c._id || ""),
+        tscName: c.tscName || c.name || "",
+        name: c.name || "",
+        slug: c.slug || "",
+        imageUrl: c.imageUrl || "",
+        basePrice: typeof c.basePrice === "number" ? c.basePrice : null,
+        loveCount: typeof c.loveCount === "number" ? c.loveCount : 0,
+        status: c.status || "",
+      }));
+      setActCards(slim);
+      try { window.__TSC_ACT_CARDS__ = slim; } catch {}
+    } catch (err) {
+      console.warn("⚠️[ShopContext] Act cards fetch failed:", { url, msg: err?.message });
+      setActCards([]);
+    }
+  };
+
+  // Compute a "from" price with travel on demand for a card when it's on screen
+  const getCardPriceWithTravel = async (actId) => {
+    try {
+      if (!actId) return null;
+      if (!selectedDate || !selectedAddress) return null; // need both
+      const act = await getActById(actId);
+      if (!act) return null;
+      const lineup = pickSmallestLineup(act);
+      if (!lineup) return null;
+
+      const county = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+      const result = await calculateActPricing(
+        act,
+        county,
+        selectedAddress,
+        selectedDate,
+        lineup
+      );
+      const total = Number(result?.total || 0);
+      return Number.isFinite(total) ? Math.ceil(total) : null;
+    } catch (e) {
+      console.warn("⚠️[ShopContext] getCardPriceWithTravel failed:", e?.message || e);
+      return null;
+    }
+  };
+
   // ============ Data loaders ============
   const getActsData = async () => {
     const base = String(backendUrl || "").replace(/\/+$/, "");
@@ -372,8 +451,11 @@ const ShopProvider = (props) => {
     if (!backendUrl) {
       console.warn("⚠️[ShopContext] VITE_BACKEND_URL is missing; cannot fetch acts");
       setActs([]);
+      setActCards([]);
       return;
     }
+    // Load lightweight cards for fast listing, and full acts for deeper pages
+    getActCardsData().catch((e) => console.error("❌[ShopContext] getActCardsData threw:", e));
     getActsData().catch((e) => console.error("❌[ShopContext] getActsData threw:", e));
   }, [backendUrl]);
 
@@ -386,6 +468,15 @@ const ShopProvider = (props) => {
       firstHasLineups: Array.isArray(acts?.[0]?.lineups),
     });
   }, [acts]);
+
+  // Log actCards updates
+  useEffect(() => {
+    console.log("🛒[ShopContext] actCards updated:", {
+      length: Array.isArray(actCards) ? actCards.length : "non-array",
+      first: actCards?.[0]?.actId,
+      firstName: actCards?.[0]?.tscName || actCards?.[0]?.name,
+    });
+  }, [actCards]);
 
 
   // Try to refresh one act (used after SSE inbound). If single-act endpoint is missing,
@@ -1432,6 +1523,14 @@ const ShopProvider = (props) => {
     setShowSearch,
     backendUrl,
     getActById,
+
+    // listing cards
+    actCards,
+    getActCardsData,
+
+    // on-demand card pricing
+    getCardPriceWithTravel,
+
     // cart
     cartItems,
     setCartItems,
