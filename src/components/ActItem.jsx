@@ -4,31 +4,33 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import calculateActPricing from '../pages/utils/pricing';
 import { ShopContext } from '../context/ShopContext';
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Helpers to support BOTH shapes: lightweight ActCard and full Act document
+// ActCard fields: { actId, imageUrl, basePrice, loveCount, name, tscName, availabilityBadge }
+// Full Act fields: { _id, profileImage[], formattedPrice, numberOfShortlistsIn, lineups, ... }
+// ──────────────────────────────────────────────────────────────────────────────
+const getActId = (src) => src?.actId || src?._id || src?.id || '';
+const getTitle = (src) => src?.tscName || src?.name || 'Act';
+const getImageUrl = (src) =>
+  src?.imageUrl || src?.profileImage?.[0]?.url || '/placeholder.jpg';
+const getBadge = (src) => src?.availabilityBadge || null;
+const getBasePrice = (src) => {
+  if (src?.basePrice != null) return Number(String(src.basePrice).replace(/[^0-9.+-]/g, ''));
+  const lineup = src?.lineups?.[0] || null;
+  const base = src?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
+  return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
+};
+const getLove = (src, shortlistCount) => {
+  const n = src?.loveCount ?? src?.numberOfShortlistsIn ?? shortlistCount ?? src?.shortlistCount ?? src?.metrics?.shortlists ?? 0;
+  return Number(n) || 0;
+};
+
 const ActItem = ({ actData, shortlistCount }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [isAnimating, setIsAnimating] = useState(false);
-
-  // Robust initial love count (DB source preferred) -> fallbacks
-  const initialLove =
-    Number(
-      actData?.numberOfShortlistsIn ??
-      shortlistCount ??
-      actData?.shortlistCount ??
-      actData?.metrics?.shortlists ??
-      0
-    ) || 0;
-
-  console.debug('💖 loveCount source →', {
-    fromDB: actData?.numberOfShortlistsIn,
-    fromProp: shortlistCount,
-    fromAct: actData?.shortlistCount,
-    fromMetrics: actData?.metrics?.shortlists,
-    initialLove
-  });
-
-  const [loveCount, setLoveCount] = useState(initialLove);
+  const [loveCount, setLoveCount] = useState(() => getLove(actData, shortlistCount));
   const [price, setPrice] = useState(null);
 
   // ✅ use shortlist from context
@@ -41,38 +43,28 @@ const ActItem = ({ actData, shortlistCount }) => {
     selectedDate,
   } = useContext(ShopContext);
 
-  // Keep loveCount in sync with DB when actData changes
+  // Keep loveCount in sync when actData changes
   useEffect(() => {
-    const next =
-      Number(
-        actData?.numberOfShortlistsIn ??
-        shortlistCount ??
-        actData?.shortlistCount ??
-        actData?.metrics?.shortlists ??
-        0
-      ) || 0;
-    setLoveCount(next);
-  }, [
-    actData?.numberOfShortlistsIn,
-    shortlistCount,
-    actData?.shortlistCount,
-    actData?.metrics?.shortlists
-  ]);
+    setLoveCount(getLove(actData, shortlistCount));
+  }, [actData?.loveCount, actData?.numberOfShortlistsIn, actData?.shortlistCount, actData?.metrics?.shortlists, shortlistCount]);
 
+  // Compute/refresh price
   useEffect(() => {
-    const calculateAndSetPrice = async () => {
+    const run = async () => {
       try {
-        if (!actData?.lineups?.length) {
-          console.warn('⚠️ Missing actData or lineups in ActItem:', actData);
+        // If we only have a card (no lineups), we can't compute travel here → show base and exit
+        const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
+        const baseOnly = getBasePrice(actData);
+
+        // No date/location → just show base
+        const hasAnyLocation = !!(selectedAddress || selectedCounty);
+        if (!hasAnyLocation || !selectedDate || !hasLineups) {
+          if (baseOnly != null) setPrice({ total: baseOnly, travelCalculated: false });
           return;
         }
 
-        // Only use county travel if it’s actually configured
-        const hasCountyTable =
-          actData.useCountyTravelFee &&
-          actData.countyFees &&
-          Object.keys(actData.countyFees).length > 0;
-
+        // Only use county travel if configured
+        const hasCountyTable = !!(actData?.useCountyTravelFee && actData?.countyFees && Object.keys(actData.countyFees).length > 0);
         const lineup = actData.lineups[0];
 
         const result = await calculateActPricing(
@@ -83,14 +75,8 @@ const ActItem = ({ actData, shortlistCount }) => {
           lineup
         );
 
-        // Hard fallback if util returns nothing
         if (!result || result.total == null) {
-          const base =
-            actData?.formattedPrice?.total ??
-            lineup?.base_fee?.[0]?.total_fee ??
-            null;
-
-          setPrice(base != null ? { total: base, travelCalculated: false } : null);
+          if (baseOnly != null) setPrice({ total: baseOnly, travelCalculated: false });
           return;
         }
 
@@ -98,24 +84,20 @@ const ActItem = ({ actData, shortlistCount }) => {
       } catch (err) {
         console.error('❌ Failed to calculate price:', {
           err,
-          actId: actData?._id,
+          actId: getActId(actData),
           useCountyTravelFee: actData?.useCountyTravelFee,
         });
-        // Last-resort fallback so UI never gets stuck
-        const lineup = actData.lineups?.[0];
-        const base =
-          actData?.formattedPrice?.total ??
-          lineup?.base_fee?.[0]?.total_fee ??
-          null;
-        setPrice(base != null ? { total: base, travelCalculated: false } : null);
+        const baseOnly = getBasePrice(actData);
+        if (baseOnly != null) setPrice({ total: baseOnly, travelCalculated: false });
       }
     };
-    calculateAndSetPrice();
+
+    run();
   }, [actData, selectedCounty, selectedAddress, selectedDate]);
 
-  const rawTotal = (actData?.formattedPrice?.total ?? price?.total);
-  const displayTotal =
-    rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
+  // Display total chooses computed price, else base from card/act
+  const rawTotal = price?.total ?? getBasePrice(actData);
+  const displayTotal = rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
 
   const handleHeartClick = (e) => {
     e.preventDefault();
@@ -123,34 +105,25 @@ const ActItem = ({ actData, shortlistCount }) => {
 
     // 🔒 Require login before shortlisting
     if (!userId) {
-      // If we came from the Acts listing, return to that exact list (with filters/query)
       const fromActsListing = String(location.pathname || '').startsWith('/acts');
-      const listUrl =
-        `${location.pathname || ''}${location.search || ''}${location.hash || ''}` || '/acts';
-
-      // Otherwise, fall back to the specific act profile
-      const actUrl = actData?._id ? `/act/${actData._id}` : '/';
-
+      const listUrl = `${location.pathname || ''}${location.search || ''}${location.hash || ''}` || '/acts';
+      const actUrl = getActId(actData) ? `/act/${getActId(actData)}` : '/';
       const fallback = fromActsListing ? listUrl : actUrl;
-
-      // Persist the intended next page for the login screen to read
       sessionStorage.setItem('postLoginNext', fallback);
-
-      // Navigate to login
       navigate('/login', { state: { from: fallback } });
-      return; // 👈 do not continue
+      return;
     }
 
     setIsAnimating(true);
 
     // ✅ Optimistic local count change layered on top of DB value
-    const isShortlistedNow = shortlistedActs?.includes(String(actData?._id));
+    const isShortlistedNow = shortlistedActs?.includes(String(getActId(actData)));
     setLoveCount((prev) => {
       const safe = Number(prev) || 0;
       return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
     });
 
-    shortlistAct(userId, actData._id);
+    shortlistAct(userId, getActId(actData));
 
     setTimeout(() => setIsAnimating(false), 300);
   };
@@ -160,47 +133,35 @@ const ActItem = ({ actData, shortlistCount }) => {
     return count;
   };
 
-  const isShortlisted = shortlistedActs?.includes(String(actData?._id));
+  const isShortlisted = shortlistedActs?.includes(String(getActId(actData)));
+
+  // Decide which image to show (availability badge takes priority if matching date)
+  const badge = getBadge(actData) || {};
+  const selectedISO = selectedDate ? new Date(selectedDate).toISOString().slice(0, 10) : null;
+  const badgeDateISO = badge?.dateISO || null;
+  const badgeActive = Boolean(badge?.active);
+  const badgeHasPhoto = Boolean(badge?.photoUrl);
+  const badgeMatches = Boolean(badgeActive && badgeDateISO && selectedISO && badgeDateISO === selectedISO);
+  const resolvedImage = (badgeMatches && badgeHasPhoto) ? badge.photoUrl : getImageUrl(actData);
 
   return (
     <div className="relative group">
       <Link
-        to={`/act/${actData?._id}`}
+        to={`/act/${getActId(actData)}`}
         onClick={() => window.scrollTo(0, 0)}
         className="block text-gray-700"
       >
         <div className="overflow-hidden h-full w-full">
-          {(() => {
-            // 🔍 Decide which image to show, with badge taking priority when it matches the selected date
-            const badge = actData?.availabilityBadge || {};
-            const selectedISO = selectedDate
-              ? new Date(selectedDate).toISOString().slice(0, 10)
-              : null;
-            const badgeDateISO = badge?.dateISO || null;
-            const badgeActive = Boolean(badge?.active);
-            const badgeHasPhoto = Boolean(badge?.photoUrl);
-            const badgeMatches = Boolean(
-              badgeActive && badgeDateISO && selectedISO && badgeDateISO === selectedISO
-            );
-
-            const resolvedImage =
-              (badgeMatches && badgeHasPhoto
-                ? badge.photoUrl
-                : (actData?.profileImage?.[0]?.url || '/placeholder.jpg'));
-
-            return (
-              <img
-                className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
-                src={resolvedImage}
-                alt={actData?.tscName || 'Act'}
-              />
-            );
-          })()}
+          <img
+            className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
+            src={resolvedImage}
+            alt={getTitle(actData)}
+          />
         </div>
 
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
-            <p className="text-sm">{actData?.tscName}</p>
+            <p className="text-sm">{getTitle(actData)}</p>
             <div className="act-price">
               {displayTotal !== null
                 ? (price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`)
