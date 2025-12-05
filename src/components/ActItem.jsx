@@ -35,47 +35,6 @@ const buildFromPublicId = (publicId) => {
 };
 
 
-export function resolveActCardImage(act: any) {
-  const candidate =
-    act?.coverImage?.[0]?.url ||
-    act?.images?.[0]?.url ||
-    act?.profileImage?.[0]?.url ||
-    "";
-
-  // If we truly have nothing, use placeholder
-  if (!candidate) return "/placeholder.jpg";
-
-  // If it's already an absolute URL, just use it (Cloudinary or not)
-  if (/^https?:\/\//i.test(candidate)) return candidate;
-
-  // If it's a public_id (no protocol), build a Cloudinary URL if cloud name exists
-  const cloud =
-    import.meta.env.VITE_CLOUDINARY_CLOUD_NAME ||
-    import.meta.env.REACT_APP_CLOUDINARY_NAME; // fallback in case you still have this set
-  if (cloud) {
-    return `https://res.cloudinary.com/${cloud}/image/upload/f_auto,q_auto/${candidate}`;
-  }
-
-  // Last resort: if it's a site-relative path, use it; else placeholder
-  return candidate.startsWith("/") ? candidate : "/placeholder.jpg";
-}
-
-const imgSrc = useMemo(() => resolveActCardImage(act), [act]);
-
-console.log("🎸[ActItem] 🖼️ image picked", {
-  actId: act._id,
-  picked: imgSrc,
-  candidate:
-    act?.coverImage?.[0]?.url ||
-    act?.images?.[0]?.url ||
-    act?.profileImage?.[0]?.url ||
-    "",
-  cloud:
-    import.meta.env.VITE_CLOUDINARY_CLOUD_NAME ||
-    import.meta.env.REACT_APP_CLOUDINARY_NAME ||
-    null,
-});
-
 // Extra debugging of the incoming image shapes
 const debugImageShape = (act) => {
   if (!DBG) return;
