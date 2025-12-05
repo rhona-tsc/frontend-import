@@ -439,6 +439,17 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
   const resolvedUrl = useMemo(() => cld(pickedUrl, { w: 1200, crop: 'limit' }), [pickedUrl]);
   const [imgSrc, setImgSrc] = useState(resolvedUrl);
 
+
+  const imgSrcSet = useMemo(() => {
+  if (!pickedUrl) return '';
+  const widths = [480, 720, 960, 1200, 1600];
+  return widths
+    .map((w) => `${cld(pickedUrl, { w, crop: 'limit' })} ${w}w`)
+    .join(', ');
+}, [pickedUrl]);
+
+const imgSizes = '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw';
+
   useEffect(() => {
     setImgSrc(resolvedUrl);
     DBG && log('🖼️ image picked', {
@@ -515,25 +526,26 @@ const ActItem = ({ actData, shortlistCount, lite = false }) => {
         onClick={scrollTop}
         className="block text-gray-700"
       >
-        <div className="overflow-hidden h-full w-full">
-          <img
-            loading="lazy"
-            decoding="async"
-            fetchPriority="low"
-            className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
-            style={{ aspectRatio: '4 / 3' }} // helps layout shift; remove if not desired
-            src={imgSrc || '/placeholder.jpg'}
-            alt={actData?.tscName || actData?.name || 'Act'}
-            onError={() => {
-              if (imgSrc !== '/placeholder.jpg') {
-                warn('🖼️ image error → falling back to placeholder', {
-                  actId: actData?._id,
-                  badSrc: imgSrc,
-                });
-                setImgSrc('/placeholder.jpg');
-              }
-            }}
-          />
+<div className="overflow-hidden w-full">
+           <img
+  loading="lazy"
+  decoding="async"
+  fetchPriority="low"
+  className="w-full h-auto object-cover hover:scale-110 transition ease-in-out"
+  src={imgSrc || '/placeholder.jpg'}
+  srcSet={imgSrcSet}
+  sizes={imgSizes}
+  alt={actData?.tscName || actData?.name || 'Act'}
+  onError={() => {
+    if (imgSrc !== '/placeholder.jpg') {
+      warn('🖼️ image error → falling back to placeholder', {
+        actId: actData?._id,
+        badSrc: imgSrc,
+      });
+      setImgSrc('/placeholder.jpg');
+    }
+  }}
+/>
         </div>
 
         <div className="flex justify-between items-center pt-3 pb-1">
