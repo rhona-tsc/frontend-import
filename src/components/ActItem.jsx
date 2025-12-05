@@ -10,14 +10,23 @@ const ActItem = ({ actData, shortlistCount }) => {
 
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Robust initial love count (prop -> actData fields -> 0)
+  // Robust initial love count (DB source preferred) -> fallbacks
   const initialLove =
     Number(
+      actData?.numberOfShortlistsIn ??
       shortlistCount ??
       actData?.shortlistCount ??
       actData?.metrics?.shortlists ??
       0
     ) || 0;
+
+  console.debug('💖 loveCount source →', {
+    fromDB: actData?.numberOfShortlistsIn,
+    fromProp: shortlistCount,
+    fromAct: actData?.shortlistCount,
+    fromMetrics: actData?.metrics?.shortlists,
+    initialLove
+  });
 
   const [loveCount, setLoveCount] = useState(initialLove);
   const [price, setPrice] = useState(null);
@@ -32,17 +41,23 @@ const ActItem = ({ actData, shortlistCount }) => {
     selectedDate,
   } = useContext(ShopContext);
 
-  // Keep loveCount in sync if props/actData update
+  // Keep loveCount in sync with DB when actData changes
   useEffect(() => {
     const next =
       Number(
+        actData?.numberOfShortlistsIn ??
         shortlistCount ??
         actData?.shortlistCount ??
         actData?.metrics?.shortlists ??
         0
       ) || 0;
     setLoveCount(next);
-  }, [shortlistCount, actData?.shortlistCount, actData?.metrics?.shortlists]);
+  }, [
+    actData?.numberOfShortlistsIn,
+    shortlistCount,
+    actData?.shortlistCount,
+    actData?.metrics?.shortlists
+  ]);
 
   useEffect(() => {
     const calculateAndSetPrice = async () => {
@@ -128,7 +143,7 @@ const ActItem = ({ actData, shortlistCount }) => {
 
     setIsAnimating(true);
 
-    // ✅ Optimistic local count change while the server updates
+    // ✅ Optimistic local count change layered on top of DB value
     const isShortlistedNow = shortlistedActs?.includes(String(actData?._id));
     setLoveCount((prev) => {
       const safe = Number(prev) || 0;
