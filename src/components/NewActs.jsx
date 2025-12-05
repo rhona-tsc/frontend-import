@@ -209,19 +209,6 @@ const NewActs = () => {
         </p>
       </div>
 
-      {DBG && (
-        <pre className="text-xs text-gray-500 p-2 overflow-auto">
-          {JSON.stringify(
-            {
-              newestActsLen: newestActs.length,
-              renderPriceCount: Array.from(priceMap.keys()).length,
-              maxToShow,
-            },
-            null,
-            2
-          )}
-        </pre>
-      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
         {newestActs.map(
