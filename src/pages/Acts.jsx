@@ -77,27 +77,31 @@ const deriveActInstruments = (act) => {
 };
 
 // Small helper reused in a few places
-
+const idOf = (obj) => String(obj?.actId || obj?._id || obj?.id || "");
 
 const Acts = ({ userRole, email }) => {
   const [filteredActs, setFilteredActs] = useState([]);
-  const {
-    acts,
-    search,
-    showSearch,
-    setShowSearch,
-    shortlistedActs,
-    setShortlistedActs,
-    toggleShortlist,
-    selectedLineup,
-    actId,
-    shortlistItems,
-    shortlistAct,
-    userId, isShortlisted, selectedDate,
-    setSelectedDate,
-    selectedAddress,
-    setSelectedAddress,
-  } = useContext(ShopContext);
+const {
+  acts,
+  actCards,
+  search,
+  showSearch,
+  setShowSearch,
+  shortlistedActs,
+  setShortlistedActs,
+  toggleShortlist,
+  selectedLineup,
+  actId,
+  shortlistItems,
+  shortlistAct,
+  userId,
+  isShortlisted,
+  selectedDate,
+  setSelectedDate,
+  selectedAddress,
+  setSelectedAddress,
+  getCardPriceWithTravel,
+} = useContext(ShopContext);
  // ---- role + test-flag helpers ----
 const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
 
@@ -115,16 +119,26 @@ const isAgent =
   effectiveUserId === "680fb453a2de6618675ca9ed" ||
   effectiveUserEmail === "rhona@thesupremecollective.co.uk";
 
-// ✅ Memoised, avoids re-filtering on every render
-const approvedActs = useMemo(() => {
-  const list = Array.isArray(acts) ? acts : [];
+// 🔗 Map of full act docs by ID (for filters that need deep fields)
+const actById = useMemo(() => {
+  const map = new Map();
+  (Array.isArray(acts) ? acts : []).forEach((a) => {
+    const key = String(a?._id || a?.id || "");
+    if (key) map.set(key, a);
+  });
+  return map;
+}, [acts]);
 
-  const annotated = list.map((act) => {
-    const rawStatus = act?.status ?? "";
+// ✅ APPROVED CARDS (render driver) — same gate as homepage but using card + doc.status
+const approvedCards = useMemo(() => {
+  const cards = Array.isArray(actCards) ? actCards : [];
+
+  const annotated = cards.map((card) => {
+    const id = idOf(card);
+    const doc = actById.get(id) || {};
+    const rawStatus = doc?.status ?? "";
     const status = String(rawStatus).toLowerCase();
 
-    // ✅ Treat empty/undefined status as approved (fallback),
-    // and accept explicit/compound forms like "approved_changes_pending" or "live_changes_pending"
     const isApproved =
       !rawStatus ||
       status === "approved" ||
@@ -133,12 +147,11 @@ const approvedActs = useMemo(() => {
       status.includes("live");
 
     const isTest =
-      looksLikeTrue(act?.isTest) || looksLikeTrue(act?.actData?.isTest);
+      looksLikeTrue(doc?.isTest) || looksLikeTrue(doc?.actData?.isTest);
 
-    return { act, status, isApproved, isTest };
+    return { card, status, isApproved, isTest };
   });
 
-  // 🔎 Debug: see what statuses we actually have
   try {
     const hist = annotated.reduce((acc, { status }) => {
       acc[status || "(empty)"] = (acc[status || "(empty)"] || 0) + 1;
@@ -147,29 +160,27 @@ const approvedActs = useMemo(() => {
     console.log("🧮[Acts] status histogram:", hist);
   } catch {}
 
-  // Primary filter: agents can see all approved (incl. empties by default),
-  // non-agents hide test acts.
   const filtered = annotated
     .filter(({ isApproved, isTest }) => (isAgent ? isApproved : isApproved && !isTest))
-    .map(({ act }) => act);
+    .map(({ card }) => card);
 
-  // 🚨 Fallback: if the approval filter yields nothing but we have acts, show ALL acts.
-  if (list.length > 0 && filtered.length === 0) {
-    console.warn("⚠️ [Acts] Approval filter removed all acts — falling back to ALL acts.");
-    return list;
+  if (cards.length > 0 && filtered.length === 0) {
+    console.warn("⚠️ [Acts] Approval filter removed all cards — falling back to ALL cards.");
+    return cards;
   }
-
   return filtered;
-}, [acts, isAgent]);
+}, [actCards, actById, isAgent]);
 
 // 🔎 Pre-index instruments for faster filtering
+// 🔎 Pre-index instruments for faster filtering (built from full docs)
 const instrumentIndex = useMemo(() => {
   const map = new Map();
-  for (const a of approvedActs) {
-    map.set(a._id, deriveActInstruments(a));
+  for (const a of (Array.isArray(acts) ? acts : [])) {
+    const key = String(a?._id || a?.id || "");
+    if (key) map.set(key, deriveActInstruments(a));
   }
   return map;
-}, [approvedActs]);
+}, [acts]);
 
 
   // --- Add isLoading state for fetching acts ---
@@ -247,9 +258,9 @@ useRenderTracker("Acts", {
   selectedDate: selectedDate ? selectedDate.slice(0, 10) : null,
   hasAddress: !!selectedAddress,
   counts: {
-    approved: approvedActs.length,
-    filtered: Array.isArray(filterProducts) ? filterProducts.length : 0,
-  },
+  approved: approvedCards.length,
+  filtered: Array.isArray(filterProducts) ? filterProducts.length : 0,
+},
   availKeys: Object.keys(availableMap || {}).length,
 });
 
@@ -418,7 +429,7 @@ useEffect(() => {
 
       // --- Merge availability from Act docs as a fallback/source-of-truth ---
       const dateKey = d; // "YYYY-MM-DD"
-      for (const a of approvedActs) {
+      for (const a of (Array.isArray(acts) ? acts : [])) {
         const rows = Array.isArray(a.availabilityByDate) ? a.availabilityByDate : [];
         const matches = rows.filter(r => String(r.dateISO || "").slice(0,10) === dateKey);
         if (matches.length) {
@@ -677,8 +688,8 @@ const togglePli = (e) => {
   };
 
 const applyFilter = async () => {
-  console.log("🔎[Acts.filter] start", {
-  approvedActs: approvedActs.length,
+ console.log("🔎[Acts.filter] start", {
+  approvedActs: approvedCards.length,
   selectedDate,
   selectedCounty,
   hasAvailMap: Object.keys(availableMap || {}).length,
@@ -694,8 +705,11 @@ const applyFilter = async () => {
   if (skipAvailGate) {
   }
 
-  // Start with approved acts only
-  let actsCopy = approvedActs.slice();
+// Start with APPROVED CARDS (display layer), evaluate filters on full docs
+const startCards = approvedCards.slice();
+let actsCopy = startCards
+  .map((c) => actById.get(idOf(c)))
+  .filter(Boolean); // now full act docs aligned to the cards
 let beforeAvailCount = actsCopy.length;
 
   // --- AVAILABILITY GATE ----------------------------------------------------
@@ -1063,25 +1077,46 @@ if (deferredActSearch.length > 0) {
     )
   );
 }
-console.log("💷[Acts.pricing] about to price", {
-  count: actsCopy.length,
-  withDate: !!selectedDate,
-  withAddress: !!selectedAddress,
-});
 
-  // --- PRICING --------------------------------------------------------------
-const updatedActs = await Promise.all(
-  
-  actsCopy.map((act) =>
-    limit(async () => {
-      if (!selectedDate || !selectedAddress) {
-        return { ...act, formattedPrice: null };
-        }
-      const price = await getFormattedPrice(act);
-      return { ...act, formattedPrice: price };
-    })
-  )
-);
+
+// Only let the latest run win
+if (runId === filterRunIdRef.current) {
+  // Map filtered ACT DOCS back to CARDS (preserve server order)
+  const allowedIds = new Set(actsCopy.map((a) => String(a?._id || a?.id || "")));
+  let finalCards = startCards.filter((c) => allowedIds.has(idOf(c)));
+
+  // Optional: basic price sorting by card.basePrice if requested
+  const toNum = (v) => {
+    const n = Number(String(v ?? "").replace(/[^0-9.+-]/g, ""));
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  if (sortType === "low-high") {
+    finalCards.sort((a, b) => {
+      const A = toNum(a?.basePrice);
+      const B = toNum(b?.basePrice);
+      if (Number.isNaN(A) && Number.isNaN(B)) return 0;
+      if (Number.isNaN(A)) return 1;
+      if (Number.isNaN(B)) return -1;
+      return A - B;
+    });
+  } else if (sortType === "high-low") {
+    finalCards.sort((a, b) => {
+      const A = toNum(a?.basePrice);
+      const B = toNum(b?.basePrice);
+      if (Number.isNaN(A) && Number.isNaN(B)) return 0;
+      if (Number.isNaN(A)) return 1;
+      if (Number.isNaN(B)) return -1;
+      return B - A;
+    });
+  }
+
+  console.log("🧮[Acts] final results", { final: finalCards.length, sortType });
+  setFilterProducts(finalCards);
+} else {
+  console.log(`Skipping stale filter run #${runId}`);
+}
+
 try {
   const pricedCount = updatedActs.filter(a => Number.isFinite(Number(a.formattedPrice))).length;
   console.log("✅[Acts.pricing] done", { pricedCount, total: updatedActs.length });
@@ -1163,13 +1198,13 @@ useEffect(() => {
   init();
 }, []);
 
-// 2) When acts arrive (0 → N), run filter
+// 2) When cards arrive (0 → N), run filter
 useEffect(() => {
   if (!initializing) {
     applyFilter();
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [approvedActs.length]);
+}, [approvedCards.length]);
 
 // 3) When availability loading state flips, run filter again
 useEffect(() => {
@@ -1209,23 +1244,21 @@ useEffect(() => {
 if (sortType === "relevant") return;
   if (!Array.isArray(filterProducts) || filterProducts.length === 0) return;
 
-  const toNum = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : NaN;
-  };
+const toNum = (v) => {
+  const n = Number(String(v ?? "").replace(/[^0-9.+-]/g, ""));
+  return Number.isFinite(n) ? n : NaN;
+};
 
-  const sorted = [...filterProducts].sort((a, b) => {
-    const A = toNum(a?.formattedPrice);
-    const B = toNum(b?.formattedPrice);
-
-    // Missing/NaN prices go to the end consistently
-    const bothNaN = Number.isNaN(A) && Number.isNaN(B);
-    if (bothNaN) return 0;
-    if (Number.isNaN(A)) return 1;
-    if (Number.isNaN(B)) return -1;
-
-    return sortType === "low-high" ? A - B : B - A;
-  });
+const sorted = [...filterProducts].sort((a, b) => {
+  const A = toNum(a?.basePrice);
+  const B = toNum(b?.basePrice);
+  // Missing/NaN prices go to the end consistently
+  const bothNaN = Number.isNaN(A) && Number.isNaN(B);
+  if (bothNaN) return 0;
+  if (Number.isNaN(A)) return 1;
+  if (Number.isNaN(B)) return -1;
+  return sortType === "low-high" ? A - B : B - A;
+});
 
   setFilterProducts(sorted);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1234,12 +1267,13 @@ if (sortType === "relevant") return;
 
 
   // Decide what to display in the grid: filtered results if any, else all approved acts
-  const visibleActs = useMemo(
-    () => (Array.isArray(filterProducts) && filterProducts.length ? filterProducts : approvedActs),
-    [filterProducts, approvedActs]
-  );
+const visibleActs = useMemo(
+  () => (Array.isArray(filterProducts) && filterProducts.length ? filterProducts : approvedCards),
+  [filterProducts, approvedCards]
+);
+
   // --- Spinner conditional rendering for loading or no acts ---
-if (initializing && approvedActs.length === 0) {  
+if (initializing && approvedCards.length === 0) {  
   return (
     <div className="flex flex-col items-center justify-center h-96">
       <svg className="animate-spin h-10 w-10 text-gray-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -2845,24 +2879,37 @@ checked={pli.includes(20)}                />{" "}
         </div>
         {/* Map products / acts */}
         
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-6">
-        {/* ⏳ While we’re still warming availability or initial filter, show skeletons */}
-{(initializing || (selectedDate && availLoading && filterProducts.length === 0)) ? (
-  <GridSkeleton count={8} />
-) : (
-  visibleActs.map((item) => (
-    <ActItem
-      key={item._id}
-      act={item}
-      price={item.formattedPrice ?? null}
-      available={selectedDate ? availableMap[item._id] !== false : undefined}
-      isShortlisted={isShortlisted(item._id)}
-      onShortlistToggle={() => shortlistAct(userId, item._id)}
-      onClick={() => navigate(`/act/${item._id}`)}
-    />
-  ))
-)}
-      </div>
+    {/* 🔎 sanity log for what we’re about to render */}
+{(() => {
+  try {
+    console.log("🧩[Acts] mapping visibleActs", {
+      count: visibleActs.length,
+      example: visibleActs[0]?._id,
+      exampleName: visibleActs[0]?.name || visibleActs[0]?.tscName,
+    });
+  } catch {}
+  return null;
+})()}
+
+<div className="flex-1">
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-6">
+    {visibleActs.map((act) => (
+      <ActItem
+        key={act._id || act.id}
+        id={act._id || act.id || ""}
+        title={act.tscName || act.name || "Act"}
+        image={
+          (Array.isArray(act.images) && (act.images[0]?.url || act.images[0])) ||
+          act.coverImage ||
+          ""
+        }
+        lineups={Array.isArray(act.lineups) ? act.lineups : []}
+        formattedPrice={act.formattedPrice ?? null}
+        act={act}         {/* <— give the whole act too, if ActItem uses it */}
+      />
+    ))}
+  </div>
+</div>
       </div>
     </div>
   );
