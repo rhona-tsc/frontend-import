@@ -12,6 +12,15 @@ const DBG = true; // set to false to silence logs
 const dlog = (...a) => DBG && console.log('🎯[ActItem]', ...a);
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Margin to apply on all displayed prices
+// ──────────────────────────────────────────────────────────────────────────────
+const MARGIN_RATE = 0.25; // 25%
+const applyMargin = (v) => {
+  const n = Number(v) || 0;
+  return Math.ceil(n * (1 + MARGIN_RATE));
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Helpers to support BOTH shapes: lightweight ActCard and full Act document
 // ActCard fields: { actId, imageUrl, basePrice, loveCount, name, tscName, availabilityBadge }
 // Full Act fields: { _id, profileImage[], formattedPrice, numberOfShortlistsIn, lineups, ... }
@@ -149,10 +158,10 @@ const ActItem = ({ actData, shortlistCount }) => {
           const derived = computeBaseFromSmallestLineup(actData);
           if (derived != null) {
             dlog('→ using derived base (no when/where)', derived);
-            setPrice({ total: Math.ceil(derived), travelCalculated: false });
+            setPrice({ total: applyMargin(derived), travelCalculated: false });
           } else if (baseOnly != null) {
             dlog('→ fallback to baseOnly (no when/where)', baseOnly);
-            setPrice({ total: baseOnly, travelCalculated: false });
+            setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
           } else {
             dlog('→ no price available (no when/where)');
           }
@@ -166,7 +175,7 @@ const ActItem = ({ actData, shortlistCount }) => {
               const total = await getCardPriceWithTravel(id);
               if (Number.isFinite(total)) {
                 dlog('→ card travel-aware total', total);
-                setPrice({ total: Math.ceil(total), travelCalculated: true });
+                setPrice({ total: applyMargin(total), travelCalculated: true });
                 return;
               }
             } catch (err) {
@@ -175,7 +184,7 @@ const ActItem = ({ actData, shortlistCount }) => {
           }
           if (baseOnly != null) {
             dlog('→ card fallback baseOnly', baseOnly);
-            setPrice({ total: baseOnly, travelCalculated: false });
+            setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
           }
           return;
         }
@@ -199,15 +208,15 @@ const ActItem = ({ actData, shortlistCount }) => {
         if (!result || result.total == null) {
           if (baseOnly != null) {
             dlog('→ calc failed, fallback baseOnly', baseOnly);
-            setPrice({ total: baseOnly, travelCalculated: false });
+            setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
           } else {
             dlog('→ calc failed, no baseOnly');
           }
           return;
         }
 
-        dlog('→ calculated total', result);
-        setPrice(result);
+        dlog('→ calculated total (pre-margin)', result);
+        setPrice({ ...result, total: applyMargin(result.total) });
       } catch (err) {
         console.error('❌ Failed to calculate price:', {
           err,
@@ -215,7 +224,7 @@ const ActItem = ({ actData, shortlistCount }) => {
           useCountyTravelFee: actData?.useCountyTravelFee,
         });
         const baseOnly = getBasePrice(actData);
-        if (baseOnly != null) setPrice({ total: baseOnly, travelCalculated: false });
+        if (baseOnly != null) setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
       }
     };
 
@@ -223,7 +232,8 @@ const ActItem = ({ actData, shortlistCount }) => {
   }, [actData, selectedCounty, selectedAddress, selectedDate, getCardPriceWithTravel]);
 
   // Display total chooses computed price, else base from card/act
-  const rawTotal = price?.total ?? getBasePrice(actData);
+  // Ensure margin is applied even if we fell back to base price without computing `price`
+  const rawTotal = price?.total ?? (getBasePrice(actData) != null ? applyMargin(getBasePrice(actData)) : null);
   const displayTotal = rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
 
   const handleHeartClick = (e) => {
