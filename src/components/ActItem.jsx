@@ -5,6 +5,13 @@ import calculateActPricing from '../pages/utils/pricing';
 import { ShopContext } from '../context/ShopContext';
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Lightweight debug logger for this component
+// Toggle on/off without touching every console.log
+// ──────────────────────────────────────────────────────────────────────────────
+const DBG = true; // set to false to silence logs
+const dlog = (...a) => DBG && console.log('🎯[ActItem]', ...a);
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Helpers to support BOTH shapes: lightweight ActCard and full Act document
 // ActCard fields: { actId, imageUrl, basePrice, loveCount, name, tscName, availabilityBadge }
 // Full Act fields: { _id, profileImage[], formattedPrice, numberOfShortlistsIn, lineups, ... }
@@ -22,7 +29,7 @@ const getBasePrice = (src) => {
 };
 const getLove = (src, shortlistCount) => {
   const n = src?.loveCount ?? src?.numberOfShortlistsIn ?? shortlistCount ?? src?.shortlistCount ?? src?.metrics?.shortlists ?? 0;
-  return Number(n) || 0;
+  return Math.max(0, Number(n) || 0);
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -31,17 +38,17 @@ const getLove = (src, shortlistCount) => {
 //   • Sum each member's fee + essential additionalRoles' additionalFee
 //   • Travel adds: (min county fee) × (member count, excluding managers)
 // ──────────────────────────────────────────────────────────────────────────────
-const num = (v) => (v == null ? 0 : Number(String(v).replace(/[^0-9.+-]/g, "")) || 0);
+const num = (v) => (v == null ? 0 : Number(String(v).replace(/[^0-9.+-]/g, '')) || 0);
 
 const essentialRolesFee = (member) => {
   const roles = Array.isArray(member?.additionalRoles) ? member.additionalRoles : [];
   return roles.reduce((s, r) => s + (r?.isEssential ? num(r?.additionalFee) : 0), 0);
 };
 
-const isManagerMember = (member) => /manager/i.test(String(member?.instrument || ""));
+const isManagerMember = (member) => /manager/i.test(String(member?.instrument || ''));
 
 const minCountyFeeFromAct = (act) => {
-  if (!(act?.useCountyTravelFee && act?.countyFees && typeof act.countyFees === "object")) return 0;
+  if (!(act?.useCountyTravelFee && act?.countyFees && typeof act.countyFees === 'object')) return 0;
   const vals = Object.values(act.countyFees)
     .map((v) => Number(v))
     .filter((v) => Number.isFinite(v) && v > 0);
@@ -77,6 +84,15 @@ const computeBaseFromSmallestLineup = (act) => {
   const travel = travelUnit * travelCount;
 
   const total = memberFees + travel;
+  dlog('derived base from smallest lineup', {
+    act: getTitle(act),
+    memberCount: members.length,
+    travelCount,
+    travelUnit,
+    memberFees,
+    travel,
+    total,
+  });
   return Number.isFinite(total) ? total : null;
 };
 
@@ -85,7 +101,7 @@ const ActItem = ({ actData, shortlistCount }) => {
   const location = useLocation();
 
   const [isAnimating, setIsAnimating] = useState(false);
-  const [loveCount, setLoveCount] = useState(() => Math.max(0, getLove(actData, shortlistCount)));
+  const [loveCount, setLoveCount] = useState(() => getLove(actData, shortlistCount));
   const [price, setPrice] = useState(null);
 
   // ✅ use shortlist from context
@@ -101,7 +117,7 @@ const ActItem = ({ actData, shortlistCount }) => {
 
   // Keep loveCount in sync when actData changes
   useEffect(() => {
-    setLoveCount(Math.max(0, getLove(actData, shortlistCount)));
+    setLoveCount(getLove(actData, shortlistCount));
   }, [
     actData?.loveCount,
     actData?.numberOfShortlistsIn,
@@ -118,32 +134,49 @@ const ActItem = ({ actData, shortlistCount }) => {
         const baseOnly = getBasePrice(actData);
         const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
 
-        // No date/location → show derived base from lineups (preferred), else fallback base
         const hasAnyLocation = !!(selectedAddress || selectedCounty);
+        dlog('price run start', {
+          id,
+          title: getTitle(actData),
+          hasLineups,
+          baseOnly,
+          hasAnyLocation,
+          selectedDate: !!selectedDate,
+        });
+
+        // No date/location → show derived base from lineups (preferred), else fallback base
         if (!hasAnyLocation || !selectedDate) {
           const derived = computeBaseFromSmallestLineup(actData);
           if (derived != null) {
+            dlog('→ using derived base (no when/where)', derived);
             setPrice({ total: Math.ceil(derived), travelCalculated: false });
           } else if (baseOnly != null) {
+            dlog('→ fallback to baseOnly (no when/where)', baseOnly);
             setPrice({ total: baseOnly, travelCalculated: false });
+          } else {
+            dlog('→ no price available (no when/where)');
           }
           return;
         }
 
         // If this is a lightweight card (no lineups), try context helper to compute travel-aware total
         if (!hasLineups) {
-          if (typeof getCardPriceWithTravel === "function") {
+          if (typeof getCardPriceWithTravel === 'function') {
             try {
               const total = await getCardPriceWithTravel(id);
               if (Number.isFinite(total)) {
+                dlog('→ card travel-aware total', total);
                 setPrice({ total: Math.ceil(total), travelCalculated: true });
                 return;
               }
-            } catch (_) {
-              // fall back to base
+            } catch (err) {
+              dlog('card travel-aware pricing failed', err?.message || err);
             }
           }
-          if (baseOnly != null) setPrice({ total: baseOnly, travelCalculated: false });
+          if (baseOnly != null) {
+            dlog('→ card fallback baseOnly', baseOnly);
+            setPrice({ total: baseOnly, travelCalculated: false });
+          }
           return;
         }
 
@@ -164,10 +197,16 @@ const ActItem = ({ actData, shortlistCount }) => {
         );
 
         if (!result || result.total == null) {
-          if (baseOnly != null) setPrice({ total: baseOnly, travelCalculated: false });
+          if (baseOnly != null) {
+            dlog('→ calc failed, fallback baseOnly', baseOnly);
+            setPrice({ total: baseOnly, travelCalculated: false });
+          } else {
+            dlog('→ calc failed, no baseOnly');
+          }
           return;
         }
 
+        dlog('→ calculated total', result);
         setPrice(result);
       } catch (err) {
         console.error('❌ Failed to calculate price:', {
@@ -198,6 +237,7 @@ const ActItem = ({ actData, shortlistCount }) => {
       const actUrl = getActId(actData) ? `/act/${getActId(actData)}` : '/';
       const fallback = fromActsListing ? listUrl : actUrl;
       sessionStorage.setItem('postLoginNext', fallback);
+      dlog('redirecting to login for shortlist', { fallback });
       navigate('/login', { state: { from: fallback } });
       return;
     }
