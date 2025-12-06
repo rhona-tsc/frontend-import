@@ -1,8 +1,9 @@
 import React, { useContext, useDeferredValue } from "react";
 import { ShopContext } from "../context/ShopContext";
 
-import ActItem from "./ActItem";
+
 import Title from "../components/Title";
+import ActItem from "../components/ActItem";
 
 
 
