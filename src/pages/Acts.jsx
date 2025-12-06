@@ -1,10 +1,9 @@
 import React, { useContext, useDeferredValue } from "react";
 import { ShopContext } from "../context/ShopContext";
-import Title from "./Title";
-import ActItem from "./ActItem";
 
-const DBG = false;
-const log = (...a) => DBG && console.log("🆕[NewActs]", ...a);
+import ActItem from "./ActItem";
+import Title from "../components/Title";
+
 
 
 
