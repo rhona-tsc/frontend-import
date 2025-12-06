@@ -689,7 +689,7 @@ const togglePli = (e) => {
 
 const applyFilter = async () => {
  console.log("🔎[Acts.filter] start", {
-  approvedActs: approvedCards.length,
+  approvedCards: approvedCards.length,
   selectedDate,
   selectedCounty,
   hasAvailMap: Object.keys(availableMap || {}).length,
@@ -1117,52 +1117,7 @@ if (runId === filterRunIdRef.current) {
   console.log(`Skipping stale filter run #${runId}`);
 }
 
-try {
-  const pricedCount = updatedActs.filter(a => Number.isFinite(Number(a.formattedPrice))).length;
-  console.log("✅[Acts.pricing] done", { pricedCount, total: updatedActs.length });
-} catch {}
-
-
-
-  // Only let the latest run win
-  if (runId === filterRunIdRef.current) {
-    // ⬇️ Sort here to avoid a separate state-update loop later
-    let finalActs = [...updatedActs];
-
-    const num = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : NaN;
-    };
-
-    if (sortType === "low-high") {
-      finalActs.sort((a, b) => {
-        const A = num(a.formattedPrice);
-        const B = num(b.formattedPrice);
-        // NaNs go to the end
-        if (Number.isNaN(A) && Number.isNaN(B)) return 0;
-        if (Number.isNaN(A)) return 1;
-        if (Number.isNaN(B)) return -1;
-        return A - B;
-      });
-    } else if (sortType === "high-low") {
-      finalActs.sort((a, b) => {
-        const A = num(a.formattedPrice);
-        const B = num(b.formattedPrice);
-        if (Number.isNaN(A) && Number.isNaN(B)) return 0;
-        if (Number.isNaN(A)) return 1;
-        if (Number.isNaN(B)) return -1;
-        return B - A;
-      });
-    }
-console.log("🧮[Acts] final results", { final: finalActs.length, sortType });
-    setFilterProducts(finalActs);
-  } else {
-    console.log(`Skipping stale filter run #${runId}`);
-  }
-
-  if (approvedActs.length > 0 && updatedActs.length === 0) {
-  
-  }
+// Removed obsolete try/catch and stale filter blocks.
 };
 
 
@@ -1235,7 +1190,7 @@ useEffect(() => {
   selectedDate,
 
   // acts arriving
-  approvedActs.length
+  approvedCards.length
 ]);
 
 // ✅ Lightweight re-sort when the sort dropdown changes
