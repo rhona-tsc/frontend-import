@@ -192,21 +192,16 @@ async function fetchActsForGrid() {
   }
 }
 
-  useEffect(() => {
+useEffect(() => {
   console.log("🛒[ShopContext] Mount — backendUrl:", backendUrl);
   if (!backendUrl) {
     console.warn("⚠️[ShopContext] VITE_BACKEND_URL is missing; cannot fetch acts");
-    setActs([]);
     setActCards([]);
     return;
   }
-
   // 👉 Fast cards for listing UIs
-  fetchActsForGrid().catch((e) => console.error("❌ fetchActsForGrid threw:", e));
-
-  // ⛔️ Do NOT immediately call getActsData() here or it will replace `acts`
-  // with full documents of a different shape and break the grids.
-  // If/when you need full docs, fetch per-act via getActById() on detail pages.
+  getActCardsData().catch((e) => console.error("❌[ShopContext] getActCardsData threw:", e));
+  // ⛔ Do not call getActsData() here; it will overwrite cards in grids.
 }, [backendUrl]);
 
   // --- Availability map for selectedDate (tri-state: true / false / undefined) ---
@@ -448,6 +443,27 @@ async function fetchActsForGrid() {
       return Array.isArray(act?.lineups) ? act.lineups[0] : null;
     }
   };
+
+  // ============ Grid cards (fast) ============
+const getActCardsData = async () => {
+  const base = String(backendUrl || "").replace(/\/+$/, "");
+  const url = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
+  console.log("🛒[ShopContext] Fetching act cards:", url);
+
+  try {
+    const res = await axios.get(url, { headers: { accept: "application/json" } });
+    const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
+
+    // expose as dedicated cards state
+    setActCards(arr);
+
+    // (optional) stash for quick inspection
+    try { window.__TSC_ACT_CARDS__ = arr; } catch {}
+  } catch (err) {
+    console.warn("⚠️[ShopContext] fetch act cards failed:", err?.message);
+    setActCards([]);
+  }
+};
 
 
 

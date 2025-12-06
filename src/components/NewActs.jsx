@@ -22,17 +22,17 @@ function useMaxToShow() {
 }
 
 const NewActs = () => {
-  const { acts } = useContext(ShopContext); // now cards
-  const deferredActs = useDeferredValue(acts);
+  const { actCards, getCardPriceWithTravel, selectedAddress, selectedDate  } = useContext(ShopContext); // now cards
+  const deferredCards = useDeferredValue(actCards);
   const maxToShow = useMaxToShow();
 
   // Server already sorts by -createdAt; just slice here
   const newestSlice = useMemo(() => {
-    const list = Array.isArray(deferredActs) ? deferredActs : [];
+    const list = Array.isArray(deferredCards) ? deferredCards : [];
     const sliced = list.slice(0, maxToShow);
     log("slice len:", sliced.length);
     return sliced;
-  }, [deferredActs, maxToShow]);
+  }, [deferredCards, maxToShow]);
 
   return (
     <div className="my-10">

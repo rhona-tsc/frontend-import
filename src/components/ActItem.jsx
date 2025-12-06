@@ -30,7 +30,7 @@ const ActItem = ({ actData, shortlistCount }) => {
   const location = useLocation();
 
   const [isAnimating, setIsAnimating] = useState(false);
-  const [loveCount, setLoveCount] = useState(() => getLove(actData, shortlistCount));
+  const [loveCount, setLoveCount] = useState(() => Math.max(0, getLove(actData, shortlistCount)));
   const [price, setPrice] = useState(null);
 
   // ✅ use shortlist from context
@@ -41,30 +41,58 @@ const ActItem = ({ actData, shortlistCount }) => {
     selectedCounty,
     selectedAddress,
     selectedDate,
+    getCardPriceWithTravel, // 🔹 for travel-aware pricing when we only have a card
   } = useContext(ShopContext);
 
   // Keep loveCount in sync when actData changes
   useEffect(() => {
-    setLoveCount(getLove(actData, shortlistCount));
-  }, [actData?.loveCount, actData?.numberOfShortlistsIn, actData?.shortlistCount, actData?.metrics?.shortlists, shortlistCount]);
+    setLoveCount(Math.max(0, getLove(actData, shortlistCount)));
+  }, [
+    actData?.loveCount,
+    actData?.numberOfShortlistsIn,
+    actData?.shortlistCount,
+    actData?.metrics?.shortlists,
+    shortlistCount,
+  ]);
 
   // Compute/refresh price
   useEffect(() => {
     const run = async () => {
       try {
-        // If we only have a card (no lineups), we can't compute travel here → show base and exit
-        const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
+        const id = getActId(actData);
         const baseOnly = getBasePrice(actData);
+        const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
 
         // No date/location → just show base
         const hasAnyLocation = !!(selectedAddress || selectedCounty);
-        if (!hasAnyLocation || !selectedDate || !hasLineups) {
+        if (!hasAnyLocation || !selectedDate) {
           if (baseOnly != null) setPrice({ total: baseOnly, travelCalculated: false });
           return;
         }
 
-        // Only use county travel if configured
-        const hasCountyTable = !!(actData?.useCountyTravelFee && actData?.countyFees && Object.keys(actData.countyFees).length > 0);
+        // If this is a lightweight card (no lineups), try context helper to compute travel-aware total
+        if (!hasLineups) {
+          if (typeof getCardPriceWithTravel === "function") {
+            try {
+              const total = await getCardPriceWithTravel(id);
+              if (Number.isFinite(total)) {
+                setPrice({ total: Math.ceil(total), travelCalculated: true });
+                return;
+              }
+            } catch (_) {
+              // fall back to base
+            }
+          }
+          if (baseOnly != null) setPrice({ total: baseOnly, travelCalculated: false });
+          return;
+        }
+
+        // Full act doc available → compute locally
+        const hasCountyTable = !!(
+          actData?.useCountyTravelFee &&
+          actData?.countyFees &&
+          Object.keys(actData.countyFees).length > 0
+        );
         const lineup = actData.lineups[0];
 
         const result = await calculateActPricing(
@@ -93,7 +121,7 @@ const ActItem = ({ actData, shortlistCount }) => {
     };
 
     run();
-  }, [actData, selectedCounty, selectedAddress, selectedDate]);
+  }, [actData, selectedCounty, selectedAddress, selectedDate, getCardPriceWithTravel]);
 
   // Display total chooses computed price, else base from card/act
   const rawTotal = price?.total ?? getBasePrice(actData);
