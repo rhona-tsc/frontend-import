@@ -2905,7 +2905,7 @@ checked={pli.includes(20)}                />{" "}
         }
         lineups={Array.isArray(act.lineups) ? act.lineups : []}
         formattedPrice={act.formattedPrice ?? null}
-        act={act}         {/* <— give the whole act too, if ActItem uses it */}
+        act={act}      
       />
     ))}
   </div>
