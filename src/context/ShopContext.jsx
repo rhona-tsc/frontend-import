@@ -588,6 +588,24 @@ const getActCardsData = async () => {
     });
   }, [actCards]);
 
+  // 🧩 Bridge for legacy list UIs that still read `acts`:
+  // If we have cards but `acts` is empty, project minimal act objects so pages render.
+  useEffect(() => {
+    if (Array.isArray(actCards) && actCards.length && (!Array.isArray(acts) || acts.length === 0)) {
+      const minimalActs = actCards.map((c) => ({
+        _id: String(c.actId || c._id || ""),
+        actId: String(c.actId || c._id || ""),
+        tscName: c.tscName || c.name || "",
+        name: c.name || "",
+        slug: c.slug || "",
+        images: c.imageUrl ? [{ url: c.imageUrl }] : [],
+        status: c.status || "",
+        lineups: [], // grid pages don't require full lineups
+      }));
+      setActs(minimalActs);
+    }
+  }, [actCards]); // only populate when cards arrive and acts is empty
+
 
   // Try to refresh one act (used after SSE inbound). If single-act endpoint is missing,
   // we fall back to reloading the list.
@@ -1635,6 +1653,8 @@ const isActAllowed = (actId) => {
   const value = {
     // core
     acts,
+    // prefer cards for grids; fall back to acts
+    displayActs: (Array.isArray(actCards) && actCards.length) ? actCards : acts,
     currency,
     delivery_fee,
     search,
