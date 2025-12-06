@@ -186,7 +186,6 @@ const deferredActSearch = useDeferredValue(actSearch);
   const [isPliSelected, setIsPliSelected] = useState(false); // Track if any checkbox is checked
   const [isExtraServicesSelected, setIsExtraServicesSelected] = useState(false); // Track if any checkbox is checked
 const [sortType, setSortType] = useState("relevant");
-  const [actData, setActData] = useState(null);
 const [availableMap, setAvailableMap] = useState({}); 
 const [availLoading, setAvailLoading] = useState(false); 
   /* Removed duplicate getShortlistCountForAct to fix redeclaration error */
@@ -206,13 +205,16 @@ const [availLoading, setAvailLoading] = useState(false);
   const user = JSON.parse(localStorage.getItem("user"));
 
 
-  useRenderTracker("Acts", {
+useRenderTracker("Acts", {
   actId,
-  hasActData: !!actData,
-  lineupCount: actData?.lineups?.length || 0,
-  selectedDate: selectedDate ? selectedDate.slice(0,10) : null,
+  hasActData: Array.isArray(filterProducts) ? filterProducts.length > 0 : false,
+  selectedDate: selectedDate ? selectedDate.slice(0, 10) : null,
   hasAddress: !!selectedAddress,
-  badgeKeys: Object.keys(actData?.availabilityBadges || {}).length,
+  counts: {
+    approved: approvedActs.length,
+    filtered: Array.isArray(filterProducts) ? filterProducts.length : 0,
+  },
+  availKeys: Object.keys(availableMap || {}).length,
 });
 
 // ⚡ Concurrency limiter for pricing (prevents 50+ parallel fetches)
@@ -1170,7 +1172,7 @@ if (sortType === "relevant") return;
 
 
   // --- Spinner conditional rendering for loading or no acts ---
-if (initializing && acts.length === 0) {
+if (initializing && approvedActs.length === 0) {  
   return (
     <div className="flex flex-col items-center justify-center h-96">
       <svg className="animate-spin h-10 w-10 text-gray-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1178,6 +1180,33 @@ if (initializing && acts.length === 0) {
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
       </svg>
       <p className="text-gray-700">Fetching acts and calculating your precise quotes…</p>
+    </div>
+  );
+}
+
+if (!initializing && visibleActs.length === 0) {
+  return (
+    <div className="mx-auto max-w-4xl p-6 text-center text-gray-600">
+      <p>No acts match your filters yet.</p>
+      <button
+        className="mt-3 underline"
+        onClick={() => {
+          setGenre([]);
+          setActSize([]);
+          setDjServices([]);
+          setInstruments([]);
+          setSongSearch([]);
+          setActSearch([]);
+          setSoundLimiters([]);
+          setSetupAndSoundcheck([]);
+          setPaAndLights([]);
+          setPli([]);
+          setExtraServices([]);
+          setWireless([]);
+        }}
+      >
+        Clear filters
+      </button>
     </div>
   );
 }
@@ -1198,6 +1227,12 @@ const GridSkeleton = ({ count = 8 }) => (
       </div>
     ))}
   </div>
+);
+
+// Decide what to display in the grid: filtered results if any, else all approved acts
+const visibleActs = useMemo(
+  () => (Array.isArray(filterProducts) && filterProducts.length ? filterProducts : approvedActs),
+  [filterProducts, approvedActs]
 );
 
 
