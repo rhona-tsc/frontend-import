@@ -534,7 +534,160 @@ const togglePli = (e) => {
         <div className="text-center md:text-left py-2">
           <Title text1="ALL" text2="ACTS" />
         </div>
+         {/* Current Address in State */}
+          <div className="flex text-base sm:text-2xl justify-between gap-6">
+            {/* Product/Act Sort */}
+            <select
+              className="border-2 border-gray-300 text-sm px-2"
+              onChange={(e) => setSortType(e.target.value)}
+              value={sortType}
+            >
+<option value="relevant">Sort by: Relevant</option>
+              <option value="low-high">Sort by: Low to High</option>
+              <option value="high-low">Sort by: High to Low</option>
+            </select>
+          </div>
+        </div>
+        {/* ✅ Now dynamically shows selected date & address */}
+        <div>
+          {selectedDate && selectedAddress ? (
+            <p className="text-sm mt-3 justify-right p-2 text-gray-500">
+              Showing Results for:
+              <span className="text-gray-700">
+                {" "}
+                {formatDate(selectedDate)} at{" "}
+                {storedPlace && `${storedPlace}, `}
+                {selectedAddress}{" "}
+              </span>
+              <span
+                onClick={() => triggerSearch()}
+                className="text-blue-600 cursor-pointer underline ml-2"
+              >
+                edit search
+              </span>
+            </p>
+          ) : (
+            <p className="text-sm mt-3 justify-right p-2 text-gray-500">
+              Please select a date and location for an accurate quote!
+              <span
+                onClick={() => triggerSearch()}
+                className="text-blue-600 cursor-pointer underline ml-2"
+              >
+                Begin Search
+              </span>
+            </p>
+          )}
+        </div>
+        
+        <div>
+          
+          {(genre.length > 0 ||
+            act_size.length > 0 ||
+            djServices.length > 0 ||
+            songSearch.length > 0 ||
+            actSearch.length > 0 ||
+            instruments.length > 0 ||
+            wireless.length > 0 ||
+            soundLimiters.length > 0 ||
+            setupAndSoundcheck.length > 0 ||
+            paAndLights.length > 0 ||
+            pli.length > 0 ||
+            extraServices.length > 0) && (
+            <div className="flex flex-wrap gap-2 p-2 mb-4 border-b">
+              {updatingResults && (
+  <div className="w-full sm:ml-0 mb-2 px-3 py-2 text-sm text-gray-600 bg-gray-100 border border-gray-200 rounded">
+    Updating results…
+  </div>
+)}
 
+              
+              {[
+                ...genre,
+                ...act_size,
+                ...djServices,
+                ...instruments,
+                ...wireless,
+                ...soundLimiters,
+                ...setupAndSoundcheck,
+                ...paAndLights,
+                ...pli,
+                ...extraServices,
+              ].map((item) => (
+                <span
+                  key={item}
+                  className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                >
+                  {labelMap[item] || item}{" "}
+                  {/* Use labelMap to show a friendly name */}
+                  <button
+                    onClick={() => {
+                      if (genre.includes(item))
+                        toggleGenre({ target: { value: item } });
+                      else if (act_size.includes(item))
+                        toggleActSize({ target: { value: item } });
+                      else if (djServices.includes(item))
+                        toggleDjServices({ target: { value: item } });
+                      else if (instruments.includes(item))
+                        toggleInstruments({ target: { value: item } });
+                      else if (wireless.includes(item))
+                        toggleWireless({ target: { value: item } });
+                      else if (soundLimiters.includes(item))
+                        toggleSoundLimiters({ target: { value: item } });
+                      else if (setupAndSoundcheck.includes(item))
+                        toggleSetupAndSoundcheck({ target: { value: item } });
+                      else if (paAndLights.includes(item))
+                        togglePaAndLights({ target: { value: item } });
+                      else if (pli.includes(item))
+                        togglePli({ target: { value: item } });
+                      else if (extraServices.includes(item))
+                        toggleExtraServices({ target: { value: item } });
+                    }}
+                    className="text-gray-100 text-xs font-bold"
+                  >
+                    ✖️
+                  </button>
+                </span>
+              ))}
+
+              {/* Song or Artist Search */}
+              {songSearch.map((item) => (
+                <span
+                  key={item}
+                  className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                >
+                  {item} {/* User input appears as a tag */}
+                  <button
+                    onClick={() =>
+                      setSongSearch(songSearch.filter((song) => song !== item))
+                    }
+                    className="text-gray-100 text-xs font-bold"
+                  >
+                    ✖️
+                  </button>
+                </span>
+              ))}
+
+              {/* Act Name Search */}
+              {actSearch.map((item) => (
+                <span
+                  key={item}
+                  className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                >
+                  {item} {/* User input appears as a tag */}
+                  <button
+                    onClick={() =>
+                      setActSearch(actSearch.filter((act) => act !== item))
+                    }
+                    className="text-gray-100 text-xs font-bold"
+                  >
+                    ✖️
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* Map products / acts */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
           {cards.length === 0 ? (
             <p className="col-span-full text-center text-gray-500">
