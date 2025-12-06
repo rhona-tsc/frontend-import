@@ -23,15 +23,16 @@ function useMaxToShow() {
 }
 
 const BestSeller = () => {
-  const { acts } = useContext(ShopContext); // now cards
-  const deferredActs = useDeferredValue(acts);
+  // ✅ Use lightweight cards, same as NewActs
+  const { actCards } = useContext(ShopContext);
+  const deferredCards = useDeferredValue(actCards);
   const maxToShow = useMaxToShow();
 
   const bestSeller = useMemo(() => {
-    const list = Array.isArray(deferredActs) ? deferredActs : [];
+    const list = Array.isArray(deferredCards) ? deferredCards : [];
     if (!list.length) return [];
 
-    // Prefer explicit bestseller flag if you kept it in cards; else loveCount fallback
+    // Prefer explicit bestseller flag if available; otherwise fall back to loveCount
     const flagged = list.filter((a) => Boolean(a?.bestseller) || Boolean(a?.bestSeller));
     if (flagged.length) return flagged.slice(0, maxToShow);
 
@@ -42,7 +43,7 @@ const BestSeller = () => {
         return lB - lA; // desc by loveCount
       })
       .slice(0, maxToShow);
-  }, [deferredActs, maxToShow]);
+  }, [deferredCards, maxToShow]);
 
   return (
     <div className="my-10">
@@ -56,9 +57,14 @@ const BestSeller = () => {
       {bestSeller.length === 0 ? (
         <p className="text-center text-sm text-gray-500">No featured acts yet.</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4 gap-y-6 justify-center">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
           {bestSeller.map((item) => (
-            <ActItem key={String(item.actId || item._id)} actData={item} />
+            <div
+              key={String(item.actId || item._id)}
+              style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
+            >
+              <ActItem actData={item} />
+            </div>
           ))}
         </div>
       )}
