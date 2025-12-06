@@ -25,6 +25,61 @@ const getLove = (src, shortlistCount) => {
   return Number(n) || 0;
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Pricing helpers (fallback when base_fee is missing)
+//   • Choose the SMALLEST lineup by bandMembers count (tie-breaker: cheaper)
+//   • Sum each member's fee + essential additionalRoles' additionalFee
+//   • Travel adds: (min county fee) × (member count, excluding managers)
+// ──────────────────────────────────────────────────────────────────────────────
+const num = (v) => (v == null ? 0 : Number(String(v).replace(/[^0-9.+-]/g, "")) || 0);
+
+const essentialRolesFee = (member) => {
+  const roles = Array.isArray(member?.additionalRoles) ? member.additionalRoles : [];
+  return roles.reduce((s, r) => s + (r?.isEssential ? num(r?.additionalFee) : 0), 0);
+};
+
+const isManagerMember = (member) => /manager/i.test(String(member?.instrument || ""));
+
+const minCountyFeeFromAct = (act) => {
+  if (!(act?.useCountyTravelFee && act?.countyFees && typeof act.countyFees === "object")) return 0;
+  const vals = Object.values(act.countyFees)
+    .map((v) => Number(v))
+    .filter((v) => Number.isFinite(v) && v > 0);
+  return vals.length ? Math.min(...vals) : 0;
+};
+
+const lineupBareFee = (lineup) => {
+  const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
+  return members.reduce((sumFees, m) => sumFees + num(m?.fee) + essentialRolesFee(m), 0);
+};
+
+const computeBaseFromSmallestLineup = (act) => {
+  const lineups = Array.isArray(act?.lineups) ? act.lineups : [];
+  if (!lineups.length) return null;
+
+  // Sort: smallest member count first; then cheaper bare fee as tie-breaker
+  const sorted = [...lineups].sort((a, b) => {
+    const na = Array.isArray(a?.bandMembers) ? a.bandMembers.length : Number.POSITIVE_INFINITY;
+    const nb = Array.isArray(b?.bandMembers) ? b.bandMembers.length : Number.POSITIVE_INFINITY;
+    if (na !== nb) return na - nb;
+    return lineupBareFee(a) - lineupBareFee(b);
+  });
+
+  const chosen = sorted[0];
+  if (!chosen) return null;
+
+  const members = Array.isArray(chosen.bandMembers) ? chosen.bandMembers : [];
+  const memberFees = lineupBareFee(chosen);
+
+  // Travel: exclude manager from *count* only
+  const travelCount = members.reduce((n, m) => n + (isManagerMember(m) ? 0 : 1), 0);
+  const travelUnit = minCountyFeeFromAct(act);
+  const travel = travelUnit * travelCount;
+
+  const total = memberFees + travel;
+  return Number.isFinite(total) ? total : null;
+};
+
 const ActItem = ({ actData, shortlistCount }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,10 +118,15 @@ const ActItem = ({ actData, shortlistCount }) => {
         const baseOnly = getBasePrice(actData);
         const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
 
-        // No date/location → just show base
+        // No date/location → show derived base from lineups (preferred), else fallback base
         const hasAnyLocation = !!(selectedAddress || selectedCounty);
         if (!hasAnyLocation || !selectedDate) {
-          if (baseOnly != null) setPrice({ total: baseOnly, travelCalculated: false });
+          const derived = computeBaseFromSmallestLineup(actData);
+          if (derived != null) {
+            setPrice({ total: Math.ceil(derived), travelCalculated: false });
+          } else if (baseOnly != null) {
+            setPrice({ total: baseOnly, travelCalculated: false });
+          }
           return;
         }
 
