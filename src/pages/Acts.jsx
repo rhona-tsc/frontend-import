@@ -117,19 +117,46 @@ const isAgent =
 
 // ✅ Memoised, avoids re-filtering on every render
 const approvedActs = useMemo(() => {
-  return (Array.isArray(acts) ? acts : []).filter((act) => {
-    const status = String(act?.status ?? "").toLowerCase();
-    // treat both "approved" and "live" as showable; also match phrases like "approved, changes pending"
+  const list = Array.isArray(acts) ? acts : [];
+
+  const annotated = list.map((act) => {
+    const rawStatus = act?.status ?? "";
+    const status = String(rawStatus).toLowerCase();
+
+    // ✅ Accept explicit and compound forms, e.g. "approved_changes_pending", "live_changes_pending"
     const isApproved =
       status === "approved" ||
       status === "live" ||
-      status.includes("approved");
+      status.includes("approved") ||
+      status.includes("live");
 
     const isTest =
       looksLikeTrue(act?.isTest) || looksLikeTrue(act?.actData?.isTest);
 
-    return isAgent ? isApproved : (isApproved && !isTest);
+    return { act, status, isApproved, isTest };
   });
+
+  // 🔎 Debug: see what statuses we actually have
+  try {
+    const hist = annotated.reduce((acc, { status }) => {
+      acc[status || "(empty)"] = (acc[status || "(empty)"] || 0) + 1;
+      return acc;
+    }, {});
+    console.log("🧮[Acts] status histogram:", hist);
+  } catch {}
+
+  const filtered = annotated
+    .filter(({ isApproved, isTest }) => (isAgent ? isApproved : isApproved && !isTest))
+    .map(({ act }) => act);
+
+  if (list.length > 0 && filtered.length === 0) {
+    console.warn(
+      "⚠️ [Acts] No acts after status filter. Example statuses:",
+      annotated.slice(0, 8).map((x) => x.status)
+    );
+  }
+
+  return filtered;
 }, [acts, isAgent]);
 
 // 🔎 Pre-index instruments for faster filtering
@@ -647,6 +674,13 @@ const togglePli = (e) => {
   };
 
 const applyFilter = async () => {
+  console.log("🔎[Acts.filter] start", {
+  approvedActs: approvedActs.length,
+  selectedDate,
+  selectedCounty,
+  hasAvailMap: Object.keys(availableMap || {}).length,
+  availLoading,
+});
   const runId = ++filterRunIdRef.current;
 
   const actLabel = (a) => `${a?.tscName || a?.name || "(no-name)"} [${a?._id}]`;
@@ -659,6 +693,7 @@ const applyFilter = async () => {
 
   // Start with approved acts only
   let actsCopy = approvedActs.slice();
+let beforeAvailCount = actsCopy.length;
 
   // --- AVAILABILITY GATE ----------------------------------------------------
   if (selectedDate && !skipAvailGate) {
@@ -685,6 +720,13 @@ const applyFilter = async () => {
 
       // Only hide explicitly false; keep true and undefined
       actsCopy = actsCopy.filter((a) => availableMap[a._id] !== false);
+      console.log("🔎[Acts.filter] availability gate", {
+  hadMap: hasAvailMap,
+  skipAvailGate,
+  before: beforeAvailCount,
+  after: actsCopy.length,
+  removedCount: beforeAvailCount - actsCopy.length,
+});
     } else {
       // leave actsCopy unchanged
     }
@@ -1018,10 +1060,15 @@ if (deferredActSearch.length > 0) {
     )
   );
 }
-
+console.log("💷[Acts.pricing] about to price", {
+  count: actsCopy.length,
+  withDate: !!selectedDate,
+  withAddress: !!selectedAddress,
+});
 
   // --- PRICING --------------------------------------------------------------
 const updatedActs = await Promise.all(
+  
   actsCopy.map((act) =>
     limit(async () => {
       if (!selectedDate || !selectedAddress) {
@@ -1032,6 +1079,12 @@ const updatedActs = await Promise.all(
     })
   )
 );
+try {
+  const pricedCount = updatedActs.filter(a => Number.isFinite(Number(a.formattedPrice))).length;
+  console.log("✅[Acts.pricing] done", { pricedCount, total: updatedActs.length });
+} catch {}
+
+
 
   // Only let the latest run win
   if (runId === filterRunIdRef.current) {
@@ -1063,7 +1116,7 @@ const updatedActs = await Promise.all(
         return B - A;
       });
     }
-
+console.log("🧮[Acts] final results", { final: finalActs.length, sortType });
     setFilterProducts(finalActs);
   } else {
     console.log(`Skipping stale filter run #${runId}`);
@@ -2794,18 +2847,14 @@ checked={pli.includes(20)}                />{" "}
 {(initializing || (selectedDate && availLoading && filterProducts.length === 0)) ? (
   <GridSkeleton count={8} />
 ) : (
-  filterProducts.map((item) => (
+  visibleActs.map((item) => (
     <ActItem
       key={item._id}
       act={item}
-      // Price you already computed with your concurrency limiter + cache:
       price={item.formattedPrice ?? null}
-      // Tri-state availability: true/false/undefined (undefined = unknown)
       available={selectedDate ? availableMap[item._id] !== false : undefined}
-      // Shortlist bits:
       isShortlisted={isShortlisted(item._id)}
       onShortlistToggle={() => shortlistAct(userId, item._id)}
-      // Optional: quick nav to detail page
       onClick={() => navigate(`/act/${item._id}`)}
     />
   ))
