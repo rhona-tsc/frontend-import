@@ -11,6 +11,7 @@ import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import Title from "../components/Title";
 import ActItem from "../components/ActItem";
+
 import { useNavigate } from "react-router-dom";
 import { postcodes } from "../assets/assets";
 import calculateActPricing from "./utils/pricing";
@@ -76,7 +77,6 @@ const deriveActInstruments = (act) => {
 };
 
 // Small helper reused in a few places
-const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
 
 
 const Acts = ({ userRole, email }) => {
@@ -1181,6 +1181,25 @@ if (initializing && acts.length === 0) {
     </div>
   );
 }
+
+const GridSkeleton = ({ count = 8 }) => (
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-6">
+    {Array.from({ length: count }).map((_, i) => (
+      <div
+        key={`skeleton-${i}`}
+        className="border rounded overflow-hidden bg-white animate-pulse"
+      >
+        <div className="w-full aspect-[4/3] bg-gray-200" />
+        <div className="p-3 space-y-2">
+          <div className="h-4 bg-gray-200 rounded w-3/4" />
+          <div className="h-3 bg-gray-200 rounded w-1/2" />
+          <div className="h-3 bg-gray-200 rounded w-1/3" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 
   return (
     <div className="flex flex-col sm:flex-row gap-1 sm:gap-10 pt-10 border-t ">
@@ -2730,21 +2749,26 @@ checked={pli.includes(20)}                />{" "}
         {/* Map products / acts */}
         
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-6">
-        {selectedDate && availLoading ? (
-          <div className="col-span-2 md:col-span-3 lg:col-span-4 p-6 text-center text-gray-600">
-            Checking availability…
-          </div>
-        ) : (
-          filterProducts.map((item, index) => (
-           <ActItem
-  key={item._id}
-  actData={item}
-  isShortlisted={isShortlisted(item._id)}
-  onShortlistToggle={() => shortlistAct(userId, item._id)}
-  price={item.formattedPrice}
-/>
-          ))
-        )}
+        {/* ⏳ While we’re still warming availability or initial filter, show skeletons */}
+{(initializing || (selectedDate && availLoading && filterProducts.length === 0)) ? (
+  <GridSkeleton count={8} />
+) : (
+  filterProducts.map((item) => (
+    <ActItem
+      key={item._id}
+      act={item}
+      // Price you already computed with your concurrency limiter + cache:
+      price={item.formattedPrice ?? null}
+      // Tri-state availability: true/false/undefined (undefined = unknown)
+      available={selectedDate ? availableMap[item._id] !== false : undefined}
+      // Shortlist bits:
+      isShortlisted={isShortlisted(item._id)}
+      onShortlistToggle={() => shortlistAct(userId, item._id)}
+      // Optional: quick nav to detail page
+      onClick={() => navigate(`/act/${item._id}`)}
+    />
+  ))
+)}
       </div>
       </div>
     </div>
