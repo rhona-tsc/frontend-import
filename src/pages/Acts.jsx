@@ -1171,6 +1171,11 @@ if (sortType === "relevant") return;
 
 
 
+  // Decide what to display in the grid: filtered results if any, else all approved acts
+  const visibleActs = useMemo(
+    () => (Array.isArray(filterProducts) && filterProducts.length ? filterProducts : approvedActs),
+    [filterProducts, approvedActs]
+  );
   // --- Spinner conditional rendering for loading or no acts ---
 if (initializing && approvedActs.length === 0) {  
   return (
@@ -1229,11 +1234,6 @@ const GridSkeleton = ({ count = 8 }) => (
   </div>
 );
 
-// Decide what to display in the grid: filtered results if any, else all approved acts
-const visibleActs = useMemo(
-  () => (Array.isArray(filterProducts) && filterProducts.length ? filterProducts : approvedActs),
-  [filterProducts, approvedActs]
-);
 
 
   return (
