@@ -123,8 +123,10 @@ const approvedActs = useMemo(() => {
     const rawStatus = act?.status ?? "";
     const status = String(rawStatus).toLowerCase();
 
-    // ✅ Accept explicit and compound forms, e.g. "approved_changes_pending", "live_changes_pending"
+    // ✅ Treat empty/undefined status as approved (fallback),
+    // and accept explicit/compound forms like "approved_changes_pending" or "live_changes_pending"
     const isApproved =
+      !rawStatus ||
       status === "approved" ||
       status === "live" ||
       status.includes("approved") ||
@@ -145,15 +147,16 @@ const approvedActs = useMemo(() => {
     console.log("🧮[Acts] status histogram:", hist);
   } catch {}
 
+  // Primary filter: agents can see all approved (incl. empties by default),
+  // non-agents hide test acts.
   const filtered = annotated
     .filter(({ isApproved, isTest }) => (isAgent ? isApproved : isApproved && !isTest))
     .map(({ act }) => act);
 
+  // 🚨 Fallback: if the approval filter yields nothing but we have acts, show ALL acts.
   if (list.length > 0 && filtered.length === 0) {
-    console.warn(
-      "⚠️ [Acts] No acts after status filter. Example statuses:",
-      annotated.slice(0, 8).map((x) => x.status)
-    );
+    console.warn("⚠️ [Acts] Approval filter removed all acts — falling back to ALL acts.");
+    return list;
   }
 
   return filtered;
