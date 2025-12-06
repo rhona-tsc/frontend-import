@@ -117,12 +117,18 @@ const isAgent =
 
 // ✅ Memoised, avoids re-filtering on every render
 const approvedActs = useMemo(() => {
-  return acts.filter((act) => {
+  return (Array.isArray(acts) ? acts : []).filter((act) => {
+    const status = String(act?.status ?? "").toLowerCase();
+    // treat both "approved" and "live" as showable; also match phrases like "approved, changes pending"
     const isApproved =
-      act.status === "approved" || act.status === "Approved, changes pending";
+      status === "approved" ||
+      status === "live" ||
+      status.includes("approved");
+
     const isTest =
-      looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
-    return isAgent ? isApproved : isApproved && !isTest;
+      looksLikeTrue(act?.isTest) || looksLikeTrue(act?.actData?.isTest);
+
+    return isAgent ? isApproved : (isApproved && !isTest);
   });
 }, [acts, isAgent]);
 
