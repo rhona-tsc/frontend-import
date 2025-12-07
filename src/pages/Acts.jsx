@@ -366,67 +366,71 @@ const deriveActInstruments = (act) => {
   return Array.from(new Set(canonical));
 };
 
-  const applyFilter = async () => {
-  const runId = ++filterRunIdRef.current;
-
-  const actLabel = (a) => `${a?.tscName || a?.name || "(no-name)"} [${a?._id}]`;
-  const hasAvailMap = !!availableMap && Object.keys(availableMap).length > 0;
-
-  // If availability map is loading, skip ONLY the availability gate
-  const skipAvailGate = Boolean(selectedDate && availLoading);
-  if (skipAvailGate) {
-    console.log("Skipping availability gate due to loading state");
-  }
-
-  // ✅ Only use approved acts for filtering and display
-const approvedActs = acts.filter((act) => {
-  const isApproved =
-    act.status === "approved" || act.status === "Approved, changes pending";
+// ✅ Helper: compute approved acts (used in filter logic and dependency array)
+const getApprovedActs = () => {
+  return acts.filter((act) => {
+    const isApproved =
+      act.status === "approved" || act.status === "Approved, changes pending";
 
     const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
 
-
-  // detect test flag from either root or actData
-  const isTest =
-    looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
+    // detect test flag from either root or actData
+    const isTest =
+      looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
 
     // 🧩 Prefer prop from App, then localStorage
-const storedUser = JSON.parse(localStorage.getItem("user")) || {};
-const effectiveUserRole =
-  userRole || storedUser.userRole || ""; // fallback to localStorage role
+    const storedUser = JSON.parse(localStorage.getItem("user")) || {};
+    const effectiveUserRole =
+      userRole || storedUser.userRole || ""; // fallback to localStorage role
 
-// 🧩 Add userId fallback for agent detection
-const effectiveUserId = userId || storedUser.userId || "";
-const effectiveUserEmail = email || storedUser.email || "";
+    // 🧩 Add userId fallback for agent detection
+    const effectiveUserId = userId || storedUser.userId || "";
+    const effectiveUserEmail = email || storedUser.email || "";
 
-// ✅ Agent override (your agent ID)
-const isAgent =
-  effectiveUserRole === "agent" ||
-  effectiveUserId === "680fb453a2de6618675ca9ed" || // <-- your ID
-  effectiveUserEmail === "rhona@thesupremecollective.co.uk";
+    // ✅ Agent override (your agent ID)
+    const isAgent =
+      effectiveUserRole === "agent" ||
+      effectiveUserId === "680fb453a2de6618675ca9ed" || // <-- your ID
+      effectiveUserEmail === "rhona@thesupremecollective.co.uk";
 
-  // 🧠 Debug log for clarity
-  console.log(
-    "🔍 Act:",
-    act.tscName || act.name,
-    "| isTest:",
-    isTest,
-    "| status:",
-    act.status,
-    "| userRole:",
-    effectiveUserRole,
-    "| userId:",
-    effectiveUserId,
-    "| isAgent:",
-    isAgent
-  );
+    // 🧠 Debug log for clarity
+    console.log(
+      "🔍 Act:",
+      act.tscName || act.name,
+      "| isTest:",
+      isTest,
+      "| status:",
+      act.status,
+      "| userRole:",
+      effectiveUserRole,
+      "| userId:",
+      effectiveUserId,
+      "| isAgent:",
+      isAgent
+    );
 
-  // 🧩 Agents see all approved acts
-  if (isAgent) return isApproved;
+    // 🧩 Agents see all approved acts
+    if (isAgent) return isApproved;
 
-  // 🧩 Non-agents: hide test acts
-  return isApproved && !isTest;
-});
+    // 🧩 Non-agents: hide test acts
+    return isApproved && !isTest;
+  });
+};
+
+const applyFilter = async () => {
+const runId = ++filterRunIdRef.current;
+
+const actLabel = (a) => `${a?.tscName || a?.name || "(no-name)"} [${a?._id}]`;
+const hasAvailMap = !!availableMap && Object.keys(availableMap).length > 0;
+
+// If availability map is loading, skip ONLY the availability gate
+const skipAvailGate = Boolean(selectedDate && availLoading);
+if (skipAvailGate) {
+  console.log("Skipping availability gate due to loading state");
+}
+
+// ✅ Only use approved acts for filtering and display
+const approvedActs = getApprovedActs();
 
   // Start with approved acts only
   let actsCopy = approvedActs.slice();
@@ -1085,7 +1089,7 @@ const calculateActPricing = async (
       applyFilter();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [approvedActs.length]);
+  }, [acts.length]);
   
   // 3) When availability loading state flips, run filter again
   useEffect(() => {
