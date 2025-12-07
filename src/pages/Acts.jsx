@@ -368,37 +368,37 @@ const deriveActInstruments = (act) => {
 
 // ✅ Helper: compute approved acts (used in filter logic and dependency array)
 const getApprovedActs = () => {
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const effectiveUserRole = String(userRole || storedUser.userRole || "").toLowerCase();
+  const effectiveUserId = userId || storedUser.userId || "";
+  const effectiveUserEmail = email || storedUser.email || "";
+
+  const isAgent =
+    ["agent", "admin", "moderator"].includes(effectiveUserRole) ||
+    effectiveUserId === "680fb453a2de6618675ca9ed" ||
+    /@thesupremecollective\.co\.uk$/i.test(effectiveUserEmail);
+
+  const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
+  const normalizeStatus = (s) => String(s || "").trim().toLowerCase();
+
   return acts.filter((act) => {
-    const isApproved =
-      act.status === "approved" || act.status === "Approved, changes pending";
+    const st = normalizeStatus(act.status);
 
-    const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
+    // Accept both legacy and new labels
+    const isApprovedLike =
+      st === "approved" ||
+      st === "live" ||
+      st === "approved_changes_pending" ||
+      st === "live_changes_pending" ||
+      st.includes("changes pending");
 
-    // detect test flag from either root or actData
-    const isTest =
-      looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
+    const isTest = looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
 
-    // 🧩 Prefer prop from App, then localStorage
-    const storedUser = JSON.parse(localStorage.getItem("user")) || {};
-    const effectiveUserRole =
-      userRole || storedUser.userRole || ""; // fallback to localStorage role
+    // Agents see all approved/live (including test if desired). If you want agents to hide tests too, change to `isApprovedLike && !isTest`.
+    if (isAgent) return isApprovedLike;
 
-    // 🧩 Add userId fallback for agent detection
-    const effectiveUserId = userId || storedUser.userId || "";
-    const effectiveUserEmail = email || storedUser.email || "";
-
-    // ✅ Agent override (your agent ID)
-    const isAgent =
-      effectiveUserRole === "agent" ||
-      effectiveUserId === "680fb453a2de6618675ca9ed" || // <-- your ID
-      effectiveUserEmail === "rhona@thesupremecollective.co.uk";
-
-
-    // 🧩 Agents see all approved acts
-    if (isAgent) return isApproved;
-
-    // 🧩 Non-agents: hide test acts
-    return isApproved && !isTest;
+    // Non‑agents: hide test acts
+    return isApprovedLike && !isTest;
   });
 };
 
@@ -425,6 +425,11 @@ const approvedActs = getApprovedActs();
 
   // Start with approved acts only
   let actsCopy = approvedActs.slice();
+
+  // Show something straight away before async pricing completes
+  if (runId === filterRunIdRef.current && Array.isArray(actsCopy)) {
+    setFilterProducts(actsCopy);
+  }
 
 
 
