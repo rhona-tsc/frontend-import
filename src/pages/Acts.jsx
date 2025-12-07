@@ -1,4 +1,4 @@
-import React, { useContext, useDeferredValue, useState, useEffect,useRef, useMemo } from "react";
++ import React, { useContext, useState, useEffect, useRef, useMemo } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
 
@@ -14,7 +14,7 @@ const Acts = ({ userRole, email }) => {
   const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext); // use cards as on Home
       const filterRunIdRef = useRef(0);
   
-  const cards = useDeferredValue(Array.isArray(actCards) ? actCards : []);
+const cards = Array.isArray(actCards) ? actCards : [];
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
   const [genre, setGenre] = useState([]);
@@ -426,7 +426,7 @@ const actMap = useMemo(() => {
 }, [acts]);
 
 // 2) Helper: which cards are allowed for this viewer (agent vs non-agent)
-const getApprovedCards = () => {
+const getApprovedCards = (list) => {
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
   const effectiveRole  = String(userRole || storedUser.userRole || "").toLowerCase();
   const effectiveUserId = userId || storedUser.userId || "";
@@ -439,12 +439,8 @@ const getApprovedCards = () => {
 
   const looksTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
 
-  // 🔑 The server’s /api/v2/search/cards already filters to APPROVED_LIKE.
-  // Here we only hide test acts for non-agents.
-  return (Array.isArray(cards) ? cards : []).filter((card) => {
-    const isTest = looksTrue(card.isTest);
-    return isAgent ? true : !isTest;
-  });
+  const src = Array.isArray(list) ? list : [];
+  return src.filter((card) => (isAgent ? true : !looksTrue(card.isTest)));
 };
 
 // Memoised so we can safely use it in effect deps
@@ -465,8 +461,9 @@ if (skipAvailGate) {
   console.log("Skipping availability gate due to loading state");
 }
 
-// ✅ Only use approved cards for filtering and display
-let approvedCards = getApprovedCards(); // ⬅️ make this `let` (not const)
+// prefer current cards; if somehow empty, fall back to actCards
+const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actCards;
+ let approvedCards = getApprovedCards(sourceCards);
 
 // 🔎 Ask the server which cards match the current UI filters,
 // then intersect with the locally visible set.
@@ -490,10 +487,15 @@ if (allowedActIds) {
   );
 }
 
-// If nothing left after narrowing, bail early
-if (!approvedCards || approvedCards.length === 0) {
-  setFilterProducts([]);
-  return;
+// Only clear if we genuinely have no cards at all from either source
+ if (!approvedCards || approvedCards.length === 0) {
+   const hasAnyCards = Array.isArray(cards) && cards.length > 0;
+   const hasAnyActCards = Array.isArray(actCards) && actCards.length > 0;
+   if (!hasAnyCards && !hasAnyActCards) {
+     setFilterProducts([]);
+     return;
+   }
+   // else: keep going (don’t wipe the grid because of a transient 0)
 }
 
 // Prefer full Act objects; if missing, synthesise from the card so the grid isn't empty
