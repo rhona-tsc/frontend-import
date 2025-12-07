@@ -7,12 +7,18 @@ import React, {
   useCallback,
 } from "react";
 import axios from "axios";
-import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
 import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
 import debounce from "lodash.debounce";
-
+// Defer-load to avoid circular imports with ShopContext <-> pricing
+let __calcPricing;
+async function loadCalculateActPricing() {
+  if (__calcPricing) return __calcPricing;
+  const mod = await import("../pages/utils/pricing");
+  __calcPricing = mod.default || mod.calculateActPricing || mod;
+  return __calcPricing;
+}
 export const ShopContext = createContext();
 
 const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
@@ -463,8 +469,8 @@ useEffect(() => {
   };
 
   // ============ Grid cards (fast) ============
-const getActCardsData = async () => {
-  const base = String(backendUrl || "").replace(/\/+$/, "");
+async function getActCardsData() {
+    const base = String(backendUrl || "").replace(/\/+$/, "");
   const url = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
   console.log("🛒[ShopContext] Fetching act cards:", url);
 
@@ -496,8 +502,9 @@ const getActCardsData = async () => {
       if (!lineup) return null;
 
       const county = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
-      const result = await calculateActPricing(
-        act,
+const calc = await loadCalculateActPricing();
+     const result = await calc(
+          act,
         county,
         selectedAddress,
         selectedDate,
@@ -1609,7 +1616,8 @@ const isActAllowed = (actId) => {
           ) || actData.lineups.find((l) => String(l._id) === String(lineupId));
         if (!lineup) continue;
 
-        const result = await calculateActPricing(
+        const calc = await loadCalculateActPricing();
+        const result = await calc(
           actData,
           selectedAddress?.split(",").slice(-2)[0]?.trim() || "",
           selectedAddress,
