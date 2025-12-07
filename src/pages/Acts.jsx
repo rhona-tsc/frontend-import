@@ -14,52 +14,8 @@ const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
 
 const Acts = ({ userRole, email }) => {
   const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
-  // 🔎 Initial snapshot of critical context/state
-  useEffect(() => {
-    ACTS_DBG("mount snapshot", {
-      actsLen: Array.isArray(acts) ? acts.length : 0,
-      actCardsLen: Array.isArray(actCards) ? actCards.length : 0,
-      userId,
-      selectedDate,
-      selectedAddress,
-      selectedCounty,
-      showSearch,
-      search,
-    });
-    // Expose a tiny debug handle on window for ad‑hoc checks in the console
-    try {
-      window.__TSC_ACTS__ = {
-        getApprovedActs,
-        getApprovedCards,
-        applyFilterRef: () => applyFilter(),
-        ctx: { acts, actCards, userId },
-      };
-    } catch (_) {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+ 
 
-  // 🧭 Log when upstream datasets change
-  useEffect(() => {
-    ACTS_DBG("acts changed", Array.isArray(acts) ? acts.length : 0,
-      (Array.isArray(acts) ? acts.slice(0, 3) : []).map(a => ({ id: a?._id, n: a?.tscName || a?.name, st: a?.status }))
-    );
-  }, [acts]);
-
-  useEffect(() => {
-    ACTS_DBG("actCards changed", Array.isArray(actCards) ? actCards.length : 0,
-      (Array.isArray(actCards) ? actCards.slice(0, 3) : []).map(c => ({ id: c?.actId || c?._id, n: c?.tscName || c?.name }))
-    );
-  }, [actCards]);
-
-  // 🧺 Observe filterProducts updates
-  useEffect(() => {
-    ACTS_DBG("filterProducts updated", {
-      len: Array.isArray(filterProducts) ? filterProducts.length : 0,
-      sample: (Array.isArray(filterProducts) ? filterProducts.slice(0, 5) : [])
-        .map(a => ({ id: a?._id, n: a?.tscName || a?.name, price: a?.formattedPrice }))
-    });
-  }, [filterProducts]);
-      const filterRunIdRef = useRef(0);
   
 const cards = Array.isArray(actCards) ? actCards : [];
   const [showFilter, setShowFilter] = useState(false);
@@ -129,6 +85,53 @@ const buildServerFilterPayload = () => ({
   excludeTests: true,
 });
 
+ // 🔎 Initial snapshot of critical context/state
+  useEffect(() => {
+    ACTS_DBG("mount snapshot", {
+      actsLen: Array.isArray(acts) ? acts.length : 0,
+      actCardsLen: Array.isArray(actCards) ? actCards.length : 0,
+      userId,
+      selectedDate,
+      selectedAddress,
+      selectedCounty,
+      showSearch,
+      search,
+    });
+    // Expose a tiny debug handle on window for ad‑hoc checks in the console
+    try {
+      window.__TSC_ACTS__ = {
+        getApprovedActs,
+        getApprovedCards,
+        applyFilterRef: () => applyFilter(),
+        ctx: { acts, actCards, userId },
+      };
+    } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 🧭 Log when upstream datasets change
+  useEffect(() => {
+    ACTS_DBG("acts changed", Array.isArray(acts) ? acts.length : 0,
+      (Array.isArray(acts) ? acts.slice(0, 3) : []).map(a => ({ id: a?._id, n: a?.tscName || a?.name, st: a?.status }))
+    );
+  }, [acts]);
+
+  useEffect(() => {
+    ACTS_DBG("actCards changed", Array.isArray(actCards) ? actCards.length : 0,
+      (Array.isArray(actCards) ? actCards.slice(0, 3) : []).map(c => ({ id: c?.actId || c?._id, n: c?.tscName || c?.name }))
+    );
+  }, [actCards]);
+
+
+  // 🧺 Observe filterProducts updates
+  useEffect(() => {
+    ACTS_DBG("filterProducts updated", {
+      len: Array.isArray(filterProducts) ? filterProducts.length : 0,
+      sample: (Array.isArray(filterProducts) ? filterProducts.slice(0, 5) : [])
+        .map(a => ({ id: a?._id, n: a?.tscName || a?.name, price: a?.formattedPrice }))
+    });
+  }, [filterProducts]);
+      const filterRunIdRef = useRef(0);
 
   const triggerSearch = () => {
     setShowSearch(true); // ✅ Open the search box
