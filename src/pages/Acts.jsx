@@ -460,9 +460,45 @@ if (skipAvailGate) {
 // ✅ Only use approved acts for filtering and display
 const approvedCards = getApprovedCards();
 
-// Turn cards → acts; keep only acts that we can resolve (defensive)
+if (!approvedCards || approvedCards.length === 0) {
+  setFilterProducts([]);
+  return;
+}
+
+// Prefer full Act objects; if missing, synthesise from the card so the grid isn't empty
 let actsCopy = approvedCards
-  .map((card) => actMap.get(String(card.actId || card._id)))
+  .map((card) => {
+    const id = String(card.actId || card._id);
+    const act = actMap.get(id);
+    if (act) return { ...act, __card: card };
+
+    // Minimal "act-like" object derived from the card
+    return {
+      _id: id,
+      name: card.tscName || card.name || "Untitled Act",
+      tscName: card.tscName,
+      genres: Array.isArray(card.genres) ? card.genres : [],
+      lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
+      instruments: Array.isArray(card.instruments) ? card.instruments : [],
+      // extras: only keep truthy flags; pricing logic will naturally skip where needed
+      extras: Object.fromEntries(
+        Object.entries(card.extras || {}).filter(([, v]) => v === true)
+      ),
+      pliAmount: Number(card.pliAmount) || 0,
+      // turn PA / light maps into readable strings (handy for tag filters)
+      paSystem: Object.entries(card.pa || {})
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(", "),
+      lightingSystem: Object.entries(card.light || {})
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(", "),
+      // no lineups known at card level; pricing will skip until date/address anyway
+      lineups: [],
+      __card: card,
+    };
+  })
   .filter(Boolean);
 
 // Optional: keep the card on the act for rendering later
@@ -732,11 +768,11 @@ if (extraServices.length > 0) {
     actsCopy = actsCopy.filter((item) => item.name?.toLowerCase().includes(q));
   }
 
-  if (genre.length > 0) {
-    actsCopy = actsCopy.filter(
-      (item) => Array.isArray(item.genre) && genre.some((g) => item.genre.includes(g))
-    );
-  }
+if (genre.length > 0) {
+  actsCopy = actsCopy.filter(
+    (item) => Array.isArray(item.genres) && genre.some((g) => item.genres.includes(g))
+  );
+}
 
   const norm = (s) => {
     if (!s) return "";
