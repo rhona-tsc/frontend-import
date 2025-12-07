@@ -428,9 +428,9 @@ const actMap = useMemo(() => {
 // 2) Helper: which cards are allowed for this viewer (agent vs non-agent)
 const getApprovedCards = () => {
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const effectiveRole = String(userRole || storedUser.userRole || "").toLowerCase();
+  const effectiveRole  = String(userRole || storedUser.userRole || "").toLowerCase();
   const effectiveUserId = userId || storedUser.userId || "";
-  const effectiveEmail = email || storedUser.email || "";
+  const effectiveEmail  = email || storedUser.email || "";
 
   const isAgent =
     ["agent", "admin", "moderator"].includes(effectiveRole) ||
@@ -438,20 +438,12 @@ const getApprovedCards = () => {
     /@thesupremecollective\.co\.uk$/i.test(effectiveEmail);
 
   const looksTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
-  const norm = (s) => String(s || "").trim().toLowerCase();
 
+  // 🔑 The server’s /api/v2/search/cards already filters to APPROVED_LIKE.
+  // Here we only hide test acts for non-agents.
   return (Array.isArray(cards) ? cards : []).filter((card) => {
-    const st = norm(card.status || card.statusNormalized);
-    const isApprovedLike =
-      st === "approved" ||
-      st === "live" ||
-      st === "approved_changes_pending" ||
-      st === "live_changes_pending" ||
-      st.includes("changes pending");
-
     const isTest = looksTrue(card.isTest);
-
-    return isAgent ? isApprovedLike : isApprovedLike && !isTest;
+    return isAgent ? true : !isTest;
   });
 };
 
@@ -1179,7 +1171,12 @@ const calculateActPricing = async (
       applyFilter();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [acts.length]);
+  }, [actCards.length]);
+
+  console.log("applyFilter sizes", {
+  acts: (Array.isArray(acts) ? acts.length : 0),
+  cards: (Array.isArray(cards) ? cards.length : 0),
+});
   
   // 3) When availability loading state flips, run filter again
   useEffect(() => {
