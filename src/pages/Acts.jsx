@@ -2780,12 +2780,12 @@ checked={pli.includes(20)}                />{" "}
 
           {/* Map products / acts */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
-            {cards.length === 0 ? (
+            {filterProducts.length === 0 ? (
               <p className="col-span-full text-center text-gray-500">
                 No acts to show yet.
               </p>
             ) : (
-              cards.map((item) => (
+              filterProducts.map((item) => (
                 <div
                   key={String(item.actId || item._id || item.id)}
                   style={{
