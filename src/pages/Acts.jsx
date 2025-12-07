@@ -12,9 +12,6 @@ const ACTS_DBG = (...args) => console.log("🎯 [Acts]", ...args);
 const GROUP = (label) => { try { console.groupCollapsed(label); } catch (_) {} };
 const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
 
-
-           c                                                      
-
 const Acts = ({ userRole, email }) => {
   // 🔎 Initial snapshot of critical context/state
   useEffect(() => {
