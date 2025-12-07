@@ -199,10 +199,9 @@ useEffect(() => {
     setActCards([]);
     return;
   }
-  // 👉 Fast cards for listing UIs
   getActCardsData().catch((e) => console.error("❌[ShopContext] getActCardsData threw:", e));
-  // ⛔ Do not call getActsData() here; it will overwrite cards in grids.
-}, [backendUrl]);
+  // ⛔ keep getActsData() out of here so it doesn't overwrite cards
+}, [backendUrl, token]); // ← include token so agent/non-agent view updates after login
 
   // --- Availability map for selectedDate (tri-state: true / false / undefined) ---
   const [availableMap, setAvailableMap] = useState({});
@@ -444,23 +443,65 @@ useEffect(() => {
     }
   };
 
-  // ============ Grid cards (fast) ============
+// ============ Grid cards (fast) ============
 const getActCardsData = async () => {
   const base = String(backendUrl || "").replace(/\/+$/, "");
-  const url = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
-  console.log("🛒[ShopContext] Fetching act cards:", url);
+  const v2Url = `${base}/api/v2/search/cards`;
+
+  // normalize any card-ish shape into the one your UI expects
+  const normalize = (c) => ({
+    actId: String(c.actId || c._id || ""),
+    tscName: c.tscName || c.name || "",
+    name: c.name || "",
+    slug: c.slug || "",
+    imageUrl:
+      c.imageUrl ||
+      (Array.isArray(c.images) && c.images[0]?.url) ||
+      (Array.isArray(c.profileImage) && c.profileImage[0]?.url) ||
+      "",
+    basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
+    loveCount: Number(c.loveCount || c.numberOfShortlistsIn || c.timesShortlisted || 0) || 0,
+    availabilityBadge: c.availabilityBadge || null,
+    status: c.status || "",
+  });
 
   try {
-    const res = await axios.get(url, { headers: { accept: "application/json" } });
-    const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
+    // --- NEW: v2 search/cards with optional auth header ---
+    const res = await fetch(v2Url, {
+      headers: {
+        accept: "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    const text = await res.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch {}
 
-    // expose as dedicated cards state
-    setActCards(arr);
+    if (!res.ok) {
+      const msg = data?.message || data?.error || `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
 
-    // (optional) stash for quick inspection
-    try { window.__TSC_ACT_CARDS__ = arr; } catch {}
+    const raw =
+      (Array.isArray(data?.results) && data.results) ||
+      (Array.isArray(data?.acts) && data.acts) ||
+      (Array.isArray(data?.items) && data.items) ||
+      (Array.isArray(data) && data) ||
+      [];
+
+    const cards = raw.map(normalize);
+    setActCards(cards);
+    try { window.__TSC_ACT_CARDS__ = cards; } catch {}
+    return; // ✅ done via v2
   } catch (err) {
-    console.warn("⚠️[ShopContext] fetch act cards failed:", err?.message);
+    console.warn("⚠️[ShopContext] v2 search/cards failed, falling back:", err?.message);
+  }
+
+  // --- Fallback to your existing helper (keeps legacy support) ---
+  try {
+    await fetchActsForGrid();
+  } catch (err) {
+    console.warn("⚠️[ShopContext] fallback fetchActsForGrid failed:", err?.message);
     setActCards([]);
   }
 };

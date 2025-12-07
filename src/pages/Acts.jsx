@@ -368,37 +368,74 @@ const deriveActInstruments = (act) => {
 
 // ✅ Helper: compute approved acts (used in filter logic and dependency array)
 const getApprovedActs = () => {
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const effectiveUserRole = String(userRole || storedUser.userRole || "").toLowerCase();
+  const effectiveUserId = userId || storedUser.userId || "";
+  const effectiveUserEmail = email || storedUser.email || "";
+
+  const isAgent =
+    ["agent", "admin", "moderator"].includes(effectiveUserRole) ||
+    effectiveUserId === "680fb453a2de6618675ca9ed" ||
+    /@thesupremecollective\.co\.uk$/i.test(effectiveUserEmail);
+
+  const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
+  const normalizeStatus = (s) => String(s || "").trim().toLowerCase();
+
   return acts.filter((act) => {
-    const isApproved =
-      act.status === "approved" || act.status === "Approved, changes pending";
+    const st = normalizeStatus(act.status);
 
-    const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
+    // Accept both legacy and new labels
+    const isApprovedLike =
+      st === "approved" ||
+      st === "live" ||
+      st === "approved_changes_pending" ||
+      st === "live_changes_pending" ||
+      st.includes("changes pending");
 
-    // detect test flag from either root or actData
-    const isTest =
-      looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
+    const isTest = looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
 
-    // 🧩 Prefer prop from App, then localStorage
-    const storedUser = JSON.parse(localStorage.getItem("user")) || {};
-    const effectiveUserRole =
-      userRole || storedUser.userRole || ""; // fallback to localStorage role
+    // Agents see all approved/live (including test if desired). If you want agents to hide tests too, change to `isApprovedLike && !isTest`.
+    if (isAgent) return isApprovedLike;
 
-    // 🧩 Add userId fallback for agent detection
-    const effectiveUserId = userId || storedUser.userId || "";
-    const effectiveUserEmail = email || storedUser.email || "";
+    // Non‑agents: hide test acts
+    return isApprovedLike && !isTest;
+  });
+};
 
-    // ✅ Agent override (your agent ID)
-    const isAgent =
-      effectiveUserRole === "agent" ||
-      effectiveUserId === "680fb453a2de6618675ca9ed" || // <-- your ID
-      effectiveUserEmail === "rhona@thesupremecollective.co.uk";
+// 1) Map acts by id for O(1) join
+const actMap = useMemo(() => {
+  const m = new Map();
+  (Array.isArray(acts) ? acts : []).forEach((a) => m.set(String(a._id), a));
+  return m;
+}, [acts]);
 
+// 2) Helper: which cards are allowed for this viewer (agent vs non-agent)
+const getApprovedCards = () => {
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const effectiveRole = String(userRole || storedUser.userRole || "").toLowerCase();
+  const effectiveUserId = userId || storedUser.userId || "";
+  const effectiveEmail = email || storedUser.email || "";
 
-    // 🧩 Agents see all approved acts
-    if (isAgent) return isApproved;
+  const isAgent =
+    ["agent", "admin", "moderator"].includes(effectiveRole) ||
+    effectiveUserId === "680fb453a2de6618675ca9ed" ||
+    /@thesupremecollective\.co\.uk$/i.test(effectiveEmail);
 
-    // 🧩 Non-agents: hide test acts
-    return isApproved && !isTest;
+  const looksTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
+  const norm = (s) => String(s || "").trim().toLowerCase();
+
+  return (Array.isArray(cards) ? cards : []).filter((card) => {
+    const st = norm(card.status || card.statusNormalized);
+    const isApprovedLike =
+      st === "approved" ||
+      st === "live" ||
+      st === "approved_changes_pending" ||
+      st === "live_changes_pending" ||
+      st.includes("changes pending");
+
+    const isTest = looksTrue(card.isTest);
+
+    return isAgent ? isApprovedLike : isApprovedLike && !isTest;
   });
 };
 
@@ -421,10 +458,24 @@ if (skipAvailGate) {
 }
 
 // ✅ Only use approved acts for filtering and display
-const approvedActs = getApprovedActs();
+const approvedCards = getApprovedCards();
 
-  // Start with approved acts only
-  let actsCopy = approvedActs.slice();
+// Turn cards → acts; keep only acts that we can resolve (defensive)
+let actsCopy = approvedCards
+  .map((card) => actMap.get(String(card.actId || card._id)))
+  .filter(Boolean);
+
+// Optional: keep the card on the act for rendering later
+actsCopy = actsCopy.map((act) => ({
+  ...act,
+  __card: cards.find((c) => String(c.actId || c._id) === String(act._id)) || null,
+}));
+
+
+  // Show something straight away before async pricing completes
+  if (runId === filterRunIdRef.current && Array.isArray(actsCopy)) {
+    setFilterProducts(actsCopy);
+  }
 
 
 
