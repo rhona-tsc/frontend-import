@@ -393,21 +393,6 @@ const getApprovedActs = () => {
       effectiveUserId === "680fb453a2de6618675ca9ed" || // <-- your ID
       effectiveUserEmail === "rhona@thesupremecollective.co.uk";
 
-    // 🧠 Debug log for clarity
-    console.log(
-      "🔍 Act:",
-      act.tscName || act.name,
-      "| isTest:",
-      isTest,
-      "| status:",
-      act.status,
-      "| userRole:",
-      effectiveUserRole,
-      "| userId:",
-      effectiveUserId,
-      "| isAgent:",
-      isAgent
-    );
 
     // 🧩 Agents see all approved acts
     if (isAgent) return isApproved;
@@ -441,35 +426,7 @@ const approvedActs = getApprovedActs();
   // Start with approved acts only
   let actsCopy = approvedActs.slice();
 
-  // --- AVAILABILITY GATE ----------------------------------------------------
-  if (selectedDate && !skipAvailGate) {
-    const explicitUnavailable = hasAvailMap
-      ? Object.entries(availableMap).filter(([, v]) => v === false).map(([k]) => k)
-      : [];
-    const explicitAvailable = hasAvailMap
-      ? Object.entries(availableMap).filter(([, v]) => v === true).map(([k]) => k)
-      : [];
 
-   
-
-    if (hasAvailMap) {
-      const removedByUnavailable = [];
-      const keptByTrueOrUnknown = [];
-
-      for (const a of actsCopy) {
-        const flag = availableMap[a._id]; // true | false | undefined
-        if (flag === false) removedByUnavailable.push(actLabel(a));
-        else keptByTrueOrUnknown.push({ label: actLabel(a), flag });
-      }
-
-   
-
-      // Only hide explicitly false; keep true and undefined
-      actsCopy = actsCopy.filter((a) => availableMap[a._id] !== false);
-    } else {
-      // leave actsCopy unchanged
-    }
-  }
 
   if (wireless.length > 0) {
   actsCopy = actsCopy.filter((item) => {
