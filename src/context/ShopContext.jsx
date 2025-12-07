@@ -77,6 +77,24 @@ const ShopProvider = (props) => {
     }
   });
 
+  // In ShopContext (new helper; do NOT change existing functions)
+const searchActCards = React.useCallback(async (payload) => {
+  try {
+    const BASE = (import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com").replace(/\/+$/, "");
+    const res = await fetch(`${BASE}/api/v2/act-cards/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    return Array.isArray(data?.cards) ? data.cards : [];
+  } catch (e) {
+    console.warn("searchActCards failed:", e?.message || e);
+    return [];
+  }
+}, []);
+
+
 // ============ Grid cards (fast) — hoisted so it can be called above ============
 async function fetchActsForGrid() {
   const base = String(backendUrl || "").replace(/\/+$|^\s+|\s+$/g, "");
@@ -1663,7 +1681,7 @@ const isActAllowed = (actId) => {
     setShowSearch,
     backendUrl,
     getActById,
-
+searchActCards,
     // listing cards
     actCards,
     fetchActsForGrid,

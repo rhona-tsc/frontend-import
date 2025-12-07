@@ -11,7 +11,7 @@ import { assets } from "../assets/assets";
 
 
 const Acts = ({ userRole, email }) => {
-  const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct } = useContext(ShopContext); // use cards as on Home
+  const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext); // use cards as on Home
       const filterRunIdRef = useRef(0);
   
   const cards = useDeferredValue(Array.isArray(actCards) ? actCards : []);
@@ -65,6 +65,22 @@ const [sortType, setSortType] = useState("relevant");
     sessionStorage.getItem("selectedCounty")?.trim().toLowerCase() || ""
   );
 
+  // helper to package your current UI state into the server payload
+const buildServerFilterPayload = () => ({
+  genres: genre,
+  lineupSizes: act_size,
+  instruments,
+  wireless,
+  soundLimiters,
+  setupAndSoundcheck,
+  paAndLights,
+  pli,
+  extraServices,
+  actSearch,
+  songSearch,
+  includeStatuses: ["approved", "live", "approved_changes_pending", "live_changes_pending"],
+  excludeTests: true,
+});
 
 
   const triggerSearch = () => {
@@ -457,9 +473,32 @@ if (skipAvailGate) {
   console.log("Skipping availability gate due to loading state");
 }
 
-// ✅ Only use approved acts for filtering and display
-const approvedCards = getApprovedCards();
+// ✅ Only use approved cards for filtering and display
+let approvedCards = getApprovedCards(); // ⬅️ make this `let` (not const)
 
+// 🔎 Ask the server which cards match the current UI filters,
+// then intersect with the locally visible set.
+let allowedActIds = null;
+try {
+  const serverPayload = buildServerFilterPayload();
+  const serverCards = await searchActCards(serverPayload);
+  if (Array.isArray(serverCards) && serverCards.length) {
+    allowedActIds = new Set(
+      serverCards.map((c) => String(c.actId || c._id))
+    );
+  }
+} catch (err) {
+  console.warn("server card search failed:", err?.message || err);
+}
+
+// ✅ Narrow locally-approved cards with server-approved IDs (if present)
+if (allowedActIds) {
+  approvedCards = approvedCards.filter((c) =>
+    allowedActIds.has(String(c.actId || c._id))
+  );
+}
+
+// If nothing left after narrowing, bail early
 if (!approvedCards || approvedCards.length === 0) {
   setFilterProducts([]);
   return;
@@ -480,12 +519,10 @@ let actsCopy = approvedCards
       genres: Array.isArray(card.genres) ? card.genres : [],
       lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
       instruments: Array.isArray(card.instruments) ? card.instruments : [],
-      // extras: only keep truthy flags; pricing logic will naturally skip where needed
       extras: Object.fromEntries(
         Object.entries(card.extras || {}).filter(([, v]) => v === true)
       ),
       pliAmount: Number(card.pliAmount) || 0,
-      // turn PA / light maps into readable strings (handy for tag filters)
       paSystem: Object.entries(card.pa || {})
         .filter(([, v]) => v)
         .map(([k]) => k)
@@ -494,7 +531,6 @@ let actsCopy = approvedCards
         .filter(([, v]) => v)
         .map(([k]) => k)
         .join(", "),
-      // no lineups known at card level; pricing will skip until date/address anyway
       lineups: [],
       __card: card,
     };
@@ -504,8 +540,12 @@ let actsCopy = approvedCards
 // Optional: keep the card on the act for rendering later
 actsCopy = actsCopy.map((act) => ({
   ...act,
-  __card: cards.find((c) => String(c.actId || c._id) === String(act._id)) || null,
+  __card:
+    cards.find((c) => String(c.actId || c._id) === String(act._id)) || null,
 }));
+
+
+
 
 
   // Show something straight away before async pricing completes
