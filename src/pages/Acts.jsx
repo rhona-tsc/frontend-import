@@ -13,6 +13,7 @@ const GROUP = (label) => { try { console.groupCollapsed(label); } catch (_) {} }
 const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
 
 const Acts = ({ userRole, email }) => {
+  const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
   // 🔎 Initial snapshot of critical context/state
   useEffect(() => {
     ACTS_DBG("mount snapshot", {
@@ -58,7 +59,6 @@ const Acts = ({ userRole, email }) => {
         .map(a => ({ id: a?._id, n: a?.tscName || a?.name, price: a?.formattedPrice }))
     });
   }, [filterProducts]);
-  const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext); // use cards as on Home
       const filterRunIdRef = useRef(0);
   
 const cards = Array.isArray(actCards) ? actCards : [];
@@ -430,7 +430,7 @@ const deriveActInstruments = (act) => {
 };
 
 // ✅ Helper: compute approved acts (used in filter logic and dependency array)
-const getApprovedActs = () => {
+function getApprovedActs() {
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
   const effectiveUserRole = String(userRole || storedUser.userRole || "").toLowerCase();
   const effectiveUserId = userId || storedUser.userId || "";
@@ -463,7 +463,7 @@ const getApprovedActs = () => {
     // Non‑agents: hide test acts
     return isApprovedLike && !isTest;
   });
-};
+}
 
 // 1) Map acts by id for O(1) join
 const actMap = useMemo(() => {
@@ -473,7 +473,7 @@ const actMap = useMemo(() => {
 }, [acts]);
 
 // 2) Helper: which cards are allowed for this viewer (agent vs non-agent)
-const getApprovedCards = (list) => {
+function getApprovedCards(list) {
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
   const effectiveRole  = String(userRole || storedUser.userRole || "").toLowerCase();
   const effectiveUserId = userId || storedUser.userId || "";
@@ -488,7 +488,7 @@ const getApprovedCards = (list) => {
 
   const src = Array.isArray(list) ? list : [];
   return src.filter((card) => (isAgent ? true : !looksTrue(card.isTest)));
-};
+}
 
 // Memoised so we can safely use it in effect deps
 const approvedActsCount = useMemo(
@@ -496,7 +496,7 @@ const approvedActsCount = useMemo(
   // dependencies that getApprovedActs() effectively depends on
   [acts, userRole, userId, email]
 );
-const applyFilter = async () => {
+async function applyFilter() {
   const runId = ++filterRunIdRef.current;
   GROUP(`🧪 applyFilter run #${runId}`);
   ACTS_DBG("inputs", {
@@ -1200,7 +1200,7 @@ const applyFilter = async () => {
     ACTS_DBG(`Skipping stale filter run #${runId}`);
     ENDGROUP();
   }
-};
+}
 
    // 1) Initial boot — keep as-is
   useEffect(() => {
