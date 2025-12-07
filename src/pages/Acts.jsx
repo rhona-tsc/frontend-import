@@ -11,7 +11,7 @@ import { assets } from "../assets/assets";
 
 
 const Acts = ({ userRole, email }) => {
-  const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search } = useContext(ShopContext); // use cards as on Home
+  const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct } = useContext(ShopContext); // use cards as on Home
       const filterRunIdRef = useRef(0);
   
   const cards = useDeferredValue(Array.isArray(actCards) ? actCards : []);
@@ -2786,15 +2786,13 @@ checked={pli.includes(20)}                />{" "}
               </p>
             ) : (
               filterProducts.map((item) => (
-                <div
-                  key={String(item.actId || item._id || item.id)}
-                  style={{
-                    contentVisibility: "auto",
-                    containIntrinsicSize: "320px 420px",
-                  }}
-                >
-                  <ActItem actData={item} />
-                </div>
+               <ActItem
+  key={item._id}
+  actData={item}
+  isShortlisted={isShortlisted(item._id)}
+  onShortlistToggle={() => shortlistAct(userId, item._id)}
+  price={item.formattedPrice}
+/>
               ))
             )}
           </div>
