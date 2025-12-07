@@ -7,10 +7,60 @@ import Title from "../components/Title";
 import ActItem from "../components/ActItem";
 import { assets } from "../assets/assets";
 
+// --- DEBUG HELPERS ---------------------------------------------------------
+const ACTS_DBG = (...args) => console.log("🎯 [Acts]", ...args);
+const GROUP = (label) => { try { console.groupCollapsed(label); } catch (_) {} };
+const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
 
 
+           c                                                      
 
 const Acts = ({ userRole, email }) => {
+  // 🔎 Initial snapshot of critical context/state
+  useEffect(() => {
+    ACTS_DBG("mount snapshot", {
+      actsLen: Array.isArray(acts) ? acts.length : 0,
+      actCardsLen: Array.isArray(actCards) ? actCards.length : 0,
+      userId,
+      selectedDate,
+      selectedAddress,
+      selectedCounty,
+      showSearch,
+      search,
+    });
+    // Expose a tiny debug handle on window for ad‑hoc checks in the console
+    try {
+      window.__TSC_ACTS__ = {
+        getApprovedActs,
+        getApprovedCards,
+        applyFilterRef: () => applyFilter(),
+        ctx: { acts, actCards, userId },
+      };
+    } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 🧭 Log when upstream datasets change
+  useEffect(() => {
+    ACTS_DBG("acts changed", Array.isArray(acts) ? acts.length : 0,
+      (Array.isArray(acts) ? acts.slice(0, 3) : []).map(a => ({ id: a?._id, n: a?.tscName || a?.name, st: a?.status }))
+    );
+  }, [acts]);
+
+  useEffect(() => {
+    ACTS_DBG("actCards changed", Array.isArray(actCards) ? actCards.length : 0,
+      (Array.isArray(actCards) ? actCards.slice(0, 3) : []).map(c => ({ id: c?.actId || c?._id, n: c?.tscName || c?.name }))
+    );
+  }, [actCards]);
+
+  // 🧺 Observe filterProducts updates
+  useEffect(() => {
+    ACTS_DBG("filterProducts updated", {
+      len: Array.isArray(filterProducts) ? filterProducts.length : 0,
+      sample: (Array.isArray(filterProducts) ? filterProducts.slice(0, 5) : [])
+        .map(a => ({ id: a?._id, n: a?.tscName || a?.name, price: a?.formattedPrice }))
+    });
+  }, [filterProducts]);
   const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext); // use cards as on Home
       const filterRunIdRef = useRef(0);
   
@@ -450,363 +500,374 @@ const approvedActsCount = useMemo(
   [acts, userRole, userId, email]
 );
 const applyFilter = async () => {
-const runId = ++filterRunIdRef.current;
+  const runId = ++filterRunIdRef.current;
+  GROUP(`🧪 applyFilter run #${runId}`);
+  ACTS_DBG("inputs", {
+    genre, act_size, djServices, instruments,
+    songSearch, actSearch,
+    wireless, soundLimiters, setupAndSoundcheck, paAndLights, pli, extraServices,
+    selectedDate, selectedAddress, selectedCounty,
+    availLoading,
+    availMapKeys: Object.keys(availableMap || {}).length,
+    cardsLen: Array.isArray(cards) ? cards.length : 0,
+    actCardsLen: Array.isArray(actCards) ? actCards.length : 0,
+  });
 
-const actLabel = (a) => `${a?.tscName || a?.name || "(no-name)"} [${a?._id}]`;
-const hasAvailMap = !!availableMap && Object.keys(availableMap).length > 0;
+  const actLabel = (a) => `${a?.tscName || a?.name || "(no-name)"} [${a?._id}]`;
+  const hasAvailMap = !!availableMap && Object.keys(availableMap).length > 0;
 
-// If availability map is loading, skip ONLY the availability gate
-const skipAvailGate = Boolean(selectedDate && availLoading);
-if (skipAvailGate) {
-  console.log("Skipping availability gate due to loading state");
-}
+  // If availability map is loading, skip ONLY the availability gate
+  const skipAvailGate = Boolean(selectedDate && availLoading);
+  if (skipAvailGate) {
+    console.log("Skipping availability gate due to loading state");
+  }
 
-// prefer current cards; if somehow empty, fall back to actCards
-const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actCards;
- let approvedCards = getApprovedCards(sourceCards);
+  // prefer current cards; if somehow empty, fall back to actCards
+  const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actCards;
+  ACTS_DBG("sourceCards", { len: Array.isArray(sourceCards) ? sourceCards.length : 0 });
+  let approvedCards = getApprovedCards(sourceCards);
+  ACTS_DBG("approvedCards (post viewer filter)", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
 
-// 🔎 Ask the server which cards match the current UI filters,
-// then intersect with the locally visible set.
-let allowedActIds = null;
-try {
-  const serverPayload = buildServerFilterPayload();
-  const serverCards = await searchActCards(serverPayload);
-  if (Array.isArray(serverCards) && serverCards.length) {
-    allowedActIds = new Set(
-      serverCards.map((c) => String(c.actId || c._id))
+  // 🔎 Ask the server which cards match the current UI filters,
+  // then intersect with the locally visible set.
+  let allowedActIds = null;
+  try {
+    const serverPayload = buildServerFilterPayload();
+    const serverCards = await searchActCards(serverPayload);
+    ACTS_DBG("serverCards returned", {
+      ok: Array.isArray(serverCards),
+      len: Array.isArray(serverCards) ? serverCards.length : 0,
+      sample: (Array.isArray(serverCards) ? serverCards.slice(0, 5) : []).map(c => ({ id: c?.actId || c?._id, n: c?.tscName || c?.name }))
+    });
+    if (Array.isArray(serverCards) && serverCards.length) {
+      allowedActIds = new Set(
+        serverCards.map((c) => String(c.actId || c._id))
+      );
+    }
+  } catch (err) {
+    console.warn("server card search failed:", err?.message || err);
+  }
+
+  // ✅ Narrow locally-approved cards with server-approved IDs (if present)
+  if (allowedActIds) {
+    approvedCards = approvedCards.filter((c) =>
+      allowedActIds.has(String(c.actId || c._id))
     );
   }
-} catch (err) {
-  console.warn("server card search failed:", err?.message || err);
-}
+  ACTS_DBG("approvedCards after server intersection", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
 
-// ✅ Narrow locally-approved cards with server-approved IDs (if present)
-if (allowedActIds) {
-  approvedCards = approvedCards.filter((c) =>
-    allowedActIds.has(String(c.actId || c._id))
-  );
-}
+  // Only clear if we genuinely have no cards at all from either source
+  if (!approvedCards || approvedCards.length === 0) {
+    const hasAnyCards = Array.isArray(cards) && cards.length > 0;
+    const hasAnyActCards = Array.isArray(actCards) && actCards.length > 0;
+    if (!hasAnyCards && !hasAnyActCards) {
+      setFilterProducts([]);
+      return;
+    }
+    // else: keep going (don’t wipe the grid because of a transient 0)
+  }
 
-// Only clear if we genuinely have no cards at all from either source
- if (!approvedCards || approvedCards.length === 0) {
-   const hasAnyCards = Array.isArray(cards) && cards.length > 0;
-   const hasAnyActCards = Array.isArray(actCards) && actCards.length > 0;
-   if (!hasAnyCards && !hasAnyActCards) {
-     setFilterProducts([]);
-     return;
-   }
-   // else: keep going (don’t wipe the grid because of a transient 0)
-}
+  // Prefer full Act objects; if missing, synthesise from the card so the grid isn't empty
+  ACTS_DBG("building actsCopy from approvedCards", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
+  let actsCopy = approvedCards
+    .map((card) => {
+      const id = String(card.actId || card._id);
+      const act = actMap.get(id);
+      if (act) return { ...act, __card: card };
 
-// Prefer full Act objects; if missing, synthesise from the card so the grid isn't empty
-let actsCopy = approvedCards
-  .map((card) => {
-    const id = String(card.actId || card._id);
-    const act = actMap.get(id);
-    if (act) return { ...act, __card: card };
+      // Minimal "act-like" object derived from the card
+      return {
+        _id: id,
+        name: card.tscName || card.name || "Untitled Act",
+        tscName: card.tscName,
+        genres: Array.isArray(card.genres) ? card.genres : [],
+        lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
+        instruments: Array.isArray(card.instruments) ? card.instruments : [],
+        extras: Object.fromEntries(
+          Object.entries(card.extras || {}).filter(([, v]) => v === true)
+        ),
+        pliAmount: Number(card.pliAmount) || 0,
+        paSystem: Object.entries(card.pa || {})
+          .filter(([, v]) => v)
+          .map(([k]) => k)
+          .join(", "),
+        lightingSystem: Object.entries(card.light || {})
+          .filter(([, v]) => v)
+          .map(([k]) => k)
+          .join(", "),
+        lineups: [],
+        __card: card,
+      };
+    })
+    .filter(Boolean);
+  ACTS_DBG("actsCopy built (first pass)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
-    // Minimal "act-like" object derived from the card
-    return {
-      _id: id,
-      name: card.tscName || card.name || "Untitled Act",
-      tscName: card.tscName,
-      genres: Array.isArray(card.genres) ? card.genres : [],
-      lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
-      instruments: Array.isArray(card.instruments) ? card.instruments : [],
-      extras: Object.fromEntries(
-        Object.entries(card.extras || {}).filter(([, v]) => v === true)
-      ),
-      pliAmount: Number(card.pliAmount) || 0,
-      paSystem: Object.entries(card.pa || {})
-        .filter(([, v]) => v)
-        .map(([k]) => k)
-        .join(", "),
-      lightingSystem: Object.entries(card.light || {})
-        .filter(([, v]) => v)
-        .map(([k]) => k)
-        .join(", "),
-      lineups: [],
-      __card: card,
-    };
-  })
-  .filter(Boolean);
-
-// Optional: keep the card on the act for rendering later
-actsCopy = actsCopy.map((act) => ({
-  ...act,
-  __card:
-    cards.find((c) => String(c.actId || c._id) === String(act._id)) || null,
-}));
-
-
-
-
+  // Optional: keep the card on the act for rendering later
+  actsCopy = actsCopy.map((act) => ({
+    ...act,
+    __card:
+      cards.find((c) => String(c.actId || c._id) === String(act._id)) || null,
+  }));
+  ACTS_DBG("actsCopy after card reattach", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
   // Show something straight away before async pricing completes
   if (runId === filterRunIdRef.current && Array.isArray(actsCopy)) {
     setFilterProducts(actsCopy);
+    ACTS_DBG("setFilterProducts (early show)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
   }
 
-
-
   if (wireless.length > 0) {
-  actsCopy = actsCopy.filter((item) => {
-    const wirelessInstruments = wireless; // e.g. ["Vocal", "Guitar"]
+    actsCopy = actsCopy.filter((item) => {
+      const wirelessInstruments = wireless; // e.g. ["Vocal", "Guitar"]
 
-    // Loop through all lineups and members
-    const hasWirelessMatch = item.lineups?.some((lineup) =>
-      lineup.bandMembers?.some((member) => {
-        // normalise instrument for matching
-        const instrument = (member.instrument || "").toLowerCase();
+      // Loop through all lineups and members
+      const hasWirelessMatch = item.lineups?.some((lineup) =>
+        lineup.bandMembers?.some((member) => {
+          // normalise instrument for matching
+          const instrument = (member.instrument || "").toLowerCase();
 
-        return wirelessInstruments.some((filterInstrument) => {
-          const f = filterInstrument.toLowerCase();
+          return wirelessInstruments.some((filterInstrument) => {
+            const f = filterInstrument.toLowerCase();
 
-          // ✅ match if instrument includes filterInstrument AND wireless is true
-          return instrument.includes(f) && member.wireless === true;
-        });
-      })
-    );
+            // ✅ match if instrument includes filterInstrument AND wireless is true
+            return instrument.includes(f) && member.wireless === true;
+          });
+        })
+      );
 
-    return hasWirelessMatch;
-  });
-}
-
-if (soundLimiters.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    // 1️⃣ Check for non-decibel sound limiter options first (iems, remove_drums, etc.)
-    const hasNonDbOptions = soundLimiters.some((opt) => {
-      if (["electric_drums", "iems", "can_you_make_act_acoustic", "remove_drums"].includes(opt)) {
-        return (
-          act.lineups?.some((l) => {
-            // direct flags in lineup
-            if (l[opt] === true) return true;
-            // sometimes stored under hasDrums or similar
-            if (opt === "electric_drums" && Array.isArray(l.hasDrums) && l.hasDrums.includes("electric")) return true;
-            return false;
-          }) ||
-          act[opt] === true // fallback top-level flag
-        );
-      }
-      return false;
+      return hasWirelessMatch;
     });
+    ACTS_DBG("after wireless filter", { remain: actsCopy.length });
+  }
 
-    // 2️⃣ Handle dB options (e.g. "90db", "92db", "80-89db")
-    const dbOptions = soundLimiters
-      .map((v) => v.match(/\d+/)?.[0]) // extract the number part
-      .filter(Boolean)
-      .map(Number);
-
-    // If no numeric dB filters selected, just rely on non-dB options
-    if (dbOptions.length === 0) return hasNonDbOptions;
-
-    // 3️⃣ Determine selected dB threshold (use lowest one if multiple)
-    const selectedDb = Math.min(...dbOptions);
-
-    // 4️⃣ Find all dB values across this act’s lineups
-    const lineupDbs = (act.lineups || [])
-      .map((l) => {
-        const val = String(l.db || "").match(/\d+/)?.[0];
-        return val ? Number(val) : null;
-      })
-      .filter((v) => v !== null);
-
-    // 5️⃣ Determine minimum dB requirement across lineups
-    const minDbForAct = lineupDbs.length > 0 ? Math.min(...lineupDbs) : null;
-
-    // 6️⃣ If no dB info, keep act visible (safe fallback)
-    if (minDbForAct === null) return true;
-
-    // 7️⃣ ✅ Include only acts that can play at or below the selected dB
-    return minDbForAct <= selectedDb || hasNonDbOptions;
-  });
-}
-
-if (setupAndSoundcheck.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    const setupFilters = setupAndSoundcheck;
-
-    // ---- 1️⃣ Handle "90min Setup & Soundcheck" ----
-    if (setupFilters.includes("setup_and_soundcheck_time_90min")) {
-      // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime >= 90
-      const has90 = act.lineups?.some(
-        (l) => Number(l.totalSetupAndSoundcheckTime) >= 90
-      );
-      return has90;
-    }
-
-    // ---- 2️⃣ Handle "60min Setup & Soundcheck" ----
-    if (setupFilters.includes("setup_and_soundcheck_time_60min")) {
-      // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime <= 60
-      const has60 = act.lineups?.some(
-        (l) => Number(l.totalSetupAndSoundcheckTime) <= 60
-      );
-      return has60;
-    }
-
-    // ---- 3️⃣ Handle "Speedy Setup (60min)" ----
-if (setupFilters.includes("speedy_setup")) {
-  // Find the key inside act.extras that contains "speedy_setup"
-  const extraKey = Object.keys(act.extras || {}).find((k) =>
-    k.toLowerCase().includes("speedy_setup")
-  );
-
-  if (!extraKey) return false;
-
-  const speedy = act.extras[extraKey];
-  if (!speedy) return false;
-
-  return (Number(speedy.price) > 0) || speedy.complimentary === true;
-}
-
-    return true; // default fallback
-  });
-}
-
-if (paAndLights.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    const selected = paAndLights;
-
-    // --- PA System filters ---
-    const wantsSmallPA = selected.includes("small_pa_size");
-    const wantsMediumPA = selected.includes("medium_pa_size");
-    const wantsLargePA = selected.includes("large_pa_size");
-
-    // --- Lighting filters ---
-    const wantsSmallLight = selected.includes("small_light_size");
-    const wantsMediumLight = selected.includes("medium_light_size");
-    const wantsLargeLight = selected.includes("large_light_size");
-
-    // Normalise act fields
-    const pa = (act.paSystem || "").toLowerCase();
-    const light = (act.lightingSystem || "").toLowerCase();
-
-    // --- PA Matching logic ---
-    const paMatch =
-      (!wantsSmallPA && !wantsMediumPA && !wantsLargePA) ||
-      (wantsSmallPA && pa.includes("small")) ||
-      (wantsMediumPA && pa.includes("medium")) ||
-      (wantsLargePA && pa.includes("large"));
-
-    // --- Lighting Matching logic ---
-    const lightMatch =
-      (!wantsSmallLight && !wantsMediumLight && !wantsLargeLight) ||
-      (wantsSmallLight && light.includes("small")) ||
-      (wantsMediumLight && light.includes("medium")) ||
-      (wantsLargeLight && light.includes("large"));
-
-    // ✅ Return true if act matches both selected PA and lighting filters
-    return paMatch && lightMatch;
-  });
-}
-
-if (pli.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    const amount = Number(act.pliAmount) || 0;
-
-    // Show if any selected PLI requirement is <= act's PLI
-    return pli.some(req => amount >= req);
-  });
-}
-
-if (extraServices.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    const extras = act.extras || {};
-
-    // Normaliser: remove spaces, symbols, underscores etc.
-    const normalize = (str) =>
-      String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
-
-    const extraKeys = Object.keys(extras);
-    const extraKeysNorm = extraKeys.map(k => normalize(k));
-
-    return extraServices.some((selectedKeyRaw) => {
-      const selectedKey = selectedKeyRaw.toLowerCase();
-
-      const fragmentMap = {
-        sound_engineering_for_another_act: "sound_engineering_for_another_act",
-        add_another_vocalist: "anotherVocalist",
-        ceremony_solo: "solo",
-        duo_ceremony: "duo",
-        trio_ceremony: "trio",
-        four_piece_ceremony: "fourpiece",
-        afternoon_solo: "solo",
-        afternoon_duo: "duo",
-        afternoon_trio: "trio",
-        afternoon_4piece: "fourpiece",
-        early_arrival: "early_arrival",
-        late_stay: "late_stay",
-        extra_song: "extra_song_request",
-        extra_sets: "performance",
-        israeli_sets: "israeli_dancing",
-      };
-
-      const fragment = fragmentMap[selectedKey];
-      if (!fragment) return false;
-
-      // --- 1) NORMALIZED MATCHING FOR EXTRAS KEYS ---
-      const fragmentNorm = normalize(fragment);
-      const selectedNorm = normalize(selectedKey);
-
-      const index = extraKeysNorm.findIndex((k) =>
-        k.includes(fragmentNorm)
-      );
-
-      if (index !== -1) {
-        const originalKey = extraKeys[index];
-        const extra = extras[originalKey];
-        return extra && (extra.price > 0 || extra.complimentary === true);
-      }
-
-      // --- 2) CEREMONY + AFTERNOON LOGIC (same object) ---
-      const lineups = act.lineups || [];
-
-      if (
-        [
-          "ceremony_solo",
-          "duo_ceremony",
-          "trio_ceremony",
-          "four_piece_ceremony",
-          "afternoon_solo",
-          "afternoon_duo",
-          "afternoon_trio",
-          "afternoon_4piece",
-        ].includes(selectedKey)
-      ) {
-        const piece = fragment; // solo/duo/trio/fourpiece
-        const type = "ceremonySets"; // shared for both
-
-        return lineups.some((l) => {
-          const block = l[type]?.[piece];
+  if (soundLimiters.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      // 1️⃣ Check for non-decibel sound limiter options first (iems, remove_drums, etc.)
+      const hasNonDbOptions = soundLimiters.some((opt) => {
+        if (["electric_drums", "iems", "can_you_make_act_acoustic", "remove_drums"].includes(opt)) {
           return (
-            block &&
-            Array.isArray(block.amplified) &&
-            block.amplified.length > 0
+            act.lineups?.some((l) => {
+              // direct flags in lineup
+              if (l[opt] === true) return true;
+              // sometimes stored under hasDrums or similar
+              if (opt === "electric_drums" && Array.isArray(l.hasDrums) && l.hasDrums.includes("electric")) return true;
+              return false;
+            }) ||
+            act[opt] === true // fallback top-level flag
           );
-        });
-      }
+        }
+        return false;
+      });
 
-      // --- 3) another vocalist ---
-      if (selectedKey === "add_another_vocalist") {
-        return lineups.some((l) => l.anotherVocalist === true);
-      }
+      // 2️⃣ Handle dB options (e.g. "90db", "92db", "80-89db")
+      const dbOptions = soundLimiters
+        .map((v) => v.match(/\d+/)?.[0]) // extract the number part
+        .filter(Boolean)
+        .map(Number);
 
-      return false;
+      // If no numeric dB filters selected, just rely on non-dB options
+      if (dbOptions.length === 0) return hasNonDbOptions;
+
+      // 3️⃣ Determine selected dB threshold (use lowest one if multiple)
+      const selectedDb = Math.min(...dbOptions);
+
+      // 4️⃣ Find all dB values across this act’s lineups
+      const lineupDbs = (act.lineups || [])
+        .map((l) => {
+          const val = String(l.db || "").match(/\d+/)?.[0];
+          return val ? Number(val) : null;
+        })
+        .filter((v) => v !== null);
+
+      // 5️⃣ Determine minimum dB requirement across lineups
+      const minDbForAct = lineupDbs.length > 0 ? Math.min(...lineupDbs) : null;
+
+      // 6️⃣ If no dB info, keep act visible (safe fallback)
+      if (minDbForAct === null) return true;
+
+      // 7️⃣ ✅ Include only acts that can play at or below the selected dB
+      return minDbForAct <= selectedDb || hasNonDbOptions;
     });
-  });
-}
+    ACTS_DBG("after soundLimiters filter", { remain: actsCopy.length });
+  }
+
+  if (setupAndSoundcheck.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      const setupFilters = setupAndSoundcheck;
+
+      // ---- 1️⃣ Handle "90min Setup & Soundcheck" ----
+      if (setupFilters.includes("setup_and_soundcheck_time_90min")) {
+        // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime >= 90
+        const has90 = act.lineups?.some(
+          (l) => Number(l.totalSetupAndSoundcheckTime) >= 90
+        );
+        return has90;
+      }
+
+      // ---- 2️⃣ Handle "60min Setup & Soundcheck" ----
+      if (setupFilters.includes("setup_and_soundcheck_time_60min")) {
+        // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime <= 60
+        const has60 = act.lineups?.some(
+          (l) => Number(l.totalSetupAndSoundcheckTime) <= 60
+        );
+        return has60;
+      }
+
+      // ---- 3️⃣ Handle "Speedy Setup (60min)" ----
+      if (setupFilters.includes("speedy_setup")) {
+        // Find the key inside act.extras that contains "speedy_setup"
+        const extraKey = Object.keys(act.extras || {}).find((k) =>
+          k.toLowerCase().includes("speedy_setup")
+        );
+
+        if (!extraKey) return false;
+
+        const speedy = act.extras[extraKey];
+        if (!speedy) return false;
+
+        return (Number(speedy.price) > 0) || speedy.complimentary === true;
+      }
+
+      return true; // default fallback
+    });
+    ACTS_DBG("after setupAndSoundcheck filter", { remain: actsCopy.length });
+  }
+
+  if (paAndLights.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      const selected = paAndLights;
+
+      // --- PA System filters ---
+      const wantsSmallPA = selected.includes("small_pa_size");
+      const wantsMediumPA = selected.includes("medium_pa_size");
+      const wantsLargePA = selected.includes("large_pa_size");
+
+      // --- Lighting filters ---
+      const wantsSmallLight = selected.includes("small_light_size");
+      const wantsMediumLight = selected.includes("medium_light_size");
+      const wantsLargeLight = selected.includes("large_light_size");
+
+      // Normalise act fields
+      const pa = (act.paSystem || "").toLowerCase();
+      const light = (act.lightingSystem || "").toLowerCase();
+
+      // --- PA Matching logic ---
+      const paMatch =
+        (!wantsSmallPA && !wantsMediumPA && !wantsLargePA) ||
+        (wantsSmallPA && pa.includes("small")) ||
+        (wantsMediumPA && pa.includes("medium")) ||
+        (wantsLargePA && pa.includes("large"));
+
+      // --- Lighting Matching logic ---
+      const lightMatch =
+        (!wantsSmallLight && !wantsMediumLight && !wantsLargeLight) ||
+        (wantsSmallLight && light.includes("small")) ||
+        (wantsMediumLight && light.includes("medium")) ||
+        (wantsLargeLight && light.includes("large"));
+
+      // ✅ Return true if act matches both selected PA and lighting filters
+      return paMatch && lightMatch;
+    });
+    ACTS_DBG("after paAndLights filter", { remain: actsCopy.length });
+  }
+
+  if (pli.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      const amount = Number(act.pliAmount) || 0;
+      // Show if any selected PLI requirement is <= act's PLI
+      return pli.some(req => amount >= req);
+    });
+    ACTS_DBG("after pli filter", { remain: actsCopy.length });
+  }
+
+  if (extraServices.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      const extras = act.extras || {};
+      // Normaliser: remove spaces, symbols, underscores etc.
+      const normalize = (str) =>
+        String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
+      const extraKeys = Object.keys(extras);
+      const extraKeysNorm = extraKeys.map(k => normalize(k));
+      return extraServices.some((selectedKeyRaw) => {
+        const selectedKey = selectedKeyRaw.toLowerCase();
+        const fragmentMap = {
+          sound_engineering_for_another_act: "sound_engineering_for_another_act",
+          add_another_vocalist: "anotherVocalist",
+          ceremony_solo: "solo",
+          duo_ceremony: "duo",
+          trio_ceremony: "trio",
+          four_piece_ceremony: "fourpiece",
+          afternoon_solo: "solo",
+          afternoon_duo: "duo",
+          afternoon_trio: "trio",
+          afternoon_4piece: "fourpiece",
+          early_arrival: "early_arrival",
+          late_stay: "late_stay",
+          extra_song: "extra_song_request",
+          extra_sets: "performance",
+          israeli_sets: "israeli_dancing",
+        };
+        const fragment = fragmentMap[selectedKey];
+        if (!fragment) return false;
+        // --- 1) NORMALIZED MATCHING FOR EXTRAS KEYS ---
+        const fragmentNorm = normalize(fragment);
+        const selectedNorm = normalize(selectedKey);
+        const index = extraKeysNorm.findIndex((k) =>
+          k.includes(fragmentNorm)
+        );
+        if (index !== -1) {
+          const originalKey = extraKeys[index];
+          const extra = extras[originalKey];
+          return extra && (extra.price > 0 || extra.complimentary === true);
+        }
+        // --- 2) CEREMONY + AFTERNOON LOGIC (same object) ---
+        const lineups = act.lineups || [];
+        if (
+          [
+            "ceremony_solo",
+            "duo_ceremony",
+            "trio_ceremony",
+            "four_piece_ceremony",
+            "afternoon_solo",
+            "afternoon_duo",
+            "afternoon_trio",
+            "afternoon_4piece",
+          ].includes(selectedKey)
+        ) {
+          const piece = fragment; // solo/duo/trio/fourpiece
+          const type = "ceremonySets"; // shared for both
+          return lineups.some((l) => {
+            const block = l[type]?.[piece];
+            return (
+              block &&
+              Array.isArray(block.amplified) &&
+              block.amplified.length > 0
+            );
+          });
+        }
+        // --- 3) another vocalist ---
+        if (selectedKey === "add_another_vocalist") {
+          return lineups.some((l) => l.anotherVocalist === true);
+        }
+        return false;
+      });
+    });
+    ACTS_DBG("after extraServices filter", { remain: actsCopy.length });
+  }
 
   // --- OTHER FILTERS (unchanged) -------------------------------------------
   if (showSearch && search) {
     const q = String(search).toLowerCase();
     actsCopy = actsCopy.filter((item) => item.name?.toLowerCase().includes(q));
+    ACTS_DBG("after text search filter", { remain: actsCopy.length });
   }
 
-if (genre.length > 0) {
-  actsCopy = actsCopy.filter(
-    (item) => Array.isArray(item.genres) && genre.some((g) => item.genres.includes(g))
-  );
-}
+  if (genre.length > 0) {
+    actsCopy = actsCopy.filter(
+      (item) => Array.isArray(item.genres) && genre.some((g) => item.genres.includes(g))
+    );
+    ACTS_DBG("after genre filter", { remain: actsCopy.length });
+  }
 
   const norm = (s) => {
     if (!s) return "";
@@ -828,28 +889,30 @@ if (genre.length > 0) {
       const sizes = sizesFromLineups.map(norm);
       return selected.some((sel) => sizes.includes(sel));
     });
+    ACTS_DBG("after act_size filter", { remain: actsCopy.length });
   }
 
-if (djServices.length > 0) {
-  actsCopy = actsCopy.filter((item) =>
-    djServices.some((service) => {
-      const extra = item.extras?.[service];
-      if (!extra) return false;
-
-      // ✅ Include acts that either have a price OR are complimentary
-      return (
-        (extra.price && extra.price > 0) ||
-        extra.complimentary === true
-      );
-    })
-  );
-}
+  if (djServices.length > 0) {
+    actsCopy = actsCopy.filter((item) =>
+      djServices.some((service) => {
+        const extra = item.extras?.[service];
+        if (!extra) return false;
+        // ✅ Include acts that either have a price OR are complimentary
+        return (
+          (extra.price && extra.price > 0) ||
+          extra.complimentary === true
+        );
+      })
+    );
+    ACTS_DBG("after djServices filter", { remain: actsCopy.length });
+  }
 
   if (instruments.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       const actInstruments = deriveActInstruments(act);
       return instruments.some((sel) => actInstruments.includes(sel));
     });
+    ACTS_DBG("after instruments filter", { remain: actsCopy.length });
   }
 
   if (songSearch.length > 0) {
@@ -868,6 +931,7 @@ if (djServices.length > 0) {
         })
       );
     });
+    ACTS_DBG("after songSearch filter", { remain: actsCopy.length });
   }
 
   if (actSearch.length > 0) {
@@ -876,15 +940,17 @@ if (djServices.length > 0) {
         act.name?.toLowerCase().includes(String(searchTerm).toLowerCase())
       )
     );
+    ACTS_DBG("after actSearch filter", { remain: actsCopy.length });
   }
 
-const calculateActPricing = async (
-  act,
-  selectedCounty,
-  selectedAddress,
-  selectedDate,
-  selectedLineup
-) => {
+  const calculateActPricing = async (
+    act,
+    selectedCounty,
+    selectedAddress,
+    selectedDate,
+    selectedLineup
+  ) => {
+    ACTS_DBG("$pricing:init", { actId: act?._id, name: act?.tscName || act?.name, selectedCounty, hasAddress: !!selectedAddress, hasDate: !!selectedDate });
   // Canonical backend base (never the Netlify origin)
   const BASE = (
     import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com"
@@ -1069,10 +1135,11 @@ const calculateActPricing = async (
     }
   }
 
-  // 🔶 Pricing with margin
-  const totalPrice = Math.ceil((fee + travelFee) / 0.75); // 25% margin on sell price
-  return `${totalPrice}`;
-};
+    // 🔶 Pricing with margin
+    const totalPrice = Math.ceil((fee + travelFee) / 0.75); // 25% margin on sell price
+    ACTS_DBG("$pricing:done", { actId: act?._id, totalPrice });
+    return `${totalPrice}`;
+  };
 
   // --- PRICING --------------------------------------------------------------
   const updatedActs = await Promise.all(
@@ -1094,6 +1161,9 @@ const calculateActPricing = async (
       }
     })
   );
+  ACTS_DBG("updatedActs (post pricing)", { len: Array.isArray(updatedActs) ? updatedActs.length : 0,
+    sample: (Array.isArray(updatedActs) ? updatedActs.slice(0, 5) : []).map(a => ({ id: a?._id, n: a?.tscName || a?.name, price: a?.formattedPrice }))
+  });
 
   // Only let the latest run win
   if (runId === filterRunIdRef.current) {
@@ -1125,12 +1195,14 @@ const calculateActPricing = async (
         return B - A;
       });
     }
-
+    ACTS_DBG("finalActs before set", { len: finalActs.length });
     setFilterProducts(finalActs);
+    ACTS_DBG("✅ setFilterProducts(final)", { len: finalActs.length });
+    ENDGROUP();
   } else {
-    console.log(`Skipping stale filter run #${runId}`);
+    ACTS_DBG(`Skipping stale filter run #${runId}`);
+    ENDGROUP();
   }
-
 };
 
    // 1) Initial boot — keep as-is
