@@ -48,7 +48,7 @@ const Acts = ({ userRole, email }) => {
       const [pli, setPli] = useState([]);
       const [extraServices, setExtraServices] = useState([]);
       const [wireless, setWireless] = useState([]);
-      const [sortType, setSortType] = useState("relavent");
+const [sortType, setSortType] = useState("relevant");
       const [songSearch, setSongSearch] = useState([]);
       const [actSearch, setActSearch] = useState([]);
     const [updatingResults, setUpdatingResults] = useState(false);
@@ -417,6 +417,12 @@ const getApprovedActs = () => {
   });
 };
 
+// Memoised so we can safely use it in effect deps
+const approvedActsCount = useMemo(
+  () => getApprovedActs().length,
+  // dependencies that getApprovedActs() effectively depends on
+  [acts, userRole, userId, email]
+);
 const applyFilter = async () => {
 const runId = ++filterRunIdRef.current;
 
@@ -1122,13 +1128,13 @@ const calculateActPricing = async (
     availLoading,       // re-run after it finishes
   
     // acts arriving
-    approvedActs.length // 0 → N triggers re-run
+    approvedActsCount
   ]);
   
   // ✅ Lightweight re-sort when the sort dropdown changes
   useEffect(() => {
     // do nothing for default relevance
-    if (sortType === "relavent") return;
+    if (sortType === "relevant") return;
     if (!Array.isArray(filterProducts) || filterProducts.length === 0) return;
   
     const toNum = (v) => {
