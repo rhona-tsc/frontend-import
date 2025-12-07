@@ -1,5 +1,6 @@
 import React, { useContext, useDeferredValue, useState } from "react";
 import { ShopContext } from "../context/ShopContext";
+import { useNavigate } from "react-router-dom";
 
 
 import Title from "../components/Title";
@@ -10,7 +11,7 @@ import { assets } from "../assets/assets";
 
 
 const Acts = () => {
-  const { actCards } = useContext(ShopContext); // use cards as on Home
+  const { actCards, setShowSearch,selectedDate, selectedAddress } = useContext(ShopContext); // use cards as on Home
   const cards = useDeferredValue(Array.isArray(actCards) ? actCards : []);
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
@@ -20,8 +21,6 @@ const Acts = () => {
   const [isDjServicesSelected, setIsDjServicesSelected] = useState(false); // Track if any checkbox is checked
   const [isInstrumentsSelected, setIsInstrumentsSelected] = useState(false); // Track if any checkbox is checked
   const [isWirelessSelected, setIsWirelessSelected] = useState(false); // Track if any checkbox is checked
-  const [isSongSearchSelected, setIsSongSearchSelected] = useState(false); // Track if any checkbox is checked
-  const [isActSearchSelected, setIsActSearchSelected] = useState(false); // Track if any checkbox is checked
   const [isSoundLimitersSelected, setIsSoundLimitersSelected] = useState(false); // Track if any checkbox is checked
   const [isSetupAndSoundcheckSelected, setIsSetupAndSoundcheckSelected] =
     useState(false); // Track if any checkbox is checked
@@ -38,8 +37,24 @@ const Acts = () => {
   const [showExtraServicesFilter, setShowExtraServicesFilter] = useState(false);
   const [showSetupAndSoundcheckFilter, setShowSetupAndSoundcheckFilter] =
     useState(false);
+      const [act_size, setActSize] = useState([]);
+      const [djServices, setDjServices] = useState([]);
+      const [instruments, setInstruments] = useState([]);
+      const [soundLimiters, setSoundLimiters] = useState([]);
+      const [setupAndSoundcheck, setSetupAndSoundcheck] = useState([]);
+      const [paAndLights, setPaAndLights] = useState([]);
+      const [pli, setPli] = useState([]);
+      const [extraServices, setExtraServices] = useState([]);
+      const [wireless, setWireless] = useState([]);
+      const [sortType, setSortType] = useState("relavent");
+      const [songSearch, setSongSearch] = useState([]);
+      const [actSearch, setActSearch] = useState([]);
+    const [updatingResults, setUpdatingResults] = useState(false);
+    
   const [showActSizeFilter, setShowActSizeFilter] = useState(false);
   const [showWirelessFilter, setShowWirelessFilter] = useState(false);
+  const navigate = useNavigate();
+  const storedPlace = sessionStorage.getItem("selectedPlace") || "";
 
 
 
@@ -274,267 +289,298 @@ const togglePli = (e) => {
   };
 
 
-  return (
-  <div className="my-10 max-w-7xl mx-auto px-4">
-    {/* Two-column layout */}
-    <div className="grid grid-cols-12 gap-6">
-
-      {/* LEFT: Filters */}
-      <aside className="col-span-12 md:col-span-4 lg:col-span-3">
-        <div className="md:sticky md:top-20 md:self-start">
-          <p
-            onClick={() => setShowFilter(!showFilter)}
-            className="my-2 text-l flex items-center cursor-pointer gap-2 text-gray-600"
-          >
-            FILTERS
-            <img
-              className={`h-3 md:hidden transition-transform duration-300 ${showFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
-
-          <div
-            className={`border border-gray-300 pl-5 py-3 my-5 ${showFilter ? "block" : "hidden"} md:block`}
-          >
-            {/* ------- GENRES ------- */}
+    return (
+    <div className="my-10 max-w-7xl mx-auto px-4">
+      {/* Two-column layout */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* LEFT: Filters */}
+        <aside className="col-span-12 md:col-span-4 lg:col-span-3">
+          <div className="md:sticky md:top-20 md:self-start">
             <p
-              onClick={() => setShowGenreFilter(!showGenreFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              onClick={() => setShowFilter(!showFilter)}
+              className="my-2 text-l flex items-center cursor-pointer gap-2 text-gray-600"
             >
-              GENRES
+              FILTERS
               <img
-                className={`h-3 transition-transform duration-300 ${showGenreFilter ? "rotate-90" : ""}`}
+                className={`h-3 md:hidden transition-transform duration-300 ${
+                  showFilter ? "rotate-90" : ""
+                }`}
                 src={assets.dropdown_icon}
                 alt=""
               />
             </p>
 
-            {showGenreFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your genre checkboxes exactly as before ... */}
-                {/* (keep all your <label> items here unchanged) */}
-              </div>
-            )}
-
-            {/* ------- ACT SIZE ------- */}
-            <p
-              onClick={() => setShowActSizeFilter(!showActSizeFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+            <div
+              className={`border border-gray-300 pl-5 py-3 my-5 ${
+                showFilter ? "block" : "hidden"
+              } md:block`}
             >
-              ACT SIZE
-              <img
-                className={`h-3 transition-transform duration-300 ${showActSizeFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- GENRES ------- */}
+              <p
+                onClick={() => setShowGenreFilter(!showGenreFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                GENRES
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showGenreFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showActSizeFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your act size checkboxes unchanged ... */}
-              </div>
-            )}
+              {showGenreFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your genre checkboxes exactly as before ... */}
+                </div>
+              )}
 
-            {/* ------- DJ SERVICES ------- */}
-            <p
-              onClick={() => setShowDjServicesFilter(!showDjServicesFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              DJ SERVICES
-              <img
-                className={`h-3 transition-transform duration-300 ${showDjServicesFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- ACT SIZE ------- */}
+              <p
+                onClick={() => setShowActSizeFilter(!showActSizeFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                ACT SIZE
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showActSizeFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showDjServicesFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your DJ services checkboxes unchanged ... */}
-              </div>
-            )}
+              {showActSizeFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your act size checkboxes unchanged ... */}
+                </div>
+              )}
 
-            {/* ------- INSTRUMENTS ------- */}
-            <p
-              onClick={() => setShowInstrumentsFilter(!showInstrumentsFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              INSTRUMENTS
-              <img
-                className={`h-3 transition-transform duration-300 ${showInstrumentsFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- DJ SERVICES ------- */}
+              <p
+                onClick={() => setShowDjServicesFilter(!showDjServicesFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                DJ SERVICES
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showDjServicesFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showInstrumentsFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your instruments checkboxes unchanged ... */}
-              </div>
-            )}
+              {showDjServicesFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your DJ services checkboxes unchanged ... */}
+                </div>
+              )}
 
-            {/* ------- WIRELESS ------- */}
-            <p
-              onClick={() => setShowWirelessFilter(!showWirelessFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              WIRELESS
-              <img
-                className={`h-3 transition-transform duration-300 ${showWirelessFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- INSTRUMENTS ------- */}
+              <p
+                onClick={() => setShowInstrumentsFilter(!showInstrumentsFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                INSTRUMENTS
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showInstrumentsFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showWirelessFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your wireless checkboxes unchanged ... */}
-              </div>
-            )}
+              {showInstrumentsFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your instruments checkboxes unchanged ... */}
+                </div>
+              )}
 
-            {/* ------- SONG & ARTIST SEARCH ------- */}
-            <p
-              onClick={() => setShowSongFilter(!showSongFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              SONG & ARTIST SEARCH
-              <img
-                className={`h-3 transition-transform duration-300 ${showSongFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- WIRELESS ------- */}
+              <p
+                onClick={() => setShowWirelessFilter(!showWirelessFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                WIRELESS
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showWirelessFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showSongFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your song search input unchanged ... */}
-              </div>
-            )}
+              {showWirelessFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your wireless checkboxes unchanged ... */}
+                </div>
+              )}
 
-            {/* ------- ACT NAME SEARCH ------- */}
-            <p
-              onClick={() => setShowActFilter(!showActFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              ACT NAME SEARCH
-              <img
-                className={`h-3 transition-transform duration-300 ${showActFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- SONG & ARTIST SEARCH ------- */}
+              <p
+                onClick={() => setShowSongFilter(!showSongFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                SONG & ARTIST SEARCH
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showSongFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showActFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your act name input unchanged ... */}
-              </div>
-            )}
+              {showSongFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your song search input unchanged ... */}
+                </div>
+              )}
 
-            {/* ------- SOUND LIMITERS ------- */}
-            <p
-              onClick={() => setShowSoundLimitersFilter(!showSoundLimiterFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              SOUND LIMITERS
-              <img
-                className={`h-3 transition-transform duration-300 ${showSoundLimiterFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- ACT NAME SEARCH ------- */}
+              <p
+                onClick={() => setShowActFilter(!showActFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                ACT NAME SEARCH
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showActFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showSoundLimiterFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your sound limiter checkboxes unchanged ... */}
-              </div>
-            )}
+              {showActFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your act name input unchanged ... */}
+                </div>
+              )}
 
-            {/* ------- SETUP & SOUNDCHECK ------- */}
-            <p
-              onClick={() => setShowSetupAndSoundcheckFilter(!showSetupAndSoundcheckFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              SETUP & SOUNDCHECK
-              <img
-                className={`h-3 transition-transform duration-300 ${showSetupAndSoundcheckFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- SOUND LIMITERS ------- */}
+              <p
+                onClick={() =>
+                  setShowSoundLimitersFilter(!showSoundLimiterFilter)
+                }
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                SOUND LIMITERS
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showSoundLimiterFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showSetupAndSoundcheckFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your setup & soundcheck checkboxes unchanged ... */}
-              </div>
-            )}
+              {showSoundLimiterFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your sound limiter checkboxes unchanged ... */}
+                </div>
+              )}
 
-            {/* ------- PA & LIGHTS ------- */}
-            <p
-              onClick={() => setShowPaAndLightsFilter(!showPaAndLightsFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              PA & LIGHTS
-              <img
-                className={`h-3 transition-transform duration-300 ${showPaAndLightsFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- SETUP & SOUNDCHECK ------- */}
+              <p
+                onClick={() =>
+                  setShowSetupAndSoundcheckFilter(!showSetupAndSoundcheckFilter)
+                }
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                SETUP & SOUNDCHECK
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showSetupAndSoundcheckFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showPaAndLightsFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your PA & lights checkboxes unchanged ... */}
-              </div>
-            )}
+              {showSetupAndSoundcheckFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your setup & soundcheck checkboxes unchanged ... */}
+                </div>
+              )}
 
-            {/* ------- PLI ------- */}
-            <p
-              onClick={() => setShowPliFilter(!showPliFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              PLI
-              <img
-                className={`h-3 transition-transform duration-300 ${showPliFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- PA & LIGHTS ------- */}
+              <p
+                onClick={() => setShowPaAndLightsFilter(!showPaAndLightsFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                PA & LIGHTS
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showPaAndLightsFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showPliFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your PLI checkboxes unchanged ... */}
-              </div>
-            )}
+              {showPaAndLightsFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your PA & lights checkboxes unchanged ... */}
+                </div>
+              )}
 
-            {/* ------- EXTRA SERVICES ------- */}
-            <p
-              onClick={() => setShowExtraServicesFilter(!showExtraServicesFilter)}
-              className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-            >
-              EXTRA SERVICES
-              <img
-                className={`h-3 transition-transform duration-300 ${showExtraServicesFilter ? "rotate-90" : ""}`}
-                src={assets.dropdown_icon}
-                alt=""
-              />
-            </p>
+              {/* ------- PLI ------- */}
+              <p
+                onClick={() => setShowPliFilter(!showPliFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                PLI
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showPliFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-            {showExtraServicesFilter && (
-              <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-                {/* ... your extra services checkboxes unchanged ... */}
-              </div>
-            )}
+              {showPliFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your PLI checkboxes unchanged ... */}
+                </div>
+              )}
+
+              {/* ------- EXTRA SERVICES ------- */}
+              <p
+                onClick={() => setShowExtraServicesFilter(!showExtraServicesFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                EXTRA SERVICES
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showExtraServicesFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
+
+              {showExtraServicesFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {/* ... your extra services checkboxes unchanged ... */}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
 
-      {/* RIGHT: Results */}
-      <main className="col-span-12 md:col-span-8 lg:col-span-9">
-        <div className="text-center md:text-left py-2">
-          <Title text1="ALL" text2="ACTS" />
-        </div>
-         {/* Current Address in State */}
+        {/* RIGHT: Results */}
+        <main className="col-span-12 md:col-span-8 lg:col-span-9">
+          <div className="text-center md:text-left py-2">
+            <Title text1="ALL" text2="ACTS" />
+          </div>
+
+          {/* Current Address in State */}
           <div className="flex text-base sm:text-2xl justify-between gap-6">
             {/* Product/Act Sort */}
             <select
@@ -542,172 +588,178 @@ const togglePli = (e) => {
               onChange={(e) => setSortType(e.target.value)}
               value={sortType}
             >
-<option value="relevant">Sort by: Relevant</option>
+              <option value="relevant">Sort by: Relevant</option>
               <option value="low-high">Sort by: Low to High</option>
               <option value="high-low">Sort by: High to Low</option>
             </select>
           </div>
-        </div>
-        {/* ✅ Now dynamically shows selected date & address */}
-        <div>
-          {selectedDate && selectedAddress ? (
-            <p className="text-sm mt-3 justify-right p-2 text-gray-500">
-              Showing Results for:
-              <span className="text-gray-700">
-                {" "}
-                {formatDate(selectedDate)} at{" "}
-                {storedPlace && `${storedPlace}, `}
-                {selectedAddress}{" "}
-              </span>
-              <span
-                onClick={() => triggerSearch()}
-                className="text-blue-600 cursor-pointer underline ml-2"
-              >
-                edit search
-              </span>
-            </p>
-          ) : (
-            <p className="text-sm mt-3 justify-right p-2 text-gray-500">
-              Please select a date and location for an accurate quote!
-              <span
-                onClick={() => triggerSearch()}
-                className="text-blue-600 cursor-pointer underline ml-2"
-              >
-                Begin Search
-              </span>
-            </p>
-          )}
-        </div>
-        
-        <div>
-          
-          {(genre.length > 0 ||
-            act_size.length > 0 ||
-            djServices.length > 0 ||
-            songSearch.length > 0 ||
-            actSearch.length > 0 ||
-            instruments.length > 0 ||
-            wireless.length > 0 ||
-            soundLimiters.length > 0 ||
-            setupAndSoundcheck.length > 0 ||
-            paAndLights.length > 0 ||
-            pli.length > 0 ||
-            extraServices.length > 0) && (
-            <div className="flex flex-wrap gap-2 p-2 mb-4 border-b">
-              {updatingResults && (
-  <div className="w-full sm:ml-0 mb-2 px-3 py-2 text-sm text-gray-600 bg-gray-100 border border-gray-200 rounded">
-    Updating results…
-  </div>
-)}
 
-              
-              {[
-                ...genre,
-                ...act_size,
-                ...djServices,
-                ...instruments,
-                ...wireless,
-                ...soundLimiters,
-                ...setupAndSoundcheck,
-                ...paAndLights,
-                ...pli,
-                ...extraServices,
-              ].map((item) => (
-                <span
-                  key={item}
-                  className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
-                >
-                  {labelMap[item] || item}{" "}
-                  {/* Use labelMap to show a friendly name */}
-                  <button
-                    onClick={() => {
-                      if (genre.includes(item))
-                        toggleGenre({ target: { value: item } });
-                      else if (act_size.includes(item))
-                        toggleActSize({ target: { value: item } });
-                      else if (djServices.includes(item))
-                        toggleDjServices({ target: { value: item } });
-                      else if (instruments.includes(item))
-                        toggleInstruments({ target: { value: item } });
-                      else if (wireless.includes(item))
-                        toggleWireless({ target: { value: item } });
-                      else if (soundLimiters.includes(item))
-                        toggleSoundLimiters({ target: { value: item } });
-                      else if (setupAndSoundcheck.includes(item))
-                        toggleSetupAndSoundcheck({ target: { value: item } });
-                      else if (paAndLights.includes(item))
-                        togglePaAndLights({ target: { value: item } });
-                      else if (pli.includes(item))
-                        togglePli({ target: { value: item } });
-                      else if (extraServices.includes(item))
-                        toggleExtraServices({ target: { value: item } });
-                    }}
-                    className="text-gray-100 text-xs font-bold"
-                  >
-                    ✖️
-                  </button>
+          {/* ✅ Now dynamically shows selected date & address */}
+          <div>
+            {selectedDate && selectedAddress ? (
+              <p className="text-sm mt-3 justify-right p-2 text-gray-500">
+                Showing Results for:
+                <span className="text-gray-700">
+                  {" "}
+                  {formatDate(selectedDate)} at{" "}
+                  {storedPlace && `${storedPlace}, `}
+                  {selectedAddress}{" "}
                 </span>
-              ))}
+                <span
+                  onClick={() => triggerSearch()}
+                  className="text-blue-600 cursor-pointer underline ml-2"
+                >
+                  edit search
+                </span>
+              </p>
+            ) : (
+              <p className="text-sm mt-3 justify-right p-2 text-gray-500">
+                Please select a date and location for an accurate quote!
+                <span
+                  onClick={() => triggerSearch()}
+                  className="text-blue-600 cursor-pointer underline ml-2"
+                >
+                  Begin Search
+                </span>
+              </p>
+            )}
+          </div>
 
-              {/* Song or Artist Search */}
-              {songSearch.map((item) => (
-                <span
-                  key={item}
-                  className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
-                >
-                  {item} {/* User input appears as a tag */}
-                  <button
-                    onClick={() =>
-                      setSongSearch(songSearch.filter((song) => song !== item))
-                    }
-                    className="text-gray-100 text-xs font-bold"
-                  >
-                    ✖️
-                  </button>
-                </span>
-              ))}
+          <div>
+            {(genre.length > 0 ||
+              act_size.length > 0 ||
+              djServices.length > 0 ||
+              songSearch.length > 0 ||
+              actSearch.length > 0 ||
+              instruments.length > 0 ||
+              wireless.length > 0 ||
+              soundLimiters.length > 0 ||
+              setupAndSoundcheck.length > 0 ||
+              paAndLights.length > 0 ||
+              pli.length > 0 ||
+              extraServices.length > 0) && (
+              <div className="flex flex-wrap gap-2 p-2 mb-4 border-b">
+                {updatingResults && (
+                  <div className="w-full sm:ml-0 mb-2 px-3 py-2 text-sm text-gray-600 bg-gray-100 border border-gray-200 rounded">
+                    Updating results…
+                  </div>
+                )}
 
-              {/* Act Name Search */}
-              {actSearch.map((item) => (
-                <span
-                  key={item}
-                  className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
-                >
-                  {item} {/* User input appears as a tag */}
-                  <button
-                    onClick={() =>
-                      setActSearch(actSearch.filter((act) => act !== item))
-                    }
-                    className="text-gray-100 text-xs font-bold"
+                {[
+                  ...genre,
+                  ...act_size,
+                  ...djServices,
+                  ...instruments,
+                  ...wireless,
+                  ...soundLimiters,
+                  ...setupAndSoundcheck,
+                  ...paAndLights,
+                  ...pli,
+                  ...extraServices,
+                ].map((item) => (
+                  <span
+                    key={item}
+                    className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
                   >
-                    ✖️
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* Map products / acts */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
-          {cards.length === 0 ? (
-            <p className="col-span-full text-center text-gray-500">
-              No acts to show yet.
-            </p>
-          ) : (
-            cards.map((item) => (
-              <div
-                key={String(item.actId || item._id || item.id)}
-                style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
-              >
-                <ActItem actData={item} />
+                    {labelMap[item] || item}{" "}
+                    {/* Use labelMap to show a friendly name */}
+                    <button
+                      onClick={() => {
+                        if (genre.includes(item))
+                          toggleGenre({ target: { value: item } });
+                        else if (act_size.includes(item))
+                          toggleActSize({ target: { value: item } });
+                        else if (djServices.includes(item))
+                          toggleDjServices({ target: { value: item } });
+                        else if (instruments.includes(item))
+                          toggleInstruments({ target: { value: item } });
+                        else if (wireless.includes(item))
+                          toggleWireless({ target: { value: item } });
+                        else if (soundLimiters.includes(item))
+                          toggleSoundLimiters({ target: { value: item } });
+                        else if (setupAndSoundcheck.includes(item))
+                          toggleSetupAndSoundcheck({
+                            target: { value: item },
+                          });
+                        else if (paAndLights.includes(item))
+                          togglePaAndLights({ target: { value: item } });
+                        else if (pli.includes(item))
+                          togglePli({ target: { value: item } });
+                        else if (extraServices.includes(item))
+                          toggleExtraServices({ target: { value: item } });
+                      }}
+                      className="text-gray-100 text-xs font-bold"
+                    >
+                      ✖️
+                    </button>
+                  </span>
+                ))}
+
+                {/* Song or Artist Search */}
+                {songSearch.map((item) => (
+                  <span
+                    key={item}
+                    className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                  >
+                    {item} {/* User input appears as a tag */}
+                    <button
+                      onClick={() =>
+                        setSongSearch(
+                          songSearch.filter((song) => song !== item)
+                        )
+                      }
+                      className="text-gray-100 text-xs font-bold"
+                    >
+                      ✖️
+                    </button>
+                  </span>
+                ))}
+
+                {/* Act Name Search */}
+                {actSearch.map((item) => (
+                  <span
+                    key={item}
+                    className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                  >
+                    {item} {/* User input appears as a tag */}
+                    <button
+                      onClick={() =>
+                        setActSearch(actSearch.filter((act) => act !== item))
+                      }
+                      className="text-gray-100 text-xs font-bold"
+                    >
+                      ✖️
+                    </button>
+                  </span>
+                ))}
               </div>
-            ))
-          )}
-        </div>
-      </main>
+            )}
+          </div>
+
+          {/* Map products / acts */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
+            {cards.length === 0 ? (
+              <p className="col-span-full text-center text-gray-500">
+                No acts to show yet.
+              </p>
+            ) : (
+              cards.map((item) => (
+                <div
+                  key={String(item.actId || item._id || item.id)}
+                  style={{
+                    contentVisibility: "auto",
+                    containIntrinsicSize: "320px 420px",
+                  }}
+                >
+                  <ActItem actData={item} />
+                </div>
+              ))
+            )}
+          </div>
+        </main>
+      </div>
     </div>
-  </div>
-);
+  );
 };
 
 export default Acts;
