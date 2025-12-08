@@ -22,7 +22,7 @@ function useMaxToShow() {
 }
 
 const NewActs = () => {
-  const { actCards, getCardPriceWithTravel, selectedAddress, selectedDate  } = useContext(ShopContext); // now cards
+  const { actCards } = useContext(ShopContext); // now cards
   const deferredCards = useDeferredValue(actCards);
   const maxToShow = useMaxToShow();
 

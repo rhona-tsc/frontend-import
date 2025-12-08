@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useRef, useMemo } from "react";
+import { useContext, useState, useEffect, useRef, useMemo } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
 
@@ -13,11 +13,11 @@ const GROUP = (label) => { try { console.groupCollapsed(label); } catch (_) {} }
 const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
 
 const Acts = ({ userRole, email }) => {
-  const { acts, actCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
+  const { actsPageCards, getActsPageCards, getCardPriceWithTravel, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
  
 
   
-const cards = Array.isArray(actCards) ? actCards : [];
+const cards = Array.isArray(actsPageCards) ? actsPageCards : [];
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
   const [genre, setGenre] = useState([]);
@@ -67,7 +67,7 @@ const [sortType, setSortType] = useState("relevant");
   const [selectedCounty, setSelectedCounty] = useState(
     sessionStorage.getItem("selectedCounty")?.trim().toLowerCase() || ""
   );
-
+const filterRunIdRef = useRef(0);
   // helper to package your current UI state into the server payload
 const buildServerFilterPayload = () => ({
   genres: genre,
@@ -85,53 +85,10 @@ const buildServerFilterPayload = () => ({
   excludeTests: true,
 });
 
- // 🔎 Initial snapshot of critical context/state
-  useEffect(() => {
-    ACTS_DBG("mount snapshot", {
-      actsLen: Array.isArray(acts) ? acts.length : 0,
-      actCardsLen: Array.isArray(actCards) ? actCards.length : 0,
-      userId,
-      selectedDate,
-      selectedAddress,
-      selectedCounty,
-      showSearch,
-      search,
-    });
-    // Expose a tiny debug handle on window for ad‑hoc checks in the console
-    try {
-      window.__TSC_ACTS__ = {
-        getApprovedActs,
-        getApprovedCards,
-        applyFilterRef: () => applyFilter(),
-        ctx: { acts, actCards, userId },
-      };
-    } catch (_) {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+useEffect(() => { getActsPageCards(); }, [getActsPageCards]);
 
-  // 🧭 Log when upstream datasets change
-  useEffect(() => {
-    ACTS_DBG("acts changed", Array.isArray(acts) ? acts.length : 0,
-      (Array.isArray(acts) ? acts.slice(0, 3) : []).map(a => ({ id: a?._id, n: a?.tscName || a?.name, st: a?.status }))
-    );
-  }, [acts]);
+const items = Array.isArray(actsPageCards) ? actsPageCards : [];
 
-  useEffect(() => {
-    ACTS_DBG("actCards changed", Array.isArray(actCards) ? actCards.length : 0,
-      (Array.isArray(actCards) ? actCards.slice(0, 3) : []).map(c => ({ id: c?.actId || c?._id, n: c?.tscName || c?.name }))
-    );
-  }, [actCards]);
-
-
-  // 🧺 Observe filterProducts updates
-  useEffect(() => {
-    ACTS_DBG("filterProducts updated", {
-      len: Array.isArray(filterProducts) ? filterProducts.length : 0,
-      sample: (Array.isArray(filterProducts) ? filterProducts.slice(0, 5) : [])
-        .map(a => ({ id: a?._id, n: a?.tscName || a?.name, price: a?.formattedPrice }))
-    });
-  }, [filterProducts]);
-      const filterRunIdRef = useRef(0);
 
   const triggerSearch = () => {
     setShowSearch(true); // ✅ Open the search box
@@ -432,12 +389,14 @@ const deriveActInstruments = (act) => {
   return Array.from(new Set(canonical));
 };
 
-// ✅ Helper: compute approved acts (used in filter logic and dependency array)
-function getApprovedActs() {
+// 🔁 Make the helper accept a list (don’t read global `acts`)
+function getApprovedActs(list) {
+  const arr = Array.isArray(list) ? list : [];
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const effectiveUserRole = String(userRole || storedUser.userRole || "").toLowerCase();
-  const effectiveUserId = userId || storedUser.userId || "";
-  const effectiveUserEmail = email || storedUser.email || "";
+
+  const effectiveUserRole = String(storedUser.userRole || "").toLowerCase();
+  const effectiveUserId = storedUser._id || storedUser.userId || "";
+  const effectiveUserEmail = storedUser.email || "";
 
   const isAgent =
     ["agent", "admin", "moderator"].includes(effectiveUserRole) ||
@@ -447,10 +406,8 @@ function getApprovedActs() {
   const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
   const normalizeStatus = (s) => String(s || "").trim().toLowerCase();
 
-  return acts.filter((act) => {
+  return arr.filter((act) => {
     const st = normalizeStatus(act.status);
-
-    // Accept both legacy and new labels
     const isApprovedLike =
       st === "approved" ||
       st === "live" ||
@@ -458,22 +415,23 @@ function getApprovedActs() {
       st === "live_changes_pending" ||
       st.includes("changes pending");
 
-    const isTest = looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
+    const isTest =
+      looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
 
-    // Agents see all approved/live (including test if desired). If you want agents to hide tests too, change to `isApprovedLike && !isTest`.
-    if (isAgent) return isApprovedLike;
-
-    // Non‑agents: hide test acts
-    return isApprovedLike && !isTest;
+    return isAgent ? isApprovedLike : (isApprovedLike && !isTest);
   });
 }
 
-// 1) Map acts by id for O(1) join
-const actMap = useMemo(() => {
-  const m = new Map();
-  (Array.isArray(acts) ? acts : []).forEach((a) => m.set(String(a._id), a));
-  return m;
-}, [acts]);
+// ✅ Use the Acts-page cards as the source
+const approvedActs = useMemo(
+  () => getApprovedActs(actsPageCards),
+  [actsPageCards]
+);
+
+const actMap = useMemo(
+  () => new Map((approvedActs || []).map(a => [String(a._id), a])),
+  [approvedActs]
+);
 
 // 2) Helper: which cards are allowed for this viewer (agent vs non-agent)
 function getApprovedCards(list) {
@@ -495,10 +453,10 @@ function getApprovedCards(list) {
 
 // Memoised so we can safely use it in effect deps
 const approvedActsCount = useMemo(
-  () => getApprovedActs().length,
-  // dependencies that getApprovedActs() effectively depends on
-  [acts, userRole, userId, email]
+  () => getApprovedActs(actsPageCards).length,
+  [actsPageCards, userRole, userId, email]
 );
+
 async function applyFilter() {
   const runId = ++filterRunIdRef.current;
   GROUP(`🧪 applyFilter run #${runId}`);
@@ -510,11 +468,8 @@ async function applyFilter() {
     availLoading,
     availMapKeys: Object.keys(availableMap || {}).length,
     cardsLen: Array.isArray(cards) ? cards.length : 0,
-    actCardsLen: Array.isArray(actCards) ? actCards.length : 0,
+actCardsLen: Array.isArray(actsPageCards) ? actsPageCards.length : 0,
   });
-
-  const actLabel = (a) => `${a?.tscName || a?.name || "(no-name)"} [${a?._id}]`;
-  const hasAvailMap = !!availableMap && Object.keys(availableMap).length > 0;
 
   // If availability map is loading, skip ONLY the availability gate
   const skipAvailGate = Boolean(selectedDate && availLoading);
@@ -522,8 +477,8 @@ async function applyFilter() {
     console.log("Skipping availability gate due to loading state");
   }
 
-  // prefer current cards; if somehow empty, fall back to actCards
-  const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actCards;
+  // prefer current cards; if somehow empty, fall back to actsPageCards
+const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actsPageCards;
   ACTS_DBG("sourceCards", { len: Array.isArray(sourceCards) ? sourceCards.length : 0 });
   let approvedCards = getApprovedCards(sourceCards);
   ACTS_DBG("approvedCards (post viewer filter)", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
@@ -559,7 +514,7 @@ async function applyFilter() {
   // Only clear if we genuinely have no cards at all from either source
   if (!approvedCards || approvedCards.length === 0) {
     const hasAnyCards = Array.isArray(cards) && cards.length > 0;
-    const hasAnyActCards = Array.isArray(actCards) && actCards.length > 0;
+    const hasAnyActCards = Array.isArray(actsPageCards) && actsPageCards.length > 0;
     if (!hasAnyCards && !hasAnyActCards) {
       setFilterProducts([]);
       return;
@@ -811,7 +766,6 @@ async function applyFilter() {
         if (!fragment) return false;
         // --- 1) NORMALIZED MATCHING FOR EXTRAS KEYS ---
         const fragmentNorm = normalize(fragment);
-        const selectedNorm = normalize(selectedKey);
         const index = extraKeysNorm.findIndex((k) =>
           k.includes(fragmentNorm)
         );
@@ -835,7 +789,8 @@ async function applyFilter() {
           ].includes(selectedKey)
         ) {
           const piece = fragment; // solo/duo/trio/fourpiece
-          const type = "ceremonySets"; // shared for both
+          const isAfternoon = selectedKey.startsWith("afternoon_");
+          const type = isAfternoon ? "afternoonSets" : "ceremonySets";
           return lineups.some((l) => {
             const block = l[type]?.[piece];
             return (
@@ -1089,7 +1044,7 @@ async function applyFilter() {
           raw?.rows?.[0]?.elements?.[0]?.distance?.value ??
           0;
         const miles = meters / 1609.34;
-        travelFee += miles * Number(act.costPerMile) * 25; // your round-trip multiplier
+        travelFee += miles * Number(act.costPerMile) * 2; // return trip
       } catch (e) {
         console.warn("⚠️ travel fetch failed (per-mile):", e?.message || e);
       }
@@ -1245,10 +1200,9 @@ async function applyFilter() {
       applyFilter();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actCards.length]);
+}, [actsPageCards.length]);
 
-  console.log("applyFilter sizes", {
-  acts: (Array.isArray(acts) ? acts.length : 0),
+console.log("applyFilter sizes", {
   cards: (Array.isArray(cards) ? cards.length : 0),
 });
   
@@ -1313,6 +1267,10 @@ async function applyFilter() {
     setFilterProducts(sorted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortType]);
+
+  const results = Array.isArray(filterProducts) && filterProducts.length
+  ? filterProducts
+  : items;
 
 
     return (
@@ -2935,21 +2893,13 @@ checked={pli.includes(20)}                />{" "}
 
           {/* Map products / acts */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
-            {filterProducts.length === 0 ? (
-              <p className="col-span-full text-center text-gray-500">
-                No acts to show yet.
-              </p>
-            ) : (
-              filterProducts.map((item) => (
-               <ActItem
-  key={item._id}
-  actData={item}
-  isShortlisted={isShortlisted(item._id)}
-  onShortlistToggle={() => shortlistAct(userId, item._id)}
-  price={item.formattedPrice}
-/>
-              ))
-            )}
+          {results.map((item) => (
+  <ActItem
+    key={item.actId || item._id}
+    actData={item}
+    variant="listing"
+  />
+))}
           </div>
         </main>
       </div>

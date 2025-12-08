@@ -38,6 +38,7 @@ const ShopProvider = (props) => {
     }
   });
   const [cartUpdated, setCartUpdated] = useState(false);
+const [actsPageCards, setActsPageCards] = useState([]);
 
   // --- Persist cart to localStorage whenever it changes ---
   useEffect(() => {
@@ -77,6 +78,24 @@ const ShopProvider = (props) => {
     }
   });
 
+  useEffect(() => {
+  if (!location?.pathname?.startsWith?.("/acts")) return;
+  if (Array.isArray(actCards) && actCards.length && (!Array.isArray(acts) || acts.length === 0)) {
+    const minimalActs = actCards.map((c) => ({
+      _id: String(c.actId || c._id || ""),
+      actId: String(c.actId || c._id || ""),
+      tscName: c.tscName || c.name || "",
+      name: c.name || "",
+      slug: c.slug || "",
+      images: c.imageUrl ? [{ url: c.imageUrl }] : [],
+      status: c.status || "",
+      lineups: [],
+    }));
+    setActs(minimalActs);
+  }
+}, [actCards, acts, location?.pathname]);
+
+
   // In ShopContext (new helper; do NOT change existing functions)
 const searchActCards = React.useCallback(async (payload) => {
   try {
@@ -93,6 +112,86 @@ const searchActCards = React.useCallback(async (payload) => {
     return [];
   }
 }, []);
+
+// ⬇️ add this function (standalone; does NOT touch actCards)
+const getActsPageCards = React.useCallback(async () => {
+  const base = String(backendUrl || "").replace(/\/+$/, "");
+  const url = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
+
+  // card normalizer ONLY for the Acts page
+  const normalize = (c = {}) => {
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+    return {
+      actId: String(c.actId || c._id || c.id || ""),
+      tscName: c.tscName || c.name || c.n || "",
+      name: c.name || c.tscName || c.n || "",
+      slug: c.slug || c.s || "",
+      imageUrl: c.imageUrl || c.img || "",
+      basePrice: num(c.basePrice ?? c.p),
+      loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
+      availabilityBadge: c.availabilityBadge || c.badge || null,
+      status: c.status || c.st || "",
+    };
+  };
+
+  const buildCardFromAct = (a) => {
+    const pickImage = (obj) =>
+      (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
+      (Array.isArray(obj?.images) && obj.images[0]?.url) ||
+      (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) || "";
+
+    const ls = Array.isArray(a?.lineups) ? a.lineups : [];
+    const sizeOf = (l) => {
+      const m = String(l?.act_size || l?.actSize || "").match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : (Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999);
+    };
+    const smallest = ls.length ? [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0] : null;
+    const lineupBase = Number(smallest?.base_fee?.[0]?.total_fee);
+    const basePrice = Number.isFinite(lineupBase) ? Math.ceil(lineupBase * 1.2) : null;
+
+    return {
+      actId: String(a?._id || ""),
+      tscName: a?.tscName || a?.name || "",
+      name: a?.name || "",
+      slug: a?.slug || "",
+      imageUrl: pickImage(a),
+      basePrice,
+      loveCount: Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
+      availabilityBadge: null,
+      status: a?.status || "",
+    };
+  };
+
+  const fallbackFromActs = async () => {
+    const candidates = [
+      "/api/v2/acts/list?status=approved,live&limit=200&sort=-createdAt",
+      "/api/acts/list?status=approved,live&limit=200&sort=-createdAt",
+      "/api/act/list?status=approved,live&limit=200&sort=-createdAt",
+      "/api/acts",
+    ];
+    for (const path of candidates) {
+      try {
+        const r = await axios.get(`${base}${path}`, { headers: { accept: "application/json" } });
+        const d = r?.data || {};
+        const arr = Array.isArray(d?.acts) ? d.acts : Array.isArray(d?.items) ? d.items : Array.isArray(d) ? d : [];
+        if (arr.length) {
+          setActsPageCards(arr.map(buildCardFromAct));
+          return;
+        }
+      } catch {}
+    }
+    setActsPageCards([]);
+  };
+
+  try {
+    const res = await axios.get(url, { headers: { accept: "application/json" } });
+    const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
+    if (!raw.length) return void (await fallbackFromActs());
+    setActsPageCards(raw.map(normalize));
+  } catch {
+    await fallbackFromActs();
+  }
+}, [backendUrl]);
 
 
 // ============ Grid cards (fast) — hoisted so it can be called above ============
@@ -1683,10 +1782,12 @@ const isActAllowed = (actId) => {
     getActById,
 searchActCards,
     // listing cards
-    actCards,
-    fetchActsForGrid,
-    // on-demand card pricing
-    getCardPriceWithTravel,
+  actCards,                // ✅ homepage uses this as-is
+  fetchActsForGrid,        // (your existing one for home if needed)
+  // Acts page (isolated)
+  actsPageCards,
+  getActsPageCards,
+  getCardPriceWithTravel,  // keep using for listing price-on-demand
 
     // cart
     cartItems,
