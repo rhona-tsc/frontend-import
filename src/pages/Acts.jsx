@@ -1,7 +1,7 @@
-import { useContext, useState, useEffect, useRef, useMemo } from "react";
+import { useContext, useState, useEffect, useRef, useMemo, act } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
-
+import axios from "axios";
 
 import Title from "../components/Title";
 import ActItem from "../components/ActItem";
@@ -10,11 +10,21 @@ import { assets } from "../assets/assets";
 // --- DEBUG HELPERS ---------------------------------------------------------
 const ACTS_DBG = (...args) => console.log("🎯 [Acts]", ...args);
 const GROUP = (label) => { try { console.groupCollapsed(label); } catch (_) {} };
+
 const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
 
+// Canonical API path builder (uses backend, never the Netlify origin)
+const api = (path = "") => {
+  const BASE = (
+    import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com"
+  ).replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return `${BASE}/${p}`;
+};
+
 const Acts = ({ userRole, email }) => {
-  const { actsPageCards, getActsPageCards, getCardPriceWithTravel, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
- 
+  const { actsPageCards, getActsPageCards, getCardPriceWithTravel, setActsPageCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
+
 
   
 const cards = Array.isArray(actsPageCards) ? actsPageCards : [];
@@ -67,7 +77,100 @@ const [sortType, setSortType] = useState("relevant");
   const [selectedCounty, setSelectedCounty] = useState(
     sessionStorage.getItem("selectedCounty")?.trim().toLowerCase() || ""
   );
+
+// near the top
+const FILTER_DATA_ENDPOINTS = [
+  api("api/act/filter-data"),     // v2 singular (most likely)
+  api("api/v2/act/filter-data"),  // alternate v2 prefix
+  api("api/acts/filter-data"),    // legacy plural (fallback)
+  api("api/v2/acts/filter-data"), // legacy plural with /v2 (fallback)
+];
+
+async function fetchActFilterData({ ids, status = "approved,live", limit = 200 }) {
+  const idParam = Array.isArray(ids) ? ids.join(",") : String(ids || "");
+  const qs = `?ids=${encodeURIComponent(idParam)}&status=${encodeURIComponent(status)}&limit=${limit}`;
+
+  // Try GET first across candidates
+  for (const base of FILTER_DATA_ENDPOINTS) {
+    try {
+      const { data } = await axios.get(`${base}${qs}`);
+      if (data) return data;
+    } catch {}
+  }
+
+  // Fallback to POST payload across candidates
+  const payload = {
+    ids: Array.isArray(ids) ? ids : (idParam ? idParam.split(",") : []),
+    status: status.split(","),
+    limit,
+  };
+
+  for (const base of FILTER_DATA_ENDPOINTS) {
+    try {
+      const { data } = await axios.post(base, payload);
+      if (data) return data;
+    } catch {}
+  }
+
+  console.warn("⚠️ filter-data: no matching endpoint found (all candidates failed).");
+  return null;
+}
+  // ---- filter-data helper (acts enrichment) ----
+const normalize = (arr) =>
+  Array.isArray(arr) ? arr.map((x) => String(x).toLowerCase().trim()) : [];
+
+
+
+function mergeFilterDataIntoCards(cards = [], enrich = []) {
+  if (!cards.length || !enrich.length) return cards;
+
+  const byId = new Map(
+    enrich.map((x) => [String(x._id || x.actId || x.id), x])
+  );
+
+  return cards.map((c) => {
+    const add = byId.get(String(c.actId || c._id || c.id));
+    if (!add) return c;
+
+    const rawGenres = add.genres || add.genres_raw || [];
+    const genres_norm = normalize(add.genres_norm || rawGenres);
+
+    return {
+      ...c,
+      slug: add.slug ?? c.slug ?? "",
+      status: add.status ?? c.status ?? "",
+      genres_raw: rawGenres,
+      genres_norm,
+      lineupSizes: add.lineupSizes || add.act_sizes || c.lineupSizes || [],
+      instruments: add.instruments || c.instruments || [],
+      pliAmount: add.pliAmount ?? c.pliAmount ?? null,
+      paTrue: typeof add.paTrue === "boolean" ? add.paTrue : c.paTrue,
+      lightTrue: typeof add.lightTrue === "boolean" ? add.lightTrue : c.lightTrue,
+      extrasTrue: typeof add.extrasTrue === "boolean" ? add.extrasTrue : c.extrasTrue,
+      lineupsCount: Array.isArray(add.lineups) ? add.lineups.length : (c.lineupsCount || 0),
+      hasImages: Array.isArray(add.images) ? add.images.length > 0 : !!c.hasImages,
+    };
+  });
+}
+
 const filterRunIdRef = useRef(0);
+
+const lastFiltersRef = useRef({});
+useEffect(() => {
+  if (!DEBUG_FILTER) return;
+  const next = buildServerFilterPayload();
+  const prev = lastFiltersRef.current || {};
+  console.groupCollapsed("🧾 FILTERS CHANGED → server payload snapshot");
+  console.log("prev:", prev);
+  console.log("next:", next);
+  console.groupEnd();
+  lastFiltersRef.current = next;
+}, [
+  genre, act_size, djServices, instruments, wireless,
+  soundLimiters, setupAndSoundcheck, paAndLights, pli,
+  extraServices, songSearch, actSearch
+]);
+
   // helper to package your current UI state into the server payload
 const buildServerFilterPayload = () => ({
   genres: genre,
@@ -87,7 +190,130 @@ const buildServerFilterPayload = () => ({
 
 useEffect(() => { getActsPageCards(); }, [getActsPageCards]);
 
+// --- FILTER TOGGLE DEBUG ---------------------------------------------------
+const DEBUG_FILTER = true;
+
+const uniqPush = (arr = [], v) => (arr.includes(v) ? arr : [...arr, v]);
+
+const logToggle = (group, { value, checked, before = [], after = [] }) => {
+  if (!DEBUG_FILTER) return;
+  try {
+    const ts = new Date().toLocaleTimeString();
+    console.groupCollapsed(`☑️ [${ts}] ${group} — ${checked ? "ADD ➕" : "REMOVE ❌"} "${value}"`);
+    console.log("before (%d):", before.length, before);
+    console.log("after  (%d):", after.length, after);
+    console.groupEnd();
+  } catch {}
+};
+
+// 🔎 Snapshot Acts-page cards every time they change
+useEffect(() => {
+  const src = Array.isArray(actsPageCards) ? actsPageCards : [];
+  console.groupCollapsed(`🗂 actsPageCards snapshot (${src.length})`);
+  if (src.length) {
+    // top-level keys on the first card (helps see structure)
+    console.log("🔑 keys on first card:", Object.keys(src[0]));
+
+    // tabular view of filter-relevant fields for the first 40 cards
+    console.table(
+      src.slice(0, 40).map((c, i) => ({
+        i,
+        id: String(c.actId || c._id || ""),
+        name: c.tscName || c.name || "(untitled)",
+        status: c.status,
+        isTest: Boolean(c.isTest || c?.actData?.isTest),
+        genres: Array.isArray(c.genres) ? c.genres.join(" | ") : String(c.genres || ""),
+        lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.join(" | ") : "",
+        instruments: Array.isArray(c.instruments) ? c.instruments.join(" | ") : "",
+        pliAmount: c.pliAmount ?? "",
+        paTrue: Object.entries(c.pa || {}).filter(([,v]) => v).map(([k]) => k).join(","),
+        lightTrue: Object.entries(c.light || {}).filter(([,v]) => v).map(([k]) => k).join(","),
+        extrasTrue: Object.entries(c.extras || {})
+          .filter(([,v]) => v === true || (v && typeof v === "object"))
+          .map(([k]) => k).slice(0, 10).join(","),
+        lineupsCount: Array.isArray(c.lineups) ? c.lineups.length : 0,
+        hasImages: Boolean(c.images || c.coverImages || c.heroImages || c.gallery),
+      }))
+    );
+
+    // full raw object for deep inspection
+    console.log("📌 first card (full):", src[0]);
+  }
+  console.groupEnd();
+}, [actsPageCards]);
+
+// ---- server enrich (filter-data) ----
+useEffect(() => {
+  let alive = true;
+
+  (async () => {
+    try {
+      // Whatever array you render before enrichment; your logs call it actsPageCards/actCards.
+      const base = (Array.isArray(actsPageCards) && actsPageCards.length) ? actsPageCards : [];
+      if (!base.length) return;
+
+      const ids = base
+        .map((c) => c.actId || c._id || c.id)
+        .filter(Boolean);
+
+      const enrich = await fetchActFilterData(api, axios, ids);
+      if (!alive) return;
+
+      const merged = mergeFilterDataIntoCards(base, enrich);
+
+      // If you keep a local “actsPageCards” state, set it here; otherwise push to your pipeline:
+      setFilterProducts(merged);
+    } catch (err) {
+      console.warn("filter-data enrich failed:", err?.message || err);
+      // IMPORTANT: fall back to current cards instead of wiping to []
+      const base = (Array.isArray(actsPageCards) && actsPageCards.length) ? actsPageCards : [];
+      setFilterProducts(base);
+    }
+  })();
+
+  return () => { alive = false; };
+}, [actsPageCards]);
+
 const items = Array.isArray(actsPageCards) ? actsPageCards : [];
+
+
+// --- GENRES helpers ------------------------------------------------------
+const NORM_GENRE = (s) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+// Pull genres from multiple places and return a deduped list
+const getActGenres = (item) => {
+  const fromAct =
+    Array.isArray(item?.genres)
+      ? item.genres
+      : typeof item?.genres === "string"
+      ? [item.genres]
+      : [];
+
+  const fromCard =
+    Array.isArray(item?.__card?.genres)
+      ? item.__card.genres
+      : typeof item?.__card?.genres === "string"
+      ? [item.__card.genres]
+      : [];
+
+  const fromTags =
+    Array.isArray(item?.genreTags)
+      ? item.genreTags
+      : [];
+
+  // Some older data might store singular fields
+  const maybeSingle =
+    item?.genre ? [item.genre] :
+    item?.__card?.genre ? [item.__card.genre] : [];
+
+  const all = [...fromAct, ...fromCard, ...fromTags, ...maybeSingle].filter(Boolean);
+  return Array.from(new Set(all));
+};
 
 
   const triggerSearch = () => {
@@ -97,155 +323,124 @@ const items = Array.isArray(actsPageCards) ? actsPageCards : [];
   };
 
   const toggleGenre = (e) => {
-    const value = e.target.value;
-
-    setGenre((prev) => {
-      const newGenre = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsGenreSelected(newGenre.length > 0);
-
-      return newGenre;
-    });
-  };
-
-  const toggleActSize = (e) => {
-    const value = e.target.value;
-
-    setActSize((prev) => {
-      const newActSize = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsActSizeSelected(newActSize.length > 0);
-
-      return newActSize;
-    });
-  };
-
-  const toggleDjServices = (e) => {
-    const value = e.target.value;
-
-    setDjServices((prev) => {
-      const newDjServices = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsDjServicesSelected(newDjServices.length > 0);
-
-      return newDjServices;
-    });
-  };
-
-  const toggleInstruments = (e) => {
-    const value = e.target.value;
-
-    setInstruments((prev) => {
-      const newInstruments = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsInstrumentsSelected(newInstruments.length > 0);
-
-      return newInstruments;
-    });
-  };
-
-
-
-  const toggleSoundLimiters = (e) => {
-    const value = e.target.value;
-
-    setSoundLimiters((prev) => {
-      const newSoundLimiters = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsSoundLimitersSelected(newSoundLimiters.length > 0);
-
-      return newSoundLimiters;
-    });
-  };
-
-  const toggleSetupAndSoundcheck = (e) => {
-    const value = e.target.value;
-
-    setSetupAndSoundcheck((prev) => {
-      const newSetupAndSoundcheck = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsSetupAndSoundcheckSelected(newSetupAndSoundcheck.length > 0);
-
-      return newSetupAndSoundcheck;
-    });
-  };
-
-  const togglePaAndLights = (e) => {
-    const value = e.target.value;
-
-    setPaAndLights((prev) => {
-      const newPaAndLights = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsPaAndLightsSelected(newPaAndLights.length > 0);
-
-      return newPaAndLights;
-    });
-  };
-
-const togglePli = (e) => {
-  const value = Number(e.target.value);
-
-  setPli((prev) => {
-    const newPli = prev.includes(value)
-      ? prev.filter((item) => item !== value)
-      : [...prev, value];
-
-    setIsPliSelected(newPli.length > 0);
-
-    return newPli;
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setGenre((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsGenreSelected(after.length > 0);
+    logToggle("GENRES", { value, checked, before, after });
+    return after;
   });
 };
 
-  const toggleExtraServices = (e) => {
-    const value = e.target.value;
+const toggleActSize = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setActSize((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsActSizeSelected(after.length > 0);
+    logToggle("ACT SIZE", { value, checked, before, after });
+    return after;
+  });
+};
 
-    setExtraServices((prev) => {
-      const newExtraServices = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
+const toggleDjServices = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setDjServices((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsDjServicesSelected(after.length > 0);
+    logToggle("DJ SERVICES", { value, checked, before, after });
+    return after;
+  });
+};
 
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsExtraServicesSelected(newExtraServices.length > 0);
+const toggleInstruments = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setInstruments((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsInstrumentsSelected(after.length > 0);
+    logToggle("INSTRUMENTS", { value, checked, before, after });
+    return after;
+  });
+};
 
-      return newExtraServices;
-    });
-  };
+const toggleWireless = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setWireless((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsWirelessSelected(after.length > 0);
+    logToggle("WIRELESS", { value, checked, before, after });
+    return after;
+  });
+};
 
-  const toggleWireless = (e) => {
-    const value = e.target.value;
+const toggleSoundLimiters = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setSoundLimiters((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsSoundLimitersSelected(after.length > 0);
+    logToggle("SOUND LIMITERS", { value, checked, before, after });
+    return after;
+  });
+};
 
-    setWireless((prev) => {
-      const newWireless = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
+const toggleSetupAndSoundcheck = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setSetupAndSoundcheck((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsSetupAndSoundcheckSelected(after.length > 0);
+    logToggle("SETUP & SOUNDCHECK", { value, checked, before, after });
+    return after;
+  });
+};
 
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsWirelessSelected(newWireless.length > 0);
+const togglePaAndLights = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setPaAndLights((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsPaAndLightsSelected(after.length > 0);
+    logToggle("PA & LIGHTS", { value, checked, before, after });
+    return after;
+  });
+};
 
-      return newWireless;
-    });
-  };
+const togglePli = (e) => {
+  const value = Number(e.target.value);
+  const checked = e.target.checked;
+  setPli((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsPliSelected(after.length > 0);
+    logToggle("PLI", { value, checked, before, after });
+    return after;
+  });
+};
+
+const toggleExtraServices = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setExtraServices((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsExtraServicesSelected(after.length > 0);
+    logToggle("EXTRA SERVICES", { value, checked, before, after });
+    return after;
+  });
+};
 
   const labelMap = {
     electric_drums: "Has electric drum kit",
@@ -433,6 +628,7 @@ const actMap = useMemo(
   [approvedActs]
 );
 
+
 // 2) Helper: which cards are allowed for this viewer (agent vs non-agent)
 function getApprovedCards(list) {
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
@@ -481,19 +677,31 @@ actCardsLen: Array.isArray(actsPageCards) ? actsPageCards.length : 0,
 const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actsPageCards;
   ACTS_DBG("sourceCards", { len: Array.isArray(sourceCards) ? sourceCards.length : 0 });
   let approvedCards = getApprovedCards(sourceCards);
-  ACTS_DBG("approvedCards (post viewer filter)", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
-
+console.groupCollapsed("🧪 Pre-filter probe (approvedCards) — first 30");
+console.table(
+  (approvedCards || []).slice(0, 30).map((c) => ({
+    id: String(c.actId || c._id || ""),
+    name: c.tscName || c.name || "(untitled)",
+    genres: Array.isArray(c.genres) ? c.genres.join(" | ") : String(c.genres || ""),
+    lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.join(" | ") : "",
+    instruments: Array.isArray(c.instruments) ? c.instruments.join(" | ") : "",
+    pliAmount: c.pliAmount ?? "",
+    paTrue: Object.entries(c.pa || {}).filter(([,v]) => v).map(([k]) => k).join(","),
+    lightTrue: Object.entries(c.light || {}).filter(([,v]) => v).map(([k]) => k).join(","),
+    extrasKeys: Object.keys(c.extras || {}).slice(0, 10).join(","),
+  }))
+);
+console.groupEnd();
   // 🔎 Ask the server which cards match the current UI filters,
   // then intersect with the locally visible set.
   let allowedActIds = null;
   try {
     const serverPayload = buildServerFilterPayload();
+    ACTS_DBG("server search payload", { serverPayload });
     const serverCards = await searchActCards(serverPayload);
-    ACTS_DBG("serverCards returned", {
-      ok: Array.isArray(serverCards),
-      len: Array.isArray(serverCards) ? serverCards.length : 0,
-      sample: (Array.isArray(serverCards) ? serverCards.slice(0, 5) : []).map(c => ({ id: c?.actId || c?._id, n: c?.tscName || c?.name }))
-    });
+  console.groupCollapsed("🌐 server search payload");
+console.log(serverPayload);
+console.groupEnd();
     if (Array.isArray(serverCards) && serverCards.length) {
       allowedActIds = new Set(
         serverCards.map((c) => String(c.actId || c._id))
@@ -524,37 +732,45 @@ const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actsPageCar
 
   // Prefer full Act objects; if missing, synthesise from the card so the grid isn't empty
   ACTS_DBG("building actsCopy from approvedCards", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
-  let actsCopy = approvedCards
-    .map((card) => {
-      const id = String(card.actId || card._id);
-      const act = actMap.get(id);
-      if (act) return { ...act, __card: card };
+ let actsCopy = approvedCards
+  .map((card) => {
+    const id = String(card.actId || card._id);
+    const act = actMap.get(id);
 
-      // Minimal "act-like" object derived from the card
-      return {
-        _id: id,
-        name: card.tscName || card.name || "Untitled Act",
-        tscName: card.tscName,
-        genres: Array.isArray(card.genres) ? card.genres : [],
-        lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
-        instruments: Array.isArray(card.instruments) ? card.instruments : [],
-        extras: Object.fromEntries(
-          Object.entries(card.extras || {}).filter(([, v]) => v === true)
-        ),
-        pliAmount: Number(card.pliAmount) || 0,
-        paSystem: Object.entries(card.pa || {})
-          .filter(([, v]) => v)
-          .map(([k]) => k)
-          .join(", "),
-        lightingSystem: Object.entries(card.light || {})
-          .filter(([, v]) => v)
-          .map(([k]) => k)
-          .join(", "),
-        lineups: [],
-        __card: card,
-      };
-    })
-    .filter(Boolean);
+    // a small helper to pick any known image field off a card/act
+    const pickImages = (obj = {}) =>
+      obj.images || obj.coverImages || obj.heroImages || obj.gallery || obj.hero || null;
+
+    if (act) {
+      const images = act.images || pickImages(card) || pickImages(act) || null;
+      return { ...act, __card: card, images };
+    }
+
+    return {
+      _id: id,
+      name: card.tscName || card.name || "Untitled Act",
+      tscName: card.tscName,
+      genres: Array.isArray(card.genres) ? card.genres : [],
+      lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
+      instruments: Array.isArray(card.instruments) ? card.instruments : [],
+      extras: Object.fromEntries(
+        Object.entries(card.extras || {}).filter(([, v]) => v === true)
+      ),
+      pliAmount: Number(card.pliAmount) || 0,
+      paSystem: Object.entries(card.pa || {})
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(", "),
+      lightingSystem: Object.entries(card.light || {})
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(", "),
+      lineups: [],
+      images: pickImages(card) || null, // 👈 preserve photos from the card
+      __card: card,
+    };
+  })
+  .filter(Boolean);
   ACTS_DBG("actsCopy built (first pass)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
   // Optional: keep the card on the act for rendering later
@@ -817,12 +1033,51 @@ const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actsPageCar
     ACTS_DBG("after text search filter", { remain: actsCopy.length });
   }
 
-  if (genre.length > 0) {
-    actsCopy = actsCopy.filter(
-      (item) => Array.isArray(item.genres) && genre.some((g) => item.genres.includes(g))
-    );
-    ACTS_DBG("after genre filter", { remain: actsCopy.length });
-  }
+// normalise genres to compare "Soul & Motown" vs "soul and motown" etc.
+const normGenre = (s) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+if (genre.length > 0) {
+  const selectedRaw = [...genre];
+  const selectedSet = new Set(selectedRaw.map(NORM_GENRE));
+
+  console.groupCollapsed("🎚️[GENRES] selected");
+  console.log({ selectedRaw, selectedNorm: [...selectedSet] });
+  console.groupEnd();
+
+  const debugRows = [];
+  const beforeLen = actsCopy.length;
+
+  actsCopy = actsCopy.filter((item) => {
+    const raw = getActGenres(item);
+    const normed = raw.map(NORM_GENRE).filter(Boolean);
+    const keep = normed.some((g) => selectedSet.has(g));
+
+    debugRows.push({
+      id: String(item?._id || item?.id || item?.__card?._id || ""),
+      name: item?.tscName || item?.name || "(untitled)",
+      genres_raw: raw,
+      genres_norm: normed,
+      selected: [...selectedSet],
+      keep,
+    });
+
+    return keep;
+  });
+
+  console.groupCollapsed(
+    `🎚️[GENRES] results — kept ${actsCopy.length} / ${beforeLen}`
+  );
+  // show first 50 rows to keep console tidy
+  console.table(debugRows.slice(0, 50));
+  console.groupEnd();
+
+  ACTS_DBG("after genre filter", { remain: actsCopy.length });
+}
 
   const norm = (s) => {
     if (!s) return "";
@@ -1160,6 +1415,8 @@ const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actsPageCar
   }
 }
 
+
+
    // 1) Initial boot — keep as-is
   useEffect(() => {
     const init = async () => { 
@@ -1205,6 +1462,8 @@ const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actsPageCar
 console.log("applyFilter sizes", {
   cards: (Array.isArray(cards) ? cards.length : 0),
 });
+
+console.log("actsPageCards:", actsPageCards[0]);
   
   // 3) When availability loading state flips, run filter again
   useEffect(() => {
@@ -1316,7 +1575,7 @@ console.log("applyFilter sizes", {
 
               {showGenreFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
- {showGenreFilter && (
+
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <label className="flex gap-2">
                 <input
@@ -1469,7 +1728,7 @@ console.log("applyFilter sizes", {
                 Israeli
               </label>{" "}
             </div>
-          )}                </div>
+                       </div>
               )}
 
               {/* ------- ACT SIZE ------- */}
@@ -2893,10 +3152,10 @@ checked={pli.includes(20)}                />{" "}
 
           {/* Map products / acts */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
-          {results.map((item) => (
+         {results.map((item) => (
   <ActItem
     key={item.actId || item._id}
-    actData={item}
+    actData={{ ...item, images: item?.images ?? item?.__card?.images ?? item?.__card?.coverImages }}
     variant="listing"
   />
 ))}

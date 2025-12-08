@@ -25,6 +25,7 @@ export default function ActCardGrid() {
     // availability map read happens via child card helpers
   } = useContext(ShopContext);
 
+
   const [search, setSearch] = useState("");
   const [availableOnly, setAvailableOnly] = useState(false);
   const [sortBy, setSortBy] = useState("newest"); // newest | price_asc | price_desc | saves_desc
