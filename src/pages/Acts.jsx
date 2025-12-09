@@ -1,10 +1,10 @@
 import { useContext, useState, useEffect, useRef, useMemo, act } from "react";
-import { ShopContext } from "../context/ShopContext";
+import { CardFilterShopContext } from "../context/CardFilterShopContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 import Title from "../components/Title";
-import ActItem from "../components/ActItem";
+import CardFilterItem from "../components/CardFilterItem";
 import { assets } from "../assets/assets";
 
 // --- DEBUG HELPERS ---------------------------------------------------------
@@ -23,7 +23,7 @@ const api = (path = "") => {
 };
 
 const Acts = ({ userRole, email }) => {
-  const { actsPageCards, getActsPageCards, getCardPriceWithTravel, setActsPageCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
+  const { actsPageCards, getActsPageCards, getCardPriceWithTravel, setActsPageCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(CardFilterShopContext);
 
 
   
@@ -3153,7 +3153,7 @@ checked={pli.includes(20)}                />{" "}
           {/* Map products / acts */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
          {results.map((item) => (
-  <ActItem
+  <CardFilterItem
     key={item.actId || item._id}
     actData={{ ...item, images: item?.images ?? item?.__card?.images ?? item?.__card?.coverImages }}
     variant="listing"
