@@ -5,7 +5,9 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
+
 import axios from "axios";
 import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
@@ -14,10 +16,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import debounce from "lodash.debounce";
 
 export const ShopContext = createContext();
-
+  
 const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
 
 const ShopProvider = (props) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const currency = "£";
   const delivery_fee = 10;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -38,6 +43,16 @@ const ShopProvider = (props) => {
     }
   });
   const [cartUpdated, setCartUpdated] = useState(false);
+const [actsPageCards, setActsPageCards] = useState([]);
+const [actFilterCards, setActFilterCards] = useState([]);
+
+// Prefer filtered results; otherwise use Acts-page cards
+const filterCards = useMemo(
+  () => (Array.isArray(actFilterCards) && actFilterCards.length ? actFilterCards : actsPageCards),
+  [actFilterCards, actsPageCards]
+);
+
+
 
   // --- Persist cart to localStorage whenever it changes ---
   useEffect(() => {
@@ -77,8 +92,97 @@ const ShopProvider = (props) => {
     }
   });
 
+// Assumes you have actFilterCards in scope (from context or props)
+useEffect(() => {
+  if (!location?.pathname?.startsWith?.("/acts")) return;
+
+  const noActsYet = !Array.isArray(acts) || acts.length === 0;
+  const hasCards = Array.isArray(actCards) && actCards.length > 0;
+  const hasFilter = Array.isArray(filterCards) && filterCards.length > 0;
+
+  if (!noActsYet) return;
+  if (!hasCards && !hasFilter) return;
+
+  const normalize = (srcItem = {}, fallbackCard = {}) => {
+    const id = String(
+      srcItem?.actId ??
+      srcItem?._id ??
+      fallbackCard?.actId ??
+      fallbackCard?._id ??
+      ""
+    );
+
+    const image =
+      srcItem?.imageUrl ||
+      fallbackCard?.imageUrl ||
+      srcItem?.images?.[0]?.url ||
+      "";
+
+    return {
+      _id: id,
+      actId: id,
+      tscName:
+        srcItem?.tscName ??
+        srcItem?.name ??
+        fallbackCard?.tscName ??
+        fallbackCard?.name ??
+        "",
+      name:
+        srcItem?.name ??
+        srcItem?.tscName ??
+        fallbackCard?.name ??
+        fallbackCard?.tscName ??
+        "",
+      slug: srcItem?.slug ?? fallbackCard?.slug ?? "",
+      images: image ? [{ url: image }] : [],
+      status: srcItem?.status ?? fallbackCard?.status ?? "",
+      lineups: Array.isArray(srcItem?.lineups) ? srcItem.lineups : [],
+      hasLineups:
+        typeof srcItem?.hasLineups === "boolean"
+          ? srcItem.hasLineups
+          : Array.isArray(srcItem?.lineups) && srcItem.lineups.length > 0,
+      basePrice: srcItem?.basePrice ?? fallbackCard?.basePrice ?? null,
+      baseOnly: srcItem?.baseOnly ?? fallbackCard?.baseOnly ?? null,
+      hasAnyLocation: Boolean(srcItem?.hasAnyLocation ?? fallbackCard?.hasAnyLocation),
+      ...srcItem,
+    };
+  };
+
+  if (hasFilter) {
+    const byId = new Map((actCards || []).map(c => [String(c.actId ?? c._id ?? ""), c]));
+    setActs(
+      filterCards.map(f =>
+        normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {})
+      )
+    );
+    return;
+  }
+
+  // Fallback: project from actCards only
+  setActs(
+    actCards.map((c) =>
+      normalize(
+        {
+          _id: String(c.actId ?? c._id ?? ""),
+          actId: String(c.actId ?? c._id ?? ""),
+          tscName: c.tscName ?? c.name ?? "",
+          name: c.name ?? "",
+          slug: c.slug ?? "",
+          images: c.imageUrl ? [{ url: c.imageUrl }] : [],
+          status: c.status ?? "",
+          lineups: [],
+          basePrice: c.basePrice ?? null,
+          baseOnly: c.baseOnly ?? null,
+          hasAnyLocation: !!c.hasAnyLocation,
+        },
+        c
+      )
+    )
+  );
+}, [filterCards, actCards, acts, location?.pathname]);
+
   // In ShopContext (new helper; do NOT change existing functions)
-const searchActCards = React.useCallback(async (payload) => {
+const searchActCards = useCallback(async (payload) => {
   try {
     const BASE = (import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com").replace(/\/+$/, "");
     const res = await fetch(`${BASE}/api/v2/act-cards/search`, {
@@ -87,12 +191,95 @@ const searchActCards = React.useCallback(async (payload) => {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    return Array.isArray(data?.cards) ? data.cards : [];
+    const cards = Array.isArray(data?.cards) ? data.cards : [];
+    setActFilterCards(cards);     // ← hydrate context
+    return cards;
   } catch (e) {
     console.warn("searchActCards failed:", e?.message || e);
+    setActFilterCards([]);        // ← clear on failure
     return [];
   }
 }, []);
+
+// ⬇️ add this function (standalone; does NOT touch actCards)
+const getActsPageCards = React.useCallback(async () => {
+  const base = String(backendUrl || "").replace(/\/+$/, "");
+  const url = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
+
+  // card normalizer ONLY for the Acts page
+  const normalize = (c = {}) => {
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+    return {
+      actId: String(c.actId || c._id || c.id || ""),
+      tscName: c.tscName || c.name || c.n || "",
+      name: c.name || c.tscName || c.n || "",
+      slug: c.slug || c.s || "",
+      imageUrl: c.imageUrl || c.img || "",
+      basePrice: num(c.basePrice ?? c.p),
+      loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
+      availabilityBadge: c.availabilityBadge || c.badge || null,
+      status: c.status || c.st || "",
+    };
+  };
+
+  const buildCardFromAct = (a) => {
+    const pickImage = (obj) =>
+      (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
+      (Array.isArray(obj?.images) && obj.images[0]?.url) ||
+      (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) || "";
+
+    const ls = Array.isArray(a?.lineups) ? a.lineups : [];
+    const sizeOf = (l) => {
+      const m = String(l?.act_size || l?.actSize || "").match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : (Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999);
+    };
+    const smallest = ls.length ? [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0] : null;
+    const lineupBase = Number(smallest?.base_fee?.[0]?.total_fee);
+    const basePrice = Number.isFinite(lineupBase) ? Math.ceil(lineupBase * 1.2) : null;
+
+    return {
+      actId: String(a?._id || ""),
+      tscName: a?.tscName || a?.name || "",
+      name: a?.name || "",
+      slug: a?.slug || "",
+      imageUrl: pickImage(a),
+      basePrice,
+      loveCount: Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
+      availabilityBadge: null,
+      status: a?.status || "",
+    };
+  };
+
+  const fallbackFromActs = async () => {
+    const candidates = [
+      "/api/v2/acts/list?status=approved,live&limit=200&sort=-createdAt",
+      "/api/acts/list?status=approved,live&limit=200&sort=-createdAt",
+      "/api/act/list?status=approved,live&limit=200&sort=-createdAt",
+      "/api/acts",
+    ];
+    for (const path of candidates) {
+      try {
+        const r = await axios.get(`${base}${path}`, { headers: { accept: "application/json" } });
+        const d = r?.data || {};
+        const arr = Array.isArray(d?.acts) ? d.acts : Array.isArray(d?.items) ? d.items : Array.isArray(d) ? d : [];
+        if (arr.length) {
+          setActsPageCards(arr.map(buildCardFromAct));
+          return;
+        }
+      } catch {}
+    }
+    setActsPageCards([]);
+  };
+
+  try {
+    const res = await axios.get(url, { headers: { accept: "application/json" } });
+    const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
+    if (!raw.length) return void (await fallbackFromActs());
+    setActsPageCards(raw.map(normalize));
+  } catch {
+    await fallbackFromActs();
+  }
+}, [backendUrl]);
 
 
 // ============ Grid cards (fast) — hoisted so it can be called above ============
@@ -1170,8 +1357,7 @@ const isActAllowed = (actId) => {
     } catch (err) {}
   };
 
-  const navigate = useNavigate();
-  const location = useLocation();
+
 
   // Small helper: nudge user to log in and remember where they were
   const promptLogin = (
@@ -1672,8 +1858,11 @@ const isActAllowed = (actId) => {
     // core
     acts,
     // prefer cards for grids; fall back to acts
-    displayActs: (Array.isArray(actCards) && actCards.length) ? actCards : acts,
-    currency,
+displayActs:
+  location?.pathname?.startsWith?.("/acts")
+    ? (filterCards.length ? filterCards : actsPageCards)
+    : (Array.isArray(actCards) && actCards.length ? actCards : acts),
+        currency,
     delivery_fee,
     search,
     setSearch,
@@ -1683,11 +1872,16 @@ const isActAllowed = (actId) => {
     getActById,
 searchActCards,
     // listing cards
-    actCards,
-    fetchActsForGrid,
-    // on-demand card pricing
-    getCardPriceWithTravel,
-
+  actCards,                // ✅ homepage uses this as-is
+  fetchActsForGrid,        // (your existing one for home if needed)
+  // Acts page (isolated)
+  actsPageCards,
+  getActsPageCards,
+  getCardPriceWithTravel,  // keep using for listing price-on-demand
+setActsPageCards,
+actFilterCards,
+setActFilterCards,
+filterCards,
     // cart
     cartItems,
     setCartItems,

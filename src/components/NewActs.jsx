@@ -1,9 +1,11 @@
-// frontend/src/components/NewActs.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useContext, useEffect, useMemo, useState, useDeferredValue
+} from "react";
+import { ShopContext } from "../context/ShopContext";
 import Title from "./Title";
 import ActItem from "./ActItem";
 
-const DBG = true;
+const DBG = false;
 const log = (...a) => DBG && console.log("🆕[NewActs]", ...a);
 
 function useMaxToShow() {
@@ -19,20 +21,18 @@ function useMaxToShow() {
   return maxToShow;
 }
 
-const NewActs = ({ cards = [], loading = false }) => {
+const NewActs = () => {
+  const { actCards } = useContext(ShopContext); // now cards
+  const deferredCards = useDeferredValue(actCards);
   const maxToShow = useMaxToShow();
 
-  useEffect(() => {
-    log("props:", { loading, len: Array.isArray(cards) ? cards.length : 0 });
-    if (cards?.[0]) log("sample:", { actId: cards[0].actId, name: cards[0].name, basePrice: cards[0].basePrice });
-  }, [cards, loading]);
-
+  // Server already sorts by -createdAt; just slice here
   const newestSlice = useMemo(() => {
-    const list = Array.isArray(cards) ? cards : [];
+    const list = Array.isArray(deferredCards) ? deferredCards : [];
     const sliced = list.slice(0, maxToShow);
     log("slice len:", sliced.length);
     return sliced;
-  }, [cards, maxToShow]);
+  }, [deferredCards, maxToShow]);
 
   return (
     <div className="my-10">
@@ -43,22 +43,16 @@ const NewActs = ({ cards = [], loading = false }) => {
         </p>
       </div>
 
-      {loading ? (
-        <p className="text-center text-sm text-gray-500">Loading…</p>
-      ) : newestSlice.length === 0 ? (
-        <p className="text-center text-sm text-gray-500">No new acts found.</p>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
-          {newestSlice.map((item, i) => (
-            <div
-              key={String(item.actId || item._id || i)}
-              style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
-            >
-              <ActItem actData={item} standalone sourceTag="NewActs" />
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
+        {newestSlice.map((item) => (
+          <div
+            key={String(item.actId || item._id)}
+            style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
+          >
+            <ActItem actData={item} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

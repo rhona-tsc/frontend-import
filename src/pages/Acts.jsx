@@ -1,78 +1,48 @@
-import React, { useContext, useEffect, useState, useRef } from "react";
+import { useContext, useState, useEffect, useRef, useMemo, act } from "react";
 import { ShopContext } from "../context/ShopContext";
-import { assets } from "../assets/assets";
-import Title from "../components/Title";
-import CardFilterItem from "../components/CardFilterItem";
 import { useNavigate } from "react-router-dom";
-import { postcodes } from "../assets/assets";
-import calculateActPricing from "./utils/pricing";
 import axios from "axios";
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL;
+import Title from "../components/Title";
+import ActItem from "../components/ActItem";
+import { assets } from "../assets/assets";
 
-// Ensure all API requests hit the backend origin, not the Netlify origin
-const api = (p) => `${backendUrl}/${String(p).replace(/^\/+/, "")}`;
+// --- DEBUG HELPERS ---------------------------------------------------------
+const ACTS_DBG = (...args) => console.log("🎯 [Acts]", ...args);
+const GROUP = (label) => { try { console.groupCollapsed(label); } catch (_) {} };
 
+const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
+
+// Canonical API path builder (uses backend, never the Netlify origin)
+const api = (path = "") => {
+  const BASE = (
+    import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com"
+  ).replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return `${BASE}/${p}`;
+};
 
 const Acts = ({ userRole, email }) => {
-  const [filteredActs, setFilteredActs] = useState([]);
-  const {
-    acts,
-    search,
-    showSearch,
-    setShowSearch,
-    shortlistedActs,
-    setShortlistedActs,
-    toggleShortlist,
-    selectedLineup,
-    actId,
-    shortlistItems,
-    shortlistAct,
-    userId, isShortlisted, selectedDate,
-    setSelectedDate,
-    selectedAddress,
-    setSelectedAddress,
-  } = useContext(ShopContext);
- // ---- role + test-flag helpers ----
-const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
+  const { actsPageCards, getActsPageCards, getCardPriceWithTravel, setActsPageCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
 
-// 🧩 Prefer prop from App, then localStorage
-const storedUser = JSON.parse(localStorage.getItem("user")) || {};
-const effectiveUserRole =
-  userRole || storedUser.userRole || ""; // fallback to localStorage role
 
-// 🧩 Add userId fallback for agent detection
-const effectiveUserId = userId || storedUser.userId || "";
-const effectiveUserEmail = email || storedUser.email || "";
-
-// ✅ Agent override (your agent ID)
-const isAgent =
-  effectiveUserRole === "agent" ||
-  effectiveUserId === "680fb453a2de6618675ca9ed" || // <-- your ID
-  effectiveUserEmail === "rhona@thesupremecollective.co.uk";
-
-// ✅ Only use approved acts for filtering and display
-const approvedActs = acts.filter((act) => {
-  const isApproved =
-    act.status === "approved" || act.status === "Approved, changes pending";
-
-  // detect test flag from either root or actData
-  const isTest =
-    looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
-
-  // 🧩 Agents see all approved acts
-  if (isAgent) return isApproved;
-
-  // 🧩 Non-agents: hide test acts
-  return isApproved && !isTest;
-});
-  // --- Add isLoading state for fetching acts ---
-    const filterRunIdRef = useRef(0);
-const [initializing, setInitializing] = useState(true);
-const [updatingResults, setUpdatingResults] = useState(false);
+  
+const cards = Array.isArray(actsPageCards) ? actsPageCards : [];
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
-  const [showSoundLimiterFilter, setShowSoundLimitersFilter] = useState(false);
+  const [genre, setGenre] = useState([]);
+ const [isGenreSelected, setIsGenreSelected] = useState(false); // Track if any checkbox is checked
+  const [isActSizeSelected, setIsActSizeSelected] = useState(false); // Track if any checkbox is checked
+  const [isDjServicesSelected, setIsDjServicesSelected] = useState(false); // Track if any checkbox is checked
+  const [isInstrumentsSelected, setIsInstrumentsSelected] = useState(false); // Track if any checkbox is checked
+  const [isWirelessSelected, setIsWirelessSelected] = useState(false); // Track if any checkbox is checked
+  const [isSoundLimitersSelected, setIsSoundLimitersSelected] = useState(false); // Track if any checkbox is checked
+  const [isSetupAndSoundcheckSelected, setIsSetupAndSoundcheckSelected] =
+    useState(false); // Track if any checkbox is checked
+  const [isPaAndLightsSelected, setIsPaAndLightsSelected] = useState(false); // Track if any checkbox is checked
+  const [isPliSelected, setIsPliSelected] = useState(false); // Track if any checkbox is checked
+  const [isExtraServicesSelected, setIsExtraServicesSelected] = useState(false); // Track if any checkbox is checked
+ const [showSoundLimiterFilter, setShowSoundLimitersFilter] = useState(false);
   const [showPliFilter, setShowPliFilter] = useState(false);
   const [showSongFilter, setShowSongFilter] = useState(false);
   const [showActFilter, setShowActFilter] = useState(false);
@@ -82,415 +52,268 @@ const [updatingResults, setUpdatingResults] = useState(false);
   const [showExtraServicesFilter, setShowExtraServicesFilter] = useState(false);
   const [showSetupAndSoundcheckFilter, setShowSetupAndSoundcheckFilter] =
     useState(false);
+      const [act_size, setActSize] = useState([]);
+      const [djServices, setDjServices] = useState([]);
+      const [instruments, setInstruments] = useState([]);
+      const [soundLimiters, setSoundLimiters] = useState([]);
+      const [setupAndSoundcheck, setSetupAndSoundcheck] = useState([]);
+      const [paAndLights, setPaAndLights] = useState([]);
+      const [pli, setPli] = useState([]);
+      const [extraServices, setExtraServices] = useState([]);
+      const [wireless, setWireless] = useState([]);
+const [sortType, setSortType] = useState("relevant");
+      const [songSearch, setSongSearch] = useState([]);
+      const [actSearch, setActSearch] = useState([]);
+    const [updatingResults, setUpdatingResults] = useState(false);
+    const [initializing, setInitializing] = useState(true);
+    const [availableMap, setAvailableMap] = useState({}); 
+    const [availLoading, setAvailLoading] = useState(false); 
+      const [filterProducts, setFilterProducts] = useState([]);
+    
   const [showActSizeFilter, setShowActSizeFilter] = useState(false);
   const [showWirelessFilter, setShowWirelessFilter] = useState(false);
-  const [filterProducts, setFilterProducts] = useState([]);
-  const [genre, setGenre] = useState([]);
-  const [act_size, setActSize] = useState([]);
-  const [djServices, setDjServices] = useState([]);
-  const [instruments, setInstruments] = useState([]);
-  const [songSearch, setSongSearch] = useState([]);
-  const [actSearch, setActSearch] = useState([]);
-  const [soundLimiters, setSoundLimiters] = useState([]);
-  const [setupAndSoundcheck, setSetupAndSoundcheck] = useState([]);
-  const [paAndLights, setPaAndLights] = useState([]);
-  const [pli, setPli] = useState([]);
-  const [extraServices, setExtraServices] = useState([]);
-  const [wireless, setWireless] = useState([]);
-  const [isGenreSelected, setIsGenreSelected] = useState(false); // Track if any checkbox is checked
-  const [isActSizeSelected, setIsActSizeSelected] = useState(false); // Track if any checkbox is checked
-  const [isDjServicesSelected, setIsDjServicesSelected] = useState(false); // Track if any checkbox is checked
-  const [isInstrumentsSelected, setIsInstrumentsSelected] = useState(false); // Track if any checkbox is checked
-  const [isWirelessSelected, setIsWirelessSelected] = useState(false); // Track if any checkbox is checked
-  const [isSongSearchSelected, setIsSongSearchSelected] = useState(false); // Track if any checkbox is checked
-  const [isActSearchSelected, setIsActSearchSelected] = useState(false); // Track if any checkbox is checked
-  const [isSoundLimitersSelected, setIsSoundLimitersSelected] = useState(false); // Track if any checkbox is checked
-  const [isSetupAndSoundcheckSelected, setIsSetupAndSoundcheckSelected] =
-    useState(false); // Track if any checkbox is checked
-  const [isPaAndLightsSelected, setIsPaAndLightsSelected] = useState(false); // Track if any checkbox is checked
-  const [isPliSelected, setIsPliSelected] = useState(false); // Track if any checkbox is checked
-  const [isExtraServicesSelected, setIsExtraServicesSelected] = useState(false); // Track if any checkbox is checked
-  const [sortType, setSortType] = useState("relavent");
-  const [actData, setActData] = useState(null);
-const [availableMap, setAvailableMap] = useState({}); 
-const [availLoading, setAvailLoading] = useState(false); 
-  /* Removed duplicate getShortlistCountForAct to fix redeclaration error */
-
-  
+  const navigate = useNavigate();
+  const storedPlace = sessionStorage.getItem("selectedPlace") || "";
   const [selectedCounty, setSelectedCounty] = useState(
     sessionStorage.getItem("selectedCounty")?.trim().toLowerCase() || ""
   );
-  const storedPlace = sessionStorage.getItem("selectedPlace") || "";
 
-  const [adjustedTotal, setAdjustedTotal] = useState(null);
-  const navigate = useNavigate();
+// near the top
+const FILTER_DATA_ENDPOINTS = [
+  api("api/act/filter-data"),     // v2 singular (most likely)
+  api("api/v2/act/filter-data"),  // alternate v2 prefix
+  api("api/acts/filter-data"),    // legacy plural (fallback)
+  api("api/v2/acts/filter-data"), // legacy plural with /v2 (fallback)
+];
 
-  const availableCounties =
-    postcodes?.length > 0 ? Object.keys(postcodes[0]) : [];
+async function fetchActFilterData({ ids, status = "approved,live", limit = 200 }) {
+  const idParam = Array.isArray(ids) ? ids.join(",") : String(ids || "");
+  const qs = `?ids=${encodeURIComponent(idParam)}&status=${encodeURIComponent(status)}&limit=${limit}`;
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  // Try GET first across candidates
+  for (const base of FILTER_DATA_ENDPOINTS) {
+    try {
+      const { data } = await axios.get(`${base}${qs}`);
+      if (data) return data;
+    } catch {}
+  }
+
+  // Fallback to POST payload across candidates
+  const payload = {
+    ids: Array.isArray(ids) ? ids : (idParam ? idParam.split(",") : []),
+    status: status.split(","),
+    limit,
+  };
+
+  for (const base of FILTER_DATA_ENDPOINTS) {
+    try {
+      const { data } = await axios.post(base, payload);
+      if (data) return data;
+    } catch {}
+  }
+
+  console.warn("⚠️ filter-data: no matching endpoint found (all candidates failed).");
+  return null;
+}
+  // ---- filter-data helper (acts enrichment) ----
+const normalize = (arr) =>
+  Array.isArray(arr) ? arr.map((x) => String(x).toLowerCase().trim()) : [];
 
 
 
-  const calculateActPricing = async (
-    act,
-    selectedCounty,
-    selectedAddress,
-    selectedDate,
-    selectedLineup
-  ) => {
-    // Canonical backend base (never the Netlify origin)
-    const BASE = (
-      import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com"
-    ).replace(/\/+$/, "");
+function mergeFilterDataIntoCards(cards = [], enrich = []) {
+  if (!cards.length || !enrich.length) return cards;
 
-    // Helper: fetch travel JSON safely; supports new + legacy shapes
-    const fetchTravel = async (origin, destination, dateISO) => {
-      const url =
-        `${BASE}/api/v2/travel/travel-data` +
-        `?origin=${encodeURIComponent(origin)}` +
-        `&destination=${encodeURIComponent(destination)}` +
-        `&date=${encodeURIComponent(String(dateISO).slice(0, 10))}`;
+  const byId = new Map(
+    enrich.map((x) => [String(x._id || x.actId || x.id), x])
+  );
 
-      const res = await fetch(url, { headers: { accept: "application/json" } });
-      const text = await res.text();
+  return cards.map((c) => {
+    const add = byId.get(String(c.actId || c._id || c.id));
+    if (!add) return c;
 
-      let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        data = {};
-      }
-      if (!res.ok) throw new Error(`travel http ${res.status}`);
+    const rawGenres = add.genres || add.genres_raw || [];
+    const genres_norm = normalize(add.genres_norm || rawGenres);
 
-      // --- Normalize shapes ---
-      // Legacy: { rows:[{ elements:[{ distance, duration, fare? }] }] }
-      const legacyEl = data?.rows?.[0]?.elements?.[0];
-
-      // Prefer new shape if present; otherwise build outbound from legacy element
-      const outbound =
-        data?.outbound ||
-        (legacyEl?.distance && legacyEl?.duration
-          ? {
-              distance: legacyEl.distance,
-              duration: legacyEl.duration,
-              fare: legacyEl.fare,
-            }
-          : undefined);
-
-      // returnTrip only exists in the new shape
-      const returnTrip = data?.returnTrip;
-
-      return { outbound, returnTrip, raw: data };
+    return {
+      ...c,
+      slug: add.slug ?? c.slug ?? "",
+      status: add.status ?? c.status ?? "",
+      genres_raw: rawGenres,
+      genres_norm,
+      lineupSizes: add.lineupSizes || add.act_sizes || c.lineupSizes || [],
+      instruments: add.instruments || c.instruments || [],
+      pliAmount: add.pliAmount ?? c.pliAmount ?? null,
+      paTrue: typeof add.paTrue === "boolean" ? add.paTrue : c.paTrue,
+      lightTrue: typeof add.lightTrue === "boolean" ? add.lightTrue : c.lightTrue,
+      extrasTrue: typeof add.extrasTrue === "boolean" ? add.extrasTrue : c.extrasTrue,
+      lineupsCount: Array.isArray(add.lineups) ? add.lineups.length : (c.lineupsCount || 0),
+      hasImages: Array.isArray(add.images) ? add.images.length > 0 : !!c.hasImages,
     };
+  });
+}
 
-    let travelFee = 0;
+const filterRunIdRef = useRef(0);
 
-    // ---- choose lineup (smallest or provided) ----
-    let smallestLineup = null;
-    if (selectedLineup && Array.isArray(selectedLineup.bandMembers)) {
-      smallestLineup = selectedLineup;
-    } else {
-      smallestLineup = act.lineups?.reduce((min, lineup) => {
-        if (!Array.isArray(lineup.bandMembers)) return min;
-        if (!min || lineup.bandMembers.length < min.bandMembers.length) return lineup;
-        return min;
-      }, null);
-    }
+const lastFiltersRef = useRef({});
+useEffect(() => {
+  if (!DEBUG_FILTER) return;
+  const next = buildServerFilterPayload();
+  const prev = lastFiltersRef.current || {};
+  console.groupCollapsed("🧾 FILTERS CHANGED → server payload snapshot");
+  console.log("prev:", prev);
+  console.log("next:", next);
+  console.groupEnd();
+  lastFiltersRef.current = next;
+}, [
+  genre, act_size, djServices, instruments, wireless,
+  soundLimiters, setupAndSoundcheck, paAndLights, pli,
+  extraServices, songSearch, actSearch
+]);
 
-    if (!smallestLineup || !Array.isArray(smallestLineup.bandMembers)) {
-      return null;
-    }
+  // helper to package your current UI state into the server payload
+const buildServerFilterPayload = () => ({
+  genres: genre,
+  lineupSizes: act_size,
+  instruments,
+  wireless,
+  soundLimiters,
+  setupAndSoundcheck,
+  paAndLights,
+  pli,
+  extraServices,
+  actSearch,
+  songSearch,
+  includeStatuses: ["approved", "live", "approved_changes_pending", "live_changes_pending"],
+  excludeTests: true,
+});
 
-    // ---- northern logic (for team swap) ----
-    const northernCounties = new Set([
-      "ceredigion",
-      "cheshire",
-      "cleveland",
-      "conway",
-      "cumbria",
-      "denbighshire",
-      "derbyshire",
-      "durham",
-      "flintshire",
-      "greater manchester",
-      "gwynedd",
-      "herefordshire",
-      "lancashire",
-      "leicestershire",
-      "lincolnshire",
-      "merseyside",
-      "north humberside",
-      "north yorkshire",
-      "northumberland",
-      "nottinghamshire",
-      "rutland",
-      "shropshire",
-      "south humberside",
-      "south yorkshire",
-      "staffordshire",
-      "tyne and wear",
-      "warwickshire",
-      "west midlands",
-      "west yorkshire",
-      "worcestershire",
-      "wrexham",
-      "rhondda cynon taf",
-      "torfaen",
-      "neath port talbot",
-      "bridgend",
-      "blaenau gwent",
-      "caerphilly",
-      "cardiff",
-      "merthyr tydfil",
-      "newport",
-      "aberdeen city",
-      "aberdeenshire",
-      "angus",
-      "argyll and bute",
-      "clackmannanshire",
-      "dumfries and galloway",
-      "dundee city",
-      "east ayrshire",
-      "east dunbartonshire",
-      "east lothian",
-      "east renfrewshire",
-      "edinburgh",
-      "falkirk",
-      "fife",
-      "glasgow",
-      "highland",
-      "inverclyde",
-      "midlothian",
-      "moray",
-      "na h eileanan siar",
-      "north ayrshire",
-      "north lanarkshire",
-      "orkney islands",
-      "perth and kinross",
-      "renfrewshire",
-      "scottish borders",
-      "shetland islands",
-      "south ayrshire",
-      "south lanarkshire",
-      "stirling",
-      "west dunbartonshire",
-      "west lothian",
-    ]);
+useEffect(() => { getActsPageCards(); }, [getActsPageCards]);
 
-    const isNorthernGig = northernCounties.has(
-      String(selectedCounty || "").toLowerCase().trim()
+// --- FILTER TOGGLE DEBUG ---------------------------------------------------
+const DEBUG_FILTER = true;
+
+const uniqPush = (arr = [], v) => (arr.includes(v) ? arr : [...arr, v]);
+
+const logToggle = (group, { value, checked, before = [], after = [] }) => {
+  if (!DEBUG_FILTER) return;
+  try {
+    const ts = new Date().toLocaleTimeString();
+    console.groupCollapsed(`☑️ [${ts}] ${group} — ${checked ? "ADD ➕" : "REMOVE ❌"} "${value}"`);
+    console.log("before (%d):", before.length, before);
+    console.log("after  (%d):", after.length, after);
+    console.groupEnd();
+  } catch {}
+};
+
+// 🔎 Snapshot Acts-page cards every time they change
+useEffect(() => {
+  const src = Array.isArray(actsPageCards) ? actsPageCards : [];
+  console.groupCollapsed(`🗂 actsPageCards snapshot (${src.length})`);
+  if (src.length) {
+    // top-level keys on the first card (helps see structure)
+    console.log("🔑 keys on first card:", Object.keys(src[0]));
+
+    // tabular view of filter-relevant fields for the first 40 cards
+    console.table(
+      src.slice(0, 40).map((c, i) => ({
+        i,
+        id: String(c.actId || c._id || ""),
+        name: c.tscName || c.name || "(untitled)",
+        status: c.status,
+        isTest: Boolean(c.isTest || c?.actData?.isTest),
+        genres: Array.isArray(c.genres) ? c.genres.join(" | ") : String(c.genres || ""),
+        lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.join(" | ") : "",
+        instruments: Array.isArray(c.instruments) ? c.instruments.join(" | ") : "",
+        pliAmount: c.pliAmount ?? "",
+        paTrue: Object.entries(c.pa || {}).filter(([,v]) => v).map(([k]) => k).join(","),
+        lightTrue: Object.entries(c.light || {}).filter(([,v]) => v).map(([k]) => k).join(","),
+        extrasTrue: Object.entries(c.extras || {})
+          .filter(([,v]) => v === true || (v && typeof v === "object"))
+          .map(([k]) => k).slice(0, 10).join(","),
+        lineupsCount: Array.isArray(c.lineups) ? c.lineups.length : 0,
+        hasImages: Boolean(c.images || c.coverImages || c.heroImages || c.gallery),
+      }))
     );
 
-    const bandMembers =
-      act.useDifferentTeamForNorthernGigs && isNorthernGig
-        ? act.northernTeam || []
-        : smallestLineup.bandMembers || [];
+    // full raw object for deep inspection
+    console.log("📌 first card (full):", src[0]);
+  }
+  console.groupEnd();
+}, [actsPageCards]);
 
-    // ---- essential fees (net) ----
-    const essentialFees = smallestLineup.bandMembers.flatMap((member) => {
-      const baseFee = member.isEssential ? Number(member.fee) || 0 : 0;
-      const additionalEssentialFees = (member.additionalRoles || [])
-        .filter((role) => role.isEssential)
-        .map((role) => Number(role.additionalFee) || 0);
-      return [baseFee, ...additionalEssentialFees];
-    });
-
-    const fee = essentialFees.reduce((sum, n) => sum + n, 0);
-
-    // ---- travel fee paths ----
-    const memberPostcodes = (bandMembers || [])
-      .map((m) => m?.postCode)
-      .filter(Boolean);
-
-    // 1) County table
-    if (act.useCountyTravelFee && act.countyFees) {
-      const countyKey = String(selectedCounty || "").toLowerCase();
-      const feePerMember = Number(act.countyFees[countyKey]) || 0;
-      travelFee = feePerMember * memberPostcodes.length;
-    }
-    // 2) Per-mile
-    else if (Number(act.costPerMile) > 0) {
-      for (const postCode of memberPostcodes) {
-        const destination =
-          typeof selectedAddress === "string"
-            ? selectedAddress
-            : selectedAddress?.postcode || selectedAddress?.address || "";
-        if (!destination) continue;
-
-        try {
-          const { outbound, raw } = await fetchTravel(
-            postCode,
-            destination,
-            selectedDate
-          );
-          const meters =
-            outbound?.distance?.value ??
-            raw?.rows?.[0]?.elements?.[0]?.distance?.value ??
-            0;
-          const miles = meters / 1609.34;
-          travelFee += miles * Number(act.costPerMile) * 25; // your round-trip multiplier
-        } catch (e) {
-          console.warn("⚠️ travel fetch failed (per-mile):", e?.message || e);
-        }
-      }
-    }
-    // 3) MU-style (fuel/time/late/tolls) using outbound+returnTrip
-    else {
-      for (const member of smallestLineup.bandMembers) {
-        const postCode = member?.postCode;
-        const destination =
-          typeof selectedAddress === "string"
-            ? selectedAddress
-            : selectedAddress?.postcode || selectedAddress?.address || "";
-        if (!postCode || !destination) continue;
-
-        try {
-          const { outbound, returnTrip } = await fetchTravel(
-            postCode,
-            destination,
-            selectedDate
-          );
-          if (!outbound || !returnTrip) continue;
-
-          const outboundDistance = outbound?.distance?.value;
-          const returnDistance = returnTrip?.distance?.value;
-          const outboundDuration = outbound?.duration?.value;
-          const returnDuration = returnTrip?.duration?.value;
-
-          if (
-            typeof outboundDistance !== "number" ||
-            typeof returnDistance !== "number" ||
-            typeof outboundDuration !== "number" ||
-            typeof returnDuration !== "number"
-          ) {
-            continue;
-          }
-
-          const totalDistanceMiles =
-            (outboundDistance + returnDistance) / 1609.34;
-          const totalDurationHours =
-            (outboundDuration + returnDuration) / 3600;
-
-          const fuelFee = totalDistanceMiles * 0.56;
-          const timeFee = totalDurationHours * 13.23;
-          const lateFee = returnDuration / 3600 > 1 ? 136 : 0;
-          const tollFee =
-            (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
-
-          travelFee += fuelFee + timeFee + lateFee + tollFee;
-        } catch (e) {
-          console.warn("⚠️ travel fetch failed (MU):", e?.message || e);
-        }
-      }
-    }
-
-    const totalPrice = Math.ceil((fee + travelFee) / 0.75);
-    return `${totalPrice}`;
-  };
-
+// ---- server enrich (filter-data) ----
 useEffect(() => {
-  const loadAvail = async () => {
-    setAvailLoading(true);
+  let alive = true;
+
+  (async () => {
     try {
-      const d = String(selectedDate || "").slice(0, 10);
-      if (!d) {
-        setAvailableMap({});
-        setAvailLoading(false);
-        return;
-      }
+      // Whatever array you render before enrichment; your logs call it actsPageCards/actCards.
+      const base = (Array.isArray(actsPageCards) && actsPageCards.length) ? actsPageCards : [];
+      if (!base.length) return;
 
-      // ⚡ Try cache first for instant feedback
-      const cacheKey = `availMap:${d}`;
-      try {
-        const cached = sessionStorage.getItem(cacheKey);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && typeof parsed === "object") {
-            setAvailableMap(parsed);
-          }
-        }
-      } catch {}
+      const ids = base
+        .map((c) => c.actId || c._id || c.id)
+        .filter(Boolean);
 
-      // Helper: normalize various backend response shapes into a tri-state map
-      const toMap = (payload = {}) => {
-        const map = {};
-        const unavailable = Array.isArray(payload.unavailableActIds) ? payload.unavailableActIds : [];
-        const available   = Array.isArray(payload.availableActIds)   ? payload.availableActIds   : [];
-        const actIds      = Array.isArray(payload.actIds)            ? payload.actIds            : [];
+      const enrich = await fetchActFilterData(api, axios, ids);
+      if (!alive) return;
 
-        for (const id of unavailable) map[id] = false;
-        for (const id of available)   if (!(id in map)) map[id] = true;
+      const merged = mergeFilterDataIntoCards(base, enrich);
 
-        // Compat: if only actIds present, treat those as available
-        if (!payload.unavailableActIds && actIds.length) {
-          for (const id of actIds) if (!(id in map)) map[id] = true;
-        }
-        return map;
-      };
-
-      // 1) Try canonical endpoint
-      let res = await fetch(
-        api(`api/v2/availability/acts-by-dateV2?date=${encodeURIComponent(d)}`),
-        { headers: { accept: "application/json" } }
-      );
-      let bodyText = "";
-      try { bodyText = await res.text(); } catch {}
-      let json = {};
-      try { json = bodyText ? JSON.parse(bodyText) : {}; } catch {}
-
-      // 2) Fallback to legacy alias if needed
-      if (!res.ok) {
-        if (res.status === 404) {
-          res = await fetch(
-            api(`api/v2/availability/acts-available?date=${encodeURIComponent(d)}`),
-            { headers: { accept: "application/json" } }
-          );
-          bodyText = "";
-          try { bodyText = await res.text(); } catch {}
-          try { json = bodyText ? JSON.parse(bodyText) : {}; } catch {}
-        }
-        if (!res.ok) {
-          const msg = json?.message || json?.error || bodyText || `HTTP ${res.status}`;
-          throw new Error(msg);
-        }
-      }
-
-      // Some backends wrap in { data: {...} }
-      const payload = (json && typeof json === "object" && (json.data || json)) || {};
-
-      // Build base map from API
-      const map = toMap(payload);
-
-      // --- Merge availability from Act docs as a fallback/source-of-truth ---
-      const dateKey = d; // "YYYY-MM-DD"
-      for (const a of approvedActs) {
-        const rows = Array.isArray(a.availabilityByDate) ? a.availabilityByDate : [];
-        const matches = rows.filter(r => String(r.dateISO || "").slice(0,10) === dateKey);
-        if (matches.length) {
-          matches.sort((x,y) => new Date(x.setAt||0) - new Date(y.setAt||0));
-          const latest = matches[matches.length - 1];
-          const st = (latest?.status || "").toLowerCase(); // "available" | "unavailable"
-          if (st === "unavailable") {
-            map[a._id] = false;              // ❌ hide
-          } else if (st === "available" && map[a._id] !== false) {
-            map[a._id] = true;               // ✅ show (unless already false)
-          }
-        }
-      }
-
-      try { sessionStorage.setItem(cacheKey, JSON.stringify(map)); } catch {}
-      setAvailableMap(map);
-    } catch (e) {
-      console.warn("[avail] load failed:", e?.message || e);
-      // Keep any cached UI; don't clobber with empty map on error
-    } finally {
-      setAvailLoading(false);
+      // If you keep a local “actsPageCards” state, set it here; otherwise push to your pipeline:
+      setFilterProducts(merged);
+    } catch (err) {
+      console.warn("filter-data enrich failed:", err?.message || err);
+      // IMPORTANT: fall back to current cards instead of wiping to []
+      const base = (Array.isArray(actsPageCards) && actsPageCards.length) ? actsPageCards : [];
+      setFilterProducts(base);
     }
-  };
+  })();
 
-  loadAvail();
-}, [selectedDate, acts]);  // ← include acts
+  return () => { alive = false; };
+}, [actsPageCards]);
+
+const items = Array.isArray(actsPageCards) ? actsPageCards : [];
+
+
+// --- GENRES helpers ------------------------------------------------------
+const NORM_GENRE = (s) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+// Pull genres from multiple places and return a deduped list
+const getActGenres = (item) => {
+  const fromAct =
+    Array.isArray(item?.genres)
+      ? item.genres
+      : typeof item?.genres === "string"
+      ? [item.genres]
+      : [];
+
+  const fromCard =
+    Array.isArray(item?.__card?.genres)
+      ? item.__card.genres
+      : typeof item?.__card?.genres === "string"
+      ? [item.__card.genres]
+      : [];
+
+  const fromTags =
+    Array.isArray(item?.genreTags)
+      ? item.genreTags
+      : [];
+
+  // Some older data might store singular fields
+  const maybeSingle =
+    item?.genre ? [item.genre] :
+    item?.__card?.genre ? [item.__card.genre] : [];
+
+  const all = [...fromAct, ...fromCard, ...fromTags, ...maybeSingle].filter(Boolean);
+  return Array.from(new Set(all));
+};
 
 
   const triggerSearch = () => {
@@ -500,155 +323,124 @@ useEffect(() => {
   };
 
   const toggleGenre = (e) => {
-    const value = e.target.value;
-
-    setGenre((prev) => {
-      const newGenre = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsGenreSelected(newGenre.length > 0);
-
-      return newGenre;
-    });
-  };
-
-  const toggleActSize = (e) => {
-    const value = e.target.value;
-
-    setActSize((prev) => {
-      const newActSize = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsActSizeSelected(newActSize.length > 0);
-
-      return newActSize;
-    });
-  };
-
-  const toggleDjServices = (e) => {
-    const value = e.target.value;
-
-    setDjServices((prev) => {
-      const newDjServices = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsDjServicesSelected(newDjServices.length > 0);
-
-      return newDjServices;
-    });
-  };
-
-  const toggleInstruments = (e) => {
-    const value = e.target.value;
-
-    setInstruments((prev) => {
-      const newInstruments = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsInstrumentsSelected(newInstruments.length > 0);
-
-      return newInstruments;
-    });
-  };
-
-
-
-  const toggleSoundLimiters = (e) => {
-    const value = e.target.value;
-
-    setSoundLimiters((prev) => {
-      const newSoundLimiters = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsSoundLimitersSelected(newSoundLimiters.length > 0);
-
-      return newSoundLimiters;
-    });
-  };
-
-  const toggleSetupAndSoundcheck = (e) => {
-    const value = e.target.value;
-
-    setSetupAndSoundcheck((prev) => {
-      const newSetupAndSoundcheck = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsSetupAndSoundcheckSelected(newSetupAndSoundcheck.length > 0);
-
-      return newSetupAndSoundcheck;
-    });
-  };
-
-  const togglePaAndLights = (e) => {
-    const value = e.target.value;
-
-    setPaAndLights((prev) => {
-      const newPaAndLights = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsPaAndLightsSelected(newPaAndLights.length > 0);
-
-      return newPaAndLights;
-    });
-  };
-
-const togglePli = (e) => {
-  const value = Number(e.target.value);
-
-  setPli((prev) => {
-    const newPli = prev.includes(value)
-      ? prev.filter((item) => item !== value)
-      : [...prev, value];
-
-    setIsPliSelected(newPli.length > 0);
-
-    return newPli;
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setGenre((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsGenreSelected(after.length > 0);
+    logToggle("GENRES", { value, checked, before, after });
+    return after;
   });
 };
 
-  const toggleExtraServices = (e) => {
-    const value = e.target.value;
+const toggleActSize = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setActSize((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsActSizeSelected(after.length > 0);
+    logToggle("ACT SIZE", { value, checked, before, after });
+    return after;
+  });
+};
 
-    setExtraServices((prev) => {
-      const newExtraServices = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
+const toggleDjServices = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setDjServices((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsDjServicesSelected(after.length > 0);
+    logToggle("DJ SERVICES", { value, checked, before, after });
+    return after;
+  });
+};
 
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsExtraServicesSelected(newExtraServices.length > 0);
+const toggleInstruments = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setInstruments((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsInstrumentsSelected(after.length > 0);
+    logToggle("INSTRUMENTS", { value, checked, before, after });
+    return after;
+  });
+};
 
-      return newExtraServices;
-    });
-  };
+const toggleWireless = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setWireless((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsWirelessSelected(after.length > 0);
+    logToggle("WIRELESS", { value, checked, before, after });
+    return after;
+  });
+};
 
-  const toggleWireless = (e) => {
-    const value = e.target.value;
+const toggleSoundLimiters = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setSoundLimiters((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsSoundLimitersSelected(after.length > 0);
+    logToggle("SOUND LIMITERS", { value, checked, before, after });
+    return after;
+  });
+};
 
-    setWireless((prev) => {
-      const newWireless = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
+const toggleSetupAndSoundcheck = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setSetupAndSoundcheck((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsSetupAndSoundcheckSelected(after.length > 0);
+    logToggle("SETUP & SOUNDCHECK", { value, checked, before, after });
+    return after;
+  });
+};
 
-      // ✅ Hide the asset if at least one checkbox is checked
-      setIsWirelessSelected(newWireless.length > 0);
+const togglePaAndLights = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setPaAndLights((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsPaAndLightsSelected(after.length > 0);
+    logToggle("PA & LIGHTS", { value, checked, before, after });
+    return after;
+  });
+};
 
-      return newWireless;
-    });
-  };
+const togglePli = (e) => {
+  const value = Number(e.target.value);
+  const checked = e.target.checked;
+  setPli((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsPliSelected(after.length > 0);
+    logToggle("PLI", { value, checked, before, after });
+    return after;
+  });
+};
+
+const toggleExtraServices = (e) => {
+  const value = e.target.value;
+  const checked = e.target.checked;
+  setExtraServices((prev) => {
+    const before = prev;
+    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
+    setIsExtraServicesSelected(after.length > 0);
+    logToggle("EXTRA SERVICES", { value, checked, before, after });
+    return after;
+  });
+};
 
   const labelMap = {
     electric_drums: "Has electric drum kit",
@@ -706,8 +498,23 @@ const togglePli = (e) => {
   };
 
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
 
-  // ----- Instruments normalisation helpers -----
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString("en-GB", { month: "long" });
+    const year = date.getFullYear();
+
+    // Convert day to "1st", "2nd", "3rd", etc.
+    const suffix = ["th", "st", "nd", "rd"][
+      day % 10 > 3 ? 0 : ((day % 100) - (day % 10) !== 10) * (day % 10)
+    ];
+
+    return `${day}${suffix} of ${month} ${year}`;
+  };
+
+    // ----- Instruments normalisation helpers -----
 const INSTR_ALIAS = new Map([
   ["lead female vocal", "Lead Female Vocal"],
   ["lead male vocal", "Lead Male Vocal"],
@@ -732,10 +539,7 @@ const INSTR_ALIAS = new Map([
   ["clarinet", "Flute & Clarinet"],
 ]);
 
-
-
-
-// Split combos like "Trumpet/Trombone/Rapper", "Lead Male Vocal/Rapper & Guitarist"
+  // Split combos like "Trumpet/Trombone/Rapper", "Lead Male Vocal/Rapper & Guitarist"
 const splitInstrumentTokens = (s) =>
   String(s || "")
     .split(/[,/;&]|\\band\\b|\\bwith\\b|\\+|\\s*-\\s*/i) // / , ; & and with + hyphen separators
@@ -758,8 +562,7 @@ const canonicaliseInstrument = (raw) => {
   // leave as-is (e.g., "Trumpet", "Trombone", "Cello", etc.)
   return String(raw).trim();
 };
-
-// Build a deduped list of instruments an act actually offers
+  // Build a deduped list of instruments an act actually offers
 const deriveActInstruments = (act) => {
   const fromTop = Array.isArray(act.instruments) ? act.instruments : [];
   const fromLineups = (act.lineups || []).flatMap((l) =>
@@ -781,324 +584,500 @@ const deriveActInstruments = (act) => {
   return Array.from(new Set(canonical));
 };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
+// 🔁 Make the helper accept a list (don’t read global `acts`)
+function getApprovedActs(list) {
+  const arr = Array.isArray(list) ? list : [];
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
 
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleString("en-GB", { month: "long" });
-    const year = date.getFullYear();
+  const effectiveUserRole = String(storedUser.userRole || "").toLowerCase();
+  const effectiveUserId = storedUser._id || storedUser.userId || "";
+  const effectiveUserEmail = storedUser.email || "";
 
-    // Convert day to "1st", "2nd", "3rd", etc.
-    const suffix = ["th", "st", "nd", "rd"][
-      day % 10 > 3 ? 0 : ((day % 100) - (day % 10) !== 10) * (day % 10)
-    ];
+  const isAgent =
+    ["agent", "admin", "moderator"].includes(effectiveUserRole) ||
+    effectiveUserId === "680fb453a2de6618675ca9ed" ||
+    /@thesupremecollective\.co\.uk$/i.test(effectiveUserEmail);
 
-    return `${day}${suffix} of ${month} ${year}`;
-  };
+  const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
+  const normalizeStatus = (s) => String(s || "").trim().toLowerCase();
 
-const applyFilter = async () => {
+  return arr.filter((act) => {
+    const st = normalizeStatus(act.status);
+    const isApprovedLike =
+      st === "approved" ||
+      st === "live" ||
+      st === "approved_changes_pending" ||
+      st === "live_changes_pending" ||
+      st.includes("changes pending");
+
+    const isTest =
+      looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
+
+    return isAgent ? isApprovedLike : (isApprovedLike && !isTest);
+  });
+}
+
+// ✅ Use the Acts-page cards as the source
+const approvedActs = useMemo(
+  () => getApprovedActs(actsPageCards),
+  [actsPageCards]
+);
+
+const actMap = useMemo(
+  () => new Map((approvedActs || []).map(a => [String(a._id), a])),
+  [approvedActs]
+);
+
+
+// 2) Helper: which cards are allowed for this viewer (agent vs non-agent)
+function getApprovedCards(list) {
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const effectiveRole  = String(userRole || storedUser.userRole || "").toLowerCase();
+  const effectiveUserId = userId || storedUser.userId || "";
+  const effectiveEmail  = email || storedUser.email || "";
+
+  const isAgent =
+    ["agent", "admin", "moderator"].includes(effectiveRole) ||
+    effectiveUserId === "680fb453a2de6618675ca9ed" ||
+    /@thesupremecollective\.co\.uk$/i.test(effectiveEmail);
+
+  const looksTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
+
+  const src = Array.isArray(list) ? list : [];
+  return src.filter((card) => (isAgent ? true : !looksTrue(card.isTest)));
+}
+
+// Memoised so we can safely use it in effect deps
+const approvedActsCount = useMemo(
+  () => getApprovedActs(actsPageCards).length,
+  [actsPageCards, userRole, userId, email]
+);
+
+async function applyFilter() {
   const runId = ++filterRunIdRef.current;
-
-  const actLabel = (a) => `${a?.tscName || a?.name || "(no-name)"} [${a?._id}]`;
-  const hasAvailMap = !!availableMap && Object.keys(availableMap).length > 0;
+  GROUP(`🧪 applyFilter run #${runId}`);
+  ACTS_DBG("inputs", {
+    genre, act_size, djServices, instruments,
+    songSearch, actSearch,
+    wireless, soundLimiters, setupAndSoundcheck, paAndLights, pli, extraServices,
+    selectedDate, selectedAddress, selectedCounty,
+    availLoading,
+    availMapKeys: Object.keys(availableMap || {}).length,
+    cardsLen: Array.isArray(cards) ? cards.length : 0,
+actCardsLen: Array.isArray(actsPageCards) ? actsPageCards.length : 0,
+  });
 
   // If availability map is loading, skip ONLY the availability gate
   const skipAvailGate = Boolean(selectedDate && availLoading);
   if (skipAvailGate) {
+    console.log("Skipping availability gate due to loading state");
   }
 
-  // Start with approved acts only
-  let actsCopy = approvedActs.slice();
-
-  // --- AVAILABILITY GATE ----------------------------------------------------
-  if (selectedDate && !skipAvailGate) {
-    const explicitUnavailable = hasAvailMap
-      ? Object.entries(availableMap).filter(([, v]) => v === false).map(([k]) => k)
-      : [];
-    const explicitAvailable = hasAvailMap
-      ? Object.entries(availableMap).filter(([, v]) => v === true).map(([k]) => k)
-      : [];
-
-   
-
-    if (hasAvailMap) {
-      const removedByUnavailable = [];
-      const keptByTrueOrUnknown = [];
-
-      for (const a of actsCopy) {
-        const flag = availableMap[a._id]; // true | false | undefined
-        if (flag === false) removedByUnavailable.push(actLabel(a));
-        else keptByTrueOrUnknown.push({ label: actLabel(a), flag });
-      }
-
-   
-
-      // Only hide explicitly false; keep true and undefined
-      actsCopy = actsCopy.filter((a) => availableMap[a._id] !== false);
-    } else {
-      // leave actsCopy unchanged
+  // prefer current cards; if somehow empty, fall back to actsPageCards
+const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actsPageCards;
+  ACTS_DBG("sourceCards", { len: Array.isArray(sourceCards) ? sourceCards.length : 0 });
+  let approvedCards = getApprovedCards(sourceCards);
+console.groupCollapsed("🧪 Pre-filter probe (approvedCards) — first 30");
+console.table(
+  (approvedCards || []).slice(0, 30).map((c) => ({
+    id: String(c.actId || c._id || ""),
+    name: c.tscName || c.name || "(untitled)",
+    genres: Array.isArray(c.genres) ? c.genres.join(" | ") : String(c.genres || ""),
+    lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.join(" | ") : "",
+    instruments: Array.isArray(c.instruments) ? c.instruments.join(" | ") : "",
+    pliAmount: c.pliAmount ?? "",
+    paTrue: Object.entries(c.pa || {}).filter(([,v]) => v).map(([k]) => k).join(","),
+    lightTrue: Object.entries(c.light || {}).filter(([,v]) => v).map(([k]) => k).join(","),
+    extrasKeys: Object.keys(c.extras || {}).slice(0, 10).join(","),
+  }))
+);
+console.groupEnd();
+  // 🔎 Ask the server which cards match the current UI filters,
+  // then intersect with the locally visible set.
+  let allowedActIds = null;
+  try {
+    const serverPayload = buildServerFilterPayload();
+    ACTS_DBG("server search payload", { serverPayload });
+    const serverCards = await searchActCards(serverPayload);
+  console.groupCollapsed("🌐 server search payload");
+console.log(serverPayload);
+console.groupEnd();
+    if (Array.isArray(serverCards) && serverCards.length) {
+      allowedActIds = new Set(
+        serverCards.map((c) => String(c.actId || c._id))
+      );
     }
+  } catch (err) {
+    console.warn("server card search failed:", err?.message || err);
+  }
+
+  // ✅ Narrow locally-approved cards with server-approved IDs (if present)
+  if (allowedActIds) {
+    approvedCards = approvedCards.filter((c) =>
+      allowedActIds.has(String(c.actId || c._id))
+    );
+  }
+  ACTS_DBG("approvedCards after server intersection", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
+
+  // Only clear if we genuinely have no cards at all from either source
+  if (!approvedCards || approvedCards.length === 0) {
+    const hasAnyCards = Array.isArray(cards) && cards.length > 0;
+    const hasAnyActCards = Array.isArray(actsPageCards) && actsPageCards.length > 0;
+    if (!hasAnyCards && !hasAnyActCards) {
+      setFilterProducts([]);
+      return;
+    }
+    // else: keep going (don’t wipe the grid because of a transient 0)
+  }
+
+  // Prefer full Act objects; if missing, synthesise from the card so the grid isn't empty
+  ACTS_DBG("building actsCopy from approvedCards", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
+ let actsCopy = approvedCards
+  .map((card) => {
+    const id = String(card.actId || card._id);
+    const act = actMap.get(id);
+
+    // a small helper to pick any known image field off a card/act
+    const pickImages = (obj = {}) =>
+      obj.images || obj.coverImages || obj.heroImages || obj.gallery || obj.hero || null;
+
+    if (act) {
+      const images = act.images || pickImages(card) || pickImages(act) || null;
+      return { ...act, __card: card, images };
+    }
+
+    return {
+      _id: id,
+      name: card.tscName || card.name || "Untitled Act",
+      tscName: card.tscName,
+      genres: Array.isArray(card.genres) ? card.genres : [],
+      lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
+      instruments: Array.isArray(card.instruments) ? card.instruments : [],
+      extras: Object.fromEntries(
+        Object.entries(card.extras || {}).filter(([, v]) => v === true)
+      ),
+      pliAmount: Number(card.pliAmount) || 0,
+      paSystem: Object.entries(card.pa || {})
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(", "),
+      lightingSystem: Object.entries(card.light || {})
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(", "),
+      lineups: [],
+      images: pickImages(card) || null, // 👈 preserve photos from the card
+      __card: card,
+    };
+  })
+  .filter(Boolean);
+  ACTS_DBG("actsCopy built (first pass)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
+
+  // Optional: keep the card on the act for rendering later
+  actsCopy = actsCopy.map((act) => ({
+    ...act,
+    __card:
+      cards.find((c) => String(c.actId || c._id) === String(act._id)) || null,
+  }));
+  ACTS_DBG("actsCopy after card reattach", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
+
+  // Show something straight away before async pricing completes
+  if (runId === filterRunIdRef.current && Array.isArray(actsCopy)) {
+    setFilterProducts(actsCopy);
+    ACTS_DBG("setFilterProducts (early show)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
   }
 
   if (wireless.length > 0) {
-  actsCopy = actsCopy.filter((item) => {
-    const wirelessInstruments = wireless; // e.g. ["Vocal", "Guitar"]
+    actsCopy = actsCopy.filter((item) => {
+      const wirelessInstruments = wireless; // e.g. ["Vocal", "Guitar"]
 
-    // Loop through all lineups and members
-    const hasWirelessMatch = item.lineups?.some((lineup) =>
-      lineup.bandMembers?.some((member) => {
-        // normalise instrument for matching
-        const instrument = (member.instrument || "").toLowerCase();
+      // Loop through all lineups and members
+      const hasWirelessMatch = item.lineups?.some((lineup) =>
+        lineup.bandMembers?.some((member) => {
+          // normalise instrument for matching
+          const instrument = (member.instrument || "").toLowerCase();
 
-        return wirelessInstruments.some((filterInstrument) => {
-          const f = filterInstrument.toLowerCase();
+          return wirelessInstruments.some((filterInstrument) => {
+            const f = filterInstrument.toLowerCase();
 
-          // ✅ match if instrument includes filterInstrument AND wireless is true
-          return instrument.includes(f) && member.wireless === true;
-        });
-      })
-    );
+            // ✅ match if instrument includes filterInstrument AND wireless is true
+            return instrument.includes(f) && member.wireless === true;
+          });
+        })
+      );
 
-    return hasWirelessMatch;
-  });
-}
-
-if (soundLimiters.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    // 1️⃣ Check for non-decibel sound limiter options first (iems, remove_drums, etc.)
-    const hasNonDbOptions = soundLimiters.some((opt) => {
-      if (["electric_drums", "iems", "can_you_make_act_acoustic", "remove_drums"].includes(opt)) {
-        return (
-          act.lineups?.some((l) => {
-            // direct flags in lineup
-            if (l[opt] === true) return true;
-            // sometimes stored under hasDrums or similar
-            if (opt === "electric_drums" && Array.isArray(l.hasDrums) && l.hasDrums.includes("electric")) return true;
-            return false;
-          }) ||
-          act[opt] === true // fallback top-level flag
-        );
-      }
-      return false;
+      return hasWirelessMatch;
     });
+    ACTS_DBG("after wireless filter", { remain: actsCopy.length });
+  }
 
-    // 2️⃣ Handle dB options (e.g. "90db", "92db", "80-89db")
-    const dbOptions = soundLimiters
-      .map((v) => v.match(/\d+/)?.[0]) // extract the number part
-      .filter(Boolean)
-      .map(Number);
-
-    // If no numeric dB filters selected, just rely on non-dB options
-    if (dbOptions.length === 0) return hasNonDbOptions;
-
-    // 3️⃣ Determine selected dB threshold (use lowest one if multiple)
-    const selectedDb = Math.min(...dbOptions);
-
-    // 4️⃣ Find all dB values across this act’s lineups
-    const lineupDbs = (act.lineups || [])
-      .map((l) => {
-        const val = String(l.db || "").match(/\d+/)?.[0];
-        return val ? Number(val) : null;
-      })
-      .filter((v) => v !== null);
-
-    // 5️⃣ Determine minimum dB requirement across lineups
-    const minDbForAct = lineupDbs.length > 0 ? Math.min(...lineupDbs) : null;
-
-    // 6️⃣ If no dB info, keep act visible (safe fallback)
-    if (minDbForAct === null) return true;
-
-    // 7️⃣ ✅ Include only acts that can play at or below the selected dB
-    return minDbForAct <= selectedDb || hasNonDbOptions;
-  });
-}
-
-if (setupAndSoundcheck.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    const setupFilters = setupAndSoundcheck;
-
-    // ---- 1️⃣ Handle "90min Setup & Soundcheck" ----
-    if (setupFilters.includes("setup_and_soundcheck_time_90min")) {
-      // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime >= 90
-      const has90 = act.lineups?.some(
-        (l) => Number(l.totalSetupAndSoundcheckTime) >= 90
-      );
-      return has90;
-    }
-
-    // ---- 2️⃣ Handle "60min Setup & Soundcheck" ----
-    if (setupFilters.includes("setup_and_soundcheck_time_60min")) {
-      // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime <= 60
-      const has60 = act.lineups?.some(
-        (l) => Number(l.totalSetupAndSoundcheckTime) <= 60
-      );
-      return has60;
-    }
-
-    // ---- 3️⃣ Handle "Speedy Setup (60min)" ----
-if (setupFilters.includes("speedy_setup")) {
-  // Find the key inside act.extras that contains "speedy_setup"
-  const extraKey = Object.keys(act.extras || {}).find((k) =>
-    k.toLowerCase().includes("speedy_setup")
-  );
-
-  if (!extraKey) return false;
-
-  const speedy = act.extras[extraKey];
-  if (!speedy) return false;
-
-  return (Number(speedy.price) > 0) || speedy.complimentary === true;
-}
-
-    return true; // default fallback
-  });
-}
-
-if (paAndLights.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    const selected = paAndLights;
-
-    // --- PA System filters ---
-    const wantsSmallPA = selected.includes("small_pa_size");
-    const wantsMediumPA = selected.includes("medium_pa_size");
-    const wantsLargePA = selected.includes("large_pa_size");
-
-    // --- Lighting filters ---
-    const wantsSmallLight = selected.includes("small_light_size");
-    const wantsMediumLight = selected.includes("medium_light_size");
-    const wantsLargeLight = selected.includes("large_light_size");
-
-    // Normalise act fields
-    const pa = (act.paSystem || "").toLowerCase();
-    const light = (act.lightingSystem || "").toLowerCase();
-
-    // --- PA Matching logic ---
-    const paMatch =
-      (!wantsSmallPA && !wantsMediumPA && !wantsLargePA) ||
-      (wantsSmallPA && pa.includes("small")) ||
-      (wantsMediumPA && pa.includes("medium")) ||
-      (wantsLargePA && pa.includes("large"));
-
-    // --- Lighting Matching logic ---
-    const lightMatch =
-      (!wantsSmallLight && !wantsMediumLight && !wantsLargeLight) ||
-      (wantsSmallLight && light.includes("small")) ||
-      (wantsMediumLight && light.includes("medium")) ||
-      (wantsLargeLight && light.includes("large"));
-
-    // ✅ Return true if act matches both selected PA and lighting filters
-    return paMatch && lightMatch;
-  });
-}
-
-if (pli.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    const amount = Number(act.pliAmount) || 0;
-
-    // Show if any selected PLI requirement is <= act's PLI
-    return pli.some(req => amount >= req);
-  });
-}
-
-if (extraServices.length > 0) {
-  actsCopy = actsCopy.filter((act) => {
-    const extras = act.extras || {};
-
-    // Normaliser: remove spaces, symbols, underscores etc.
-    const normalize = (str) =>
-      String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
-
-    const extraKeys = Object.keys(extras);
-    const extraKeysNorm = extraKeys.map(k => normalize(k));
-
-    return extraServices.some((selectedKeyRaw) => {
-      const selectedKey = selectedKeyRaw.toLowerCase();
-
-      const fragmentMap = {
-        sound_engineering_for_another_act: "sound_engineering_for_another_act",
-        add_another_vocalist: "anotherVocalist",
-        ceremony_solo: "solo",
-        duo_ceremony: "duo",
-        trio_ceremony: "trio",
-        four_piece_ceremony: "fourpiece",
-        afternoon_solo: "solo",
-        afternoon_duo: "duo",
-        afternoon_trio: "trio",
-        afternoon_4piece: "fourpiece",
-        early_arrival: "early_arrival",
-        late_stay: "late_stay",
-        extra_song: "extra_song_request",
-        extra_sets: "performance",
-        israeli_sets: "israeli_dancing",
-      };
-
-      const fragment = fragmentMap[selectedKey];
-      if (!fragment) return false;
-
-      // --- 1) NORMALIZED MATCHING FOR EXTRAS KEYS ---
-      const fragmentNorm = normalize(fragment);
-      const selectedNorm = normalize(selectedKey);
-
-      const index = extraKeysNorm.findIndex((k) =>
-        k.includes(fragmentNorm)
-      );
-
-      if (index !== -1) {
-        const originalKey = extraKeys[index];
-        const extra = extras[originalKey];
-        return extra && (extra.price > 0 || extra.complimentary === true);
-      }
-
-      // --- 2) CEREMONY + AFTERNOON LOGIC (same object) ---
-      const lineups = act.lineups || [];
-
-      if (
-        [
-          "ceremony_solo",
-          "duo_ceremony",
-          "trio_ceremony",
-          "four_piece_ceremony",
-          "afternoon_solo",
-          "afternoon_duo",
-          "afternoon_trio",
-          "afternoon_4piece",
-        ].includes(selectedKey)
-      ) {
-        const piece = fragment; // solo/duo/trio/fourpiece
-        const type = "ceremonySets"; // shared for both
-
-        return lineups.some((l) => {
-          const block = l[type]?.[piece];
+  if (soundLimiters.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      // 1️⃣ Check for non-decibel sound limiter options first (iems, remove_drums, etc.)
+      const hasNonDbOptions = soundLimiters.some((opt) => {
+        if (["electric_drums", "iems", "can_you_make_act_acoustic", "remove_drums"].includes(opt)) {
           return (
-            block &&
-            Array.isArray(block.amplified) &&
-            block.amplified.length > 0
+            act.lineups?.some((l) => {
+              // direct flags in lineup
+              if (l[opt] === true) return true;
+              // sometimes stored under hasDrums or similar
+              if (opt === "electric_drums" && Array.isArray(l.hasDrums) && l.hasDrums.includes("electric")) return true;
+              return false;
+            }) ||
+            act[opt] === true // fallback top-level flag
           );
-        });
-      }
+        }
+        return false;
+      });
 
-      // --- 3) another vocalist ---
-      if (selectedKey === "add_another_vocalist") {
-        return lineups.some((l) => l.anotherVocalist === true);
-      }
+      // 2️⃣ Handle dB options (e.g. "90db", "92db", "80-89db")
+      const dbOptions = soundLimiters
+        .map((v) => v.match(/\d+/)?.[0]) // extract the number part
+        .filter(Boolean)
+        .map(Number);
 
-      return false;
+      // If no numeric dB filters selected, just rely on non-dB options
+      if (dbOptions.length === 0) return hasNonDbOptions;
+
+      // 3️⃣ Determine selected dB threshold (use lowest one if multiple)
+      const selectedDb = Math.min(...dbOptions);
+
+      // 4️⃣ Find all dB values across this act’s lineups
+      const lineupDbs = (act.lineups || [])
+        .map((l) => {
+          const val = String(l.db || "").match(/\d+/)?.[0];
+          return val ? Number(val) : null;
+        })
+        .filter((v) => v !== null);
+
+      // 5️⃣ Determine minimum dB requirement across lineups
+      const minDbForAct = lineupDbs.length > 0 ? Math.min(...lineupDbs) : null;
+
+      // 6️⃣ If no dB info, keep act visible (safe fallback)
+      if (minDbForAct === null) return true;
+
+      // 7️⃣ ✅ Include only acts that can play at or below the selected dB
+      return minDbForAct <= selectedDb || hasNonDbOptions;
     });
-  });
-}
+    ACTS_DBG("after soundLimiters filter", { remain: actsCopy.length });
+  }
+
+  if (setupAndSoundcheck.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      const setupFilters = setupAndSoundcheck;
+
+      // ---- 1️⃣ Handle "90min Setup & Soundcheck" ----
+      if (setupFilters.includes("setup_and_soundcheck_time_90min")) {
+        // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime >= 90
+        const has90 = act.lineups?.some(
+          (l) => Number(l.totalSetupAndSoundcheckTime) >= 90
+        );
+        return has90;
+      }
+
+      // ---- 2️⃣ Handle "60min Setup & Soundcheck" ----
+      if (setupFilters.includes("setup_and_soundcheck_time_60min")) {
+        // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime <= 60
+        const has60 = act.lineups?.some(
+          (l) => Number(l.totalSetupAndSoundcheckTime) <= 60
+        );
+        return has60;
+      }
+
+      // ---- 3️⃣ Handle "Speedy Setup (60min)" ----
+      if (setupFilters.includes("speedy_setup")) {
+        // Find the key inside act.extras that contains "speedy_setup"
+        const extraKey = Object.keys(act.extras || {}).find((k) =>
+          k.toLowerCase().includes("speedy_setup")
+        );
+
+        if (!extraKey) return false;
+
+        const speedy = act.extras[extraKey];
+        if (!speedy) return false;
+
+        return (Number(speedy.price) > 0) || speedy.complimentary === true;
+      }
+
+      return true; // default fallback
+    });
+    ACTS_DBG("after setupAndSoundcheck filter", { remain: actsCopy.length });
+  }
+
+  if (paAndLights.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      const selected = paAndLights;
+
+      // --- PA System filters ---
+      const wantsSmallPA = selected.includes("small_pa_size");
+      const wantsMediumPA = selected.includes("medium_pa_size");
+      const wantsLargePA = selected.includes("large_pa_size");
+
+      // --- Lighting filters ---
+      const wantsSmallLight = selected.includes("small_light_size");
+      const wantsMediumLight = selected.includes("medium_light_size");
+      const wantsLargeLight = selected.includes("large_light_size");
+
+      // Normalise act fields
+      const pa = (act.paSystem || "").toLowerCase();
+      const light = (act.lightingSystem || "").toLowerCase();
+
+      // --- PA Matching logic ---
+      const paMatch =
+        (!wantsSmallPA && !wantsMediumPA && !wantsLargePA) ||
+        (wantsSmallPA && pa.includes("small")) ||
+        (wantsMediumPA && pa.includes("medium")) ||
+        (wantsLargePA && pa.includes("large"));
+
+      // --- Lighting Matching logic ---
+      const lightMatch =
+        (!wantsSmallLight && !wantsMediumLight && !wantsLargeLight) ||
+        (wantsSmallLight && light.includes("small")) ||
+        (wantsMediumLight && light.includes("medium")) ||
+        (wantsLargeLight && light.includes("large"));
+
+      // ✅ Return true if act matches both selected PA and lighting filters
+      return paMatch && lightMatch;
+    });
+    ACTS_DBG("after paAndLights filter", { remain: actsCopy.length });
+  }
+
+  if (pli.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      const amount = Number(act.pliAmount) || 0;
+      // Show if any selected PLI requirement is <= act's PLI
+      return pli.some(req => amount >= req);
+    });
+    ACTS_DBG("after pli filter", { remain: actsCopy.length });
+  }
+
+  if (extraServices.length > 0) {
+    actsCopy = actsCopy.filter((act) => {
+      const extras = act.extras || {};
+      // Normaliser: remove spaces, symbols, underscores etc.
+      const normalize = (str) =>
+        String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
+      const extraKeys = Object.keys(extras);
+      const extraKeysNorm = extraKeys.map(k => normalize(k));
+      return extraServices.some((selectedKeyRaw) => {
+        const selectedKey = selectedKeyRaw.toLowerCase();
+        const fragmentMap = {
+          sound_engineering_for_another_act: "sound_engineering_for_another_act",
+          add_another_vocalist: "anotherVocalist",
+          ceremony_solo: "solo",
+          duo_ceremony: "duo",
+          trio_ceremony: "trio",
+          four_piece_ceremony: "fourpiece",
+          afternoon_solo: "solo",
+          afternoon_duo: "duo",
+          afternoon_trio: "trio",
+          afternoon_4piece: "fourpiece",
+          early_arrival: "early_arrival",
+          late_stay: "late_stay",
+          extra_song: "extra_song_request",
+          extra_sets: "performance",
+          israeli_sets: "israeli_dancing",
+        };
+        const fragment = fragmentMap[selectedKey];
+        if (!fragment) return false;
+        // --- 1) NORMALIZED MATCHING FOR EXTRAS KEYS ---
+        const fragmentNorm = normalize(fragment);
+        const index = extraKeysNorm.findIndex((k) =>
+          k.includes(fragmentNorm)
+        );
+        if (index !== -1) {
+          const originalKey = extraKeys[index];
+          const extra = extras[originalKey];
+          return extra && (extra.price > 0 || extra.complimentary === true);
+        }
+        // --- 2) CEREMONY + AFTERNOON LOGIC (same object) ---
+        const lineups = act.lineups || [];
+        if (
+          [
+            "ceremony_solo",
+            "duo_ceremony",
+            "trio_ceremony",
+            "four_piece_ceremony",
+            "afternoon_solo",
+            "afternoon_duo",
+            "afternoon_trio",
+            "afternoon_4piece",
+          ].includes(selectedKey)
+        ) {
+          const piece = fragment; // solo/duo/trio/fourpiece
+          const isAfternoon = selectedKey.startsWith("afternoon_");
+          const type = isAfternoon ? "afternoonSets" : "ceremonySets";
+          return lineups.some((l) => {
+            const block = l[type]?.[piece];
+            return (
+              block &&
+              Array.isArray(block.amplified) &&
+              block.amplified.length > 0
+            );
+          });
+        }
+        // --- 3) another vocalist ---
+        if (selectedKey === "add_another_vocalist") {
+          return lineups.some((l) => l.anotherVocalist === true);
+        }
+        return false;
+      });
+    });
+    ACTS_DBG("after extraServices filter", { remain: actsCopy.length });
+  }
 
   // --- OTHER FILTERS (unchanged) -------------------------------------------
   if (showSearch && search) {
     const q = String(search).toLowerCase();
     actsCopy = actsCopy.filter((item) => item.name?.toLowerCase().includes(q));
+    ACTS_DBG("after text search filter", { remain: actsCopy.length });
   }
 
-  if (genre.length > 0) {
-    actsCopy = actsCopy.filter(
-      (item) => Array.isArray(item.genre) && genre.some((g) => item.genre.includes(g))
-    );
-  }
+// normalise genres to compare "Soul & Motown" vs "soul and motown" etc.
+const normGenre = (s) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+if (genre.length > 0) {
+  const selectedRaw = [...genre];
+  const selectedSet = new Set(selectedRaw.map(NORM_GENRE));
+
+  console.groupCollapsed("🎚️[GENRES] selected");
+  console.log({ selectedRaw, selectedNorm: [...selectedSet] });
+  console.groupEnd();
+
+  const debugRows = [];
+  const beforeLen = actsCopy.length;
+
+  actsCopy = actsCopy.filter((item) => {
+    const raw = getActGenres(item);
+    const normed = raw.map(NORM_GENRE).filter(Boolean);
+    const keep = normed.some((g) => selectedSet.has(g));
+
+    debugRows.push({
+      id: String(item?._id || item?.id || item?.__card?._id || ""),
+      name: item?.tscName || item?.name || "(untitled)",
+      genres_raw: raw,
+      genres_norm: normed,
+      selected: [...selectedSet],
+      keep,
+    });
+
+    return keep;
+  });
+
+  console.groupCollapsed(
+    `🎚️[GENRES] results — kept ${actsCopy.length} / ${beforeLen}`
+  );
+  // show first 50 rows to keep console tidy
+  console.table(debugRows.slice(0, 50));
+  console.groupEnd();
+
+  ACTS_DBG("after genre filter", { remain: actsCopy.length });
+}
 
   const norm = (s) => {
     if (!s) return "";
@@ -1120,28 +1099,30 @@ if (extraServices.length > 0) {
       const sizes = sizesFromLineups.map(norm);
       return selected.some((sel) => sizes.includes(sel));
     });
+    ACTS_DBG("after act_size filter", { remain: actsCopy.length });
   }
 
-if (djServices.length > 0) {
-  actsCopy = actsCopy.filter((item) =>
-    djServices.some((service) => {
-      const extra = item.extras?.[service];
-      if (!extra) return false;
-
-      // ✅ Include acts that either have a price OR are complimentary
-      return (
-        (extra.price && extra.price > 0) ||
-        extra.complimentary === true
-      );
-    })
-  );
-}
+  if (djServices.length > 0) {
+    actsCopy = actsCopy.filter((item) =>
+      djServices.some((service) => {
+        const extra = item.extras?.[service];
+        if (!extra) return false;
+        // ✅ Include acts that either have a price OR are complimentary
+        return (
+          (extra.price && extra.price > 0) ||
+          extra.complimentary === true
+        );
+      })
+    );
+    ACTS_DBG("after djServices filter", { remain: actsCopy.length });
+  }
 
   if (instruments.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       const actInstruments = deriveActInstruments(act);
       return instruments.some((sel) => actInstruments.includes(sel));
     });
+    ACTS_DBG("after instruments filter", { remain: actsCopy.length });
   }
 
   if (songSearch.length > 0) {
@@ -1160,6 +1141,7 @@ if (djServices.length > 0) {
         })
       );
     });
+    ACTS_DBG("after songSearch filter", { remain: actsCopy.length });
   }
 
   if (actSearch.length > 0) {
@@ -1168,8 +1150,206 @@ if (djServices.length > 0) {
         act.name?.toLowerCase().includes(String(searchTerm).toLowerCase())
       )
     );
+    ACTS_DBG("after actSearch filter", { remain: actsCopy.length });
   }
 
+  const calculateActPricing = async (
+    act,
+    selectedCounty,
+    selectedAddress,
+    selectedDate,
+    selectedLineup
+  ) => {
+    ACTS_DBG("$pricing:init", { actId: act?._id, name: act?.tscName || act?.name, selectedCounty, hasAddress: !!selectedAddress, hasDate: !!selectedDate });
+  // Canonical backend base (never the Netlify origin)
+  const BASE = (
+    import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com"
+  ).replace(/\/+$/, "");
+
+  // --- helpers ---------------------------------------------------------------
+  const fetchTravel = async (origin, destination, dateISO) => {
+    const url =
+      `${BASE}/api/v2/travel/travel-data` +
+      `?origin=${encodeURIComponent(origin)}` +
+      `&destination=${encodeURIComponent(destination)}` +
+      `&date=${encodeURIComponent(String(dateISO).slice(0, 10))}`;
+
+    const res = await fetch(url, { headers: { accept: "application/json" } });
+    const text = await res.text();
+
+    let data = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = {};
+    }
+    if (!res.ok) throw new Error(`travel http ${res.status}`);
+
+    // Legacy: { rows:[{ elements:[{ distance, duration, fare? }] }] }
+    const legacyEl = data?.rows?.[0]?.elements?.[0];
+
+    const outbound =
+      data?.outbound ||
+      (legacyEl?.distance && legacyEl?.duration
+        ? { distance: legacyEl.distance, duration: legacyEl.duration, fare: legacyEl.fare }
+        : undefined);
+
+    const returnTrip = data?.returnTrip;
+
+    return { outbound, returnTrip, raw: data };
+  };
+
+  // Treat anything clearly labeled "manager" as a non-traveling performer
+  const normalize = (s) => String(s || "").trim().toLowerCase();
+  const isManagerLike = (m) => {
+    if (m?.isManager === true) return true;
+    const fields = [
+      m?.role,
+      m?.position,
+      m?.instrument,
+      m?.title,
+      ...(Array.isArray(m?.additionalRoles)
+        ? m.additionalRoles.map((r) => r?.customRole || r?.role)
+        : []),
+    ]
+      .filter(Boolean)
+      .map(normalize);
+    return fields.some((f) => f.includes("manager")); // "manager", "band manager", "tour manager", etc.
+  };
+
+  let travelFee = 0;
+
+  // ---- choose lineup (smallest or provided) ----
+  let smallestLineup = null;
+  if (selectedLineup && Array.isArray(selectedLineup.bandMembers)) {
+    smallestLineup = selectedLineup;
+  } else {
+    smallestLineup = act.lineups?.reduce((min, lineup) => {
+      if (!Array.isArray(lineup.bandMembers)) return min;
+      if (!min || lineup.bandMembers.length < min.bandMembers.length) return lineup;
+      return min;
+    }, null);
+  }
+
+  if (!smallestLineup || !Array.isArray(smallestLineup.bandMembers)) {
+    return null;
+  }
+
+  // ---- northern logic (for team swap) ----
+  const northernCounties = new Set([
+    "ceredigion","cheshire","cleveland","conway","cumbria","denbighshire","derbyshire","durham",
+    "flintshire","greater manchester","gwynedd","herefordshire","lancashire","leicestershire",
+    "lincolnshire","merseyside","north humberside","north yorkshire","northumberland",
+    "nottinghamshire","rutland","shropshire","south humberside","south yorkshire","staffordshire",
+    "tyne and wear","warwickshire","west midlands","west yorkshire","worcestershire","wrexham",
+    "rhondda cynon taf","torfaen","neath port talbot","bridgend","blaenau gwent","caerphilly",
+    "cardiff","merthyr tydfil","newport","aberdeen city","aberdeenshire","angus","argyll and bute",
+    "clackmannanshire","dumfries and galloway","dundee city","east ayrshire","east dunbartonshire",
+    "east lothian","east renfrewshire","edinburgh","falkirk","fife","glasgow","highland",
+    "inverclyde","midlothian","moray","na h eileanan siar","north ayrshire","north lanarkshire",
+    "orkney islands","perth and kinross","renfrewshire","scottish borders","shetland islands",
+    "south ayrshire","south lanarkshire","stirling","west dunbartonshire","west lothian",
+  ]);
+
+  const isNorthernGig = northernCounties.has(
+    String(selectedCounty || "").toLowerCase().trim()
+  );
+
+  const chosenMembers =
+    act.useDifferentTeamForNorthernGigs && isNorthernGig
+      ? act.northernTeam || []
+      : smallestLineup.bandMembers || [];
+
+  // 🚫 Exclude managers from any TRAVEL calculations
+  const performingMembers = (chosenMembers || []).filter((m) => !isManagerLike(m));
+
+  // ---- essential fees (net) ----
+  const essentialFees = smallestLineup.bandMembers.flatMap((member) => {
+    const baseFee = member.isEssential ? Number(member.fee) || 0 : 0;
+    const additionalEssentialFees = (member.additionalRoles || [])
+      .filter((role) => role.isEssential)
+      .map((role) => Number(role.additionalFee) || 0);
+    return [baseFee, ...additionalEssentialFees];
+  });
+
+  const fee = essentialFees.reduce((sum, n) => sum + n, 0);
+
+  // ---- travel fee paths ----
+  const memberPostcodes = performingMembers.map((m) => m?.postCode).filter(Boolean);
+
+  const destination =
+    typeof selectedAddress === "string"
+      ? selectedAddress
+      : selectedAddress?.postcode || selectedAddress?.address || "";
+
+  // 1) County table
+  if (act.useCountyTravelFee && act.countyFees) {
+    const countyKey = String(selectedCounty || "").toLowerCase();
+    const feePerMember = Number(act.countyFees[countyKey]) || 0;
+    travelFee = feePerMember * memberPostcodes.length;
+  }
+  // 2) Per-mile
+  else if (Number(act.costPerMile) > 0) {
+    for (const postCode of memberPostcodes) {
+      if (!destination) continue;
+      try {
+        const { outbound, raw } = await fetchTravel(postCode, destination, selectedDate);
+        const meters =
+          outbound?.distance?.value ??
+          raw?.rows?.[0]?.elements?.[0]?.distance?.value ??
+          0;
+        const miles = meters / 1609.34;
+        travelFee += miles * Number(act.costPerMile) * 2; // return trip
+      } catch (e) {
+        console.warn("⚠️ travel fetch failed (per-mile):", e?.message || e);
+      }
+    }
+  }
+  // 3) MU-style (fuel/time/late/tolls) using outbound+returnTrip
+  else {
+    for (const member of performingMembers) {
+      const postCode = member?.postCode;
+      if (!postCode || !destination) continue;
+
+      try {
+        const { outbound, returnTrip } = await fetchTravel(postCode, destination, selectedDate);
+        if (!outbound || !returnTrip) continue;
+
+        const outboundDistance = outbound?.distance?.value;
+        const returnDistance = returnTrip?.distance?.value;
+        const outboundDuration = outbound?.duration?.value;
+        const returnDuration = returnTrip?.duration?.value;
+
+        if (
+          typeof outboundDistance !== "number" ||
+          typeof returnDistance !== "number" ||
+          typeof outboundDuration !== "number" ||
+          typeof returnDuration !== "number"
+        ) {
+          continue;
+        }
+
+        const totalDistanceMiles = (outboundDistance + returnDistance) / 1609.34;
+        const totalDurationHours = (outboundDuration + returnDuration) / 3600;
+
+        const fuelFee = totalDistanceMiles * 0.56;
+        const timeFee = totalDurationHours * 13.23;
+        const lateFee = returnDuration / 3600 > 1 ? 136 : 0; // keep your existing heuristic
+        const tollFee =
+          (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
+
+        travelFee += fuelFee + timeFee + lateFee + tollFee;
+      } catch (e) {
+        console.warn("⚠️ travel fetch failed (MU):", e?.message || e);
+      }
+    }
+  }
+
+    // 🔶 Pricing with margin
+    const totalPrice = Math.ceil((fee + travelFee) / 0.75); // 25% margin on sell price
+    ACTS_DBG("$pricing:done", { actId: act?._id, totalPrice });
+    return `${totalPrice}`;
+  };
 
   // --- PRICING --------------------------------------------------------------
   const updatedActs = await Promise.all(
@@ -1191,6 +1371,9 @@ if (djServices.length > 0) {
       }
     })
   );
+  ACTS_DBG("updatedActs (post pricing)", { len: Array.isArray(updatedActs) ? updatedActs.length : 0,
+    sample: (Array.isArray(updatedActs) ? updatedActs.slice(0, 5) : []).map(a => ({ id: a?._id, n: a?.tscName || a?.name, price: a?.formattedPrice }))
+  });
 
   // Only let the latest run win
   if (runId === filterRunIdRef.current) {
@@ -1222,170 +1405,177 @@ if (djServices.length > 0) {
         return B - A;
       });
     }
-
+    ACTS_DBG("finalActs before set", { len: finalActs.length });
     setFilterProducts(finalActs);
+    ACTS_DBG("✅ setFilterProducts(final)", { len: finalActs.length });
+    ENDGROUP();
   } else {
-    console.log(`Skipping stale filter run #${runId}`);
+    ACTS_DBG(`Skipping stale filter run #${runId}`);
+    ENDGROUP();
   }
-
-  if (approvedActs.length > 0 && updatedActs.length === 0) {
-  
-  }
-};
-
-
- // 1) Initial boot — keep as-is
-useEffect(() => {
-  const init = async () => { 
-    setInitializing(true);
-    const storedDate = sessionStorage.getItem("selectedDate");
-    const storedAddress = sessionStorage.getItem("selectedAddress");
-    const storedCounty = sessionStorage.getItem("selectedCounty");
-
-    if (storedCounty) setSelectedCounty(storedCounty);
-    if (storedDate) setSelectedDate(storedDate);
-    if (storedAddress) setSelectedAddress(storedAddress);
-
-    // warm availability from cache
-    try {
-      const d = (storedDate || "").slice(0, 10);
-      if (d) {
-        const cached = sessionStorage.getItem(`availMap:${d}`);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && typeof parsed === "object") {
-            setAvailableMap(parsed);
-          }
-        }
-      }
-    } catch {}
-
-    await applyFilter();
-    setInitializing(false);
-  };
-  init();
-}, []);
-
-// 2) When acts arrive (0 → N), run filter
-useEffect(() => {
-  if (!initializing) {
-    applyFilter();
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [approvedActs.length]);
-
-// 3) When availability loading state flips, run filter again
-useEffect(() => {
-  if (!initializing) {
-    applyFilter();
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [availLoading]);
-
-// 4) Main “filters changed” effect
-useEffect(() => {
-  const asyncApply = async () => {
-    setUpdatingResults(true);
-    await applyFilter();
-    setUpdatingResults(false);
-  };
-  asyncApply();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [
-  // search & UI toggles
-  search, showSearch,
-  genre, act_size, djServices, instruments,
-  songSearch, actSearch,
-  soundLimiters, setupAndSoundcheck, paAndLights,
-  pli, extraServices, wireless,
-
-  // availability & date
-  selectedDate,
-  availableMap,       // identity changes on setAvailableMap(map)
-  availLoading,       // re-run after it finishes
-
-  // acts arriving
-  approvedActs.length // 0 → N triggers re-run
-]);
-
-// ✅ Lightweight re-sort when the sort dropdown changes
-useEffect(() => {
-  // do nothing for default relevance
-  if (sortType === "relavent") return;
-  if (!Array.isArray(filterProducts) || filterProducts.length === 0) return;
-
-  const toNum = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : NaN;
-  };
-
-  const sorted = [...filterProducts].sort((a, b) => {
-    const A = toNum(a?.formattedPrice);
-    const B = toNum(b?.formattedPrice);
-
-    // Missing/NaN prices go to the end consistently
-    const bothNaN = Number.isNaN(A) && Number.isNaN(B);
-    if (bothNaN) return 0;
-    if (Number.isNaN(A)) return 1;
-    if (Number.isNaN(B)) return -1;
-
-    return sortType === "low-high" ? A - B : B - A;
-  });
-
-  setFilterProducts(sorted);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [sortType]);
-
-
-
-  // --- Spinner conditional rendering for loading or no acts ---
-if (initializing && acts.length === 0) {
-  return (
-    <div className="flex flex-col items-center justify-center h-96">
-      <svg className="animate-spin h-10 w-10 text-gray-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-      </svg>
-      <p className="text-gray-700">Fetching acts and calculating your precise quotes…</p>
-    </div>
-  );
 }
 
-  return (
-    <div className="flex flex-col sm:flex-row gap-1 sm:gap-10 pt-10 border-t ">
-      
-      {/* Filter options */}
-      <div className="min-w-60 max-w-60">
-        <p
-          onClick={() => setShowFilter(!showFilter)}
-          className="my-2 text-l flex items-center cursor-pointer gap-2 text-gray-600"
-        >
-          FILTERS
-          <img
-            className={`h-3 sm:hidden transition-transform duration-300 ${showFilter ? "rotate-90" : ""}`}
-            src={assets.dropdown_icon}
-            alt=""
-          />
-        </p>
 
-        <div
-          className={`border border-gray-300 pl-5 py-3 my-5 ${showFilter ? "" : "hidden"} sm:block`}
-        >
-          {/* Genre filter */}
-          <p
-            onClick={() => setShowGenreFilter(!showGenreFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            GENRES
-            <img
-              className={`h-3 transition-transform duration-300 ${showGenreFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
 
-          {/* Genre options dropdown */}
-          {showGenreFilter && (
+   // 1) Initial boot — keep as-is
+  useEffect(() => {
+    const init = async () => { 
+      setInitializing(true);
+      const storedDate = sessionStorage.getItem("selectedDate");
+      const storedAddress = sessionStorage.getItem("selectedAddress");
+      const storedCounty = sessionStorage.getItem("selectedCounty");
+  
+      if (storedCounty) setSelectedCounty(storedCounty);
+      if (storedDate) setSelectedDate(storedDate);
+      if (storedAddress) setSelectedAddress(storedAddress);
+  
+      // warm availability from cache
+      try {
+        const d = (storedDate || "").slice(0, 10);
+        if (d) {
+          const cached = sessionStorage.getItem(`availMap:${d}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed && typeof parsed === "object") {
+              setAvailableMap(parsed);
+            }
+          }
+        }
+      } catch {
+        // intentionally ignored
+      }
+  
+      await applyFilter();
+      setInitializing(false);
+    };
+    init();
+  }, []);
+  
+  // 2) When acts arrive (0 → N), run filter
+  useEffect(() => {
+    if (!initializing) {
+      applyFilter();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [actsPageCards.length]);
+
+console.log("applyFilter sizes", {
+  cards: (Array.isArray(cards) ? cards.length : 0),
+});
+
+console.log("actsPageCards:", actsPageCards[0]);
+  
+  // 3) When availability loading state flips, run filter again
+  useEffect(() => {
+    if (!initializing) {
+      applyFilter();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availLoading]);
+  
+  // 4) Main “filters changed” effect
+  useEffect(() => {
+    const asyncApply = async () => {
+      setUpdatingResults(true);
+      await applyFilter();
+      setUpdatingResults(false);
+    };
+    asyncApply();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    // search & UI toggles
+    search, showSearch,
+    genre, act_size, djServices, instruments,
+    songSearch, actSearch,
+    soundLimiters, setupAndSoundcheck, paAndLights,
+    pli, extraServices, wireless,
+  
+    // availability & date
+    selectedDate,
+    availableMap,       // identity changes on setAvailableMap(map)
+    availLoading,       // re-run after it finishes
+  
+    // acts arriving
+    approvedActsCount
+  ]);
+  
+  // ✅ Lightweight re-sort when the sort dropdown changes
+  useEffect(() => {
+    // do nothing for default relevance
+    if (sortType === "relevant") return;
+    if (!Array.isArray(filterProducts) || filterProducts.length === 0) return;
+  
+    const toNum = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : NaN;
+    };
+  
+    const sorted = [...filterProducts].sort((a, b) => {
+      const A = toNum(a?.formattedPrice);
+      const B = toNum(b?.formattedPrice);
+  
+      // Missing/NaN prices go to the end consistently
+      const bothNaN = Number.isNaN(A) && Number.isNaN(B);
+      if (bothNaN) return 0;
+      if (Number.isNaN(A)) return 1;
+      if (Number.isNaN(B)) return -1;
+  
+      return sortType === "low-high" ? A - B : B - A;
+    });
+  
+    setFilterProducts(sorted);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortType]);
+
+  const results = Array.isArray(filterProducts) && filterProducts.length
+  ? filterProducts
+  : items;
+
+
+    return (
+    <div className="my-10 max-w-7xl mx-auto px-4">
+      {/* Two-column layout */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* LEFT: Filters */}
+        <aside className="col-span-12 md:col-span-4 lg:col-span-3">
+          <div className="md:sticky md:top-20 md:self-start">
+            <p
+              onClick={() => setShowFilter(!showFilter)}
+              className="my-2 text-l flex items-center cursor-pointer gap-2 text-gray-600"
+            >
+              FILTERS
+              <img
+                className={`h-3 md:hidden transition-transform duration-300 ${
+                  showFilter ? "rotate-90" : ""
+                }`}
+                src={assets.dropdown_icon}
+                alt=""
+              />
+            </p>
+
+            <div
+              className={`border border-gray-300 pl-5 py-3 my-5 ${
+                showFilter ? "block" : "hidden"
+              } md:block`}
+            >
+              {/* ------- GENRES ------- */}
+              <p
+                onClick={() => setShowGenreFilter(!showGenreFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                GENRES
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showGenreFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
+
+              {showGenreFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <label className="flex gap-2">
                 <input
@@ -1538,23 +1728,27 @@ if (initializing && acts.length === 0) {
                 Israeli
               </label>{" "}
             </div>
-          )}
+                       </div>
+              )}
 
-          {/* Act Size filter */}
-          <p
-            onClick={() => setShowActSizeFilter(!showActSizeFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            ACT SIZE
-            <img
-              className={`h-3 transition-transform duration-300 ${showActSizeFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- ACT SIZE ------- */}
+              <p
+                onClick={() => setShowActSizeFilter(!showActSizeFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                ACT SIZE
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showActSizeFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/* Acts Size options dropdown */}
-          {showActSizeFilter && (
+              {showActSizeFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+ {showActSizeFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <label className="flex gap-2">
                 <input
@@ -1657,22 +1851,27 @@ if (initializing && acts.length === 0) {
                 10-Piece +
               </label>
             </div>
-          )}
+          )}                </div>
+              )}
 
-          {/* DJ Services filter */}
-          <p
-            onClick={() => setShowDjServicesFilter(!showDjServicesFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            DJ SERVICES
-            <img
-              className={`h-3 transition-transform duration-300 ${showDjServicesFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- DJ SERVICES ------- */}
+              <p
+                onClick={() => setShowDjServicesFilter(!showDjServicesFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                DJ SERVICES
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showDjServicesFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/*DJ Service Dropdown Options */}
+              {showDjServicesFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+    {/*DJ Service Dropdown Options */}
           {showDjServicesFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <p className="flex gap-2">
@@ -1738,22 +1937,27 @@ if (initializing && acts.length === 0) {
                 DJ Live with Saxophone & Bongos
               </p>
             </div>
-          )}
+          )}                </div>
+              )}
 
-          {/* Instruments filter */}
-          <p
-            onClick={() => setShowInstrumentsFilter(!showInstrumentsFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            INSTRUMENTS
-            <img
-              className={`h-3 transition-transform duration-300 ${showInstrumentsFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- INSTRUMENTS ------- */}
+              <p
+                onClick={() => setShowInstrumentsFilter(!showInstrumentsFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                INSTRUMENTS
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showInstrumentsFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/* Instruments Dropdown Options */}
+              {showInstrumentsFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+  {/* Instruments Dropdown Options */}
           {showInstrumentsFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <p className="flex gap-2">
@@ -1947,21 +2151,27 @@ if (initializing && acts.length === 0) {
                 Flute & Clarinet
               </p>
             </div>
-          )}
-          {/* Wireless filter */}
-          <p
-            onClick={() => setShowWirelessFilter(!showWirelessFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            WIRELESS
-            <img
-              className={`h-3 transition-transform duration-300 ${showWirelessFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+          )}                </div>
+              )}
 
-          {/* Wireless options dropdown */}
+              {/* ------- WIRELESS ------- */}
+              <p
+                onClick={() => setShowWirelessFilter(!showWirelessFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                WIRELESS
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showWirelessFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
+
+              {showWirelessFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+  {/* Wireless options dropdown */}
           {showWirelessFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <label className="flex gap-2">
@@ -2025,22 +2235,27 @@ if (initializing && acts.length === 0) {
                 Trumpet
               </label>{" "}
             </div>
-          )}
+          )}                </div>
+              )}
 
-          {/*Repertoire filter */}
-          <p
-            onClick={() => setShowSongFilter(!showSongFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            SONG & ARTIST SEARCH
-            <img
-              className={`h-3 transition-transform duration-300 ${showSongFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- SONG & ARTIST SEARCH ------- */}
+              <p
+                onClick={() => setShowSongFilter(!showSongFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                SONG & ARTIST SEARCH
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showSongFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/* Song & Artist Search Input */}
+              {showSongFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+ {/* Song & Artist Search Input */}
           {showSongFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <input
@@ -2057,22 +2272,27 @@ if (initializing && acts.length === 0) {
                 className="border p-1 w-11/12"
               />
             </div>
-          )}
+          )}                </div>
+              )}
 
-          {/*Act Name filter */}
-          <p
-            onClick={() => setShowActFilter(!showActFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            ACT NAME SEARCH
-            <img
-              className={`h-3 transition-transform duration-300 ${showActFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- ACT NAME SEARCH ------- */}
+              <p
+                onClick={() => setShowActFilter(!showActFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                ACT NAME SEARCH
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showActFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/* Act Search Input */}
+              {showActFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+     {/* Act Search Input */}
           {showActFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <input
@@ -2089,22 +2309,29 @@ if (initializing && acts.length === 0) {
                 className="border p-1 w-11/12"
               />
             </div>
-          )}
+          )}                </div>
+              )}
 
-          {/* Soundlimiter filter */}
-          <p
-            onClick={() => setShowSoundLimitersFilter(!showSoundLimiterFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            SOUND LIMITERS
-            <img
-              className={`h-3 transition-transform duration-300 ${showSoundLimiterFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- SOUND LIMITERS ------- */}
+              <p
+                onClick={() =>
+                  setShowSoundLimitersFilter(!showSoundLimiterFilter)
+                }
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                SOUND LIMITERS
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showSoundLimiterFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/* soundlimiter options dropdown */}
+              {showSoundLimiterFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+   {/* soundlimiter options dropdown */}
           {showSoundLimiterFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <label className="flex gap-2">
@@ -2338,24 +2565,29 @@ if (initializing && acts.length === 0) {
                 107db +
               </label>{" "}
             </div>
-          )}
+          )}                </div>
+              )}
 
-          {/* Setup & Soundcheck Time filter */}
-          <p
-            onClick={() =>
-              setShowSetupAndSoundcheckFilter(!showSetupAndSoundcheckFilter)
-            }
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            SETUP & SOUNDCHECK
-            <img
-              className={`h-3 transition-transform duration-300 ${showSetupAndSoundcheckFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- SETUP & SOUNDCHECK ------- */}
+              <p
+                onClick={() =>
+                  setShowSetupAndSoundcheckFilter(!showSetupAndSoundcheckFilter)
+                }
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                SETUP & SOUNDCHECK
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showSetupAndSoundcheckFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/* Setup and Soundcheck filter */}
+              {showSetupAndSoundcheckFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+   {/* Setup and Soundcheck filter */}
           {showSetupAndSoundcheckFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <p className="flex gap-2">
@@ -2393,22 +2625,27 @@ if (initializing && acts.length === 0) {
                 60min Speedy Setup & Soundcheck
               </p>
             </div>
-          )}
+          )}                </div>
+              )}
 
-          {/* PA and Lights filter */}
-          <p
-            onClick={() => setShowPaAndLightsFilter(!showPaAndLightsFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            PA & LIGHTS
-            <img
-              className={`h-3 transition-transform duration-300 ${showPaAndLightsFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- PA & LIGHTS ------- */}
+              <p
+                onClick={() => setShowPaAndLightsFilter(!showPaAndLightsFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                PA & LIGHTS
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showPaAndLightsFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/* PA and Lights  dropdown */}
+              {showPaAndLightsFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+ {/* PA and Lights  dropdown */}
           {showPaAndLightsFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <p className="flex gap-2">
@@ -2472,22 +2709,27 @@ if (initializing && acts.length === 0) {
                 Large Light System
               </p>
             </div>
-          )}
+          )}                </div>
+              )}
 
-          {/* PLI filter */}
-          <p
-            onClick={() => setShowPliFilter(!showPliFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            PLI
-            <img
-              className={`h-3 transition-transform duration-300 ${showPliFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- PLI ------- */}
+              <p
+                onClick={() => setShowPliFilter(!showPliFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                PLI
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showPliFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/* pli options dropdown */}
+              {showPliFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+  {/* pli options dropdown */}
           {showPliFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <label className="flex gap-2">
@@ -2564,22 +2806,27 @@ checked={pli.includes(20)}                />{" "}
                 Up to £20m
               </label>
             </div>
-          )}
+          )}                </div>
+              )}
 
-          {/*Extra services filter */}
-          <p
-            onClick={() => setShowExtraServicesFilter(!showExtraServicesFilter)}
-            className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
-          >
-            EXTRA SERVICES
-            <img
-              className={`h-3 transition-transform duration-300 ${showExtraServicesFilter ? "rotate-90" : ""}`}
-              src={assets.dropdown_icon}
-              alt=""
-            />
-          </p>
+              {/* ------- EXTRA SERVICES ------- */}
+              <p
+                onClick={() => setShowExtraServicesFilter(!showExtraServicesFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                EXTRA SERVICES
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showExtraServicesFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
 
-          {/*Extra services filter */}
+              {showExtraServicesFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+  {/*Extra services filter */}
           {showExtraServicesFilter && (
             <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
               <p className="flex gap-2">
@@ -2735,13 +2982,17 @@ checked={pli.includes(20)}                />{" "}
                 Israeli Dancing Sets
               </p>
             </div>
-          )}
-        </div>
-      </div>
-      {/* Right side */}
-      <div className="flex-1">
-        <div className="flex justify-left text-base justify-between sm:text-2xl mb-4">
-          <Title text1={"ALL"} text2={"ACTS"} />
+          )}                </div>
+              )}
+            </div>
+          </div>
+        </aside>
+
+        {/* RIGHT: Results */}
+        <main className="col-span-12 md:col-span-8 lg:col-span-9">
+          <div className="text-center md:text-left py-2">
+            <Title text1="ALL" text2="ACTS" />
+          </div>
 
           {/* Current Address in State */}
           <div className="flex text-base sm:text-2xl justify-between gap-6">
@@ -2751,170 +3002,165 @@ checked={pli.includes(20)}                />{" "}
               onChange={(e) => setSortType(e.target.value)}
               value={sortType}
             >
-              <option value="relevent">Sort by: Relevant</option>
+              <option value="relevant">Sort by: Relevant</option>
               <option value="low-high">Sort by: Low to High</option>
               <option value="high-low">Sort by: High to Low</option>
             </select>
           </div>
-        </div>
-        {/* ✅ Now dynamically shows selected date & address */}
-        <div>
-          {selectedDate && selectedAddress ? (
-            <p className="text-sm mt-3 justify-right p-2 text-gray-500">
-              Showing Results for:
-              <span className="text-gray-700">
-                {" "}
-                {formatDate(selectedDate)} at{" "}
-                {storedPlace && `${storedPlace}, `}
-                {selectedAddress}{" "}
-              </span>
-              <span
-                onClick={() => triggerSearch()}
-                className="text-blue-600 cursor-pointer underline ml-2"
-              >
-                edit search
-              </span>
-            </p>
-          ) : (
-            <p className="text-sm mt-3 justify-right p-2 text-gray-500">
-              Please select a date and location for an accurate quote!
-              <span
-                onClick={() => triggerSearch()}
-                className="text-blue-600 cursor-pointer underline ml-2"
-              >
-                Begin Search
-              </span>
-            </p>
-          )}
-        </div>
-        
-        <div>
-          
-          {(genre.length > 0 ||
-            act_size.length > 0 ||
-            djServices.length > 0 ||
-            songSearch.length > 0 ||
-            actSearch.length > 0 ||
-            instruments.length > 0 ||
-            wireless.length > 0 ||
-            soundLimiters.length > 0 ||
-            setupAndSoundcheck.length > 0 ||
-            paAndLights.length > 0 ||
-            pli.length > 0 ||
-            extraServices.length > 0) && (
-            <div className="flex flex-wrap gap-2 p-2 mb-4 border-b">
-              {updatingResults && (
-  <div className="w-full sm:ml-0 mb-2 px-3 py-2 text-sm text-gray-600 bg-gray-100 border border-gray-200 rounded">
-    Updating results…
-  </div>
-)}
 
-              
-              {[
-                ...genre,
-                ...act_size,
-                ...djServices,
-                ...instruments,
-                ...wireless,
-                ...soundLimiters,
-                ...setupAndSoundcheck,
-                ...paAndLights,
-                ...pli,
-                ...extraServices,
-              ].map((item) => (
-                <span
-                  key={item}
-                  className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
-                >
-                  {labelMap[item] || item}{" "}
-                  {/* Use labelMap to show a friendly name */}
-                  <button
-                    onClick={() => {
-                      if (genre.includes(item))
-                        toggleGenre({ target: { value: item } });
-                      else if (act_size.includes(item))
-                        toggleActSize({ target: { value: item } });
-                      else if (djServices.includes(item))
-                        toggleDjServices({ target: { value: item } });
-                      else if (instruments.includes(item))
-                        toggleInstruments({ target: { value: item } });
-                      else if (wireless.includes(item))
-                        toggleWireless({ target: { value: item } });
-                      else if (soundLimiters.includes(item))
-                        toggleSoundLimiters({ target: { value: item } });
-                      else if (setupAndSoundcheck.includes(item))
-                        toggleSetupAndSoundcheck({ target: { value: item } });
-                      else if (paAndLights.includes(item))
-                        togglePaAndLights({ target: { value: item } });
-                      else if (pli.includes(item))
-                        togglePli({ target: { value: item } });
-                      else if (extraServices.includes(item))
-                        toggleExtraServices({ target: { value: item } });
-                    }}
-                    className="text-gray-100 text-xs font-bold"
-                  >
-                    ✖️
-                  </button>
+          {/* ✅ Now dynamically shows selected date & address */}
+          <div>
+            {selectedDate && selectedAddress ? (
+              <p className="text-sm mt-3 justify-right p-2 text-gray-500">
+                Showing Results for:
+                <span className="text-gray-700">
+                  {" "}
+                  {formatDate(selectedDate)} at{" "}
+                  {storedPlace && `${storedPlace}, `}
+                  {selectedAddress}{" "}
                 </span>
-              ))}
-
-              {/* Song or Artist Search */}
-              {songSearch.map((item) => (
                 <span
-                  key={item}
-                  className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                  onClick={() => triggerSearch()}
+                  className="text-blue-600 cursor-pointer underline ml-2"
                 >
-                  {item} {/* User input appears as a tag */}
-                  <button
-                    onClick={() =>
-                      setSongSearch(songSearch.filter((song) => song !== item))
-                    }
-                    className="text-gray-100 text-xs font-bold"
-                  >
-                    ✖️
-                  </button>
+                  edit search
                 </span>
-              ))}
-
-              {/* Act Name Search */}
-              {actSearch.map((item) => (
+              </p>
+            ) : (
+              <p className="text-sm mt-3 justify-right p-2 text-gray-500">
+                Please select a date and location for an accurate quote!
                 <span
-                  key={item}
-                  className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                  onClick={() => triggerSearch()}
+                  className="text-blue-600 cursor-pointer underline ml-2"
                 >
-                  {item} {/* User input appears as a tag */}
-                  <button
-                    onClick={() =>
-                      setActSearch(actSearch.filter((act) => act !== item))
-                    }
-                    className="text-gray-100 text-xs font-bold"
-                  >
-                    ✖️
-                  </button>
+                  Begin Search
                 </span>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* Map products / acts */}
-        
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-6">
-        {selectedDate && availLoading ? (
-          <div className="col-span-2 md:col-span-3 lg:col-span-4 p-6 text-center text-gray-600">
-            Checking availability…
+              </p>
+            )}
           </div>
-        ) : (
-          filterProducts.map((item, index) => (
-           <CardFilterItem
-  key={item._id}
-  actData={item}
-  isShortlisted={isShortlisted(item._id)}
-  onShortlistToggle={() => shortlistAct(userId, item._id)}
-  price={item.formattedPrice}
-/>
-          ))
-        )}
-      </div>
+
+          <div>
+            {(genre.length > 0 ||
+              act_size.length > 0 ||
+              djServices.length > 0 ||
+              songSearch.length > 0 ||
+              actSearch.length > 0 ||
+              instruments.length > 0 ||
+              wireless.length > 0 ||
+              soundLimiters.length > 0 ||
+              setupAndSoundcheck.length > 0 ||
+              paAndLights.length > 0 ||
+              pli.length > 0 ||
+              extraServices.length > 0) && (
+              <div className="flex flex-wrap gap-2 p-2 mb-4 border-b">
+                {updatingResults && (
+                  <div className="w-full sm:ml-0 mb-2 px-3 py-2 text-sm text-gray-600 bg-gray-100 border border-gray-200 rounded">
+                    Updating results…
+                  </div>
+                )}
+
+                {[
+                  ...genre,
+                  ...act_size,
+                  ...djServices,
+                  ...instruments,
+                  ...wireless,
+                  ...soundLimiters,
+                  ...setupAndSoundcheck,
+                  ...paAndLights,
+                  ...pli,
+                  ...extraServices,
+                ].map((item) => (
+                  <span
+                    key={item}
+                    className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                  >
+                    {labelMap[item] || item}{" "}
+                    {/* Use labelMap to show a friendly name */}
+                    <button
+                      onClick={() => {
+                        if (genre.includes(item))
+                          toggleGenre({ target: { value: item } });
+                        else if (act_size.includes(item))
+                          toggleActSize({ target: { value: item } });
+                        else if (djServices.includes(item))
+                          toggleDjServices({ target: { value: item } });
+                        else if (instruments.includes(item))
+                          toggleInstruments({ target: { value: item } });
+                        else if (wireless.includes(item))
+                          toggleWireless({ target: { value: item } });
+                        else if (soundLimiters.includes(item))
+                          toggleSoundLimiters({ target: { value: item } });
+                        else if (setupAndSoundcheck.includes(item))
+                          toggleSetupAndSoundcheck({
+                            target: { value: item },
+                          });
+                        else if (paAndLights.includes(item))
+                          togglePaAndLights({ target: { value: item } });
+                        else if (pli.includes(item))
+                          togglePli({ target: { value: item } });
+                        else if (extraServices.includes(item))
+                          toggleExtraServices({ target: { value: item } });
+                      }}
+                      className="text-gray-100 text-xs font-bold"
+                    >
+                      ✖️
+                    </button>
+                  </span>
+                ))}
+
+                {/* Song or Artist Search */}
+                {songSearch.map((item) => (
+                  <span
+                    key={item}
+                    className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                  >
+                    {item} {/* User input appears as a tag */}
+                    <button
+                      onClick={() =>
+                        setSongSearch(
+                          songSearch.filter((song) => song !== item)
+                        )
+                      }
+                      className="text-gray-100 text-xs font-bold"
+                    >
+                      ✖️
+                    </button>
+                  </span>
+                ))}
+
+                {/* Act Name Search */}
+                {actSearch.map((item) => (
+                  <span
+                    key={item}
+                    className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded flex items-center gap-2"
+                  >
+                    {item} {/* User input appears as a tag */}
+                    <button
+                      onClick={() =>
+                        setActSearch(actSearch.filter((act) => act !== item))
+                      }
+                      className="text-gray-100 text-xs font-bold"
+                    >
+                      ✖️
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Map products / acts */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
+         {results.map((item) => (
+  <ActItem
+    key={item.actId || item._id}
+    actData={{ ...item, images: item?.images ?? item?.__card?.images ?? item?.__card?.coverImages }}
+    variant="listing"
+  />
+))}
+          </div>
+        </main>
       </div>
     </div>
   );
