@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import calculateActPricing from '../pages/utils/pricing';
-import { ShopContext } from '../context/ShopContext';
+import { CardFilterShopContext } from '../context/CardFilterShopContext';
 
 const DBG = true;
 const dlog = (...a) => DBG && console.log('🎯[ActItem]', ...a);
@@ -68,7 +68,7 @@ const ActItem = ({ actData, shortlistCount, standalone = false, sourceTag = 'unk
 
   // Try to read context, but allow absence in standalone mode
   let ctx = {};
-  try { ctx = useContext(ShopContext) || {}; } catch { ctx = {}; }
+  try { ctx = useContext(CardFilterShopContext) || {}; } catch { ctx = {}; }
 
   const {
     shortlistedActs,

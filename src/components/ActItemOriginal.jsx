@@ -8,17 +8,17 @@ import useOnScreen from '../hooks/useOnScreen';
 import { priceCache, makePriceKey } from '../pages/utils/priceCache';
 import useRenderTracker from '../hooks/useRenderTracker'; // 👈 add this import
 
-// Cloudinary helper: add responsive transforms
-const cld = (url, { w = 600, h = 400, crop = 'fill', gravity = 'auto' } = {}) => {
+// Cloudinary helper: preserve original aspect (no fixed height)
+const cld = (url, { w = 1200, crop = 'limit' } = {}) => {
   if (typeof url !== 'string') return '';
   if (!url.includes('/upload/')) return url || '';
   return url.replace(
     '/upload/',
-    `/upload/f_auto,q_auto,dpr_auto,c_${crop},g_${gravity},w_${w},h_${h}/`
+    `/upload/f_auto,q_auto,dpr_auto,c_${crop},w_${w}/`
   );
 };
 
-const ActItem = ({ actData, shortlistCount }) => {
+const ActItem = ({ actData, shortlistCount, lite = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -101,25 +101,32 @@ const ActItem = ({ actData, shortlistCount }) => {
 }, []);
 
   // Keep loveCount in sync with DB when actData changes
-useEffect(() => {
-  const next =
-    Number(
-      actData?.timesShortlisted ??
-      shortlistCount ??
-      actData?.shortlistCount ??
-      actData?.metrics?.shortlists ??
-      0
-    ) || 0;
+  useEffect(() => {
+    if (lite) return;
+    const next =
+      Number(
+        actData?.timesShortlisted ??
+        shortlistCount ??
+        actData?.shortlistCount ??
+        actData?.metrics?.shortlists ??
+        0
+      ) || 0;
 
-  setLoveCount((prev) => (prev === next ? prev : next));
-}, [
-  actData?.timesShortlisted,
-  shortlistCount,
-  actData?.shortlistCount,
-  actData?.metrics?.shortlists
-]);
+    setLoveCount((prev) => (prev === next ? prev : next));
+  }, [
+    lite,
+    actData?.timesShortlisted,
+    shortlistCount,
+    actData?.shortlistCount,
+    actData?.metrics?.shortlists
+  ]);
 
   useEffect(() => {
+    // Skip all pricing work in lite mode
+    if (lite) {
+      setPrice(null);
+      return;
+    }
     // 0) If no lineups yet, show base if possible and bail
     if (!actData?.lineups?.length) {
       if (basePrice != null) setPrice({ total: basePrice, travelCalculated: false });
@@ -206,6 +213,7 @@ useEffect(() => {
     defDate,
     isOnScreen,
     basePrice,
+    lite,
   ]);
 
   const rawTotal = (actData?.formattedPrice?.total ?? price?.total);
@@ -213,6 +221,7 @@ useEffect(() => {
     rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
 
   const handleHeartClick = async (e) => {
+    if (lite) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -284,14 +293,12 @@ useEffect(() => {
         <div className="overflow-hidden h-full w-full">
           {(() => {
             const raw = actData?.profileImage?.[0]?.url || '/placeholder.jpg';
-            const resolvedImage = cld(raw, { w: 600, h: 400 });
+            const resolvedImage = cld(raw, { w: 1200, crop: 'limit' });
             return (
               <img
                 loading="lazy"
                 decoding="async"
                 fetchPriority="low"
-                width="600"
-                height="400"
                 className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
                 src={resolvedImage}
                 alt={actData?.tscName || 'Act'}
@@ -303,57 +310,61 @@ useEffect(() => {
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
             <p className="text-sm">{actData?.tscName}</p>
-            <div className="act-price">
-              {displayTotal !== null
-                ? (price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`)
-                : 'Loading price...'}
+            {!lite && (
+              <div className="act-price">
+                {displayTotal !== null
+                  ? (price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`)
+                  : 'Loading price...'}
+              </div>
+            )}
+          </div>
+
+          {!lite && (
+            <div className="flex flex-col items-center lg:items-end justify-between min-h-[40px]">
+              <button
+                onClick={handleHeartClick}
+                disabled={isAnimating}
+                className="p-1 transition-transform duration-150 ease-in-out"
+                aria-label={isShortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
+                title={isShortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
+              >
+                {isShortlisted ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="-1 -1 34 32"
+                    className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
+                    fill="#ff6667"
+                    stroke="#cc5253"
+                    strokeWidth="1.5"
+                  >
+                    <path d="M23.6,0c-3.4,0-6.4,2.2-7.6,5.4C14.8,2.2,11.8,0,8.4,0C3.8,0,0,3.9,0,8.7c0,4.5,3.2,7.7,8,12.2
+                      c3.4,3.2,6.5,5.8,7.3,6.4c0.2,0.2,0.5,0.3,0.7,0.3s0.5-0.1,0.7-0.3c0.8-0.6,3.9-3.2,7.3-6.4c4.8-4.5,8-7.7,8-12.2
+                      C32,3.9,28.2,0,23.6,0z" />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="-1 -1 34 32"
+                    className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
+                    fill="none"
+                    stroke="#000"
+                    strokeWidth="1.5"
+                  >
+                    <path d="M23.6,0c-3.4,0-6.4,2.2-7.6,5.4C14.8,2.2,11.8,0,8.4,0C3.8,0,0,3.9,0,8.7c0,4.5,3.2,7.7,8,12.2
+                      c3.4,3.2,6.5,5.8,7.3,6.4c0.2,0.2,0.5,0.3,0.7,0.3s0.5-0.1,0.7-0.3c0.8-0.6,3.9-3.2,7.3-6.4c4.8-4.5,8-7.7,8-12.2
+                      C32,3.9,28.2,0,23.6,0z" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Always show a readable label */}
+              <p className={`text-xs ${loveCount === 0 ? 'text-gray-400' : 'text-gray-700'} text-center w-full self-center lg:self-end`}>
+                {loveCount === 0
+                  ? 'love me'
+                  : `${formatLoveCount(loveCount)} ${loveCount === 1 ? 'love' : 'loves'}`}
+              </p>
             </div>
-          </div>
-
-          <div className="flex flex-col items-center lg:items-end justify-between min-h-[40px]">
-            <button
-              onClick={handleHeartClick}
-              disabled={isAnimating}
-              className="p-1 transition-transform duration-150 ease-in-out"
-              aria-label={isShortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
-              title={isShortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
-            >
-              {isShortlisted ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="-1 -1 34 32"
-                  className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
-                  fill="#ff6667"
-                  stroke="#cc5253"
-                  strokeWidth="1.5"
-                >
-                  <path d="M23.6,0c-3.4,0-6.4,2.2-7.6,5.4C14.8,2.2,11.8,0,8.4,0C3.8,0,0,3.9,0,8.7c0,4.5,3.2,7.7,8,12.2
-                    c3.4,3.2,6.5,5.8,7.3,6.4c0.2,0.2,0.5,0.3,0.7,0.3s0.5-0.1,0.7-0.3c0.8-0.6,3.9-3.2,7.3-6.4c4.8-4.5,8-7.7,8-12.2
-                    C32,3.9,28.2,0,23.6,0z" />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="-1 -1 34 32"
-                  className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
-                  fill="none"
-                  stroke="#000"
-                  strokeWidth="1.5"
-                >
-                  <path d="M23.6,0c-3.4,0-6.4,2.2-7.6,5.4C14.8,2.2,11.8,0,8.4,0C3.8,0,0,3.9,0,8.7c0,4.5,3.2,7.7,8,12.2
-                    c3.4,3.2,6.5,5.8,7.3,6.4c0.2,0.2,0.5,0.3,0.7,0.3s0.5-0.1,0.7-0.3c0.8-0.6,3.9-3.2,7.3-6.4c4.8-4.5,8-7.7,8-12.2
-                    C32,3.9,28.2,0,23.6,0z" />
-                </svg>
-              )}
-            </button>
-
-            {/* Always show a readable label */}
-            <p className={`text-xs ${loveCount === 0 ? 'text-gray-400' : 'text-gray-700'} text-center w-full self-center lg:self-end`}>
-              {loveCount === 0
-                ? 'love me'
-                : `${formatLoveCount(loveCount)} ${loveCount === 1 ? 'love' : 'loves'}`}
-            </p>
-          </div>
+          )}
         </div>
       </Link>
     </div>
@@ -384,7 +395,8 @@ function areEqualActItem(prev, next) {
     sameLineupCount &&
     sameTimesShortlisted &&
     sameFormattedPrice &&
-    sameShortlistCount
+    sameShortlistCount &&
+    (prev.lite === next.lite)
   );
 }
 

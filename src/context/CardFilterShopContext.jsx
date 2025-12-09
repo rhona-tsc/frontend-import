@@ -1,4 +1,4 @@
-// frontend/src/context/ShopContext.jsx
+// frontend/src/context/CardFilterShopContext.jsx
 import React, {
   createContext,
   useState,
@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
 import debounce from "lodash.debounce";
 
-export const ShopContext = createContext();
+export const CardFilterShopContext = createContext();
 
 const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
 
@@ -99,7 +99,7 @@ const searchActCards = React.useCallback(async (payload) => {
 async function fetchActsForGrid() {
   const base = String(backendUrl || "").replace(/\/+$|^\s+|\s+$/g, "");
   const urlCards = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
-  console.log("🛒[ShopContext] fetchActsForGrid:", urlCards);
+  console.log("🛒[CardFilterShopContext] fetchActsForGrid:", urlCards);
 
   // --- helper: derive a minimal card from a full act document ---
   const buildCardFromAct = (a) => {
@@ -152,7 +152,7 @@ async function fetchActsForGrid() {
 
     for (const path of candidates) {
       const url = `${base}${path}`;
-      console.log("🛒[ShopContext] Fallback fetch acts:", { url });
+      console.log("🛒[CardFilterShopContext] Fallback fetch acts:", { url });
       try {
         const res = await axios.get(url, { headers: { accept: "application/json" } });
         const data = res?.data || {};
@@ -171,7 +171,7 @@ async function fetchActsForGrid() {
           return;
         }
       } catch (err) {
-        console.warn("⚠️[ShopContext] Fallback acts fetch failed:", { url, msg: err?.message });
+        console.warn("⚠️[CardFilterShopContext] Fallback acts fetch failed:", { url, msg: err?.message });
       }
     }
 
@@ -204,21 +204,21 @@ async function fetchActsForGrid() {
     setActCards(cards);
     try { window.__TSC_ACTS__ = cards; } catch {}
   } catch (err) {
-    console.warn("⚠️[ShopContext] fetchActsForGrid failed:", err?.message);
+    console.warn("⚠️[CardFilterShopContext] fetchActsForGrid failed:", err?.message);
     // 🚑 Fall back to full acts list and project into cards
     await fallbackFromActs();
   }
 }
 
 useEffect(() => {
-  console.log("🛒[ShopContext] Mount — backendUrl:", backendUrl);
+  console.log("🛒[CardFilterShopContext] Mount — backendUrl:", backendUrl);
   if (!backendUrl) {
-    console.warn("⚠️[ShopContext] VITE_BACKEND_URL is missing; cannot fetch acts");
+    console.warn("⚠️[CardFilterShopContext] VITE_BACKEND_URL is missing; cannot fetch acts");
     setActCards([]);
     return;
   }
   // 👉 Fast cards for listing UIs
-  getActCardsData().catch((e) => console.error("❌[ShopContext] getActCardsData threw:", e));
+  getActCardsData().catch((e) => console.error("❌[CardFilterShopContext] getActCardsData threw:", e));
   // ⛔ Do not call getActsData() here; it will overwrite cards in grids.
 }, [backendUrl]);
 
@@ -466,7 +466,7 @@ useEffect(() => {
 const getActCardsData = async () => {
   const base = String(backendUrl || "").replace(/\/+$/, "");
   const url = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
-  console.log("🛒[ShopContext] Fetching act cards:", url);
+  console.log("🛒[CardFilterShopContext] Fetching act cards:", url);
 
   try {
     const res = await axios.get(url, { headers: { accept: "application/json" } });
@@ -478,7 +478,7 @@ const getActCardsData = async () => {
     // (optional) stash for quick inspection
     try { window.__TSC_ACT_CARDS__ = arr; } catch {}
   } catch (err) {
-    console.warn("⚠️[ShopContext] fetch act cards failed:", err?.message);
+    console.warn("⚠️[CardFilterShopContext] fetch act cards failed:", err?.message);
     setActCards([]);
   }
 };
@@ -506,7 +506,7 @@ const getActCardsData = async () => {
       const total = Number(result?.total || 0);
       return Number.isFinite(total) ? Math.ceil(total) : null;
     } catch (e) {
-      console.warn("⚠️[ShopContext] getCardPriceWithTravel failed:", e?.message || e);
+      console.warn("⚠️[CardFilterShopContext] getCardPriceWithTravel failed:", e?.message || e);
       return null;
     }
   };
@@ -531,19 +531,19 @@ const getActCardsData = async () => {
 
     for (const path of candidates) {
       const url = `${base}${path}`;
-      console.log("🛒[ShopContext] Fetching acts:", { url });
+      console.log("🛒[CardFilterShopContext] Fetching acts:", { url });
       try {
         const res = await axios.get(url, { headers: { accept: "application/json" } });
         const data = res?.data;
 
         // Log keys for shape discovery
-        console.log("🛒[ShopContext] Raw list payload keys:", Object.keys(data || {}));
+        console.log("🛒[CardFilterShopContext] Raw list payload keys:", Object.keys(data || {}));
 
         const actsArr = coerceActsArray(data);
         const meta = data?.meta || data?.pagination || data?.acts || {};
         const hintedTotal = meta?.total || meta?.totalDocs || data?.total || data?.count || actsArr.length;
 
-        console.log("🛒[ShopContext] Acts response:", {
+        console.log("🛒[CardFilterShopContext] Acts response:", {
           status: res.status,
           success: data?.success,
           count: actsArr.length,
@@ -569,18 +569,18 @@ const getActCardsData = async () => {
         // stash raw for inspection and keep trying alternates.
         if ((hintedTotal || 0) > 0) {
           try { window.__TSC_ACTS_RAW__ = data; } catch {}
-          console.warn("⚠️[ShopContext] list response hinted non-zero total but no parsed acts; trying next endpoint");
+          console.warn("⚠️[CardFilterShopContext] list response hinted non-zero total but no parsed acts; trying next endpoint");
         }
       } catch (err) {
         const status = err?.response?.status;
         const body = err?.response?.data;
-        console.warn("⚠️[ShopContext] Acts fetch failed:", { url, status, body, msg: err?.message });
+        console.warn("⚠️[CardFilterShopContext] Acts fetch failed:", { url, status, body, msg: err?.message });
         // try next candidate…
       }
     }
 
     // If all candidates fail or return empty
-    console.error("❌[ShopContext] Could not load acts from any known endpoint.", { backendUrl });
+    console.error("❌[CardFilterShopContext] Could not load acts from any known endpoint.", { backendUrl });
     try { window.__TSC_ACTS_FAILED__ = { backendUrl }; } catch {}
     setActs([]);
   };
@@ -589,7 +589,7 @@ const getActCardsData = async () => {
 
   // Log any updates to acts for quick visibility
   useEffect(() => {
-    console.log("🛒[ShopContext] acts updated:", {
+    console.log("🛒[CardFilterShopContext] acts updated:", {
       length: Array.isArray(acts) ? acts.length : "non-array",
       first: acts?.[0]?._id,
       firstName: acts?.[0]?.tscName || acts?.[0]?.name,
@@ -599,7 +599,7 @@ const getActCardsData = async () => {
 
   // Log actCards updates
   useEffect(() => {
-    console.log("🛒[ShopContext] actCards updated:", {
+    console.log("🛒[CardFilterShopContext] actCards updated:", {
       length: Array.isArray(actCards) ? actCards.length : "non-array",
       first: actCards?.[0]?.actId,
       firstName: actCards?.[0]?.tscName || actCards?.[0]?.name,
@@ -1118,7 +1118,7 @@ const isActAllowed = (actId) => {
 
       const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
       console.log(
-        "📅 [ShopContext] Updating shortlist with date + address...",
+        "📅 [CardFilterShopContext] Updating shortlist with date + address...",
         {
           actId,
           dateISO,
@@ -1138,7 +1138,7 @@ const isActAllowed = (actId) => {
         }),
       });
     } catch (err) {
-      console.warn("⚠️ [ShopContext] Failed to update shortlist:", err.message);
+      console.warn("⚠️ [CardFilterShopContext] Failed to update shortlist:", err.message);
     }
   }, 1000);
 
@@ -1747,7 +1747,7 @@ searchActCards,
   };
 
   return (
-    <ShopContext.Provider value={value}>{props.children}</ShopContext.Provider>
+    <CardFilterShopContext.Provider value={value}>{props.children}</CardFilterShopContext.Provider>
   );
 };
 

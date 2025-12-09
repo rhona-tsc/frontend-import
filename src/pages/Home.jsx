@@ -1,7 +1,7 @@
-import React, { useEffect, useState, lazy, Suspense } from 'react';
+// frontend/src/pages/Home.jsx
+import React, { useEffect, useState, lazy, Suspense, useCallback } from 'react';
 import Hero from '../components/Hero';
 
-// 🪵 Debug helpers
 const DBG = true;
 const log = (...args) => DBG && console.log('🏠[Home]', ...args);
 const group = (label, fn) => {
@@ -10,20 +10,18 @@ const group = (label, fn) => {
   try { fn(); } finally { console.groupEnd(); }
 };
 
-// ⛳ Defer everything below the fold so Hero paints instantly
-const SearchBar = lazy(() => import('../components/SearchBar'));
-const NewActs = lazy(() => import('../components/NewActs'));
-const BestSeller = lazy(() => import('../components/BestSeller'));
-const OurPolicy = lazy(() => import('../components/OurPolicy'));
+const SearchBar   = lazy(() => import('../components/SearchBar'));
+const NewActs     = lazy(() => import('../components/NewActs'));
+const BestSeller  = lazy(() => import('../components/BestSeller'));
+const OurPolicy   = lazy(() => import('../components/OurPolicy'));
 const NewsletterBox = lazy(() => import('../components/NewsletterBox'));
 
-// 🔍 Small helpers to log Suspense fallback usage and child mounts
 const Fallback = ({ label, className }) => {
   useEffect(() => {
     log(`⏳ Suspense fallback mounted for ${label}`);
     return () => log(`✅ Suspense fallback unmounted for ${label}`);
   }, [label]);
-  return <div className={className} />;
+  return <div className={className || ''} />;
 };
 
 const LogMount = ({ label, children }) => {
@@ -36,24 +34,57 @@ const LogMount = ({ label, children }) => {
 
 const Home = () => {
   const [showSearch, setShowSearch] = useState(false);
+  const [cards, setCards] = useState([]);
+  const [loadingCards, setLoadingCards] = useState(true);
 
-  // On first mount
+  const fetchCards = useCallback(async () => {
+    const base = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/+$/, '');
+    const url  = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200&debug=1`;
+    group('Fetch cards', () => log('GET', url));
+
+    try {
+      const res = await fetch(url, { headers: { accept: 'application/json' } });
+      log('HTTP', res.status, res.statusText);
+      const text = await res.text();
+      log('raw length', text.length);
+      let json = {};
+      try { json = JSON.parse(text); } catch { log('⚠️ JSON parse failed'); }
+
+      const arr =
+        Array.isArray(json?.items) ? json.items :
+        Array.isArray(json) ? json : [];
+
+      const dbg = json?._debug || null;
+      if (dbg) log('server _debug:', dbg);
+
+      log('cards len', arr.length, 'sample', arr[0] ? {
+        actId: arr[0].actId, name: arr[0].name, basePrice: arr[0].basePrice
+      } : null);
+
+      setCards(arr);
+    } catch (e) {
+      console.warn('⚠️ cards fetch failed:', e?.message || e);
+      setCards([]);
+    } finally {
+      setLoadingCards(false);
+    }
+  }, []);
+
   useEffect(() => {
     group('Initial mount', () => {
       log('component mounted');
       log('scroll -> top');
     });
     window.scrollTo(0, 0);
+    fetchCards();
     return () => log('component unmounted');
-  }, []);
+  }, [fetchCards]);
 
-  // Mount the SearchBar on idle (or after a brief timeout) to avoid blocking FCP
   useEffect(() => {
     const hasRIC = typeof window !== 'undefined' && 'requestIdleCallback' in window;
     group('Idle scheduling for SearchBar', () => {
       log('requestIdleCallback available?', hasRIC);
     });
-
     const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 300));
     const cancel = window.cancelIdleCallback || clearTimeout;
     const start = performance.now();
@@ -61,53 +92,40 @@ const Home = () => {
       log(`🕒 idle fired after ${(performance.now() - start).toFixed(0)}ms → showSearch = true`);
       setShowSearch(true);
     });
-
     return () => {
       log('cancel idle for SearchBar');
       cancel(id);
     };
   }, []);
 
-  useEffect(() => {
-    log('🔁 showSearch changed →', showSearch);
-  }, [showSearch]);
+  useEffect(() => { log('🔁 showSearch changed →', showSearch); }, [showSearch]);
 
   return (
     <div>
       <Hero />
 
-      {/* SearchBar: lazy + idle-mounted */}
-      <Suspense fallback={<Fallback label="SearchBar" className={null} />}>
-        {showSearch ? (
-          <LogMount label="SearchBar">
-            <SearchBar />
-          </LogMount>
-        ) : null}
+      <Suspense fallback={<Fallback label="SearchBar" />}>
+        {showSearch ? <LogMount label="SearchBar"><SearchBar /></LogMount> : null}
       </Suspense>
 
-      {/* Below-the-fold sections: lazy + lightweight fallbacks */}
       <Suspense fallback={<Fallback label="NewActs" className="h-64 animate-pulse" />}>
         <LogMount label="NewActs">
-          <NewActs />
+          <NewActs cards={cards} loading={loadingCards} />
         </LogMount>
       </Suspense>
 
       <Suspense fallback={<Fallback label="BestSeller" className="h-64 animate-pulse" />}>
         <LogMount label="BestSeller">
-          <BestSeller />
+          <BestSeller cards={cards} loading={loadingCards} />
         </LogMount>
       </Suspense>
 
       <Suspense fallback={<Fallback label="OurPolicy" className="h-40 animate-pulse" />}>
-        <LogMount label="OurPolicy">
-          <OurPolicy />
-        </LogMount>
+        <LogMount label="OurPolicy"><OurPolicy /></LogMount>
       </Suspense>
 
       <Suspense fallback={<Fallback label="NewsletterBox" className="h-40 animate-pulse" />}>
-        <LogMount label="NewsletterBox">
-          <NewsletterBox />
-        </LogMount>
+        <LogMount label="NewsletterBox"><NewsletterBox /></LogMount>
       </Suspense>
     </div>
   );
