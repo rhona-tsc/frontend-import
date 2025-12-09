@@ -62,7 +62,7 @@ const computeBaseFromSmallestLineup = (act) => {
   return Number.isFinite(total) ? total : null;
 };
 
-const ActItem = ({ actData, shortlistCount, standalone = false, sourceTag = 'unknown' }) => {
+const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag = 'unknown' }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -271,4 +271,4 @@ const ActItem = ({ actData, shortlistCount, standalone = false, sourceTag = 'unk
   );
 };
 
-export default ActItem;
+export default CardFilterItem;
