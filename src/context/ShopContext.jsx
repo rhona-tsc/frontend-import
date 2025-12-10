@@ -26,8 +26,7 @@ const ShopProvider = (props) => {
   const currency = "£";
   const delivery_fee = 10;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const CARD_STATUSES = "approved,approved_changes_pending";
-
+const CARD_STATUSES = "approved,live,approved_changes_pending";
   // --- Core UI / data ---
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -125,7 +124,7 @@ const ShopProvider = (props) => {
 
   // Assumes you have actFilterCards in scope (from context or props) <--- This one is for the Home page
   useEffect(() => {
-    if (!location?.pathname?.startsWith?.("/acts")) return;
+    if (location?.pathname?.startsWith?.("/acts")) return;
 
     const noActsYet = !Array.isArray(acts) || acts.length === 0;
     const hasCards = Array.isArray(actCards) && actCards.length > 0;
@@ -402,7 +401,7 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
         : null;
       const lineupBase = Number(smallest?.base_fee?.[0]?.total_fee);
       const basePrice = Number.isFinite(lineupBase)
-        ? Math.ceil(lineupBase * 1.2)
+        ? Math.ceil(lineupBase * 1.25)
         : null;
 
       return {
@@ -486,10 +485,10 @@ const urlCards = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&
         return [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
       })();
 
-      // base fee from smallest lineup with a 20% margin (site rule)
+      // base fee from smallest lineup with a 25% margin (site rule)
       const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
       const basePrice = Number.isFinite(lineupBase)
-        ? Math.ceil(lineupBase * 1.2)
+        ? Math.ceil(lineupBase * 1.25)
         : null;
 
       return {
@@ -651,8 +650,11 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
         : null;
 
       // --- genres ---
-      const genres = Array.isArray(a?.genre) ? a.genre.filter(Boolean) : [];
-
+const genres = Array.isArray(a?.genres)
+   ? a.genres.filter(Boolean)
+   : Array.isArray(a?.genre)
+   ? a.genre.filter(Boolean)
+   : [];
       // --- insurance / tech flags ---
       const hasPLI = !!a?.pli;
       const hasPAT = !!a?.patCert;
@@ -1018,33 +1020,33 @@ async function fetchFilterCardActsForGrid() {
       "/api/acts",
     ];
 
-    for (const path of candidates) {
-      const url = `${base}${path}`;
-      console.log("🛒[CardFilterShopContext] Fallback fetch acts:", { url });
-      try {
-        const res = await axios.get(url, { headers: { accept: "application/json" } });
-        const data = res?.data || {};
-        const arr = Array.isArray(data?.acts)
-          ? data.acts
-          : Array.isArray(data?.items)
-          ? data.items
-          : Array.isArray(data)
-          ? data
-          : [];
+   for (const path of candidates) {
+  const url = `${base}${path}`;
+  console.log("🛒[CardFilterShopContext] Fallback fetch acts:", { url });
+  try {
+    const res = await axios.get(url, { headers: { accept: "application/json" } });
+    const data = res?.data || {};
+    const arr = Array.isArray(data?.acts)
+      ? data.acts
+      : Array.isArray(data?.items)
+      ? data.items
+      : Array.isArray(data)
+      ? data
+      : [];
 
-        if (arr.length) {
-          const cards = arr.map(buildFilterCardFromAct);
-          setActCards(cards);
-          try {
-            window.__TSC_ACTS__ = cards;
-          } catch {}
-          return;
-        }
-      } catch (err) {
-        console.warn("⚠️[CardFilterShopContext] Fallback acts fetch failed:", { url, msg: err?.message });
-      }
+    if (arr.length) {
+      const cards = arr.map(buildFilterCardFromAct);
+      // ⬇ if this function is meant to hydrate the *filter* cards for the Acts page, prefer:
+      // setActsFilterPageCards(cards);
+      // ⬇ if you intentionally want to hydrate the generic cards used by Home, keep:
+      setActCards(cards);
+      try { window.__TSC_ACTS__ = cards; } catch {}
+      return;
     }
-
+  } catch (err) {
+    console.warn("⚠️[CardFilterShopContext] Fallback acts fetch failed:", { url, msg: err?.message });
+  }
+}
     // if all fallbacks fail
     setActCards([]);
   };
@@ -1363,30 +1365,26 @@ useEffect(() => {
     }
   };
 
-  // ============ Grid cards (fast) ============
-  const getActCardsData = async () => {
-    const base = String(backendUrl || "").replace(/\/+$/, "");
-const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit=200`;
-    console.log("🛒[ShopContext] Fetching act cards:", url);
+// ============ Grid cards (fast) ============
+async function getActCardsData() {
+  const base = String(backendUrl || "").replace(/\/+$/, "");
+  const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit=200`;
+  console.log("🛒[ShopContext] Fetching act cards:", url);
 
-    try {
-      const res = await axios.get(url, {
-        headers: { accept: "application/json" },
-      });
-      const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
+  try {
+    const res = await axios.get(url, { headers: { accept: "application/json" } });
+    const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
 
-      // expose as dedicated cards state
-      setActCards(arr);
+    // expose as dedicated cards state
+    setActCards(arr);
 
-      // (optional) stash for quick inspection
-      try {
-        window.__TSC_ACT_CARDS__ = arr;
-      } catch {}
-    } catch (err) {
-      console.warn("⚠️[ShopContext] fetch act cards failed:", err?.message);
-      setActCards([]);
-    }
-  };
+    // (optional) stash for quick inspection
+    try { window.__TSC_ACT_CARDS__ = arr; } catch {}
+  } catch (err) {
+    console.warn("⚠️[ShopContext] fetch act cards failed:", err?.message);
+    setActCards([]);
+  }
+}
 
   // Compute a "from" price with travel on demand for a card when it's on screen
   const getCardPriceWithTravel = async (actId) => {
@@ -1436,7 +1434,7 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
     ];
 
     for (const path of candidates) {
-      const url = `${base}${path}`;
+const url = `${base}${path}`;
       console.log("🛒[ShopContext] Fetching acts:", { url });
       try {
         const res = await axios.get(url, {
@@ -1541,6 +1539,8 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
   // 🧩 Bridge for legacy list UIs that still read `acts`:
   // If we have cards but `acts` is empty, project minimal act objects so pages render.
   useEffect(() => {
+    // Avoid double-hydration on /acts; that page has its own mapper.
+    if (location?.pathname?.startsWith?.("/acts")) return;
     if (
       Array.isArray(actCards) &&
       actCards.length &&
