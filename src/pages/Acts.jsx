@@ -34,6 +34,7 @@ const norm = (s="") =>
     .replace(/\s+/g, " ")
     .trim();
 
+
 // Helper for normalising ACT SIZE values
 const norm2 = (s) => {
   if (!s) return "";
@@ -44,6 +45,29 @@ const norm2 = (s) => {
   if (v === "duo" || v === "2-piece") return "2-piece";
   if (v === "solo" || v === "1-piece") return "solo";
   return v;
+};
+
+const flat1 = (v) => (Array.isArray(v) ? (v.flat ? v.flat() : [].concat(...v)) : v);
+
+const imagesFromImageUrl = (imageUrl) => {
+  if (Array.isArray(imageUrl)) {
+    return imageUrl
+      .map((x) =>
+        typeof x === "string"
+          ? { url: x }
+          : x && typeof x === "object" && x.url
+          ? { url: x.url, title: x.title || "" }
+          : null
+      )
+      .filter(Boolean);
+  }
+  if (imageUrl && typeof imageUrl === "object" && imageUrl.url) {
+    return [{ url: imageUrl.url, title: imageUrl.title || "" }];
+  }
+  if (typeof imageUrl === "string" && imageUrl) {
+    return [{ url: imageUrl }];
+  }
+  return null;
 };
 
 const Acts = ({ userRole, email }) => {
@@ -273,7 +297,7 @@ const logToggle = (group, { value, checked, before = [], after = [] }) => {
   } catch {}
 };
 
-/// 🔎 Snapshot Acts-page cards every time they change
+// 🔎 Snapshot Acts-page cards every time they change
 useEffect(() => {
   if (!actsFilterPageCards) {
     console.log("🧾 actsFilterPageCards = ", actsFilterPageCards);
@@ -291,33 +315,32 @@ useEffect(() => {
       console.log(`#${i} snapshot:`, JSON.stringify(c, null, 2));
     } catch {}
 
-    // 👉 GENRES (per card)
-    const rawGenres = [
-      ...(Array.isArray(c?.genres) ? c.genres : (typeof c?.genres === "string" ? [c.genres] : [])),
-      ...(Array.isArray(c?.genreTags) ? c.genreTags : []),
-      ...(c?.genre ? [c.genre] : []),
-      ...(Array.isArray(c?.__card?.genres)
-        ? c.__card.genres
-        : (typeof c?.__card?.genres === "string" ? [c.__card.genres] : [])),
-    ].filter(Boolean);
+    // 👇👇👇 Robust genre flatten/normalise logging
+    const rawArr =
+      Array.isArray(c?.genres)
+        ? c.genres
+        : Array.isArray(c?.genre)
+        ? c.genre
+        : typeof c?.genre === "string"
+        ? [c.genre]
+        : Array.isArray(c?.genres_raw)
+        ? c.genres_raw
+        : Array.isArray(c?.genresNormalized)
+        ? c.genresNormalized
+        : Array.isArray(c?.genres_norm)
+        ? c.genres_norm
+        : [];
 
-    const dedupRaw = Array.from(new Set(rawGenres));
-    const dedupNorm = Array.from(new Set(dedupRaw.map((g) => norm(g)).filter(Boolean))); // uses the existing `norm` helper
+    const genresRaw = flat1(rawArr);
+    const genresNorm = genresRaw.map(NORM_GENRE);
 
-    if (dedupRaw.length || (Array.isArray(c?.genres_norm) && c.genres_norm.length)) {
-      console.log(
-        `#${i} genres →`,
-        { raw: dedupRaw, norm: dedupNorm }
-      );
-      if (Array.isArray(c?.genres_norm) && c.genres_norm.length) {
-        console.log(`#${i} genres_norm (field):`, c.genres_norm);
-      }
-    } else {
-      console.log(`#${i} genres → (none found)`);
-    }
+    console.log(`#${i} genres_raw:`, genresRaw);
+    console.log(`#${i} genres_norm:`, genresNorm);
+    // ☝️☝️☝️ END robust genre logging
 
     if (c?.availabilityBadge) console.log(`#${i} availabilityBadge:`, c.availabilityBadge);
     if (c?.travelConfig)      console.log(`#${i} travelConfig:`, c.travelConfig);
+
     if (Array.isArray(c?.extras)) {
       const preview = c.extras.slice(0, 8);
       console.log(
@@ -756,22 +779,56 @@ async function applyFilter() {
     actCardsLen: Array.isArray(actsFilterPageCards) ? actsFilterPageCards.length : 0,
   });
 
-  // If availability map is loading, skip ONLY the availability gate
+  // ───────────────────────────────────────────────────────────────────────────────
+  // ✅ Normalizer + genre utilities
+  // ───────────────────────────────────────────────────────────────────────────────
+  const NORM = (s) =>
+    String(s).toLowerCase().replace(/\s*&\s*/g, " and ").replace(/\s+/g, " ").trim();
+
+  const selectedGenres = Array.isArray(genre) ? genre : [];
+  const selectedNorm = selectedGenres.map(NORM);
+
+  const matchByGenre = (card) => {
+    const src =
+      Array.isArray(card?.genres_norm) && card.genres_norm.length
+        ? card.genres_norm
+        : (() => {
+            const rawArr =
+              Array.isArray(card?.genres)
+                ? card.genres
+                : Array.isArray(card?.genre)
+                ? card.genre
+                : typeof card?.genre === "string"
+                ? [card.genre]
+                : Array.isArray(card?.genres_raw)
+                ? card.genres_raw
+                : Array.isArray(card?.genresNormalized)
+                ? card.genresNormalized
+                : [];
+            return flat1(rawArr);
+          })();
+    const norm = src.map(NORM);
+    return selectedNorm.every((sel) => norm.includes(sel));
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────────
+  // Availability gate (skip only that part if loading)
+  // ───────────────────────────────────────────────────────────────────────────────
   const skipAvailGate = Boolean(selectedDate && availLoading);
   if (skipAvailGate) {
     console.log("Skipping availability gate due to loading state");
   }
 
-  // ---- server search gate (build payload, call API, intersect with local cards) ----
+  // ───────────────────────────────────────────────────────────────────────────────
+  // Server search (feature-flagged)
+  // ───────────────────────────────────────────────────────────────────────────────
   const filters = buildServerFilterPayload();
   const payload = buildServerPayload(filters);
 
-  // --- optional server search (feature-flagged) ---
   const postCandidates = async (urls, body) => {
     for (const url of urls) {
       try {
         const { data } = await axios.post(url, body);
-        // Accept {cards|results|data|[]} shapes
         const arr = Array.isArray(data?.cards)
           ? data.cards
           : Array.isArray(data?.results)
@@ -785,8 +842,8 @@ async function applyFilter() {
           .map((x) => String(x.actId ?? x._id ?? x.id ?? x.act_id ?? ""))
           .filter(Boolean);
         if (ids.length) return new Set(ids);
-      } catch (_) {
-        // silent try next
+      } catch {
+        /* try next */
       }
     }
     return new Set();
@@ -794,50 +851,65 @@ async function applyFilter() {
 
   let serverIds = new Set();
   if (ENABLE_SERVER_SEARCH && hasActiveFilters(filters)) {
-    // Be permissive with payload keys for compatibility
     const compatPayload = {
       ...payload,
-      status: payload.includeStatuses || payload.status || ["approved","live","approved_changes_pending","live_changes_pending"],
+      status:
+        payload.includeStatuses ||
+        payload.status ||
+        ["approved", "live", "approved_changes_pending", "live_changes_pending"],
       statuses: payload.includeStatuses || payload.status,
-      // keep both raw and normalised genre fields
-      genres_norm: payload.genres_norm || (payload.genres || []).map((s)=> String(s).toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9]+/g," ").trim()),
-      genreTokens: (payload.genres || []).map((s)=> String(s).toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9]+/g," ").trim()),
+      genres_norm:
+        payload.genres_norm ||
+        (payload.genres || []).map((s) =>
+          String(s).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim()
+        ),
+      genreTokens: (payload.genres || []).map((s) =>
+        String(s).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim()
+      ),
     };
 
-    const SEARCH_ENDPOINTS = [
-      api("api/v2/act-cards/search"),
-      api("api/act/cards/search")
-    ];
-
+    const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search"), api("api/act/cards/search")];
     serverIds = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
 
     if (serverIds.size === 0 && DEBUG_FILTER) {
-      console.info("\uD83D\uDD36 Server search yielded 0 ids — using client-only filtering.");
+      console.info("🔶 Server search yielded 0 ids — using client-only filtering.");
     }
   } else if (DEBUG_FILTER) {
-    console.info("\uD83D\uDD36 Server search disabled — using client-only filtering.");
+    console.info("🔶 Server search disabled — using client-only filtering.");
   }
 
+  // ───────────────────────────────────────────────────────────────────────────────
+  // Build source card set
+  // ───────────────────────────────────────────────────────────────────────────────
   const allCards = Array.isArray(cards) ? cards : [];
-
-  // Intersect with server ids only when we actually received some
   let approvedCards = serverIds.size
     ? allCards.filter((c) => serverIds.has(String(c.actId ?? c._id ?? c.id ?? "")))
     : allCards;
 
   // Ensure safe genre fields on every card
   const withSafety = approvedCards.map((c) => {
-    const genresRaw = Array.isArray(c.genres) ? c.genres.filter(Boolean) : [];
-    const genresNorm =
-      Array.isArray(c.genres_norm) && c.genres_norm.length
+    const rawArr =
+      Array.isArray(c?.genres)
+        ? c.genres
+        : Array.isArray(c?.genre)
+        ? c.genre
+        : typeof c?.genre === "string"
+        ? [c.genre]
+        : Array.isArray(c?.genres_raw)
+        ? c.genres_raw
+        : Array.isArray(c?.genresNormalized)
+        ? c.genresNormalized
+        : Array.isArray(c?.genres_norm)
         ? c.genres_norm
-        : genresRaw.map(norm);
+        : [];
 
-    return {
-      ...c,
-      genres_raw: genresRaw,
-      genres_norm: genresNorm,
-    };
+    const genresRaw = flat1(rawArr).filter(Boolean);
+    const genresNorm =
+      Array.isArray(c?.genres_norm) && c.genres_norm.length
+        ? c.genres_norm.map(NORM)
+        : genresRaw.map(NORM);
+
+    return { ...c, genres_raw: genresRaw, genres_norm: genresNorm };
   });
 
   const sourceCards = withSafety;
@@ -871,11 +943,9 @@ async function applyFilter() {
   );
   console.groupEnd();
 
-  // Prefer full Act objects; if missing, synthesise from the card so the grid isn't empty
-  ACTS_DBG("building actsCopy from approvedCards", {
-    len: Array.isArray(withSafety) ? withSafety.length : 0,
-  });
-
+  // ───────────────────────────────────────────────────────────────────────────────
+  // Prefer full Act objects; fall back to cards
+  // ───────────────────────────────────────────────────────────────────────────────
   const pickImages = (obj = {}) =>
     obj.images || obj.coverImages || obj.heroImages || obj.gallery || obj.hero || null;
 
@@ -885,7 +955,12 @@ async function applyFilter() {
       const act = actMap.get(id);
 
       if (act) {
-        const images = act.images || pickImages(card) || pickImages(act) || null;
+        const images =
+          act.images ||
+          pickImages(card) ||
+          pickImages(act) ||
+          imagesFromImageUrl(card?.imageUrl) ||
+          null;
         return { ...act, __card: card, images };
       }
 
@@ -913,7 +988,10 @@ async function applyFilter() {
                 .join(", ")
             : "",
         lineups: [],
-        images: pickImages(card) || (card.imageUrl ? [{ url: card.imageUrl }] : null), // 👈 preserve photos from the card
+        images:
+          pickImages(card) ||
+          imagesFromImageUrl(card?.imageUrl) ||
+          null,
         __card: card,
       };
     })
@@ -921,39 +999,83 @@ async function applyFilter() {
 
   ACTS_DBG("actsCopy built (first pass)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
-  // Optional: keep the card on the act for rendering later
   actsCopy = actsCopy.map((act) => ({
     ...act,
-    __card: cards.find((c) => String(c.actId || c._id || c.id) === String(act._id)) || act.__card || null,
+    __card:
+      cards.find((c) => String(c.actId || c._id || c.id) === String(act._id)) ||
+      act.__card ||
+      null,
   }));
 
   ACTS_DBG("actsCopy after card reattach", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
+  // ───────────────────────────────────────────────────────────────────────────────
+  // 🎚️ GENRE FILTER (single source of truth)
+  // ───────────────────────────────────────────────────────────────────────────────
+  if (selectedNorm.length) {
+    const before = actsCopy.length;
+    actsCopy = actsCopy.filter((c) => matchByGenre(c));
+
+    console.log("🎚️[GENRES] selected", { selectedRaw: selectedGenres, selectedNorm });
+    console.log("🎚️[GENRES] results — kept", `${actsCopy.length} / ${before}`);
+
+    if (before) {
+      console.table(
+        sourceCards.slice(0, 24).map((c, i) => {
+          const rawArr =
+            Array.isArray(c?.genres)
+              ? c.genres
+              : Array.isArray(c?.genre)
+              ? c.genre
+              : typeof c?.genre === "string"
+              ? [c.genre]
+              : Array.isArray(c?.genres_raw)
+              ? c.genres_raw
+              : Array.isArray(c?.genresNormalized)
+              ? c.genresNormalized
+              : Array.isArray(c?.genres_norm)
+              ? c.genres_norm
+              : [];
+          const raw = flat1(rawArr);
+          const norm = raw.map(NORM);
+          const keep = selectedNorm.every((sel) => norm.includes(sel));
+          return {
+            index: i,
+            id: String(c?.actId || c?._id || ""),
+            name: c?.tscName || c?.name || "(untitled)",
+            genres_raw: raw.join(" | "),
+            genres_norm: norm.join(" | "),
+            selected: selectedNorm.join(" & "),
+            keep,
+          };
+        })
+      );
+    }
+  }
+
   // Show something straight away before async pricing completes
   if (runId === filterRunIdRef.current && Array.isArray(actsCopy)) {
     setFilterProducts(actsCopy);
-    ACTS_DBG("setFilterProducts (early show)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
+    ACTS_DBG("setFilterProducts (early show)", {
+      len: Array.isArray(actsCopy) ? actsCopy.length : 0,
+    });
   }
-  // ---- client-side filtering gates ----
+
+  // ───────────────────────────────────────────────────────────────────────────────
+  // Other client-side filters
+  // ───────────────────────────────────────────────────────────────────────────────
   if (wireless.length > 0) {
     actsCopy = actsCopy.filter((item) => {
-      const wirelessInstruments = wireless; // e.g. ["Vocal", "Guitar"]
-
-      // Loop through all lineups and members
+      const wirelessInstruments = wireless;
       const hasWirelessMatch = item.lineups?.some((lineup) =>
         lineup.bandMembers?.some((member) => {
-          // normalise instrument for matching
           const instrument = (member.instrument || "").toLowerCase();
-
           return wirelessInstruments.some((filterInstrument) => {
             const f = filterInstrument.toLowerCase();
-
-            // ✅ match if instrument includes filterInstrument AND wireless is true
             return instrument.includes(f) && member.wireless === true;
           });
         })
       );
-
       return hasWirelessMatch;
     });
     ACTS_DBG("after wireless filter", { remain: actsCopy.length });
@@ -961,50 +1083,37 @@ async function applyFilter() {
 
   if (soundLimiters.length > 0) {
     actsCopy = actsCopy.filter((act) => {
-      // 1️⃣ Check for non-decibel sound limiter options first (iems, remove_drums, etc.)
       const hasNonDbOptions = soundLimiters.some((opt) => {
         if (["electric_drums", "iems", "can_you_make_act_acoustic", "remove_drums"].includes(opt)) {
           return (
             act.lineups?.some((l) => {
-              // direct flags in lineup
               if (l[opt] === true) return true;
-              // sometimes stored under hasDrums or similar
-              if (opt === "electric_drums" && Array.isArray(l.hasDrums) && l.hasDrums.includes("electric")) return true;
+              if (opt === "electric_drums" && Array.isArray(l.hasDrums) && l.hasDrums.includes("electric"))
+                return true;
               return false;
-            }) ||
-            act[opt] === true // fallback top-level flag
+            }) || act[opt] === true
           );
         }
         return false;
       });
 
-      // 2️⃣ Handle dB options (e.g. "90db", "92db", "80-89db")
       const dbOptions = soundLimiters
-        .map((v) => v.match(/\d+/)?.[0]) // extract the number part
+        .map((v) => v.match(/\d+/)?.[0])
         .filter(Boolean)
         .map(Number);
 
-      // If no numeric dB filters selected, just rely on non-dB options
       if (dbOptions.length === 0) return hasNonDbOptions;
 
-      // 3️⃣ Determine selected dB threshold (use lowest one if multiple)
       const selectedDb = Math.min(...dbOptions);
-
-      // 4️⃣ Find all dB values across this act’s lineups
       const lineupDbs = (act.lineups || [])
         .map((l) => {
           const val = String(l.db || "").match(/\d+/)?.[0];
           return val ? Number(val) : null;
         })
         .filter((v) => v !== null);
-
-      // 5️⃣ Determine minimum dB requirement across lineups
       const minDbForAct = lineupDbs.length > 0 ? Math.min(...lineupDbs) : null;
-
-      // 6️⃣ If no dB info, keep act visible (safe fallback)
       if (minDbForAct === null) return true;
 
-      // 7️⃣ ✅ Include only acts that can play at or below the selected dB
       return minDbForAct <= selectedDb || hasNonDbOptions;
     });
     ACTS_DBG("after soundLimiters filter", { remain: actsCopy.length });
@@ -1014,40 +1123,25 @@ async function applyFilter() {
     actsCopy = actsCopy.filter((act) => {
       const setupFilters = setupAndSoundcheck;
 
-      // ---- 1️⃣ Handle "90min Setup & Soundcheck" ----
       if (setupFilters.includes("setup_and_soundcheck_time_90min")) {
-        // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime >= 90
-        const has90 = act.lineups?.some(
-          (l) => Number(l.totalSetupAndSoundcheckTime) >= 90
-        );
+        const has90 = act.lineups?.some((l) => Number(l.totalSetupAndSoundcheckTime) >= 90);
         return has90;
       }
 
-      // ---- 2️⃣ Handle "60min Setup & Soundcheck" ----
       if (setupFilters.includes("setup_and_soundcheck_time_60min")) {
-        // Keep acts that have at least one lineup with totalSetupAndSoundcheckTime <= 60
-        const has60 = act.lineups?.some(
-          (l) => Number(l.totalSetupAndSoundcheckTime) <= 60
-        );
+        const has60 = act.lineups?.some((l) => Number(l.totalSetupAndSoundcheckTime) <= 60);
         return has60;
       }
 
-      // ---- 3️⃣ Handle "Speedy Setup (60min)" ----
       if (setupFilters.includes("speedy_setup")) {
-        // Find the key inside act.extras that contains "speedy_setup"
-        const extraKey = Object.keys(act.extras || {}).find((k) =>
-          k.toLowerCase().includes("speedy_setup")
-        );
-
+        const extraKey = Object.keys(act.extras || {}).find((k) => k.toLowerCase().includes("speedy_setup"));
         if (!extraKey) return false;
-
         const speedy = act.extras[extraKey];
         if (!speedy) return false;
-
-        return (Number(speedy.price) > 0) || speedy.complimentary === true;
+        return Number(speedy.price) > 0 || speedy.complimentary === true;
       }
 
-      return true; // default fallback
+      return true;
     });
     ACTS_DBG("after setupAndSoundcheck filter", { remain: actsCopy.length });
   }
@@ -1056,35 +1150,29 @@ async function applyFilter() {
     actsCopy = actsCopy.filter((act) => {
       const selected = paAndLights;
 
-      // --- PA System filters ---
       const wantsSmallPA = selected.includes("small_pa_size");
       const wantsMediumPA = selected.includes("medium_pa_size");
       const wantsLargePA = selected.includes("large_pa_size");
 
-      // --- Lighting filters ---
       const wantsSmallLight = selected.includes("small_light_size");
       const wantsMediumLight = selected.includes("medium_light_size");
       const wantsLargeLight = selected.includes("large_light_size");
 
-      // Normalise act fields
       const pa = (act.paSystem || "").toLowerCase();
       const light = (act.lightingSystem || "").toLowerCase();
 
-      // --- PA Matching logic ---
       const paMatch =
         (!wantsSmallPA && !wantsMediumPA && !wantsLargePA) ||
         (wantsSmallPA && pa.includes("small")) ||
         (wantsMediumPA && pa.includes("medium")) ||
         (wantsLargePA && pa.includes("large"));
 
-      // --- Lighting Matching logic ---
       const lightMatch =
         (!wantsSmallLight && !wantsMediumLight && !wantsLargeLight) ||
         (wantsSmallLight && light.includes("small")) ||
         (wantsMediumLight && light.includes("medium")) ||
         (wantsLargeLight && light.includes("large"));
 
-      // ✅ Return true if act matches both selected PA and lighting filters
       return paMatch && lightMatch;
     });
     ACTS_DBG("after paAndLights filter", { remain: actsCopy.length });
@@ -1093,8 +1181,7 @@ async function applyFilter() {
   if (pli.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       const amount = Number(act.pliAmount) || 0;
-      // Show if any selected PLI requirement is <= act's PLI
-      return pli.some(req => amount >= req);
+      return pli.some((req) => amount >= req);
     });
     ACTS_DBG("after pli filter", { remain: actsCopy.length });
   }
@@ -1102,11 +1189,10 @@ async function applyFilter() {
   if (extraServices.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       const extras = act.extras || {};
-      // Normaliser: remove spaces, symbols, underscores etc.
-      const normalize = (str) =>
-        String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normalizeKey = (str) => String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
       const extraKeys = Object.keys(extras);
-      const extraKeysNorm = extraKeys.map(k => normalize(k));
+      const extraKeysNorm = extraKeys.map((k) => normalizeKey(k));
+
       return extraServices.some((selectedKeyRaw) => {
         const selectedKey = selectedKeyRaw.toLowerCase();
         const fragmentMap = {
@@ -1128,17 +1214,15 @@ async function applyFilter() {
         };
         const fragment = fragmentMap[selectedKey];
         if (!fragment) return false;
-        // --- 1) NORMALIZED MATCHING FOR EXTRAS KEYS ---
-        const fragmentNorm = normalize(fragment);
-        const index = extraKeysNorm.findIndex((k) =>
-          k.includes(fragmentNorm)
-        );
+
+        const fragmentNorm = normalizeKey(fragment);
+        const index = extraKeysNorm.findIndex((k) => k.includes(fragmentNorm));
         if (index !== -1) {
           const originalKey = extraKeys[index];
           const extra = extras[originalKey];
           return extra && (extra.price > 0 || extra.complimentary === true);
         }
-        // --- 2) CEREMONY + AFTERNOON LOGIC (same object) ---
+
         const lineups = act.lineups || [];
         if (
           [
@@ -1157,14 +1241,10 @@ async function applyFilter() {
           const type = isAfternoon ? "afternoonSets" : "ceremonySets";
           return lineups.some((l) => {
             const block = l[type]?.[piece];
-            return (
-              block &&
-              Array.isArray(block.amplified) &&
-              block.amplified.length > 0
-            );
+            return block && Array.isArray(block.amplified) && block.amplified.length > 0;
           });
         }
-        // --- 3) another vocalist ---
+
         if (selectedKey === "add_another_vocalist") {
           return lineups.some((l) => l.anotherVocalist === true);
         }
@@ -1174,53 +1254,11 @@ async function applyFilter() {
     ACTS_DBG("after extraServices filter", { remain: actsCopy.length });
   }
 
-  // --- OTHER FILTERS (unchanged) -------------------------------------------
   if (showSearch && search) {
     const q = String(search).toLowerCase();
     actsCopy = actsCopy.filter((item) => item.name?.toLowerCase().includes(q));
     ACTS_DBG("after text search filter", { remain: actsCopy.length });
   }
-
-
-
-if (genre.length > 0) {
-  const selectedRaw = [...genre];
-  const selectedSet = new Set(selectedRaw.map(NORM_GENRE));
-
-  console.groupCollapsed("🎚️[GENRES] selected");
-  console.log({ selectedRaw, selectedNorm: [...selectedSet] });
-  console.groupEnd();
-
-  const debugRows = [];
-  const beforeLen = actsCopy.length;
-
-  actsCopy = actsCopy.filter((item) => {
-    const raw = getActGenres(item);
-    const normed = raw.map(NORM_GENRE).filter(Boolean);
-    const keep = normed.some((g) => selectedSet.has(g));
-
-    debugRows.push({
-      id: String(item?._id || item?.id || item?.__card?._id || ""),
-      name: item?.tscName || item?.name || "(untitled)",
-      genres_raw: raw,
-      genres_norm: normed,
-      selected: [...selectedSet],
-      keep,
-    });
-
-    return keep;
-  });
-
-  console.groupCollapsed(
-    `🎚️[GENRES] results — kept ${actsCopy.length} / ${beforeLen}`
-  );
-  // show first 50 rows to keep console tidy
-  console.table(debugRows.slice(0, 50));
-  console.groupEnd();
-
-  ACTS_DBG("after genre filter", { remain: actsCopy.length });
-}
-
 
   if (act_size.length > 0) {
     const selected = act_size.map(norm2);
@@ -1239,11 +1277,7 @@ if (genre.length > 0) {
       djServices.some((service) => {
         const extra = item.extras?.[service];
         if (!extra) return false;
-        // ✅ Include acts that either have a price OR are complimentary
-        return (
-          (extra.price && extra.price > 0) ||
-          extra.complimentary === true
-        );
+        return (extra.price && extra.price > 0) || extra.complimentary === true;
       })
     );
     ACTS_DBG("after djServices filter", { remain: actsCopy.length });
@@ -1285,6 +1319,9 @@ if (genre.length > 0) {
     ACTS_DBG("after actSearch filter", { remain: actsCopy.length });
   }
 
+  // ───────────────────────────────────────────────────────────────────────────────
+  // Pricing
+  // ───────────────────────────────────────────────────────────────────────────────
   const calculateActPricing = async (
     act,
     selectedCounty,
@@ -1292,224 +1329,203 @@ if (genre.length > 0) {
     selectedDate,
     selectedLineup
   ) => {
-    ACTS_DBG("$pricing:init", { actId: act?._id, name: act?.tscName || act?.name, selectedCounty, hasAddress: !!selectedAddress, hasDate: !!selectedDate });
-  // Canonical backend base (never the Netlify origin)
-  const BASE = (
-    import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com"
-  ).replace(/\/+$/, "");
+    ACTS_DBG("$pricing:init", {
+      actId: act?._id,
+      name: act?.tscName || act?.name,
+      selectedCounty,
+      hasAddress: !!selectedAddress,
+      hasDate: !!selectedDate,
+    });
 
-  // --- helpers ---------------------------------------------------------------
-  const fetchTravel = async (origin, destination, dateISO) => {
-    const url =
-      `${BASE}/api/v2/travel/travel-data` +
-      `?origin=${encodeURIComponent(origin)}` +
-      `&destination=${encodeURIComponent(destination)}` +
-      `&date=${encodeURIComponent(String(dateISO).slice(0, 10))}`;
+    const BASE = (import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com").replace(
+      /\/+$/,
+      ""
+    );
 
-    const res = await fetch(url, { headers: { accept: "application/json" } });
-    const text = await res.text();
+    const fetchTravel = async (origin, destination, dateISO) => {
+      const url =
+        `${BASE}/api/v2/travel/travel-data` +
+        `?origin=${encodeURIComponent(origin)}` +
+        `&destination=${encodeURIComponent(destination)}` +
+        `&date=${encodeURIComponent(String(dateISO).slice(0, 10))}`;
 
-    let data = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = {};
-    }
-    if (!res.ok) throw new Error(`travel http ${res.status}`);
+      const res = await fetch(url, { headers: { accept: "application/json" } });
+      const text = await res.text();
 
-    // Legacy: { rows:[{ elements:[{ distance, duration, fare? }] }] }
-    const legacyEl = data?.rows?.[0]?.elements?.[0];
-
-    const outbound =
-      data?.outbound ||
-      (legacyEl?.distance && legacyEl?.duration
-        ? { distance: legacyEl.distance, duration: legacyEl.duration, fare: legacyEl.fare }
-        : undefined);
-
-    const returnTrip = data?.returnTrip;
-
-    return { outbound, returnTrip, raw: data };
-  };
-
-  // Treat anything clearly labeled "manager" as a non-traveling performer
-  const normalize = (s) => String(s || "").trim().toLowerCase();
-  const isManagerLike = (m) => {
-    if (m?.isManager === true) return true;
-    const fields = [
-      m?.role,
-      m?.position,
-      m?.instrument,
-      m?.title,
-      ...(Array.isArray(m?.additionalRoles)
-        ? m.additionalRoles.map((r) => r?.customRole || r?.role)
-        : []),
-    ]
-      .filter(Boolean)
-      .map(normalize);
-    return fields.some((f) => f.includes("manager")); // "manager", "band manager", "tour manager", etc.
-  };
-
-  let travelFee = 0;
-
-  // ---- choose lineup (smallest or provided) ----
-  let smallestLineup = null;
-  if (selectedLineup && Array.isArray(selectedLineup.bandMembers)) {
-    smallestLineup = selectedLineup;
-  } else {
-    smallestLineup = act.lineups?.reduce((min, lineup) => {
-      if (!Array.isArray(lineup.bandMembers)) return min;
-      if (!min || lineup.bandMembers.length < min.bandMembers.length) return lineup;
-      return min;
-    }, null);
-  }
-
-  if (!smallestLineup || !Array.isArray(smallestLineup.bandMembers)) {
-    return null;
-  }
-
-  // ---- northern logic (for team swap) ----
-  const northernCounties = new Set([
-    "ceredigion","cheshire","cleveland","conway","cumbria","denbighshire","derbyshire","durham",
-    "flintshire","greater manchester","gwynedd","herefordshire","lancashire","leicestershire",
-    "lincolnshire","merseyside","north humberside","north yorkshire","northumberland",
-    "nottinghamshire","rutland","shropshire","south humberside","south yorkshire","staffordshire",
-    "tyne and wear","warwickshire","west midlands","west yorkshire","worcestershire","wrexham",
-    "rhondda cynon taf","torfaen","neath port talbot","bridgend","blaenau gwent","caerphilly",
-    "cardiff","merthyr tydfil","newport","aberdeen city","aberdeenshire","angus","argyll and bute",
-    "clackmannanshire","dumfries and galloway","dundee city","east ayrshire","east dunbartonshire",
-    "east lothian","east renfrewshire","edinburgh","falkirk","fife","glasgow","highland",
-    "inverclyde","midlothian","moray","na h eileanan siar","north ayrshire","north lanarkshire",
-    "orkney islands","perth and kinross","renfrewshire","scottish borders","shetland islands",
-    "south ayrshire","south lanarkshire","stirling","west dunbartonshire","west lothian",
-  ]);
-
-  const isNorthernGig = northernCounties.has(
-    String(selectedCounty || "").toLowerCase().trim()
-  );
-
-  const chosenMembers =
-    act.useDifferentTeamForNorthernGigs && isNorthernGig
-      ? act.northernTeam || []
-      : smallestLineup.bandMembers || [];
-
-  // 🚫 Exclude managers from any TRAVEL calculations
-  const performingMembers = (chosenMembers || []).filter((m) => !isManagerLike(m));
-
-  // ---- essential fees (net) ----
-  const essentialFees = smallestLineup.bandMembers.flatMap((member) => {
-    const baseFee = member.isEssential ? Number(member.fee) || 0 : 0;
-    const additionalEssentialFees = (member.additionalRoles || [])
-      .filter((role) => role.isEssential)
-      .map((role) => Number(role.additionalFee) || 0);
-    return [baseFee, ...additionalEssentialFees];
-  });
-
-  const fee = essentialFees.reduce((sum, n) => sum + n, 0);
-
-  // ---- travel fee paths ----
-  const memberPostcodes = performingMembers.map((m) => m?.postCode).filter(Boolean);
-
-  const destination =
-    typeof selectedAddress === "string"
-      ? selectedAddress
-      : selectedAddress?.postcode || selectedAddress?.address || "";
-
-  // 1) County table
-  if (act.useCountyTravelFee && act.countyFees) {
-    const countyKey = String(selectedCounty || "").toLowerCase();
-    const feePerMember = Number(act.countyFees[countyKey]) || 0;
-    travelFee = feePerMember * memberPostcodes.length;
-  }
-  // 2) Per-mile
-  else if (Number(act.costPerMile) > 0) {
-    for (const postCode of memberPostcodes) {
-      if (!destination) continue;
+      let data = {};
       try {
-        const { outbound, raw } = await fetchTravel(postCode, destination, selectedDate);
-        const meters =
-          outbound?.distance?.value ??
-          raw?.rows?.[0]?.elements?.[0]?.distance?.value ??
-          0;
-        const miles = meters / 1609.34;
-        travelFee += miles * Number(act.costPerMile) * 2; // return trip
-      } catch (e) {
-        console.warn("⚠️ travel fetch failed (per-mile):", e?.message || e);
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
       }
+      if (!res.ok) throw new Error(`travel http ${res.status}`);
+
+      const legacyEl = data?.rows?.[0]?.elements?.[0];
+      const outbound =
+        data?.outbound ||
+        (legacyEl?.distance && legacyEl?.duration
+          ? { distance: legacyEl.distance, duration: legacyEl.duration, fare: legacyEl.fare }
+          : undefined);
+      const returnTrip = data?.returnTrip;
+
+      return { outbound, returnTrip, raw: data };
+    };
+
+    const normalizeWord = (s) => String(s || "").trim().toLowerCase();
+    const isManagerLike = (m) => {
+      if (m?.isManager === true) return true;
+      const fields = [
+        m?.role,
+        m?.position,
+        m?.instrument,
+        m?.title,
+        ...(Array.isArray(m?.additionalRoles) ? m.additionalRoles.map((r) => r?.customRole || r?.role) : []),
+      ]
+        .filter(Boolean)
+        .map(normalizeWord);
+      return fields.some((f) => f.includes("manager"));
+    };
+
+    let travelFee = 0;
+
+    let smallestLineup = null;
+    if (selectedLineup && Array.isArray(selectedLineup.bandMembers)) {
+      smallestLineup = selectedLineup;
+    } else {
+      smallestLineup = act.lineups?.reduce((min, lineup) => {
+        if (!Array.isArray(lineup.bandMembers)) return min;
+        if (!min || lineup.bandMembers.length < min.bandMembers.length) return lineup;
+        return min;
+      }, null);
     }
-  }
-  // 3) MU-style (fuel/time/late/tolls) using outbound+returnTrip
-  else {
-    for (const member of performingMembers) {
-      const postCode = member?.postCode;
-      if (!postCode || !destination) continue;
+    if (!smallestLineup || !Array.isArray(smallestLineup.bandMembers)) return null;
 
-      try {
-        const { outbound, returnTrip } = await fetchTravel(postCode, destination, selectedDate);
-        if (!outbound || !returnTrip) continue;
+    const northernCounties = new Set([
+      "ceredigion","cheshire","cleveland","conway","cumbria","denbighshire","derbyshire","durham",
+      "flintshire","greater manchester","gwynedd","herefordshire","lancashire","leicestershire",
+      "lincolnshire","merseyside","north humberside","north yorkshire","northumberland",
+      "nottinghamshire","rutland","shropshire","south humberside","south yorkshire","staffordshire",
+      "tyne and wear","warwickshire","west midlands","west yorkshire","worcestershire","wrexham",
+      "rhondda cynon taf","torfaen","neath port talbot","bridgend","blaenau gwent","caerphilly",
+      "cardiff","merthyr tydfil","newport","aberdeen city","aberdeenshire","angus","argyll and bute",
+      "clackmannanshire","dumfries and galloway","dundee city","east ayrshire","east dunbartonshire",
+      "east lothian","east renfrewshire","edinburgh","falkirk","fife","glasgow","highland",
+      "inverclyde","midlothian","moray","na h eileanan siar","north ayrshire","north lanarkshire",
+      "orkney islands","perth and kinross","renfrewshire","scottish borders","shetland islands",
+      "south ayrshire","south lanarkshire","stirling","west dunbartonshire","west lothian",
+    ]);
 
-        const outboundDistance = outbound?.distance?.value;
-        const returnDistance = returnTrip?.distance?.value;
-        const outboundDuration = outbound?.duration?.value;
-        const returnDuration = returnTrip?.duration?.value;
+    const isNorthernGig = northernCounties.has(String(selectedCounty || "").toLowerCase().trim());
 
-        if (
-          typeof outboundDistance !== "number" ||
-          typeof returnDistance !== "number" ||
-          typeof outboundDuration !== "number" ||
-          typeof returnDuration !== "number"
-        ) {
-          continue;
+    const chosenMembers =
+      act.useDifferentTeamForNorthernGigs && isNorthernGig
+        ? act.northernTeam || []
+        : smallestLineup.bandMembers || [];
+
+    const performingMembers = (chosenMembers || []).filter((m) => !isManagerLike(m));
+
+    const essentialFees = smallestLineup.bandMembers.flatMap((member) => {
+      const baseFee = member.isEssential ? Number(member.fee) || 0 : 0;
+      const additionalEssentialFees = (member.additionalRoles || [])
+        .filter((role) => role.isEssential)
+        .map((role) => Number(role.additionalFee) || 0);
+      return [baseFee, ...additionalEssentialFees];
+    });
+
+    const fee = essentialFees.reduce((sum, n) => sum + n, 0);
+
+    const memberPostcodes = performingMembers.map((m) => m?.postCode).filter(Boolean);
+    const destination =
+      typeof selectedAddress === "string"
+        ? selectedAddress
+        : selectedAddress?.postcode || selectedAddress?.address || "";
+
+    if (act.useCountyTravelFee && act.countyFees) {
+      const countyKey = String(selectedCounty || "").toLowerCase();
+      const feePerMember = Number(act.countyFees[countyKey]) || 0;
+      travelFee = feePerMember * memberPostcodes.length;
+    } else if (Number(act.costPerMile) > 0) {
+      for (const postCode of memberPostcodes) {
+        if (!destination) continue;
+        try {
+          const { outbound, raw } = await fetchTravel(postCode, destination, selectedDate);
+          const meters =
+            outbound?.distance?.value ?? raw?.rows?.[0]?.elements?.[0]?.distance?.value ?? 0;
+          const miles = meters / 1609.34;
+          travelFee += miles * Number(act.costPerMile) * 2; // return trip
+        } catch (e) {
+          console.warn("⚠️ travel fetch failed (per-mile):", e?.message || e);
         }
+      }
+    } else {
+      for (const member of performingMembers) {
+        const postCode = member?.postCode;
+        if (!postCode || !destination) continue;
 
-        const totalDistanceMiles = (outboundDistance + returnDistance) / 1609.34;
-        const totalDurationHours = (outboundDuration + returnDuration) / 3600;
+        try {
+          const { outbound, returnTrip } = await fetchTravel(postCode, destination, selectedDate);
+          if (!outbound || !returnTrip) continue;
 
-        const fuelFee = totalDistanceMiles * 0.56;
-        const timeFee = totalDurationHours * 13.23;
-        const lateFee = returnDuration / 3600 > 1 ? 136 : 0; // keep your existing heuristic
-        const tollFee =
-          (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
+          const outboundDistance = outbound?.distance?.value;
+          const returnDistance = returnTrip?.distance?.value;
+          const outboundDuration = outbound?.duration?.value;
+          const returnDuration = returnTrip?.duration?.value;
 
-        travelFee += fuelFee + timeFee + lateFee + tollFee;
-      } catch (e) {
-        console.warn("⚠️ travel fetch failed (MU):", e?.message || e);
+          if (
+            typeof outboundDistance !== "number" ||
+            typeof returnDistance !== "number" ||
+            typeof outboundDuration !== "number" ||
+            typeof returnDuration !== "number"
+          ) {
+            continue;
+          }
+
+          const totalDistanceMiles = (outboundDistance + returnDistance) / 1609.34;
+          const totalDurationHours = (outboundDuration + returnDuration) / 3600;
+
+          const fuelFee = totalDistanceMiles * 0.56;
+          const timeFee = totalDurationHours * 13.23;
+          const lateFee = returnDuration / 3600 > 1 ? 136 : 0;
+          const tollFee = (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
+
+          travelFee += fuelFee + timeFee + lateFee + tollFee;
+        } catch (e) {
+          console.warn("⚠️ travel fetch failed (MU):", e?.message || e);
+        }
       }
     }
-  }
 
-    // 🔶 Pricing with margin
-    const totalPrice = Math.ceil((fee + travelFee) / 0.75); // 25% margin on sell price
+    const totalPrice = Math.ceil((fee + travelFee) / 0.75); // 25% margin
     ACTS_DBG("$pricing:done", { actId: act?._id, totalPrice });
     return `${totalPrice}`;
   };
 
-  // --- PRICING --------------------------------------------------------------
   const updatedActs = await Promise.all(
     actsCopy.map(async (act) => {
       try {
-        // avoid noisy errors if inputs aren’t ready yet
         if (!selectedDate || !selectedAddress) {
           return { ...act, formattedPrice: null };
         }
-        const price = await calculateActPricing(
-          act,
-          selectedCounty,
-          selectedAddress,
-          selectedDate
-        );
+        const price = await calculateActPricing(act, selectedCounty, selectedAddress, selectedDate);
         return { ...act, formattedPrice: price };
-      } catch (e) {
+      } catch {
         return { ...act, formattedPrice: null };
       }
     })
   );
-  ACTS_DBG("updatedActs (post pricing)", { len: Array.isArray(updatedActs) ? updatedActs.length : 0,
-    sample: (Array.isArray(updatedActs) ? updatedActs.slice(0, 5) : []).map(a => ({ id: a?._id, n: a?.tscName || a?.name, price: a?.formattedPrice }))
+  ACTS_DBG("updatedActs (post pricing)", {
+    len: Array.isArray(updatedActs) ? updatedActs.length : 0,
+    sample: (Array.isArray(updatedActs) ? updatedActs.slice(0, 5) : []).map((a) => ({
+      id: a?._id,
+      n: a?.tscName || a?.name,
+      price: a?.formattedPrice,
+    })),
   });
 
-  // Only let the latest run win
+  // ───────────────────────────────────────────────────────────────────────────────
+  // Sort + set
+  // ───────────────────────────────────────────────────────────────────────────────
   if (runId === filterRunIdRef.current) {
-    // ⬇️ Sort here to avoid a separate state-update loop later
     let finalActs = [...updatedActs];
 
     const num = (v) => {
@@ -1521,7 +1537,6 @@ if (genre.length > 0) {
       finalActs.sort((a, b) => {
         const A = num(a.formattedPrice);
         const B = num(b.formattedPrice);
-        // NaNs go to the end
         if (Number.isNaN(A) && Number.isNaN(B)) return 0;
         if (Number.isNaN(A)) return 1;
         if (Number.isNaN(B)) return -1;
@@ -1537,6 +1552,7 @@ if (genre.length > 0) {
         return B - A;
       });
     }
+
     ACTS_DBG("finalActs before set", { len: finalActs.length });
     setFilterProducts(finalActs);
     ACTS_DBG("✅ setFilterProducts(final)", { len: finalActs.length });
