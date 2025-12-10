@@ -17,7 +17,7 @@ export const CardFilterShopContext = createContext();
 
 const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
 
-const ShopProvider = (props) => {
+const CardFilterShopProvider = (props) => {
   const currency = "£";
   const delivery_fee = 10;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -101,53 +101,195 @@ async function fetchActsForGrid() {
   const urlCards = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
   console.log("🛒[CardFilterShopContext] fetchActsForGrid:", urlCards);
 
-  // --- helper: derive a minimal card from a full act document ---
-  const buildCardFromAct = (a) => {
-    const pickImage = (obj) =>
-      (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
-      (Array.isArray(obj?.images) && obj.images[0]?.url) ||
-      (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) ||
-      "";
+// --- helper: derive a minimal card from a full act document ---
+const buildCardFromAct = (a) => {
+  const pickImage = (obj) =>
+    (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
+    (Array.isArray(obj?.images) && obj.images[0]?.url) ||
+    (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) ||
+    "";
 
-    // find the smallest lineup by member count or by act_size number
-    const smallestLineup = (() => {
-      const ls = Array.isArray(a?.lineups) ? a.lineups : [];
-      if (!ls.length) return null;
-      const sizeOf = (l) => {
-        const m = String(l?.act_size || l?.actSize || "").match(/(\d+)/);
-        if (m) return parseInt(m[1], 10);
-        return Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999;
-      };
-      return [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
-    })();
+  const lineups = Array.isArray(a?.lineups) ? a.lineups : [];
 
-    // base fee from smallest lineup with a 20% margin (site rule)
-    const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
-    const basePrice = Number.isFinite(lineupBase)
-      ? Math.ceil(lineupBase * 1.2)
-      : null;
+  // --- smallest lineup by act_size or band member count ---
+  const smallestLineup = (() => {
+    if (!lineups.length) return null;
+    const sizeOf = (l) => {
+      const m = String(l?.act_size || l?.actSize || "").match(/(\d+)/);
+      if (m) return parseInt(m[1], 10);
+      return Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999;
+    };
+    return [...lineups].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
+  })();
+
+  // --- base fee from smallest lineup with a 25% margin (site rule) ---
+  const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
+  const basePrice = Number.isFinite(lineupBase)
+    ? Math.ceil(lineupBase * 1.25)
+    : null;
+
+  // --- genres ---
+  const genres = Array.isArray(a?.genre)
+    ? a.genre.filter(Boolean)
+    : [];
+
+  // --- insurance / tech flags ---
+  const hasPLI = !!a?.pli;
+  const hasPAT = !!a?.patCert;
+  const hasPA = !!a?.paSystem;
+  const hasLighting = !!a?.lightingSystem;
+
+  // --- travel config ---
+  const hasCountyFees =
+    !!a?.countyFees &&
+    (
+      (a.countyFees instanceof Map && a.countyFees.size > 0) ||
+      (typeof a.countyFees === "object" &&
+        !Array.isArray(a.countyFees) &&
+        Object.keys(a.countyFees).length > 0)
+    );
+
+  const travelMode = (() => {
+    if (a?.useMUTravelRates) return "mu_rates";
+    if (a?.useCountyTravelFee && hasCountyFees) return "county";
+    if (typeof a?.costPerMile === "number" && a.costPerMile > 0) return "per_mile";
+    return "none";
+  })();
+
+  const travelConfig = {
+    useMUTravelRates: !!a?.useMUTravelRates,
+    useCountyTravelFee: !!a?.useCountyTravelFee,
+    hasCountyFees,
+    costPerMile:
+      typeof a?.costPerMile === "number" ? a.costPerMile : null,
+  };
+
+  // --- DJ capability (any member that can DJ or has DJ gear) ---
+  const canDJ = lineups.some((l) =>
+    Array.isArray(l?.bandMembers) &&
+    l.bandMembers.some((m) =>
+      m?.canDJ ||
+      m?.haveMixingConsoleOrDecks ||
+      m?.hasDjTable ||
+      m?.haveBooth
+    )
+  );
+
+  // --- instruments (deduped) ---
+  const instruments = Array.from(
+    new Set(
+      lineups
+        .flatMap((l) =>
+          Array.isArray(l?.bandMembers) ? l.bandMembers : []
+        )
+        .map((m) => (m?.instrument || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  // --- ceremony sets available? ---
+  const hasCeremonySets = lineups.some((l) => {
+    const cs = l?.ceremonySets;
+    if (!cs) return false;
+    if (cs instanceof Map) return cs.size > 0;
+    return (
+      typeof cs === "object" &&
+      !Array.isArray(cs) &&
+      Object.keys(cs).length > 0
+    );
+  });
+
+  // --- extras summary from Map / plain object ---
+  const extras = (() => {
+    const raw = a?.extras;
+    if (!raw) return [];
+    const entries =
+      raw instanceof Map
+        ? Array.from(raw.entries())
+        : Object.entries(raw);
+
+    return entries
+      .map(([key, val]) => ({
+        key,
+        price: Number(val?.price ?? 0) || 0,
+        complimentary: !!val?.complimentary,
+      }))
+      .filter((x) => x.price > 0 || x.complimentary);
+  })();
+
+  // --- availability badges: latest date + summary ---
+  const availabilitySummary = (() => {
+    const raw = a?.availabilityBadges;
+    if (!raw) return { hasAny: false, latest: null };
+
+    const entries =
+      raw instanceof Map
+        ? Array.from(raw.entries())
+        : Object.entries(raw);
+
+    if (!entries.length) return { hasAny: false, latest: null };
+
+    // Sort by date (string compare works fine for ISO yyyy-mm-dd)
+    const sorted = entries
+      .filter(([d]) => d)
+      .sort(([d1], [d2]) => (d1 > d2 ? -1 : d1 < d2 ? 1 : 0));
+
+    const [dateISO, badge] = sorted[0];
+
+    const slots = Array.isArray(badge?.slots) ? badge.slots : [];
+    const anyAvailable = slots.some((s) => !!s?.available);
 
     return {
-      actId: String(a?._id || ""),
-      tscName: a?.tscName || a?.name || "",
-      name: a?.name || "",
-      slug: a?.slug || "",
-      imageUrl: pickImage(a),
-      basePrice,
-      // prefer a specific shortlist counter if present
-      loveCount: Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
-      availabilityBadge: null,
-      status: a?.status || "",
+      hasAny: true,
+      latest: {
+        dateISO,
+        anyAvailable,
+        slots: slots.map((s) => ({
+          slotIndex: s?.slotIndex ?? 0,
+          available: !!s?.available,
+          covering: s?.covering || null,
+          isDeputy: !!s?.isDeputy,
+        })),
+      },
     };
+  })();
+
+  // Keep a simple top-level availabilityBadge for existing consumers
+  const availabilityBadge = availabilitySummary.latest;
+
+  return {
+    actId: String(a?._id || ""),
+    tscName: a?.tscName || a?.name || "",
+    imageUrl: pickImage(a),
+    basePrice,
+
+    // prefer a specific shortlist counter if present
+    loveCount:
+      Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
+
+    status: a?.status || "",
+
+    // 🔽 NEW bits you can use for filters / badges / UI
+    genres,
+    hasPLI,
+    hasPAT,
+    hasPA,
+    hasLighting,
+    travelMode,
+    travelConfig,
+    canDJ,
+    instruments,
+    hasCeremonySets,
+    extras,
+    availabilityBadge,
+    availabilitySummary,
   };
+};
 
   // --- fallback: if /cards is missing or empty, build cards from the full acts list ---
   const fallbackFromActs = async () => {
     const candidates = [
-      "/api/v2/acts/list?status=approved,live&limit=200&sort=-createdAt",
-      "/api/acts/list?status=approved,live&limit=200&sort=-createdAt",
       "/api/act/list?status=approved,live&limit=200&sort=-createdAt",
-      "/api/acts",
     ];
 
     for (const path of candidates) {
@@ -1751,6 +1893,6 @@ searchActCards,
   );
 };
 
-export default ShopProvider;
+export default CardFilterShopProvider;
 
 

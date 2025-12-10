@@ -16,16 +16,17 @@ import { useNavigate, useLocation } from "react-router-dom";
 import debounce from "lodash.debounce";
 
 export const ShopContext = createContext();
-  
+
 const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
 
 const ShopProvider = (props) => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const currency = "£";
   const delivery_fee = 10;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const CARD_STATUSES = "approved,approved_changes_pending";
 
   // --- Core UI / data ---
   const [search, setSearch] = useState("");
@@ -43,16 +44,46 @@ const ShopProvider = (props) => {
     }
   });
   const [cartUpdated, setCartUpdated] = useState(false);
-const [actsPageCards, setActsPageCards] = useState([]);
-const [actFilterCards, setActFilterCards] = useState([]);
+  const [actsPageCards, setActsPageCards] = useState([]);
+  const [actFilterCards, setActFilterCards] = useState([]);
+  const [actsFilterPageCards, setActsFilterPageCards] = useState([]);
+  const [actsFilterCards, setActsFilterCards] = useState([]);
 
-// Prefer filtered results; otherwise use Acts-page cards
-const filterCards = useMemo(
-  () => (Array.isArray(actFilterCards) && actFilterCards.length ? actFilterCards : actsPageCards),
-  [actFilterCards, actsPageCards]
-);
+  // 🔍 Debug: log Home-page act filter cards
+  useEffect(() => {
+    const snap = (arr) =>
+      Array.isArray(arr) ? { length: arr.length, sample: arr[0] } : { length: "non-array" };
 
+    console.log("🧪[ShopContext] actFilterCards changed:", snap(actFilterCards));
+    try { window.__ACT_FILTER_CARDS__ = actFilterCards; } catch {}
+  }, [actFilterCards]);
 
+  // 🔍 Debug: log /acts-page act filter cards
+  useEffect(() => {
+    const snap = (arr) =>
+      Array.isArray(arr) ? { length: arr.length, sample: arr[0] } : { length: "non-array" };
+
+    console.log("🧪[ShopContext] actsFilterCards changed:", snap(actsFilterCards));
+    try { window.__ACTS_FILTER_CARDS__ = actsFilterCards; } catch {}
+  }, [actsFilterCards]);
+
+  // Prefer filtered results; otherwise use Acts-page cards
+  const filterCards = useMemo(
+    () =>
+      Array.isArray(actFilterCards) && actFilterCards.length
+        ? actFilterCards
+        : actsPageCards,
+    [actFilterCards, actsPageCards]
+  );
+
+  // Prefer filtered results; otherwise use Acts-page cards
+  const filterActsCards = useMemo(
+    () =>
+      Array.isArray(actsFilterCards) && actsFilterCards.length
+        ? actsFilterCards
+        : actsFilterPageCards,
+    [actsFilterCards, actsFilterPageCards]
+  );
 
   // --- Persist cart to localStorage whenever it changes ---
   useEffect(() => {
@@ -92,254 +123,904 @@ const filterCards = useMemo(
     }
   });
 
-// Assumes you have actFilterCards in scope (from context or props)
-useEffect(() => {
-  if (!location?.pathname?.startsWith?.("/acts")) return;
+  // Assumes you have actFilterCards in scope (from context or props) <--- This one is for the Home page
+  useEffect(() => {
+    if (!location?.pathname?.startsWith?.("/acts")) return;
 
-  const noActsYet = !Array.isArray(acts) || acts.length === 0;
-  const hasCards = Array.isArray(actCards) && actCards.length > 0;
-  const hasFilter = Array.isArray(filterCards) && filterCards.length > 0;
+    const noActsYet = !Array.isArray(acts) || acts.length === 0;
+    const hasCards = Array.isArray(actCards) && actCards.length > 0;
+    const hasFilter = Array.isArray(filterCards) && filterCards.length > 0;
 
-  if (!noActsYet) return;
-  if (!hasCards && !hasFilter) return;
+    if (!noActsYet) return;
+    if (!hasCards && !hasFilter) return;
 
-  const normalize = (srcItem = {}, fallbackCard = {}) => {
-    const id = String(
-      srcItem?.actId ??
-      srcItem?._id ??
-      fallbackCard?.actId ??
-      fallbackCard?._id ??
-      ""
-    );
+    const normalize = (srcItem = {}, fallbackCard = {}) => {
+      const id = String(
+        srcItem?.actId ??
+          srcItem?._id ??
+          fallbackCard?.actId ??
+          fallbackCard?._id ??
+          ""
+      );
 
-    const image =
-      srcItem?.imageUrl ||
-      fallbackCard?.imageUrl ||
-      srcItem?.images?.[0]?.url ||
-      "";
+      const image =
+        srcItem?.imageUrl ||
+        fallbackCard?.imageUrl ||
+        srcItem?.images?.[0]?.url ||
+        "";
 
-    return {
-      _id: id,
-      actId: id,
-      tscName:
-        srcItem?.tscName ??
-        srcItem?.name ??
-        fallbackCard?.tscName ??
-        fallbackCard?.name ??
-        "",
-      name:
-        srcItem?.name ??
-        srcItem?.tscName ??
-        fallbackCard?.name ??
-        fallbackCard?.tscName ??
-        "",
-      slug: srcItem?.slug ?? fallbackCard?.slug ?? "",
-      images: image ? [{ url: image }] : [],
-      status: srcItem?.status ?? fallbackCard?.status ?? "",
-      lineups: Array.isArray(srcItem?.lineups) ? srcItem.lineups : [],
-      hasLineups:
-        typeof srcItem?.hasLineups === "boolean"
-          ? srcItem.hasLineups
-          : Array.isArray(srcItem?.lineups) && srcItem.lineups.length > 0,
-      basePrice: srcItem?.basePrice ?? fallbackCard?.basePrice ?? null,
-      baseOnly: srcItem?.baseOnly ?? fallbackCard?.baseOnly ?? null,
-      hasAnyLocation: Boolean(srcItem?.hasAnyLocation ?? fallbackCard?.hasAnyLocation),
-      ...srcItem,
+      return {
+        _id: id,
+        actId: id,
+        tscName:
+          srcItem?.tscName ??
+          srcItem?.name ??
+          fallbackCard?.tscName ??
+          fallbackCard?.name ??
+          "",
+        name:
+          srcItem?.name ??
+          srcItem?.tscName ??
+          fallbackCard?.name ??
+          fallbackCard?.tscName ??
+          "",
+        slug: srcItem?.slug ?? fallbackCard?.slug ?? "",
+        images: image ? [{ url: image }] : [],
+        status: srcItem?.status ?? fallbackCard?.status ?? "",
+        lineups: Array.isArray(srcItem?.lineups) ? srcItem.lineups : [],
+        hasLineups:
+          typeof srcItem?.hasLineups === "boolean"
+            ? srcItem.hasLineups
+            : Array.isArray(srcItem?.lineups) && srcItem.lineups.length > 0,
+        basePrice: srcItem?.basePrice ?? fallbackCard?.basePrice ?? null,
+        baseOnly: srcItem?.baseOnly ?? fallbackCard?.baseOnly ?? null,
+        hasAnyLocation: Boolean(
+          srcItem?.hasAnyLocation ?? fallbackCard?.hasAnyLocation
+        ),
+        ...srcItem,
+      };
     };
-  };
 
-  if (hasFilter) {
-    const byId = new Map((actCards || []).map(c => [String(c.actId ?? c._id ?? ""), c]));
+    if (hasFilter) {
+      const byId = new Map(
+        (actCards || []).map((c) => [String(c.actId ?? c._id ?? ""), c])
+      );
+      setActs(
+        filterCards.map((f) =>
+          normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {})
+        )
+      );
+      return;
+    }
+
+    // Fallback: project from actCards only
     setActs(
-      filterCards.map(f =>
-        normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {})
+      actCards.map((c) =>
+        normalize(
+          {
+            _id: String(c.actId ?? c._id ?? ""),
+            actId: String(c.actId ?? c._id ?? ""),
+            tscName: c.tscName ?? c.name ?? "",
+            name: c.name ?? "",
+            slug: c.slug ?? "",
+            images: c.imageUrl ? [{ url: c.imageUrl }] : [],
+            status: c.status ?? "",
+            lineups: [],
+            basePrice: c.basePrice ?? null,
+            baseOnly: c.baseOnly ?? null,
+            hasAnyLocation: !!c.hasAnyLocation,
+          },
+          c
+        )
       )
     );
-    return;
-  }
+  }, [filterCards, actCards, acts, location?.pathname]);
 
-  // Fallback: project from actCards only
-  setActs(
-    actCards.map((c) =>
-      normalize(
-        {
-          _id: String(c.actId ?? c._id ?? ""),
-          actId: String(c.actId ?? c._id ?? ""),
-          tscName: c.tscName ?? c.name ?? "",
-          name: c.name ?? "",
-          slug: c.slug ?? "",
-          images: c.imageUrl ? [{ url: c.imageUrl }] : [],
-          status: c.status ?? "",
-          lineups: [],
-          basePrice: c.basePrice ?? null,
-          baseOnly: c.baseOnly ?? null,
-          hasAnyLocation: !!c.hasAnyLocation,
-        },
-        c
+  // Assumes you have actsFilterCards in scope (from context or props). <--- This one is for the Acts page
+  useEffect(() => {
+    if (!location?.pathname?.startsWith?.("/acts")) return;
+
+    const noActsYet = !Array.isArray(acts) || acts.length === 0;
+    const hasCards = Array.isArray(actCards) && actCards.length > 0;
+    const hasFilter =
+      Array.isArray(filterActsCards) && filterActsCards.length > 0;
+
+    if (!noActsYet) return;
+    if (!hasCards && !hasFilter) return;
+
+    const normalize = (srcItem = {}, fallbackCard = {}) => {
+      const id = String(
+        srcItem?.actId ??
+          srcItem?._id ??
+          fallbackCard?.actId ??
+          fallbackCard?._id ??
+          ""
+      );
+
+      const image =
+        srcItem?.imageUrl ||
+        fallbackCard?.imageUrl ||
+        srcItem?.images?.[0]?.url ||
+        "";
+
+      return {
+        _id: id,
+        actId: id,
+        tscName:
+          srcItem?.tscName ??
+          srcItem?.name ??
+          fallbackCard?.tscName ??
+          fallbackCard?.name ??
+          "",
+        name:
+          srcItem?.name ??
+          srcItem?.tscName ??
+          fallbackCard?.name ??
+          fallbackCard?.tscName ??
+          "",
+        slug: srcItem?.slug ?? fallbackCard?.slug ?? "",
+        images: image ? [{ url: image }] : [],
+        status: srcItem?.status ?? fallbackCard?.status ?? "",
+        lineups: Array.isArray(srcItem?.lineups) ? srcItem.lineups : [],
+        hasLineups:
+          typeof srcItem?.hasLineups === "boolean"
+            ? srcItem.hasLineups
+            : Array.isArray(srcItem?.lineups) && srcItem.lineups.length > 0,
+        basePrice: srcItem?.basePrice ?? fallbackCard?.basePrice ?? null,
+        baseOnly: srcItem?.baseOnly ?? fallbackCard?.baseOnly ?? null,
+        hasAnyLocation: Boolean(
+          srcItem?.hasAnyLocation ?? fallbackCard?.hasAnyLocation
+        ),
+        ...srcItem,
+      };
+    };
+
+    if (hasFilter) {
+      const byId = new Map(
+        (actCards || []).map((c) => [String(c.actId ?? c._id ?? ""), c])
+      );
+      setActs(
+        filterActsCards.map((f) =>
+          normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {})
+        )
+      );
+      return;
+    }
+
+    // Fallback: project from actCards only
+    setActs(
+      actCards.map((c) =>
+        normalize(
+          {
+            _id: String(c.actId ?? c._id ?? ""),
+            actId: String(c.actId ?? c._id ?? ""),
+            tscName: c.tscName ?? c.name ?? "",
+            name: c.name ?? "",
+            slug: c.slug ?? "",
+            images: c.imageUrl ? [{ url: c.imageUrl }] : [],
+            status: c.status ?? "",
+            lineups: [],
+            basePrice: c.basePrice ?? null,
+            baseOnly: c.baseOnly ?? null,
+            hasAnyLocation: !!c.hasAnyLocation,
+          },
+          c
+        )
       )
-    )
-  );
-}, [filterCards, actCards, acts, location?.pathname]);
+    );
+  }, [filterActsCards, actCards, acts, location?.pathname]);
+
+  // In ShopContext (new helper; do NOT change existing functions) <---- This one is for the Acts page
+  const searchActFilterCards = useCallback(async (payload) => {
+    try {
+      const BASE = (
+        import.meta.env.VITE_BACKEND_URL ||
+        "https://tsc-backend-v2.onrender.com"
+      ).replace(/\/+$/, "");
+      const res = await fetch(`${BASE}/api/v2/act-cards/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      const cards = Array.isArray(data?.cards) ? data.cards : [];
+      setActsFilterCards(cards); // ← hydrate context
+      console.log("🎯[ShopContext] setActsFilterCards:", { count: cards.length, sample: cards[0] });
+      try { window.__ACTS_FILTER_CARDS__ = cards; } catch {}
+      return cards;
+    } catch (e) {
+      console.warn("searchActFilterCards failed:", e?.message || e);
+      setActsFilterCards([]); // ← clear on failure
+      return [];
+    }
+  }, []);
 
   // In ShopContext (new helper; do NOT change existing functions)
-const searchActCards = useCallback(async (payload) => {
-  try {
-    const BASE = (import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com").replace(/\/+$/, "");
-    const res = await fetch(`${BASE}/api/v2/act-cards/search`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    const cards = Array.isArray(data?.cards) ? data.cards : [];
-    setActFilterCards(cards);     // ← hydrate context
-    return cards;
-  } catch (e) {
-    console.warn("searchActCards failed:", e?.message || e);
-    setActFilterCards([]);        // ← clear on failure
-    return [];
-  }
-}, []);
-
-// ⬇️ add this function (standalone; does NOT touch actCards)
-const getActsPageCards = React.useCallback(async () => {
-  const base = String(backendUrl || "").replace(/\/+$/, "");
-  const url = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
-
-  // card normalizer ONLY for the Acts page
-  const normalize = (c = {}) => {
-    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
-    return {
-      actId: String(c.actId || c._id || c.id || ""),
-      tscName: c.tscName || c.name || c.n || "",
-      name: c.name || c.tscName || c.n || "",
-      slug: c.slug || c.s || "",
-      imageUrl: c.imageUrl || c.img || "",
-      basePrice: num(c.basePrice ?? c.p),
-      loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
-      availabilityBadge: c.availabilityBadge || c.badge || null,
-      status: c.status || c.st || "",
-    };
-  };
-
-  const buildCardFromAct = (a) => {
-    const pickImage = (obj) =>
-      (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
-      (Array.isArray(obj?.images) && obj.images[0]?.url) ||
-      (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) || "";
-
-    const ls = Array.isArray(a?.lineups) ? a.lineups : [];
-    const sizeOf = (l) => {
-      const m = String(l?.act_size || l?.actSize || "").match(/(\d+)/);
-      return m ? parseInt(m[1], 10) : (Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999);
-    };
-    const smallest = ls.length ? [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0] : null;
-    const lineupBase = Number(smallest?.base_fee?.[0]?.total_fee);
-    const basePrice = Number.isFinite(lineupBase) ? Math.ceil(lineupBase * 1.2) : null;
-
-    return {
-      actId: String(a?._id || ""),
-      tscName: a?.tscName || a?.name || "",
-      name: a?.name || "",
-      slug: a?.slug || "",
-      imageUrl: pickImage(a),
-      basePrice,
-      loveCount: Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
-      availabilityBadge: null,
-      status: a?.status || "",
-    };
-  };
-
-  const fallbackFromActs = async () => {
-    const candidates = [
-      "/api/v2/acts/list?status=approved,live&limit=200&sort=-createdAt",
-      "/api/acts/list?status=approved,live&limit=200&sort=-createdAt",
-      "/api/act/list?status=approved,live&limit=200&sort=-createdAt",
-      "/api/acts",
-    ];
-    for (const path of candidates) {
-      try {
-        const r = await axios.get(`${base}${path}`, { headers: { accept: "application/json" } });
-        const d = r?.data || {};
-        const arr = Array.isArray(d?.acts) ? d.acts : Array.isArray(d?.items) ? d.items : Array.isArray(d) ? d : [];
-        if (arr.length) {
-          setActsPageCards(arr.map(buildCardFromAct));
-          return;
-        }
-      } catch {}
+  const searchActCards = useCallback(async (payload) => {
+    try {
+      const BASE = (
+        import.meta.env.VITE_BACKEND_URL ||
+        "https://tsc-backend-v2.onrender.com"
+      ).replace(/\/+$/, "");
+      const res = await fetch(`${BASE}/api/v2/act-cards/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      const cards = Array.isArray(data?.cards) ? data.cards : [];
+      setActFilterCards(cards); // ← hydrate context
+      console.log("🎯[ShopContext] setActFilterCards:", { count: cards.length, sample: cards[0] });
+      try { window.__ACT_FILTER_CARDS__ = cards; } catch {}
+      return cards;
+    } catch (e) {
+      console.warn("searchActCards failed:", e?.message || e);
+      setActFilterCards([]); // ← clear on failure
+      return [];
     }
-    setActsPageCards([]);
-  };
+  }, []);
 
-  try {
-    const res = await axios.get(url, { headers: { accept: "application/json" } });
-    const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
-    if (!raw.length) return void (await fallbackFromActs());
-    setActsPageCards(raw.map(normalize));
-  } catch {
-    await fallbackFromActs();
+  // ⬇️ add this function (standalone; does NOT touch actCards)
+  const getActsPageCards = React.useCallback(async () => {
+    const base = String(backendUrl || "").replace(/\/+$/, "");
+const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit=200`;
+
+    // card normalizer ONLY for the Acts page
+    const normalize = (c = {}) => {
+      const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+      return {
+        actId: String(c.actId || c._id || c.id || ""),
+        tscName: c.tscName || c.name || c.n || "",
+        name: c.name || c.tscName || c.n || "",
+        slug: c.slug || c.s || "",
+        imageUrl: c.imageUrl || c.img || "",
+        basePrice: num(c.basePrice ?? c.p),
+        loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
+        availabilityBadge: c.availabilityBadge || c.badge || null,
+        status: c.status || c.st || "",
+      };
+    };
+
+    const buildCardFromAct = (a) => {
+      const pickImage = (obj) =>
+        (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
+        (Array.isArray(obj?.images) && obj.images[0]?.url) ||
+        (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) ||
+        "";
+
+      const ls = Array.isArray(a?.lineups) ? a.lineups : [];
+      const sizeOf = (l) => {
+        const m = String(l?.act_size || l?.actSize || "").match(/(\d+)/);
+        return m
+          ? parseInt(m[1], 10)
+          : Array.isArray(l?.bandMembers)
+            ? l.bandMembers.length
+            : 9999;
+      };
+      const smallest = ls.length
+        ? [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0]
+        : null;
+      const lineupBase = Number(smallest?.base_fee?.[0]?.total_fee);
+      const basePrice = Number.isFinite(lineupBase)
+        ? Math.ceil(lineupBase * 1.2)
+        : null;
+
+      return {
+        actId: String(a?._id || ""),
+        tscName: a?.tscName || a?.name || "",
+        name: a?.name || "",
+        slug: a?.slug || "",
+        imageUrl: pickImage(a),
+        basePrice,
+        loveCount:
+          Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
+        availabilityBadge: null,
+        status: a?.status || "",
+      };
+    };
+
+    const fallbackFromActs = async () => {
+    const candidates = [
+  `/api/v2/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+  `/api/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+  `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+  "/api/acts",
+];
+      for (const path of candidates) {
+        try {
+          const r = await axios.get(`${base}${path}`, {
+            headers: { accept: "application/json" },
+          });
+          const d = r?.data || {};
+          const arr = Array.isArray(d?.acts)
+            ? d.acts
+            : Array.isArray(d?.items)
+              ? d.items
+              : Array.isArray(d)
+                ? d
+                : [];
+          if (arr.length) {
+            setActsPageCards(arr.map(buildCardFromAct));
+            return;
+          }
+        } catch {}
+      }
+      setActsPageCards([]);
+    };
+
+    try {
+      const res = await axios.get(url, {
+        headers: { accept: "application/json" },
+      });
+      const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
+      if (!raw.length) return void (await fallbackFromActs());
+      setActsPageCards(raw.map(normalize));
+    } catch {
+      await fallbackFromActs();
+    }
+  }, [backendUrl]);
+
+  // ============ Grid cards (fast) — hoisted so it can be called above ============
+  async function fetchActsForGrid() {
+    const base = String(backendUrl || "").replace(/\/+$|^\s+|\s+$/g, "");
+const urlCards = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit=200`;
+    console.log("🛒[ShopContext] fetchActsForGrid:", urlCards);
+
+    // --- helper: derive a minimal card from a full act document ---
+    const buildCardFromAct = (a) => {
+      const pickImage = (obj) =>
+        (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
+        (Array.isArray(obj?.images) && obj.images[0]?.url) ||
+        (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) ||
+        "";
+
+      // find the smallest lineup by member count or by act_size number
+      const smallestLineup = (() => {
+        const ls = Array.isArray(a?.lineups) ? a.lineups : [];
+        if (!ls.length) return null;
+        const sizeOf = (l) => {
+          const m = String(l?.act_size || l?.actSize || "").match(/(\d+)/);
+          if (m) return parseInt(m[1], 10);
+          return Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999;
+        };
+        return [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
+      })();
+
+      // base fee from smallest lineup with a 20% margin (site rule)
+      const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
+      const basePrice = Number.isFinite(lineupBase)
+        ? Math.ceil(lineupBase * 1.2)
+        : null;
+
+      return {
+        actId: String(a?._id || ""),
+        tscName: a?.tscName || a?.name || "",
+        name: a?.name || "",
+        slug: a?.slug || "",
+        imageUrl: pickImage(a),
+        basePrice,
+        // prefer a specific shortlist counter if present
+        loveCount:
+          Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
+        availabilityBadge: null,
+        status: a?.status || "",
+      };
+    };
+
+    // --- fallback: if /cards is missing or empty, build cards from the full acts list ---
+    const fallbackFromActs = async () => {
+    const candidates = [
+  `/api/v2/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+  `/api/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+  `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+  "/api/acts",
+];
+
+      for (const path of candidates) {
+        const url = `${base}${path}`;
+        console.log("🛒[ShopContext] Fallback fetch acts:", { url });
+        try {
+          const res = await axios.get(url, {
+            headers: { accept: "application/json" },
+          });
+          const data = res?.data || {};
+          const arr = Array.isArray(data?.acts)
+            ? data.acts
+            : Array.isArray(data?.items)
+              ? data.items
+              : Array.isArray(data)
+                ? data
+                : [];
+
+          if (arr.length) {
+            const cards = arr.map(buildCardFromAct);
+            setActCards(cards);
+            try {
+              window.__TSC_ACTS__ = cards;
+            } catch {}
+            return;
+          }
+        } catch (err) {
+          console.warn("⚠️[ShopContext] Fallback acts fetch failed:", {
+            url,
+            msg: err?.message,
+          });
+        }
+      }
+
+      // if all fallbacks fail
+      setActCards([]);
+    };
+
+    try {
+      const res = await axios.get(urlCards, {
+        headers: { accept: "application/json" },
+      });
+      const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
+
+      const cards = arr.map((c) => ({
+        actId: String(c.actId || c._id || ""),
+        tscName: c.tscName || c.name || "",
+        name: c.name || "",
+        slug: c.slug || "",
+        imageUrl: c.imageUrl || "",
+        basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
+        loveCount: Number(c.loveCount) || 0,
+        availabilityBadge: c.availabilityBadge || null,
+        status: c.status || "",
+      }));
+
+      if (cards.length === 0) {
+        // 🚑 If the /cards endpoint is empty, fall back to deriving from full acts
+        await fallbackFromActs();
+        return;
+      }
+
+      setActCards(cards);
+      try {
+        window.__TSC_ACTS__ = cards;
+      } catch {}
+    } catch (err) {
+      console.warn("⚠️[ShopContext] fetchActsForGrid failed:", err?.message);
+      // 🚑 Fall back to full acts list and project into cards
+      await fallbackFromActs();
+    }
   }
-}, [backendUrl]);
 
+  useEffect(() => {
+    console.log("🛒[ShopContext] Mount — backendUrl:", backendUrl);
+    if (!backendUrl) {
+      console.warn(
+        "⚠️[ShopContext] VITE_BACKEND_URL is missing; cannot fetch acts"
+      );
+      setActCards([]);
+      return;
+    }
+    // 👉 Fast cards for listing UIs
+    getActCardsData().catch((e) =>
+      console.error("❌[ShopContext] getActCardsData threw:", e)
+    );
+    // ⛔ Do not call getActsData() here; it will overwrite cards in grids.
+  }, [backendUrl]);
 
-// ============ Grid cards (fast) — hoisted so it can be called above ============
-async function fetchActsForGrid() {
+  // ⬇️ add this function (standalone; does NOT touch actCards)
+  const getFilterCardActsPageCards = React.useCallback(async () => {
+    const base = String(backendUrl || "").replace(/\/+$/, "");
+const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit=200`;
+
+    // card normalizer ONLY for the Acts page
+    const normalize = (c = {}) => {
+      const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+      return {
+        actId: String(c.actId || c._id || c.id || ""),
+        tscName: c.tscName || c.name || c.n || "",
+        name: c.name || c.tscName || c.n || "",
+        slug: c.slug || c.s || "",
+        imageUrl: c.imageUrl || c.img || "",
+        basePrice: num(c.basePrice ?? c.p),
+        loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
+        availabilityBadge: c.availabilityBadge || c.badge || null,
+        status: c.status || c.st || "",
+      };
+    };
+
+    const buildFilterCardFromAct = (a) => {
+      const pickImage = (obj) =>
+        (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
+        (Array.isArray(obj?.images) && obj.images[0]?.url) ||
+        (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) ||
+        "";
+
+      const lineups = Array.isArray(a?.lineups) ? a.lineups : [];
+
+      // --- smallest lineup by act_size or band member count ---
+      const smallestLineup = (() => {
+        if (!lineups.length) return null;
+        const sizeOf = (l) => {
+          const m = String(l?.act_size || l?.actSize || "").match(/(\d+)/);
+          if (m) return parseInt(m[1], 10);
+          return Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999;
+        };
+        return [...lineups].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
+      })();
+
+      // --- base fee from smallest lineup with a 25% margin (site rule) ---
+      const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
+      const basePrice = Number.isFinite(lineupBase)
+        ? Math.ceil(lineupBase * 1.25)
+        : null;
+
+      // --- genres ---
+      const genres = Array.isArray(a?.genre) ? a.genre.filter(Boolean) : [];
+
+      // --- insurance / tech flags ---
+      const hasPLI = !!a?.pli;
+      const hasPAT = !!a?.patCert;
+      const hasPA = !!a?.paSystem;
+      const hasLighting = !!a?.lightingSystem;
+
+      // --- travel config ---
+      const hasCountyFees =
+        !!a?.countyFees &&
+        ((a.countyFees instanceof Map && a.countyFees.size > 0) ||
+          (typeof a.countyFees === "object" &&
+            !Array.isArray(a.countyFees) &&
+            Object.keys(a.countyFees).length > 0));
+
+      const travelMode = (() => {
+        if (a?.useMUTravelRates) return "mu_rates";
+        if (a?.useCountyTravelFee && hasCountyFees) return "county";
+        if (typeof a?.costPerMile === "number" && a.costPerMile > 0)
+          return "per_mile";
+        return "none";
+      })();
+
+      const travelConfig = {
+        useMUTravelRates: !!a?.useMUTravelRates,
+        useCountyTravelFee: !!a?.useCountyTravelFee,
+        hasCountyFees,
+        costPerMile: typeof a?.costPerMile === "number" ? a.costPerMile : null,
+      };
+
+      // --- DJ capability (any member that can DJ or has DJ gear) ---
+      const canDJ = lineups.some(
+        (l) =>
+          Array.isArray(l?.bandMembers) &&
+          l.bandMembers.some(
+            (m) =>
+              m?.canDJ ||
+              m?.haveMixingConsoleOrDecks ||
+              m?.hasDjTable ||
+              m?.haveBooth
+          )
+      );
+
+      // --- instruments (deduped) ---
+      const instruments = Array.from(
+        new Set(
+          lineups
+            .flatMap((l) =>
+              Array.isArray(l?.bandMembers) ? l.bandMembers : []
+            )
+            .map((m) => (m?.instrument || "").trim())
+            .filter(Boolean)
+        )
+      );
+
+      // --- ceremony sets available? ---
+      const hasCeremonySets = lineups.some((l) => {
+        const cs = l?.ceremonySets;
+        if (!cs) return false;
+        if (cs instanceof Map) return cs.size > 0;
+        return (
+          typeof cs === "object" &&
+          !Array.isArray(cs) &&
+          Object.keys(cs).length > 0
+        );
+      });
+
+      // --- extras summary from Map / plain object ---
+      const extras = (() => {
+        const raw = a?.extras;
+        if (!raw) return [];
+        const entries =
+          raw instanceof Map ? Array.from(raw.entries()) : Object.entries(raw);
+
+        return entries
+          .map(([key, val]) => ({
+            key,
+            price: Number(val?.price ?? 0) || 0,
+            complimentary: !!val?.complimentary,
+          }))
+          .filter((x) => x.price > 0 || x.complimentary);
+      })();
+
+      // --- availability badges: latest date + summary ---
+      const availabilitySummary = (() => {
+        const raw = a?.availabilityBadges;
+        if (!raw) return { hasAny: false, latest: null };
+
+        const entries =
+          raw instanceof Map ? Array.from(raw.entries()) : Object.entries(raw);
+
+        if (!entries.length) return { hasAny: false, latest: null };
+
+        // Sort by date (string compare works fine for ISO yyyy-mm-dd)
+        const sorted = entries
+          .filter(([d]) => d)
+          .sort(([d1], [d2]) => (d1 > d2 ? -1 : d1 < d2 ? 1 : 0));
+
+        const [dateISO, badge] = sorted[0];
+
+        const slots = Array.isArray(badge?.slots) ? badge.slots : [];
+        const anyAvailable = slots.some((s) => !!s?.available);
+
+        return {
+          hasAny: true,
+          latest: {
+            dateISO,
+            anyAvailable,
+            slots: slots.map((s) => ({
+              slotIndex: s?.slotIndex ?? 0,
+              available: !!s?.available,
+              covering: s?.covering || null,
+              isDeputy: !!s?.isDeputy,
+            })),
+          },
+        };
+      })();
+
+      // Keep a simple top-level availabilityBadge for existing consumers
+      const availabilityBadge = availabilitySummary.latest;
+
+      return {
+        actId: String(a?._id || ""),
+        tscName: a?.tscName || a?.name || "",
+        imageUrl: pickImage(a),
+        basePrice,
+
+        // prefer a specific shortlist counter if present
+        loveCount:
+          Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
+
+        status: a?.status || "",
+
+        // 🔽 NEW bits you can use for filters / badges / UI
+        genres,
+        hasPLI,
+        hasPAT,
+        hasPA,
+        hasLighting,
+        travelMode,
+        travelConfig,
+        canDJ,
+        instruments,
+        hasCeremonySets,
+        extras,
+        availabilityBadge,
+        availabilitySummary,
+      };
+    };
+
+    const fallbackFromActs = async () => {
+     const candidates = [
+  `/api/v2/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+  `/api/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+  `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+  "/api/acts",
+];
+      for (const path of candidates) {
+        try {
+          const r = await axios.get(`${base}${path}`, {
+            headers: { accept: "application/json" },
+          });
+          const d = r?.data || {};
+          const arr = Array.isArray(d?.acts)
+            ? d.acts
+            : Array.isArray(d?.items)
+              ? d.items
+              : Array.isArray(d)
+                ? d
+                : [];
+          if (arr.length) {
+setActsFilterPageCards(arr.map(buildFilterCardFromAct));
+            return;
+          }
+        } catch {}
+      }
+setActsFilterPageCards([]);
+    };
+
+    try {
+      const res = await axios.get(url, {
+        headers: { accept: "application/json" },
+      });
+      const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
+      if (!raw.length) return void (await fallbackFromActs());
+      setActsFilterPageCards(raw.map(normalize));
+    } catch {
+      await fallbackFromActs();
+    }
+  }, [backendUrl]);
+
+// ============ FilterCard (fast) START — hoisted so it can be called above ============
+async function fetchFilterCardActsForGrid() {
   const base = String(backendUrl || "").replace(/\/+$|^\s+|\s+$/g, "");
-  const urlCards = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
-  console.log("🛒[ShopContext] fetchActsForGrid:", urlCards);
+  const urlCards = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit=200`;
+
+  console.log("🛒[CardFilterShopContext] fetchFilterCardActsForGrid:", urlCards);
 
   // --- helper: derive a minimal card from a full act document ---
-  const buildCardFromAct = (a) => {
+  const buildFilterCardFromAct = (a) => {
     const pickImage = (obj) =>
       (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
       (Array.isArray(obj?.images) && obj.images[0]?.url) ||
       (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) ||
       "";
 
-    // find the smallest lineup by member count or by act_size number
+    const lineups = Array.isArray(a?.lineups) ? a.lineups : [];
+
+    // --- smallest lineup by act_size or band member count ---
     const smallestLineup = (() => {
-      const ls = Array.isArray(a?.lineups) ? a.lineups : [];
-      if (!ls.length) return null;
+      if (!lineups.length) return null;
       const sizeOf = (l) => {
         const m = String(l?.act_size || l?.actSize || "").match(/(\d+)/);
         if (m) return parseInt(m[1], 10);
         return Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999;
       };
-      return [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
+      return [...lineups].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
     })();
 
-    // base fee from smallest lineup with a 20% margin (site rule)
+    // --- base fee from smallest lineup with a 25% margin (site rule) ---
     const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
-    const basePrice = Number.isFinite(lineupBase)
-      ? Math.ceil(lineupBase * 1.2)
-      : null;
+    const basePrice = Number.isFinite(lineupBase) ? Math.ceil(lineupBase * 1.25) : null;
+
+    // --- genres (support both `genres` and `genre`) ---
+    const genres = Array.isArray(a?.genres)
+      ? a.genres.filter(Boolean)
+      : Array.isArray(a?.genre)
+      ? a.genre.filter(Boolean)
+      : [];
+
+    // --- lineup sizes ---
+    const lineupSizes = lineups
+      .map((l) => String(l?.act_size || l?.actSize || "").trim())
+      .filter(Boolean);
+
+    // --- insurance / tech flags ---
+    const hasPLI = !!a?.pli;
+    const hasPAT = !!a?.patCert;
+    const hasPA = !!a?.paSystem;
+    const hasLighting = !!a?.lightingSystem;
+
+    // --- travel config ---
+    const hasCountyFees =
+      !!a?.countyFees &&
+      ((a.countyFees instanceof Map && a.countyFees.size > 0) ||
+        (typeof a.countyFees === "object" && !Array.isArray(a.countyFees) && Object.keys(a.countyFees).length > 0));
+
+    const travelMode = (() => {
+      if (a?.useMUTravelRates) return "mu_rates";
+      if (a?.useCountyTravelFee && hasCountyFees) return "county";
+      if (typeof a?.costPerMile === "number" && a.costPerMile > 0) return "per_mile";
+      return "none";
+    })();
+
+    const travelConfig = {
+      useMUTravelRates: !!a?.useMUTravelRates,
+      useCountyTravelFee: !!a?.useCountyTravelFee,
+      hasCountyFees,
+      costPerMile: typeof a?.costPerMile === "number" ? a.costPerMile : null,
+    };
+
+    // --- DJ capability (any member that can DJ or has DJ gear) ---
+    const canDJ = lineups.some(
+      (l) =>
+        Array.isArray(l?.bandMembers) &&
+        l.bandMembers.some(
+          (m) => m?.canDJ || m?.haveMixingConsoleOrDecks || m?.hasDjTable || m?.haveBooth
+        )
+    );
+
+    // --- instruments (deduped) ---
+    const instruments = Array.from(
+      new Set(
+        lineups
+          .flatMap((l) => (Array.isArray(l?.bandMembers) ? l.bandMembers : []))
+          .map((m) => (m?.instrument || "").trim())
+          .filter(Boolean)
+      )
+    );
+
+    // --- ceremony sets available? ---
+    const hasCeremonySets = lineups.some((l) => {
+      const cs = l?.ceremonySets;
+      if (!cs) return false;
+      if (cs instanceof Map) return cs.size > 0;
+      return typeof cs === "object" && !Array.isArray(cs) && Object.keys(cs).length > 0;
+    });
+
+    // --- extras summary from Map / plain object ---
+    const extras = (() => {
+      const raw = a?.extras;
+      if (!raw) return [];
+      const entries = raw instanceof Map ? Array.from(raw.entries()) : Object.entries(raw);
+      return entries
+        .map(([key, val]) => ({
+          key,
+          price: Number(val?.price ?? 0) || 0,
+          complimentary: !!val?.complimentary,
+        }))
+        .filter((x) => x.price > 0 || x.complimentary);
+    })();
+
+    // --- availability badges: latest date + summary ---
+    const availabilitySummary = (() => {
+      const raw = a?.availabilityBadges;
+      if (!raw) return { hasAny: false, latest: null };
+      const entries = raw instanceof Map ? Array.from(raw.entries()) : Object.entries(raw);
+      if (!entries.length) return { hasAny: false, latest: null };
+
+      const sorted = entries.filter(([d]) => d).sort(([d1], [d2]) => (d1 > d2 ? -1 : d1 < d2 ? 1 : 0));
+      const [dateISO, badge] = sorted[0];
+      const slots = Array.isArray(badge?.slots) ? badge.slots : [];
+      const anyAvailable = slots.some((s) => !!s?.available);
+
+      return {
+        hasAny: true,
+        latest: {
+          dateISO,
+          anyAvailable,
+          slots: slots.map((s) => ({
+            slotIndex: s?.slotIndex ?? 0,
+            available: !!s?.available,
+            covering: s?.covering || null,
+            isDeputy: !!s?.isDeputy,
+          })),
+        },
+      };
+    })();
+
+    const availabilityBadge = availabilitySummary.latest;
 
     return {
       actId: String(a?._id || ""),
       tscName: a?.tscName || a?.name || "",
-      name: a?.name || "",
-      slug: a?.slug || "",
       imageUrl: pickImage(a),
       basePrice,
-      // prefer a specific shortlist counter if present
       loveCount: Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
-      availabilityBadge: null,
       status: a?.status || "",
+
+      // extra fields commonly used in filters
+      genres,
+      lineupSizes,
+      hasPLI,
+      hasPAT,
+      hasPA,
+      hasLighting,
+      travelMode,
+      travelConfig,
+      canDJ,
+      instruments,
+      hasCeremonySets,
+      extras,
+      availabilityBadge,
+      availabilitySummary,
     };
   };
 
   // --- fallback: if /cards is missing or empty, build cards from the full acts list ---
   const fallbackFromActs = async () => {
     const candidates = [
-      "/api/v2/acts/list?status=approved,live&limit=200&sort=-createdAt",
-      "/api/acts/list?status=approved,live&limit=200&sort=-createdAt",
-      "/api/act/list?status=approved,live&limit=200&sort=-createdAt",
+      `/api/v2/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+      `/api/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+      `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
       "/api/acts",
     ];
 
     for (const path of candidates) {
       const url = `${base}${path}`;
-      console.log("🛒[ShopContext] Fallback fetch acts:", { url });
+      console.log("🛒[CardFilterShopContext] Fallback fetch acts:", { url });
       try {
         const res = await axios.get(url, { headers: { accept: "application/json" } });
         const data = res?.data || {};
@@ -352,13 +1033,15 @@ async function fetchActsForGrid() {
           : [];
 
         if (arr.length) {
-          const cards = arr.map(buildCardFromAct);
+          const cards = arr.map(buildFilterCardFromAct);
           setActCards(cards);
-          try { window.__TSC_ACTS__ = cards; } catch {}
+          try {
+            window.__TSC_ACTS__ = cards;
+          } catch {}
           return;
         }
       } catch (err) {
-        console.warn("⚠️[ShopContext] Fallback acts fetch failed:", { url, msg: err?.message });
+        console.warn("⚠️[CardFilterShopContext] Fallback acts fetch failed:", { url, msg: err?.message });
       }
     }
 
@@ -370,44 +1053,70 @@ async function fetchActsForGrid() {
     const res = await axios.get(urlCards, { headers: { accept: "application/json" } });
     const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
 
-    const cards = arr.map((c) => ({
-      actId: String(c.actId || c._id || ""),
-      tscName: c.tscName || c.name || "",
-      name: c.name || "",
-      slug: c.slug || "",
-      imageUrl: c.imageUrl || "",
-      basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
-      loveCount: Number(c.loveCount) || 0,
-      availabilityBadge: c.availabilityBadge || null,
-      status: c.status || "",
-    }));
+    // map as richly as possible (support both lean and rich act-card payloads)
+    const cards = arr.map((c) => {
+      const pickImage = (obj) =>
+        (Array.isArray(obj?.coverImage) && obj.coverImage[0]?.url) ||
+        (Array.isArray(obj?.images) && obj.images[0]?.url) ||
+        (Array.isArray(obj?.profileImage) && obj.profileImage[0]?.url) ||
+        obj?.imageUrl ||
+        "";
+
+      return {
+        actId: String(c.actId || c._id || ""),
+        tscName: c.tscName || c.name || "",
+        name: c.name || "",
+        slug: c.slug || "",
+        imageUrl: pickImage(c),
+        basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
+        loveCount: Number(c.loveCount || c.timesShortlisted || c.numberOfShortlistsIn) || 0,
+        availabilityBadge: c.availabilityBadge || null,
+        status: c.status || "",
+
+        // optional enrichments (present in richer card docs)
+        genres: Array.isArray(c.genres) ? c.genres.filter(Boolean) : [],
+        lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.filter(Boolean) : [],
+        instruments: Array.isArray(c.instruments) ? c.instruments.filter(Boolean) : [],
+        pliAmount: Number(c.pliAmount) || 0,
+        pa: typeof c.pa === "object" && c.pa ? c.pa : {},
+        light: typeof c.light === "object" && c.light ? c.light : {},
+        extras: typeof c.extras === "object" && c.extras ? c.extras : {},
+        isTest: c.isTest === true || c.isTest === "true" || c.isTest === 1 || c.isTest === "1",
+        images: c.images || c.coverImages || null,
+      };
+    });
 
     if (cards.length === 0) {
-      // 🚑 If the /cards endpoint is empty, fall back to deriving from full acts
       await fallbackFromActs();
       return;
     }
 
     setActCards(cards);
-    try { window.__TSC_ACTS__ = cards; } catch {}
+    try {
+      window.__TSC_ACTS__ = cards;
+    } catch {}
   } catch (err) {
-    console.warn("⚠️[ShopContext] fetchActsForGrid failed:", err?.message);
-    // 🚑 Fall back to full acts list and project into cards
+    console.warn("⚠️[CardFilterShopContext] fetchFilterCardActsForGrid failed:", err?.message);
     await fallbackFromActs();
   }
 }
 
+
+
 useEffect(() => {
-  console.log("🛒[ShopContext] Mount — backendUrl:", backendUrl);
+  console.log("🛒[CardFilterShopContext] Mount — backendUrl:", backendUrl);
   if (!backendUrl) {
-    console.warn("⚠️[ShopContext] VITE_BACKEND_URL is missing; cannot fetch acts");
+    console.warn("⚠️[CardFilterShopContext] VITE_BACKEND_URL is missing; cannot fetch acts");
     setActCards([]);
     return;
   }
   // 👉 Fast cards for listing UIs
-  getActCardsData().catch((e) => console.error("❌[ShopContext] getActCardsData threw:", e));
+  fetchFilterCardActsForGrid().catch((e) =>
+    console.error("❌[CardFilterShopContext] fetchFilterCardActsForGrid threw:", e)
+  );
   // ⛔ Do not call getActsData() here; it will overwrite cards in grids.
 }, [backendUrl]);
+// ============ FilterCard (fast) END — hoisted so it can be called above ============
 
   // --- Availability map for selectedDate (tri-state: true / false / undefined) ---
   const [availableMap, setAvailableMap] = useState({});
@@ -462,7 +1171,9 @@ useEffect(() => {
 
     for (const url of candidates) {
       try {
-        const res = await axios.get(url, { headers: { accept: "application/json" } });
+        const res = await axios.get(url, {
+          headers: { accept: "application/json" },
+        });
         const data = res?.data;
         const act = data?.act || data?.data || data?.result || data;
         if (act && typeof act === "object" && act._id) {
@@ -629,7 +1340,8 @@ useEffect(() => {
   // Pick the smallest lineup for a quick "from" price
   const pickSmallestLineup = (act) => {
     try {
-      if (!act || !Array.isArray(act.lineups) || !act.lineups.length) return null;
+      if (!act || !Array.isArray(act.lineups) || !act.lineups.length)
+        return null;
       const parseSize = (s) => {
         if (!s) return Infinity;
         const m = String(s).match(/(\d+)/);
@@ -639,7 +1351,9 @@ useEffect(() => {
         l,
         n: Number.isFinite(parseSize(l?.act_size || l?.actSize))
           ? parseSize(l?.act_size || l?.actSize)
-          : (Array.isArray(l?.bandMembers) ? l.bandMembers.length : 9999),
+          : Array.isArray(l?.bandMembers)
+            ? l.bandMembers.length
+            : 9999,
         i,
       }));
       scored.sort((a, b) => a.n - b.n || a.i - b.i);
@@ -650,27 +1364,29 @@ useEffect(() => {
   };
 
   // ============ Grid cards (fast) ============
-const getActCardsData = async () => {
-  const base = String(backendUrl || "").replace(/\/+$/, "");
-  const url = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
-  console.log("🛒[ShopContext] Fetching act cards:", url);
+  const getActCardsData = async () => {
+    const base = String(backendUrl || "").replace(/\/+$/, "");
+const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit=200`;
+    console.log("🛒[ShopContext] Fetching act cards:", url);
 
-  try {
-    const res = await axios.get(url, { headers: { accept: "application/json" } });
-    const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
+    try {
+      const res = await axios.get(url, {
+        headers: { accept: "application/json" },
+      });
+      const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
 
-    // expose as dedicated cards state
-    setActCards(arr);
+      // expose as dedicated cards state
+      setActCards(arr);
 
-    // (optional) stash for quick inspection
-    try { window.__TSC_ACT_CARDS__ = arr; } catch {}
-  } catch (err) {
-    console.warn("⚠️[ShopContext] fetch act cards failed:", err?.message);
-    setActCards([]);
-  }
-};
-
-
+      // (optional) stash for quick inspection
+      try {
+        window.__TSC_ACT_CARDS__ = arr;
+      } catch {}
+    } catch (err) {
+      console.warn("⚠️[ShopContext] fetch act cards failed:", err?.message);
+      setActCards([]);
+    }
+  };
 
   // Compute a "from" price with travel on demand for a card when it's on screen
   const getCardPriceWithTravel = async (actId) => {
@@ -693,7 +1409,10 @@ const getActCardsData = async () => {
       const total = Number(result?.total || 0);
       return Number.isFinite(total) ? Math.ceil(total) : null;
     } catch (e) {
-      console.warn("⚠️[ShopContext] getCardPriceWithTravel failed:", e?.message || e);
+      console.warn(
+        "⚠️[ShopContext] getCardPriceWithTravel failed:",
+        e?.message || e
+      );
       return null;
     }
   };
@@ -720,15 +1439,25 @@ const getActCardsData = async () => {
       const url = `${base}${path}`;
       console.log("🛒[ShopContext] Fetching acts:", { url });
       try {
-        const res = await axios.get(url, { headers: { accept: "application/json" } });
+        const res = await axios.get(url, {
+          headers: { accept: "application/json" },
+        });
         const data = res?.data;
 
         // Log keys for shape discovery
-        console.log("🛒[ShopContext] Raw list payload keys:", Object.keys(data || {}));
+        console.log(
+          "🛒[ShopContext] Raw list payload keys:",
+          Object.keys(data || {})
+        );
 
         const actsArr = coerceActsArray(data);
         const meta = data?.meta || data?.pagination || data?.acts || {};
-        const hintedTotal = meta?.total || meta?.totalDocs || data?.total || data?.count || actsArr.length;
+        const hintedTotal =
+          meta?.total ||
+          meta?.totalDocs ||
+          data?.total ||
+          data?.count ||
+          actsArr.length;
 
         console.log("🛒[ShopContext] Acts response:", {
           status: res.status,
@@ -737,7 +1466,9 @@ const getActCardsData = async () => {
           hintedTotal,
           sampleId: actsArr?.[0]?._id,
           sampleName: actsArr?.[0]?.tscName || actsArr?.[0]?.name,
-          sampleLineupsType: Array.isArray(actsArr?.[0]?.lineups) ? "array" : typeof actsArr?.[0]?.lineups,
+          sampleLineupsType: Array.isArray(actsArr?.[0]?.lineups)
+            ? "array"
+            : typeof actsArr?.[0]?.lineups,
         });
 
         if (actsArr.length > 0) {
@@ -748,31 +1479,45 @@ const getActCardsData = async () => {
             return bt - at;
           });
           setActs(sorted);
-          try { window.__TSC_ACTS__ = sorted; } catch {}
+          try {
+            window.__TSC_ACTS__ = sorted;
+          } catch {}
           return; // ✅ success
         }
 
         // If server says there should be data (hintedTotal > 0) but our parser found none,
         // stash raw for inspection and keep trying alternates.
         if ((hintedTotal || 0) > 0) {
-          try { window.__TSC_ACTS_RAW__ = data; } catch {}
-          console.warn("⚠️[ShopContext] list response hinted non-zero total but no parsed acts; trying next endpoint");
+          try {
+            window.__TSC_ACTS_RAW__ = data;
+          } catch {}
+          console.warn(
+            "⚠️[ShopContext] list response hinted non-zero total but no parsed acts; trying next endpoint"
+          );
         }
       } catch (err) {
         const status = err?.response?.status;
         const body = err?.response?.data;
-        console.warn("⚠️[ShopContext] Acts fetch failed:", { url, status, body, msg: err?.message });
+        console.warn("⚠️[ShopContext] Acts fetch failed:", {
+          url,
+          status,
+          body,
+          msg: err?.message,
+        });
         // try next candidate…
       }
     }
 
     // If all candidates fail or return empty
-    console.error("❌[ShopContext] Could not load acts from any known endpoint.", { backendUrl });
-    try { window.__TSC_ACTS_FAILED__ = { backendUrl }; } catch {}
+    console.error(
+      "❌[ShopContext] Could not load acts from any known endpoint.",
+      { backendUrl }
+    );
+    try {
+      window.__TSC_ACTS_FAILED__ = { backendUrl };
+    } catch {}
     setActs([]);
   };
-
-
 
   // Log any updates to acts for quick visibility
   useEffect(() => {
@@ -796,7 +1541,11 @@ const getActCardsData = async () => {
   // 🧩 Bridge for legacy list UIs that still read `acts`:
   // If we have cards but `acts` is empty, project minimal act objects so pages render.
   useEffect(() => {
-    if (Array.isArray(actCards) && actCards.length && (!Array.isArray(acts) || acts.length === 0)) {
+    if (
+      Array.isArray(actCards) &&
+      actCards.length &&
+      (!Array.isArray(acts) || acts.length === 0)
+    ) {
       const minimalActs = actCards.map((c) => ({
         _id: String(c.actId || c._id || ""),
         actId: String(c.actId || c._id || ""),
@@ -811,7 +1560,6 @@ const getActCardsData = async () => {
     }
   }, [actCards]); // only populate when cards arrive and acts is empty
 
-
   // Try to refresh one act (used after SSE inbound). If single-act endpoint is missing,
   // we fall back to reloading the list.
   const refreshActById = async (actId) => {
@@ -819,17 +1567,19 @@ const getActCardsData = async () => {
     try {
       const r = await axios.get(`${backendUrl}/api/act/${actId}`);
       if (r.data?.success && r.data?.act) {
-      setActs((prev) => {
-  const idx = Array.isArray(prev)
-    ? prev.findIndex((a) => String(a?._id || a?.actId) === String(actId))
-    : -1;
-  if (idx >= 0) {
-    const next = [...prev];
-    next[idx] = r.data.act; // promote to full doc
-    return next;
-  }
-  return [r.data.act, ...(Array.isArray(prev) ? prev : [])];
-});
+        setActs((prev) => {
+          const idx = Array.isArray(prev)
+            ? prev.findIndex(
+                (a) => String(a?._id || a?.actId) === String(actId)
+              )
+            : -1;
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = r.data.act; // promote to full doc
+            return next;
+          }
+          return [r.data.act, ...(Array.isArray(prev) ? prev : [])];
+        });
         return;
       }
     } catch {
@@ -841,8 +1591,6 @@ const getActCardsData = async () => {
       // swallow
     }
   };
-
-
 
   // ✅ Hydrate logged-in user + shortlist once
   useEffect(() => {
@@ -950,14 +1698,18 @@ const getActCardsData = async () => {
   // ============ Availability helpers ============
 
   // Gate by act name — only allow specific acts
-const isActAllowed = (actId) => {
-  const idStr = String(actId);
-  const item =
-    (Array.isArray(acts) ? acts.find((a) => String(a?._id || a?.actId) === idStr) : null) ||
-    (Array.isArray(actCards) ? actCards.find((a) => String(a?._id || a?.actId) === idStr) : null);
-  const name = item?.tscName || item?.name || "";
-  return ALLOWED_ACT_NAMES.has(name);
-};
+  const isActAllowed = (actId) => {
+    const idStr = String(actId);
+    const item =
+      (Array.isArray(acts)
+        ? acts.find((a) => String(a?._id || a?.actId) === idStr)
+        : null) ||
+      (Array.isArray(actCards)
+        ? actCards.find((a) => String(a?._id || a?.actId) === idStr)
+        : null);
+    const name = item?.tscName || item?.name || "";
+    return ALLOWED_ACT_NAMES.has(name);
+  };
 
   // Compute vocalist-specific “fee” for messaging (optional/nice-to-have)
   const computeVocalistFeeForMessage = async ({
@@ -1357,8 +2109,6 @@ const isActAllowed = (actId) => {
     } catch (err) {}
   };
 
-
-
   // Small helper: nudge user to log in and remember where they were
   const promptLogin = (
     msg = "Please log in to save acts to your shortlist.",
@@ -1395,7 +2145,7 @@ const isActAllowed = (actId) => {
   };
 
   // ✅ Toggle shortlist via PATCH routes with optimistic UI
- const shortlistAct = async (uid, actId) => {
+  const shortlistAct = async (uid, actId) => {
     if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
 
     const storedUserRaw = localStorage.getItem("user");
@@ -1411,7 +2161,9 @@ const isActAllowed = (actId) => {
     const selectedDateFinal = hasDate
       ? new Date(selectedDate).toISOString().slice(0, 10)
       : null;
-    const selectedAddressFinal = hasAddress ? String(selectedAddress).trim() : null;
+    const selectedAddressFinal = hasAddress
+      ? String(selectedAddress).trim()
+      : null;
 
     // Build payload WITHOUT placeholder date/address to avoid accidental availability triggers
     const clientPayload = {
@@ -1767,19 +2519,20 @@ const isActAllowed = (actId) => {
     }
   };
 
- const getCartAmount = async () => {
-  let totalAmount = 0;
+  const getCartAmount = async () => {
+    let totalAmount = 0;
 
-  for (const actId in cartItems) {
-    // Try to find a full doc first, otherwise fetch it
-    let actData =
-      (Array.isArray(acts) ? acts.find((a) => String(a._id || a.actId) === String(actId)) : null) ||
-      null;
+    for (const actId in cartItems) {
+      // Try to find a full doc first, otherwise fetch it
+      let actData =
+        (Array.isArray(acts)
+          ? acts.find((a) => String(a._id || a.actId) === String(actId))
+          : null) || null;
 
-    if (!actData || !Array.isArray(actData.lineups)) {
-      actData = await getActById(actId);
-      if (!actData) continue;
-    }
+      if (!actData || !Array.isArray(actData.lineups)) {
+        actData = await getActById(actId);
+        if (!actData) continue;
+      }
 
       for (const lineupId in cartItems[actId]) {
         const cartItem = cartItems[actId][lineupId];
@@ -1858,11 +2611,21 @@ const isActAllowed = (actId) => {
     // core
     acts,
     // prefer cards for grids; fall back to acts
-displayActs:
-  location?.pathname?.startsWith?.("/acts")
-    ? (filterCards.length ? filterCards : actsPageCards)
-    : (Array.isArray(actCards) && actCards.length ? actCards : acts),
-        currency,
+    displayActs: location?.pathname?.startsWith?.("/acts")
+      ? filterCards.length
+        ? filterCards
+        : actsPageCards
+      : Array.isArray(actCards) && actCards.length
+        ? actCards
+        : acts,
+    displayActsFilterCards: location?.pathname?.startsWith?.("/acts")
+      ? filterActsCards.length
+        ? filterActsCards
+        : actsFilterPageCards
+      : Array.isArray(filterActsCards) && filterActsCards.length
+        ? filterActsCards
+        : acts,
+    currency,
     delivery_fee,
     search,
     setSearch,
@@ -1870,18 +2633,23 @@ displayActs:
     setShowSearch,
     backendUrl,
     getActById,
-searchActCards,
-    // listing cards
-  actCards,                // ✅ homepage uses this as-is
-  fetchActsForGrid,        // (your existing one for home if needed)
-  // Acts page (isolated)
-  actsPageCards,
-  getActsPageCards,
-  getCardPriceWithTravel,  // keep using for listing price-on-demand
-setActsPageCards,
-actFilterCards,
-setActFilterCards,
-filterCards,
+    searchActCards,
+    searchActFilterCards, // listing cards
+    actCards, // ✅ homepage uses this as-is
+    fetchActsForGrid,
+    fetchFilterCardActsForGrid, // (your existing one for home if needed)
+    // Acts page (isolated)
+    actsPageCards,
+    actsFilterPageCards,
+    getActsPageCards,
+    getFilterCardActsPageCards,
+    getCardPriceWithTravel, // keep using for listing price-on-demand
+    setActsPageCards,
+    setActsFilterPageCards,
+    actFilterCards,
+    setActFilterCards,
+    filterCards,
+    filterActsCards,
     // cart
     cartItems,
     setCartItems,
@@ -1946,5 +2714,3 @@ filterCards,
 };
 
 export default ShopProvider;
-
-

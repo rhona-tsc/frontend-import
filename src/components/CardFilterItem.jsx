@@ -1,11 +1,10 @@
-// frontend/src/components/ActItem.jsx
+// frontend/src/components/CardFilterActItem.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import calculateActPricing from '../pages/utils/pricing';
 import { CardFilterShopContext } from '../context/CardFilterShopContext';
 
 const DBG = true;
-const dlog = (...a) => DBG && console.log('🎯[ActItem]', ...a);
 
 const MARGIN_RATE = 0.25;
 const applyMargin = (v) => Math.ceil((Number(v) || 0) * (1 + MARGIN_RATE));
@@ -84,10 +83,7 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
   const [loveCount, setLoveCount] = useState(() => getLove(actData, shortlistCount));
   const [price, setPrice] = useState(null);
 
-  useEffect(() => {
-    dlog('mount', { sourceTag, id: getActId(actData), hasLineups: Array.isArray(actData?.lineups) });
-    return () => dlog('unmount', { id: getActId(actData) });
-  }, []); // eslint-disable-line
+
 
   useEffect(() => {
     setLoveCount(getLove(actData, shortlistCount));
@@ -102,7 +98,6 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
         const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
 
         const hasAnyLocation = !!(selectedAddress || selectedCounty);
-        dlog('price run start', { id, title: getTitle(actData), hasLineups, baseOnly, standalone, hasAnyLocation, hasDate: !!selectedDate });
 
         // Standalone mode: keep it super simple → show baseOnly or derived
         if (standalone) {
@@ -135,7 +130,6 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
                 return;
               }
             } catch (err) {
-              dlog('card travel-aware pricing failed', err?.message || err);
             }
           }
           if (baseOnly != null) setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
@@ -184,7 +178,6 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
       const actUrl = getActId(actData) ? `/act/${getActId(actData)}` : '/';
       const fallback = fromActsListing ? listUrl : actUrl;
       sessionStorage.setItem('postLoginNext', fallback);
-      dlog('redirecting to login for shortlist', { fallback });
       navigate('/login', { state: { from: fallback } });
       return;
     }
@@ -210,13 +203,7 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
   const badgeMatches = Boolean(badgeActive && badgeDateISO && selectedISO && badgeDateISO === selectedISO);
   const resolvedImage = (badgeMatches && badgeHasPhoto) ? badge.photoUrl : getImageUrl(actData);
 
-  dlog('render', {
-    id: getActId(actData),
-    title: getTitle(actData),
-    standalone,
-    displayTotal,
-    imageOk: resolvedImage && resolvedImage !== '/placeholder.jpg'
-  });
+
 
   return (
     <div className="relative group">

@@ -1,5 +1,5 @@
-import { useContext, useState, useEffect, useRef, useMemo, act } from "react";
-import { CardFilterShopContext } from "../context/CardFilterShopContext";
+import { useContext, useState, useEffect, useRef, useMemo } from "react";
+import { ShopContext } from "../context/ShopContext.jsx";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -10,8 +10,12 @@ import { assets } from "../assets/assets";
 // --- DEBUG HELPERS ---------------------------------------------------------
 const ACTS_DBG = (...args) => console.log("🎯 [Acts]", ...args);
 const GROUP = (label) => { try { console.groupCollapsed(label); } catch (_) {} };
-
 const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
+
+// Keep this ABOVE any usage
+const DEBUG_FILTER = true;
+// Temporarily disable server search until backend /search is aligned
+const ENABLE_SERVER_SEARCH = false;
 
 // Canonical API path builder (uses backend, never the Netlify origin)
 const api = (path = "") => {
@@ -22,12 +26,31 @@ const api = (path = "") => {
   return `${BASE}/${p}`;
 };
 
+const norm = (s="") =>
+  String(s)
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Helper for normalising ACT SIZE values
+const norm2 = (s) => {
+  if (!s) return "";
+  let v = String(s).toLowerCase().trim();
+  v = v.replace(/\s+/g, " ");
+  v = v.replace(/\s*\+\s*$/, "+");
+  if (v === "trio" || v === "3-piece") return "3-piece";
+  if (v === "duo" || v === "2-piece") return "2-piece";
+  if (v === "solo" || v === "1-piece") return "solo";
+  return v;
+};
+
 const Acts = ({ userRole, email }) => {
-  const { actsPageCards, getActsPageCards, getCardPriceWithTravel, setActsPageCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(CardFilterShopContext);
+  const { actsFilterPageCards, getFilterCardActsPageCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
 
 
   
-const cards = Array.isArray(actsPageCards) ? actsPageCards : [];
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
   const [genre, setGenre] = useState([]);
@@ -80,11 +103,55 @@ const [sortType, setSortType] = useState("relevant");
 
 // near the top
 const FILTER_DATA_ENDPOINTS = [
-  api("api/act/filter-data"),     // v2 singular (most likely)
-  api("api/v2/act/filter-data"),  // alternate v2 prefix
-  api("api/acts/filter-data"),    // legacy plural (fallback)
-  api("api/v2/acts/filter-data"), // legacy plural with /v2 (fallback)
+  api("api/v2/act-cards/search"),     
 ];
+
+const aliasGenre = (g) => {
+  const raw = String(g || "");
+  return [raw, raw.replace(/&/g, "and")];
+};
+const normGenreToken = (s) =>
+  String(s).toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9]+/g," ").trim();
+
+function buildServerPayload(filters) {
+  const raw = filters.genres ?? filters.genre ?? [];
+  const expanded = [...new Set(raw.flatMap(aliasGenre))];
+  const tokens = [...new Set(expanded.map(normGenreToken))];
+  return {
+    includeStatuses: ['approved','live','approved_changes_pending','live_changes_pending'],
+    excludeTests: true,
+    genres: expanded,           // keep raw/alias
+    genres_norm: tokens,        // optional if you add it server-side
+    lineupSizes: filters.lineupSizes ?? filters.act_size ?? [],
+    instruments: filters.instruments ?? [],
+    wireless: filters.wireless ?? [],
+    soundLimiters: filters.soundLimiters ?? [],
+    paAndLights: filters.paAndLights ?? [],
+    pli: filters.pli ?? [],
+    setupAndSoundcheck: filters.setupAndSoundcheck ?? [],
+    songSearch: filters.songSearch ?? [],
+    extraServices: filters.extraServices ?? [],
+    actSearch: filters.actSearch ?? []
+  };
+}
+
+// Is any server-side filter actually set?
+const hasActiveFilters = (f = {}) => {
+  const keys = [
+    "genres","lineupSizes","instruments","wireless","soundLimiters",
+    "setupAndSoundcheck","paAndLights","pli","songSearch","extraServices","actSearch",
+  ];
+  return keys.some(k => Array.isArray(f[k]) && f[k].length);
+};
+
+// Extract IDs regardless of server response shape
+const extractIds = (res) => {
+  if (!res) return [];
+  if (Array.isArray(res?.ids)) return res.ids;
+  if (Array.isArray(res?.items)) return res.items.map(x => x?._id || x?.id || x?.actId).filter(Boolean);
+  if (Array.isArray(res)) return res.map(x => x?._id || x?.id || x?.actId).filter(Boolean);
+  return [];
+};
 
 async function fetchActFilterData({ ids, status = "approved,live", limit = 200 }) {
   const idParam = Array.isArray(ids) ? ids.join(",") : String(ids || "");
@@ -112,10 +179,10 @@ async function fetchActFilterData({ ids, status = "approved,live", limit = 200 }
     } catch {}
   }
 
-  console.warn("⚠️ filter-data: no matching endpoint found (all candidates failed).");
+  console.warn("⚠️ search: no matching endpoint found (all candidates failed).");
   return null;
 }
-  // ---- filter-data helper (acts enrichment) ----
+  // ---- search helper (acts enrichment) ----
 const normalize = (arr) =>
   Array.isArray(arr) ? arr.map((x) => String(x).toLowerCase().trim()) : [];
 
@@ -188,10 +255,10 @@ const buildServerFilterPayload = () => ({
   excludeTests: true,
 });
 
-useEffect(() => { getActsPageCards(); }, [getActsPageCards]);
+useEffect(() => { getFilterCardActsPageCards(); /* once */ }, []);
 
 // --- FILTER TOGGLE DEBUG ---------------------------------------------------
-const DEBUG_FILTER = true;
+
 
 const uniqPush = (arr = [], v) => (arr.includes(v) ? arr : [...arr, v]);
 
@@ -206,75 +273,112 @@ const logToggle = (group, { value, checked, before = [], after = [] }) => {
   } catch {}
 };
 
-// 🔎 Snapshot Acts-page cards every time they change
+/// 🔎 Snapshot Acts-page cards every time they change
 useEffect(() => {
-  const src = Array.isArray(actsPageCards) ? actsPageCards : [];
-  console.groupCollapsed(`🗂 actsPageCards snapshot (${src.length})`);
-  if (src.length) {
-    // top-level keys on the first card (helps see structure)
-    console.log("🔑 keys on first card:", Object.keys(src[0]));
-
-    // tabular view of filter-relevant fields for the first 40 cards
-    console.table(
-      src.slice(0, 40).map((c, i) => ({
-        i,
-        id: String(c.actId || c._id || ""),
-        name: c.tscName || c.name || "(untitled)",
-        status: c.status,
-        isTest: Boolean(c.isTest || c?.actData?.isTest),
-        genres: Array.isArray(c.genres) ? c.genres.join(" | ") : String(c.genres || ""),
-        lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.join(" | ") : "",
-        instruments: Array.isArray(c.instruments) ? c.instruments.join(" | ") : "",
-        pliAmount: c.pliAmount ?? "",
-        paTrue: Object.entries(c.pa || {}).filter(([,v]) => v).map(([k]) => k).join(","),
-        lightTrue: Object.entries(c.light || {}).filter(([,v]) => v).map(([k]) => k).join(","),
-        extrasTrue: Object.entries(c.extras || {})
-          .filter(([,v]) => v === true || (v && typeof v === "object"))
-          .map(([k]) => k).slice(0, 10).join(","),
-        lineupsCount: Array.isArray(c.lineups) ? c.lineups.length : 0,
-        hasImages: Boolean(c.images || c.coverImages || c.heroImages || c.gallery),
-      }))
-    );
-
-    // full raw object for deep inspection
-    console.log("📌 first card (full):", src[0]);
+  if (!actsFilterPageCards) {
+    console.log("🧾 actsFilterPageCards = ", actsFilterPageCards);
+    return;
   }
-  console.groupEnd();
-}, [actsPageCards]);
+  if (!Array.isArray(actsFilterPageCards)) {
+    console.warn("🧾 actsFilterPageCards not an array:", actsFilterPageCards);
+    return;
+  }
 
-// ---- server enrich (filter-data) ----
+  console.groupCollapsed(`🧾 actsFilterPageCards FULL (${actsFilterPageCards.length})`);
+  actsFilterPageCards.forEach((c, i) => {
+    console.log(`#${i} keys:`, Object.keys(c || {}));
+    try {
+      console.log(`#${i} snapshot:`, JSON.stringify(c, null, 2));
+    } catch {}
+
+    // 👉 GENRES (per card)
+    const rawGenres = [
+      ...(Array.isArray(c?.genres) ? c.genres : (typeof c?.genres === "string" ? [c.genres] : [])),
+      ...(Array.isArray(c?.genreTags) ? c.genreTags : []),
+      ...(c?.genre ? [c.genre] : []),
+      ...(Array.isArray(c?.__card?.genres)
+        ? c.__card.genres
+        : (typeof c?.__card?.genres === "string" ? [c.__card.genres] : [])),
+    ].filter(Boolean);
+
+    const dedupRaw = Array.from(new Set(rawGenres));
+    const dedupNorm = Array.from(new Set(dedupRaw.map((g) => norm(g)).filter(Boolean))); // uses the existing `norm` helper
+
+    if (dedupRaw.length || (Array.isArray(c?.genres_norm) && c.genres_norm.length)) {
+      console.log(
+        `#${i} genres →`,
+        { raw: dedupRaw, norm: dedupNorm }
+      );
+      if (Array.isArray(c?.genres_norm) && c.genres_norm.length) {
+        console.log(`#${i} genres_norm (field):`, c.genres_norm);
+      }
+    } else {
+      console.log(`#${i} genres → (none found)`);
+    }
+
+    if (c?.availabilityBadge) console.log(`#${i} availabilityBadge:`, c.availabilityBadge);
+    if (c?.travelConfig)      console.log(`#${i} travelConfig:`, c.travelConfig);
+    if (Array.isArray(c?.extras)) {
+      const preview = c.extras.slice(0, 8);
+      console.log(
+        `#${i} extras (${c.extras.length}):`,
+        preview,
+        c.extras.length > 8 ? `…+${c.extras.length - 8} more` : ""
+      );
+    }
+  });
+  console.groupEnd();
+}, [actsFilterPageCards]);
+
+// ---- server enrich (search) ----
 useEffect(() => {
   let alive = true;
 
   (async () => {
     try {
-      // Whatever array you render before enrichment; your logs call it actsPageCards/actCards.
-      const base = (Array.isArray(actsPageCards) && actsPageCards.length) ? actsPageCards : [];
+      // Whatever array you render before enrichment; your logs call it actsFilterPageCards/actCards.
+      const base = (Array.isArray(actsFilterPageCards) && actsFilterPageCards.length) ? actsFilterPageCards : [];
       if (!base.length) return;
 
-      const ids = base
-        .map((c) => c.actId || c._id || c.id)
-        .filter(Boolean);
+      const ids = Array.from(new Set(
+        base
+          .map((c) => c.actId || c._id || c.id)
+          .filter(Boolean)
+      ));
 
-      const enrich = await fetchActFilterData(api, axios, ids);
+      if (!ids.length) {
+        // nothing to enrich — keep current cards
+        setFilterProducts(base);
+        return;
+      }
+
+      const enrich = await fetchActFilterData({
+        ids,
+        status: "approved,live,approved_changes_pending,live_changes_pending",
+        limit: 200,
+      });
+
       if (!alive) return;
 
-      const merged = mergeFilterDataIntoCards(base, enrich);
+      const merged = (Array.isArray(enrich) && enrich.length)
+        ? mergeFilterDataIntoCards(base, enrich)
+        : base;
 
       // If you keep a local “actsPageCards” state, set it here; otherwise push to your pipeline:
       setFilterProducts(merged);
     } catch (err) {
-      console.warn("filter-data enrich failed:", err?.message || err);
+      console.warn("search enrich failed:", err?.message || err);
       // IMPORTANT: fall back to current cards instead of wiping to []
-      const base = (Array.isArray(actsPageCards) && actsPageCards.length) ? actsPageCards : [];
+      const base = (Array.isArray(actsFilterPageCards) && actsFilterPageCards.length) ? actsFilterPageCards : [];
       setFilterProducts(base);
     }
   })();
 
   return () => { alive = false; };
-}, [actsPageCards]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [actsFilterPageCards]);
 
-const items = Array.isArray(actsPageCards) ? actsPageCards : [];
+const items = Array.isArray(actsFilterPageCards) ? actsFilterPageCards : [];
 
 
 // --- GENRES helpers ------------------------------------------------------
@@ -601,8 +705,8 @@ function getApprovedActs(list) {
   const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
   const normalizeStatus = (s) => String(s || "").trim().toLowerCase();
 
-  return arr.filter((act) => {
-    const st = normalizeStatus(act.status);
+  return arr.filter((item) => {
+    const st = normalizeStatus(item.status);
     const isApprovedLike =
       st === "approved" ||
       st === "live" ||
@@ -611,46 +715,31 @@ function getApprovedActs(list) {
       st.includes("changes pending");
 
     const isTest =
-      looksLikeTrue(act.isTest) || looksLikeTrue(act.actData?.isTest);
+      looksLikeTrue(item.isTest) || looksLikeTrue(item.actData?.isTest);
 
     return isAgent ? isApprovedLike : (isApprovedLike && !isTest);
   });
 }
 
 // ✅ Use the Acts-page cards as the source
-const approvedActs = useMemo(
-  () => getApprovedActs(actsPageCards),
-  [actsPageCards]
-);
+const approvedActs = useMemo(() => getApprovedActs(actsFilterPageCards), [actsFilterPageCards]);
 
+// Map of id → card/act (work with actId or _id safely)
 const actMap = useMemo(
-  () => new Map((approvedActs || []).map(a => [String(a._id), a])),
+  () =>
+    new Map(
+      (approvedActs || []).map((a) => [String(a._id || a.actId || a.id || ""), a])
+    ),
   [approvedActs]
 );
 
+// 🔗 Normalised cards array for this page
+const cards = useMemo(() => (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []), [actsFilterPageCards]);
 
-// 2) Helper: which cards are allowed for this viewer (agent vs non-agent)
-function getApprovedCards(list) {
-  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const effectiveRole  = String(userRole || storedUser.userRole || "").toLowerCase();
-  const effectiveUserId = userId || storedUser.userId || "";
-  const effectiveEmail  = email || storedUser.email || "";
-
-  const isAgent =
-    ["agent", "admin", "moderator"].includes(effectiveRole) ||
-    effectiveUserId === "680fb453a2de6618675ca9ed" ||
-    /@thesupremecollective\.co\.uk$/i.test(effectiveEmail);
-
-  const looksTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
-
-  const src = Array.isArray(list) ? list : [];
-  return src.filter((card) => (isAgent ? true : !looksTrue(card.isTest)));
-}
-
-// Memoised so we can safely use it in effect deps
+// Simple memo to show counts without recomputing filters
 const approvedActsCount = useMemo(
-  () => getApprovedActs(actsPageCards).length,
-  [actsPageCards, userRole, userId, email]
+  () => getApprovedActs(actsFilterPageCards).length,
+  [actsFilterPageCards, userRole, userId, email]
 );
 
 async function applyFilter() {
@@ -664,7 +753,7 @@ async function applyFilter() {
     availLoading,
     availMapKeys: Object.keys(availableMap || {}).length,
     cardsLen: Array.isArray(cards) ? cards.length : 0,
-actCardsLen: Array.isArray(actsPageCards) ? actsPageCards.length : 0,
+    actCardsLen: Array.isArray(actsFilterPageCards) ? actsFilterPageCards.length : 0,
   });
 
   // If availability map is loading, skip ONLY the availability gate
@@ -673,112 +762,171 @@ actCardsLen: Array.isArray(actsPageCards) ? actsPageCards.length : 0,
     console.log("Skipping availability gate due to loading state");
   }
 
-  // prefer current cards; if somehow empty, fall back to actsPageCards
-const sourceCards = (Array.isArray(cards) && cards.length) ? cards : actsPageCards;
-  ACTS_DBG("sourceCards", { len: Array.isArray(sourceCards) ? sourceCards.length : 0 });
-  let approvedCards = getApprovedCards(sourceCards);
-console.groupCollapsed("🧪 Pre-filter probe (approvedCards) — first 30");
-console.table(
-  (approvedCards || []).slice(0, 30).map((c) => ({
-    id: String(c.actId || c._id || ""),
-    name: c.tscName || c.name || "(untitled)",
-    genres: Array.isArray(c.genres) ? c.genres.join(" | ") : String(c.genres || ""),
-    lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.join(" | ") : "",
-    instruments: Array.isArray(c.instruments) ? c.instruments.join(" | ") : "",
-    pliAmount: c.pliAmount ?? "",
-    paTrue: Object.entries(c.pa || {}).filter(([,v]) => v).map(([k]) => k).join(","),
-    lightTrue: Object.entries(c.light || {}).filter(([,v]) => v).map(([k]) => k).join(","),
-    extrasKeys: Object.keys(c.extras || {}).slice(0, 10).join(","),
-  }))
-);
-console.groupEnd();
-  // 🔎 Ask the server which cards match the current UI filters,
-  // then intersect with the locally visible set.
-  let allowedActIds = null;
-  try {
-    const serverPayload = buildServerFilterPayload();
-    ACTS_DBG("server search payload", { serverPayload });
-    const serverCards = await searchActCards(serverPayload);
-  console.groupCollapsed("🌐 server search payload");
-console.log(serverPayload);
-console.groupEnd();
-    if (Array.isArray(serverCards) && serverCards.length) {
-      allowedActIds = new Set(
-        serverCards.map((c) => String(c.actId || c._id))
-      );
+  // ---- server search gate (build payload, call API, intersect with local cards) ----
+  const filters = buildServerFilterPayload();
+  const payload = buildServerPayload(filters);
+
+  // --- optional server search (feature-flagged) ---
+  const postCandidates = async (urls, body) => {
+    for (const url of urls) {
+      try {
+        const { data } = await axios.post(url, body);
+        // Accept {cards|results|data|[]} shapes
+        const arr = Array.isArray(data?.cards)
+          ? data.cards
+          : Array.isArray(data?.results)
+          ? data.results
+          : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data)
+          ? data
+          : [];
+        const ids = arr
+          .map((x) => String(x.actId ?? x._id ?? x.id ?? x.act_id ?? ""))
+          .filter(Boolean);
+        if (ids.length) return new Set(ids);
+      } catch (_) {
+        // silent try next
+      }
     }
-  } catch (err) {
-    console.warn("server card search failed:", err?.message || err);
+    return new Set();
+  };
+
+  let serverIds = new Set();
+  if (ENABLE_SERVER_SEARCH && hasActiveFilters(filters)) {
+    // Be permissive with payload keys for compatibility
+    const compatPayload = {
+      ...payload,
+      status: payload.includeStatuses || payload.status || ["approved","live","approved_changes_pending","live_changes_pending"],
+      statuses: payload.includeStatuses || payload.status,
+      // keep both raw and normalised genre fields
+      genres_norm: payload.genres_norm || (payload.genres || []).map((s)=> String(s).toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9]+/g," ").trim()),
+      genreTokens: (payload.genres || []).map((s)=> String(s).toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9]+/g," ").trim()),
+    };
+
+    const SEARCH_ENDPOINTS = [
+      api("api/v2/act-cards/search"),
+      api("api/act/cards/search")
+    ];
+
+    serverIds = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
+
+    if (serverIds.size === 0 && DEBUG_FILTER) {
+      console.info("\uD83D\uDD36 Server search yielded 0 ids — using client-only filtering.");
+    }
+  } else if (DEBUG_FILTER) {
+    console.info("\uD83D\uDD36 Server search disabled — using client-only filtering.");
   }
 
-  // ✅ Narrow locally-approved cards with server-approved IDs (if present)
-  if (allowedActIds) {
-    approvedCards = approvedCards.filter((c) =>
-      allowedActIds.has(String(c.actId || c._id))
-    );
-  }
-  ACTS_DBG("approvedCards after server intersection", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
+  const allCards = Array.isArray(cards) ? cards : [];
 
-  // Only clear if we genuinely have no cards at all from either source
-  if (!approvedCards || approvedCards.length === 0) {
-    const hasAnyCards = Array.isArray(cards) && cards.length > 0;
-    const hasAnyActCards = Array.isArray(actsPageCards) && actsPageCards.length > 0;
-    if (!hasAnyCards && !hasAnyActCards) {
-      setFilterProducts([]);
-      return;
-    }
-    // else: keep going (don’t wipe the grid because of a transient 0)
-  }
+  // Intersect with server ids only when we actually received some
+  let approvedCards = serverIds.size
+    ? allCards.filter((c) => serverIds.has(String(c.actId ?? c._id ?? c.id ?? "")))
+    : allCards;
 
-  // Prefer full Act objects; if missing, synthesise from the card so the grid isn't empty
-  ACTS_DBG("building actsCopy from approvedCards", { len: Array.isArray(approvedCards) ? approvedCards.length : 0 });
- let actsCopy = approvedCards
-  .map((card) => {
-    const id = String(card.actId || card._id);
-    const act = actMap.get(id);
-
-    // a small helper to pick any known image field off a card/act
-    const pickImages = (obj = {}) =>
-      obj.images || obj.coverImages || obj.heroImages || obj.gallery || obj.hero || null;
-
-    if (act) {
-      const images = act.images || pickImages(card) || pickImages(act) || null;
-      return { ...act, __card: card, images };
-    }
+  // Ensure safe genre fields on every card
+  const withSafety = approvedCards.map((c) => {
+    const genresRaw = Array.isArray(c.genres) ? c.genres.filter(Boolean) : [];
+    const genresNorm =
+      Array.isArray(c.genres_norm) && c.genres_norm.length
+        ? c.genres_norm
+        : genresRaw.map(norm);
 
     return {
-      _id: id,
-      name: card.tscName || card.name || "Untitled Act",
-      tscName: card.tscName,
-      genres: Array.isArray(card.genres) ? card.genres : [],
-      lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
-      instruments: Array.isArray(card.instruments) ? card.instruments : [],
-      extras: Object.fromEntries(
-        Object.entries(card.extras || {}).filter(([, v]) => v === true)
-      ),
-      pliAmount: Number(card.pliAmount) || 0,
-      paSystem: Object.entries(card.pa || {})
-        .filter(([, v]) => v)
-        .map(([k]) => k)
-        .join(", "),
-      lightingSystem: Object.entries(card.light || {})
-        .filter(([, v]) => v)
-        .map(([k]) => k)
-        .join(", "),
-      lineups: [],
-      images: pickImages(card) || null, // 👈 preserve photos from the card
-      __card: card,
+      ...c,
+      genres_raw: genresRaw,
+      genres_norm: genresNorm,
     };
-  })
-  .filter(Boolean);
+  });
+
+  const sourceCards = withSafety;
+  ACTS_DBG("sourceCards", { len: sourceCards.length });
+
+  console.groupCollapsed("🧪 Pre-filter probe (withSafety) — first 30");
+  console.table(
+    (withSafety || []).slice(0, 30).map((c) => ({
+      id: String(c.actId || c._id || ""),
+      name: c.tscName || c.name || "(untitled)",
+      genres: Array.isArray(c.genres) ? c.genres.join(" | ") : String(c.genres || ""),
+      lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.join(" | ") : "",
+      instruments: Array.isArray(c.instruments) ? c.instruments.join(" | ") : "",
+      pliAmount: c.pliAmount ?? "",
+      paTrue:
+        c.pa && typeof c.pa === "object"
+          ? Object.entries(c.pa)
+              .filter(([, v]) => v)
+              .map(([k]) => k)
+              .join(",")
+          : "",
+      lightTrue:
+        c.light && typeof c.light === "object"
+          ? Object.entries(c.light)
+              .filter(([, v]) => v)
+              .map(([k]) => k)
+              .join(",")
+          : "",
+      extrasKeys: c.extras ? Object.keys(c.extras).slice(0, 10).join(",") : "",
+    }))
+  );
+  console.groupEnd();
+
+  // Prefer full Act objects; if missing, synthesise from the card so the grid isn't empty
+  ACTS_DBG("building actsCopy from approvedCards", {
+    len: Array.isArray(withSafety) ? withSafety.length : 0,
+  });
+
+  const pickImages = (obj = {}) =>
+    obj.images || obj.coverImages || obj.heroImages || obj.gallery || obj.hero || null;
+
+  let actsCopy = withSafety
+    .map((card) => {
+      const id = String(card.actId || card._id || card.id || "");
+      const act = actMap.get(id);
+
+      if (act) {
+        const images = act.images || pickImages(card) || pickImages(act) || null;
+        return { ...act, __card: card, images };
+      }
+
+      return {
+        _id: id,
+        name: card.tscName || card.name || "Untitled Act",
+        tscName: card.tscName,
+        genres: Array.isArray(card.genres) ? card.genres : [],
+        lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
+        instruments: Array.isArray(card.instruments) ? card.instruments : [],
+        extras: typeof card.extras === "object" ? card.extras : {},
+        pliAmount: Number(card.pliAmount) || 0,
+        paSystem:
+          card.pa && typeof card.pa === "object"
+            ? Object.entries(card.pa)
+                .filter(([, v]) => v)
+                .map(([k]) => k)
+                .join(", ")
+            : "",
+        lightingSystem:
+          card.light && typeof card.light === "object"
+            ? Object.entries(card.light)
+                .filter(([, v]) => v)
+                .map(([k]) => k)
+                .join(", ")
+            : "",
+        lineups: [],
+        images: pickImages(card) || (card.imageUrl ? [{ url: card.imageUrl }] : null), // 👈 preserve photos from the card
+        __card: card,
+      };
+    })
+    .filter(Boolean);
+
   ACTS_DBG("actsCopy built (first pass)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
   // Optional: keep the card on the act for rendering later
   actsCopy = actsCopy.map((act) => ({
     ...act,
-    __card:
-      cards.find((c) => String(c.actId || c._id) === String(act._id)) || null,
+    __card: cards.find((c) => String(c.actId || c._id || c.id) === String(act._id)) || act.__card || null,
   }));
+
   ACTS_DBG("actsCopy after card reattach", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
   // Show something straight away before async pricing completes
@@ -786,7 +934,7 @@ console.groupEnd();
     setFilterProducts(actsCopy);
     ACTS_DBG("setFilterProducts (early show)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
   }
-
+  // ---- client-side filtering gates ----
   if (wireless.length > 0) {
     actsCopy = actsCopy.filter((item) => {
       const wirelessInstruments = wireless; // e.g. ["Vocal", "Guitar"]
@@ -1033,13 +1181,7 @@ console.groupEnd();
     ACTS_DBG("after text search filter", { remain: actsCopy.length });
   }
 
-// normalise genres to compare "Soul & Motown" vs "soul and motown" etc.
-const normGenre = (s) =>
-  String(s || "")
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+
 
 if (genre.length > 0) {
   const selectedRaw = [...genre];
@@ -1079,24 +1221,14 @@ if (genre.length > 0) {
   ACTS_DBG("after genre filter", { remain: actsCopy.length });
 }
 
-  const norm = (s) => {
-    if (!s) return "";
-    let v = String(s).toLowerCase().trim();
-    v = v.replace(/\s+/g, " ");
-    v = v.replace(/\s*\+\s*$/, "+");
-    if (v === "trio" || v === "3-piece") return "3-piece";
-    if (v === "duo" || v === "2-piece") return "2-piece";
-    if (v === "solo" || v === "1-piece") return "solo";
-    return v;
-  };
 
   if (act_size.length > 0) {
-    const selected = act_size.map(norm);
+    const selected = act_size.map(norm2);
     actsCopy = actsCopy.filter((item) => {
       const sizesFromLineups = Array.isArray(item.lineups)
         ? item.lineups.map((l) => l?.actSize).filter(Boolean)
         : [];
-      const sizes = sizesFromLineups.map(norm);
+      const sizes = sizesFromLineups.map(norm2);
       return selected.some((sel) => sizes.includes(sel));
     });
     ACTS_DBG("after act_size filter", { remain: actsCopy.length });
@@ -1457,13 +1589,10 @@ if (genre.length > 0) {
       applyFilter();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [actsPageCards.length]);
+}, [actsFilterPageCards.length]);
 
-console.log("applyFilter sizes", {
-  cards: (Array.isArray(cards) ? cards.length : 0),
-});
 
-console.log("actsPageCards:", actsPageCards[0]);
+
   
   // 3) When availability loading state flips, run filter again
   useEffect(() => {
