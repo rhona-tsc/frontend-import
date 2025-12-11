@@ -38,14 +38,36 @@ const norm = (s="") =>
 // Helper for normalising ACT SIZE values
 const norm2 = (s) => {
   if (!s) return "";
+
   let v = String(s).toLowerCase().trim();
-  v = v.replace(/\s+/g, " ");
-  v = v.replace(/\s*\+\s*$/, "+");
-  if (v === "trio" || v === "3-piece") return "3-piece";
-  if (v === "duo" || v === "2-piece") return "2-piece";
-  if (v === "solo" || v === "1-piece") return "solo";
+
+  // convert word numbers → digits
+  v = v
+    .replace(/\bone\b/g, "1")
+    .replace(/\btwo\b/g, "2")
+    .replace(/\bthree\b/g, "3")
+    .replace(/\bfour\b/g, "4")
+    .replace(/\bfive\b/g, "5")
+    .replace(/\bsix\b/g, "6")
+    .replace(/\bseven\b/g, "7");
+
+  // "4 piece" → "4-piece"
+  v = v.replace(/[\s_]+/g, "-");
+
+  // fix: "4piece" → "4-piece"
+  v = v.replace(/^(\d)-?piece$/g, "$1-piece");
+
+  // clean double hyphens
+  v = v.replace(/-+/g, "-");
+
+  // special standard mapping
+  if (v === "1-piece") return "solo";
+  if (v === "2-piece") return "2-piece";
+  if (v === "3-piece") return "3-piece";
+
   return v;
 };
+
 
 const flat1 = (v) => (Array.isArray(v) ? (v.flat ? v.flat() : [].concat(...v)) : v);
 
@@ -265,7 +287,7 @@ useEffect(() => {
   // helper to package your current UI state into the server payload
 const buildServerFilterPayload = () => ({
   genres: genre,
-  lineupSizes: act_size,
+  lineupSizes: Array.isArray(act_size) ? act_size : [], // send original values, not normalized
   instruments,
   wireless,
   soundLimiters,
@@ -870,8 +892,8 @@ async function applyFilter() {
         String(s).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim()
       ),
     };
-
-    const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search"), api("api/act/cards/search")];
+//, api("api/act/cards/search")
+    const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search")];
     serverIds = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
     if (serverIds.size === 0) {
       console.info("🔶 Server search yielded 0 ids — showing no results.");
@@ -969,6 +991,9 @@ async function applyFilter() {
       const id = String(card.actId || card._id || card.id || "");
       const act = actMap.get(id);
 
+      // Always ensure lineupSizes is present and is an array
+      const safeLineupSizes = Array.isArray(card.lineupSizes) ? card.lineupSizes : [];
+
       if (act) {
         const images =
           act.images ||
@@ -976,7 +1001,7 @@ async function applyFilter() {
           pickImages(act) ||
           imagesFromImageUrl(card?.imageUrl) ||
           null;
-        return { ...act, __card: card, images };
+        return { ...act, __card: card, images, lineupSizes: Array.isArray(act.lineupSizes) ? act.lineupSizes : safeLineupSizes };
       }
 
       return {
@@ -984,7 +1009,7 @@ async function applyFilter() {
         name: card.tscName || card.name || "Untitled Act",
         tscName: card.tscName,
         genres: Array.isArray(card.genres) ? card.genres : [],
-        lineupSizes: Array.isArray(card.lineupSizes) ? card.lineupSizes : [],
+        lineupSizes: safeLineupSizes,
         instruments: Array.isArray(card.instruments) ? card.instruments : [],
         extras: typeof card.extras === "object" ? card.extras : {},
         pliAmount: Number(card.pliAmount) || 0,
@@ -1079,7 +1104,7 @@ async function applyFilter() {
   // ───────────────────────────────────────────────────────────────────────────────
   // Other client-side filters
   // ───────────────────────────────────────────────────────────────────────────────
-  if (wireless.length > 0) {
+ /* if (wireless.length > 0) {
     actsCopy = actsCopy.filter((item) => {
       const wirelessInstruments = wireless;
       const hasWirelessMatch = item.lineups?.some((lineup) =>
@@ -1095,19 +1120,31 @@ async function applyFilter() {
     });
     ACTS_DBG("after wireless filter", { remain: actsCopy.length });
   }
-
-  if (soundLimiters.length > 0) {
+*/
+ /* if (soundLimiters.length > 0) {
     actsCopy = actsCopy.filter((act) => {
+      // Map UI option keys to act filter card fields
+      const optionMap = {
+        electric_drums: "hasElectricDrums",
+        iems: "hasIEMs",
+        can_you_make_act_acoustic: "canMakeAcoustic",
+        remove_drums: "canRemoveDrums",
+      };
+
+      // Check for non-db options (boolean flags)
       const hasNonDbOptions = soundLimiters.some((opt) => {
-        if (["electric_drums", "iems", "can_you_make_act_acoustic", "remove_drums"].includes(opt)) {
-          return (
-            act.lineups?.some((l) => {
-              if (l[opt] === true) return true;
-              if (opt === "electric_drums" && Array.isArray(l.hasDrums) && l.hasDrums.includes("electric"))
-                return true;
-              return false;
-            }) || act[opt] === true
-          );
+        const field = optionMap[opt];
+        if (field) {
+          // Check at act level
+          if (act[field] === true) return true;
+          // Check in lineups if present
+          if (Array.isArray(act.lineups)) {
+            return act.lineups.some((l) => l[field] === true);
+          }
+        }
+        // Special case for electric drums legacy field
+        if (opt === "electric_drums" && Array.isArray(act.lineups)) {
+          return act.lineups.some((l) => Array.isArray(l.hasDrums) && l.hasDrums.includes("electric"));
         }
         return false;
       });
@@ -1277,17 +1314,35 @@ async function applyFilter() {
 
   if (act_size.length > 0) {
     const selected = act_size.map(norm2);
-    actsCopy = actsCopy.filter((item) => {
-      const sizesFromLineups = Array.isArray(item.lineups)
-        ? item.lineups.map((l) => l?.actSize).filter(Boolean)
-        : [];
-      const sizes = sizesFromLineups.map(norm2);
+    
+    ACTS_DBG("selected act sizes (normed):", selected);
+     console.log("🟦 ALL lineupSizes normed helper:", actsCopy);
+     console.log(
+  "🟦 ALL lineupSizes before filtering:",
+  actsCopy.map(a => ({
+    id: a._id || a.actId,
+    name: a.name || a.tscName,
+    lineupSizes: a.lineupSizes,
+    normed: Array.isArray(a.lineupSizes)
+      ? a.lineupSizes.map(norm2)
+      : []
+  }))
+);
+    /*actsCopy = actsCopy.filter((item) => {
+      // Prefer lineupSizes array (DB field), fallback to lineups[].actSize
+      let sizes = [];
+      if (Array.isArray(item.lineupSizes) && item.lineupSizes.length > 0) {
+        sizes = item.lineupSizes.map(norm2);
+      } else if (Array.isArray(item.lineups)) {
+        sizes = item.lineups.map((l) => l?.actSize).filter(Boolean).map(norm2);
+      }
       return selected.some((sel) => sizes.includes(sel));
     });
+   
     ACTS_DBG("after act_size filter", { remain: actsCopy.length });
-  }
+  } */
 
-  if (djServices.length > 0) {
+/*  if (djServices.length > 0) {
     actsCopy = actsCopy.filter((item) =>
       djServices.some((service) => {
         const extra = item.extras?.[service];
@@ -1296,15 +1351,15 @@ async function applyFilter() {
       })
     );
     ACTS_DBG("after djServices filter", { remain: actsCopy.length });
-  }
+  }*/
 
-  if (instruments.length > 0) {
+  /*if (instruments.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       const actInstruments = deriveActInstruments(act);
       return instruments.some((sel) => actInstruments.includes(sel));
     });
     ACTS_DBG("after instruments filter", { remain: actsCopy.length });
-  }
+  }*/
 
   if (songSearch.length > 0) {
     actsCopy = actsCopy.filter((act) => {
@@ -1328,10 +1383,10 @@ async function applyFilter() {
   if (actSearch.length > 0) {
     actsCopy = actsCopy.filter((act) =>
       actSearch.some((searchTerm) =>
-        act.name?.toLowerCase().includes(String(searchTerm).toLowerCase())
+        act.tscName?.toLowerCase().includes(String(searchTerm).toLowerCase())
       )
     );
-    ACTS_DBG("after actSearch filter", { remain: actsCopy.length });
+    ACTS_DBG("after actSearch filter (tscName)", { remain: actsCopy.length });
   }
 
   // ───────────────────────────────────────────────────────────────────────────────
@@ -1618,6 +1673,12 @@ async function applyFilter() {
   // 2) When acts arrive (0 → N), run filter
   useEffect(() => {
     if (!initializing) {
+      // Debug: print all fields from API response for each act
+      console.groupCollapsed('actsFilterPageCards FULL API response');
+      (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []).forEach((act, i) => {
+        console.log(`#${i} actId:`, act.actId || act._id || act.id, act);
+      });
+      console.groupEnd();
       applyFilter();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
