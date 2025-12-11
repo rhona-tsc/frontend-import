@@ -15,7 +15,7 @@ const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
 // Keep this ABOVE any usage
 const DEBUG_FILTER = true;
 // Temporarily disable server search until backend /search is aligned
-const ENABLE_SERVER_SEARCH = false;
+const ENABLE_SERVER_SEARCH = true;
 
 // Canonical API path builder (uses backend, never the Netlify origin)
 const api = (path = "") => {
@@ -808,6 +808,9 @@ async function applyFilter() {
             return flat1(rawArr);
           })();
     const norm = src.map(NORM);
+    // If the card has no genre, do not filter it out
+    if (!norm.length || norm.every((g) => !g)) return true;
+    // Otherwise, require exact match
     return selectedNorm.every((sel) => norm.includes(sel));
   };
 
@@ -824,7 +827,7 @@ async function applyFilter() {
   // ───────────────────────────────────────────────────────────────────────────────
   const filters = buildServerFilterPayload();
   const payload = buildServerPayload(filters);
-
+        console.info("🔶 Server search yielded 0 ids — showing no results.");
   const postCandidates = async (urls, body) => {
     for (const url of urls) {
       try {
@@ -870,9 +873,11 @@ async function applyFilter() {
 
     const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search"), api("api/act/cards/search")];
     serverIds = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
-
-    if (serverIds.size === 0 && DEBUG_FILTER) {
-      console.info("🔶 Server search yielded 0 ids — using client-only filtering.");
+    if (serverIds.size === 0) {
+      console.info("🔶 Server search yielded 0 ids — showing no results.");
+      setFilterProducts([]);
+      ACTS_DBG("No matching records after server search, setting filterProducts to []");
+      return;
     }
   } else if (DEBUG_FILTER) {
     console.info("🔶 Server search disabled — using client-only filtering.");
@@ -886,34 +891,44 @@ async function applyFilter() {
     ? allCards.filter((c) => serverIds.has(String(c.actId ?? c._id ?? c.id ?? "")))
     : allCards;
 
+  // Debug: print all IDs and names in actsFilterPageCards and approvedCards
+  console.log("actsFilterPageCards IDs:", (actsFilterPageCards || []).map(a => ({id: a.actId || a._id || a.id, name: a.tscName || a.name})));
+  console.log("approvedCards IDs:", (approvedCards || []).map(a => ({id: a.actId || a._id || a.id, name: a.tscName || a.name})));
+
   // Ensure safe genre fields on every card
   const withSafety = approvedCards.map((c) => {
-    const rawArr =
-      Array.isArray(c?.genres)
-        ? c.genres
-        : Array.isArray(c?.genre)
-        ? c.genre
-        : typeof c?.genre === "string"
-        ? [c.genre]
-        : Array.isArray(c?.genres_raw)
-        ? c.genres_raw
-        : Array.isArray(c?.genresNormalized)
-        ? c.genresNormalized
-        : Array.isArray(c?.genres_norm)
-        ? c.genres_norm
-        : [];
+    // Always flatten genres, even if nested
+    let rawArr = [];
+    if (Array.isArray(c?.genres)) {
+      rawArr = flat1(c.genres);
+    } else if (Array.isArray(c?.genre)) {
+      rawArr = flat1(c.genre);
+    } else if (typeof c?.genre === "string") {
+      rawArr = [c.genre];
+    } else if (Array.isArray(c?.genres_raw)) {
+      rawArr = flat1(c.genres_raw);
+    } else if (Array.isArray(c?.genresNormalized)) {
+      rawArr = flat1(c.genresNormalized);
+    } else if (Array.isArray(c?.genres_norm)) {
+      rawArr = flat1(c.genres_norm);
+    }
 
-    const genresRaw = flat1(rawArr).filter(Boolean);
+    const genresRaw = rawArr.filter(Boolean);
     const genresNorm =
       Array.isArray(c?.genres_norm) && c.genres_norm.length
-        ? c.genres_norm.map(NORM)
+        ? flat1(c.genres_norm).map(NORM)
         : genresRaw.map(NORM);
 
     return { ...c, genres_raw: genresRaw, genres_norm: genresNorm };
   });
 
+  // Debug: print all IDs and names in withSafety
+  console.log("withSafety IDs:", (withSafety || []).map(a => ({id: a.actId || a._id || a.id, name: a.tscName || a.name})));
+
   const sourceCards = withSafety;
+  
   ACTS_DBG("sourceCards", { len: sourceCards.length });
+  // ...existing code...
 
   console.groupCollapsed("🧪 Pre-filter probe (withSafety) — first 30");
   console.table(
@@ -1555,6 +1570,7 @@ async function applyFilter() {
 
     ACTS_DBG("finalActs before set", { len: finalActs.length });
     setFilterProducts(finalActs);
+    console.log("✅ Filtered products set:", finalActs.length, finalActs.map(a => a.name || a.tscName));
     ACTS_DBG("✅ setFilterProducts(final)", { len: finalActs.length });
     ENDGROUP();
   } else {
@@ -1672,9 +1688,7 @@ async function applyFilter() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortType]);
 
-  const results = Array.isArray(filterProducts) && filterProducts.length
-  ? filterProducts
-  : items;
+  const results = Array.isArray(filterProducts) ? filterProducts : [];
 
 
     return (
@@ -3297,13 +3311,19 @@ checked={pli.includes(20)}                />{" "}
 
           {/* Map products / acts */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
-         {results.map((item) => (
-  <CardFilterItem
-    key={item.actId || item._id}
-    actData={{ ...item, images: item?.images ?? item?.__card?.images ?? item?.__card?.coverImages }}
-    variant="listing"
-  />
-))}
+            {results.length === 0 ? (
+              <div className="col-span-full text-center text-gray-500 py-10 text-lg font-semibold">
+                No matching records
+              </div>
+            ) : (
+              results.map((item) => (
+                <CardFilterItem
+                  key={item.actId || item._id}
+                  actData={{ ...item, images: item?.images ?? item?.__card?.images ?? item?.__card?.coverImages }}
+                  variant="listing"
+                />
+              ))
+            )}
           </div>
         </main>
       </div>
