@@ -1361,7 +1361,7 @@ async function applyFilter() {
     ACTS_DBG("after instruments filter", { remain: actsCopy.length });
   }*/
 
-  if (songSearch.length > 0) {
+  /*if (songSearch.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       const songs = Array.isArray(act.selectedSongs)
         ? act.selectedSongs
@@ -1378,7 +1378,7 @@ async function applyFilter() {
       );
     });
     ACTS_DBG("after songSearch filter", { remain: actsCopy.length });
-  }
+  }*/
 
   if (actSearch.length > 0) {
     actsCopy = actsCopy.filter((act) =>
