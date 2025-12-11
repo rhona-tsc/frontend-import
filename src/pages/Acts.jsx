@@ -1005,6 +1005,7 @@ async function applyFilter() {
       }
 
       return {
+        ...card,
         _id: id,
         name: card.tscName || card.name || "Untitled Act",
         tscName: card.tscName,
@@ -1039,13 +1040,37 @@ async function applyFilter() {
 
   ACTS_DBG("actsCopy built (first pass)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
-  actsCopy = actsCopy.map((act) => ({
-    ...act,
-    __card:
-      cards.find((c) => String(c.actId || c._id || c.id) === String(act._id)) ||
-      act.__card ||
-      null,
-  }));
+  const allExtrasKeys = [
+    "sound_engineering_for_another_act",
+    "speedy_setup",
+    "wired_mic",
+    "wireless_mic",
+    "background_music_playlist",
+    "up_to_3_hours_manned_playlist",
+    "extra_30min_performance_per_band_member",
+    "extra_40min_performance_per_band_member",
+    "extra_60min_performance_per_band_member",
+    "late_stay_60min_per_band_member",
+    "early_arrival_60min_per_band_member",
+    "extra_song_request_per_band_member",
+    "israeli_dancing_20mins_per_band_member"
+  ];
+  actsCopy = actsCopy.map((act) => {
+    const extras = act.extras || {};
+    // Ensure all expected keys are present, default to false if missing
+    const filledExtras = { ...extras };
+    allExtrasKeys.forEach((key) => {
+      if (typeof filledExtras[key] === "undefined") filledExtras[key] = false;
+    });
+    return {
+      ...act,
+      extras: filledExtras,
+      __card:
+        cards.find((c) => String(c.actId || c._id || c.id) === String(act._id)) ||
+        act.__card ||
+        null,
+    };
+  });
 
   ACTS_DBG("actsCopy after card reattach", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
@@ -1241,11 +1266,20 @@ async function applyFilter() {
   if (extraServices.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       const extras = act.extras || {};
-      const normalizeKey = (str) => String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
-      const extraKeys = Object.keys(extras);
-      const extraKeysNorm = extraKeys.map((k) => normalizeKey(k));
-
+      // DJ/playlist services: check for exact key true in extras
+      const djKeys = [
+        "background_music_playlist",
+        "up_to_3_hours_manned_playlist",
+        "DJ_live_sax_3x30mins",
+        "DJ_live_bongos_3x30mins",
+        "DJ_live_sax_and_bongos_3x30mins",
+      ];
       return extraServices.some((selectedKeyRaw) => {
+        // DJ/playlist services: direct match
+        if (djKeys.includes(selectedKeyRaw)) {
+          return extras[selectedKeyRaw] === true;
+        }
+        // legacy/other extras logic (fragment match)
         const selectedKey = selectedKeyRaw.toLowerCase();
         const fragmentMap = {
           sound_engineering_for_another_act: "sound_engineering_for_another_act",
@@ -1266,7 +1300,9 @@ async function applyFilter() {
         };
         const fragment = fragmentMap[selectedKey];
         if (!fragment) return false;
-
+        const normalizeKey = (str) => String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
+        const extraKeys = Object.keys(extras);
+        const extraKeysNorm = extraKeys.map((k) => normalizeKey(k));
         const fragmentNorm = normalizeKey(fragment);
         const index = extraKeysNorm.findIndex((k) => k.includes(fragmentNorm));
         if (index !== -1) {
@@ -1274,7 +1310,6 @@ async function applyFilter() {
           const extra = extras[originalKey];
           return extra && (extra.price > 0 || extra.complimentary === true);
         }
-
         const lineups = act.lineups || [];
         if (
           [
@@ -1296,7 +1331,6 @@ async function applyFilter() {
             return block && Array.isArray(block.amplified) && block.amplified.length > 0;
           });
         }
-
         if (selectedKey === "add_another_vocalist") {
           return lineups.some((l) => l.anotherVocalist === true);
         }
@@ -1328,7 +1362,7 @@ async function applyFilter() {
       : []
   }))
 );
-    /*actsCopy = actsCopy.filter((item) => {
+    actsCopy = actsCopy.filter((item) => {
       // Prefer lineupSizes array (DB field), fallback to lineups[].actSize
       let sizes = [];
       if (Array.isArray(item.lineupSizes) && item.lineupSizes.length > 0) {
@@ -1342,7 +1376,9 @@ async function applyFilter() {
     ACTS_DBG("after act_size filter", { remain: actsCopy.length });
   } */
 
-/*  if (djServices.length > 0) {
+ if (djServices.length > 0) {
+  console.log("🟦 DJ Services filter active:", djServices);
+    console.log("🟦 DJ Services filter active: actscopy", actsCopy);
     actsCopy = actsCopy.filter((item) =>
       djServices.some((service) => {
         const extra = item.extras?.[service];
@@ -1351,7 +1387,7 @@ async function applyFilter() {
       })
     );
     ACTS_DBG("after djServices filter", { remain: actsCopy.length });
-  }*/
+  }
 
   /*if (instruments.length > 0) {
     actsCopy = actsCopy.filter((act) => {
