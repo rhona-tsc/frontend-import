@@ -230,7 +230,7 @@ if (feePerMember != null && travelEligibleCount > 0) {
 
   // If county path didn't run and we don't have addr/date → return base+margin
   if (!travelCalculated && (!selectedAddress || !selectedDate)) {
-    const totalPrice = Math.ceil(baseFeeTotal / 0.75);
+    const totalPrice = Math.ceil(baseFeeTotal * 1.33);
         console.log("⚠️ No travel data → base + margin only", totalPrice);
     console.groupEnd();
 
@@ -291,8 +291,8 @@ if (feePerMember != null && travelEligibleCount > 0) {
 const subtotal = baseFeeTotal + travelFeeTotal;
   console.log(`🧮 Subtotal before margin: £${subtotal}`);
 
-  const finalTotal = Math.round(subtotal / 0.75);
-  console.log("➕ 25% margin applied (divide by 0.75)");
+  const finalTotal = Math.round(subtotal * 1.33);
+  console.log("➕ 25% margin applied (divide by 1.33)");
   console.log("✅ Final total price (rounded):", finalTotal);
 
  console.log("✅ Final:", { baseFeeTotal, travelFeeTotal, marginApplied: 0.25, finalTotal, travelCalculated });

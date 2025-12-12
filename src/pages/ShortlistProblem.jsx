@@ -301,7 +301,7 @@ const calculateActPricing = async (
   }
 
   // ---- gross with 25% margin ----
-  const totalPrice = Math.ceil((fee + travelFee) / 0.75);
+  const totalPrice = Math.ceil((fee + travelFee) * 1.33);
   console.log(`🧾 PRICING BREAKDOWN for ${act.name}`);
   console.log(`• Essential Fee Total: £${fee.toFixed(2)}`);
   console.log(`• Travel Fee Total: £${travelFee.toFixed(2)}`);
@@ -768,7 +768,7 @@ console.log("📦 shortlistData:", shortlistData);
     );
 
     basePrice += additionalRolesTotal;
-    const displayPrice = Math.ceil(basePrice / 0.75);
+    const displayPrice = Math.ceil(basePrice * 1.33);
 
     return basePrice > 0 ? `from £${displayPrice}` : "Loading price...";
   })()}
@@ -802,7 +802,7 @@ console.log("📦 shortlistData:", shortlistData);
           );
 
           basePrice += additionalRolesTotal;
-          const displayPrice = Math.ceil(basePrice / 0.75);
+          const displayPrice = Math.ceil(basePrice * 1.33);
           hoveredAct.setFormattedPrice(displayPrice);
         }
       };

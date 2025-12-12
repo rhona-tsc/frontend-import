@@ -451,7 +451,7 @@ if (needsEngineer) {
     }
 
   
-    return Math.round(total / 0.75);
+    return Math.round(total * 1.33);
   };
 
   // --- NEW calculateCeremonyAndAfternoonPrice: handles "both" bookings with advanced early arrival gap logic ---
@@ -562,7 +562,7 @@ if (needsEngineer) {
       total += 150;
     }
    
-    return Math.round(total / 0.75);
+    return Math.round(total * 1.33);
   };
 
 

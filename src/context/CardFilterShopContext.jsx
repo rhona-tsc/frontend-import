@@ -101,6 +101,7 @@ async function fetchActsForGrid() {
   const urlCards = `${base}/api/act/cards?status=approved,live&sort=-createdAt&limit=200`;
   console.log("🛒[CardFilterShopContext] fetchActsForGrid:", urlCards);
 
+
 // --- helper: derive a minimal card from a full act document ---
 const buildCardFromAct = (a) => {
   const pickImage = (obj) =>
@@ -125,7 +126,7 @@ const buildCardFromAct = (a) => {
   // --- base fee from smallest lineup with a 25% margin (site rule) ---
   const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
   const basePrice = Number.isFinite(lineupBase)
-    ? Math.ceil(lineupBase * 1.25)
+    ? Math.ceil(lineupBase * 1.33)
     : null;
 
   // --- genres ---
@@ -285,6 +286,11 @@ const buildCardFromAct = (a) => {
     availabilitySummary,
   };
 };
+
+
+
+
+
 
   // --- fallback: if /cards is missing or empty, build cards from the full acts list ---
   const fallbackFromActs = async () => {

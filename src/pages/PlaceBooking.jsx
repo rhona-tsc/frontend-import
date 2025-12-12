@@ -189,7 +189,7 @@ const PlaceBooking = () => {
           } catch (e) {
             // fallback: use formatted/base figure if present
             total = Number(formattedPrice || 0);
-            fee = Math.round(total * 0.75);
+            fee = Math.round(total * 1.33);
             travel = Math.max(0, total - fee);
           }
 
