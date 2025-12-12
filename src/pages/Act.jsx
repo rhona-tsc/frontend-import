@@ -1598,8 +1598,8 @@ const Act = () => {
                 if (cleanTotal != null) {
                   return price?.travelCalculated ||
                     finalTravelPrice?.travelCalculated
-                    ? `£${cleanTotal}`
-                    : `from £${cleanTotal}`;
+                    ? `£${cleanTotal*1.33}`
+                    : `from £${cleanTotal*1.33}`;
                 }
                 return "Loading price...";
               })()}
