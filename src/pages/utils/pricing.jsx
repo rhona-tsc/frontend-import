@@ -312,7 +312,7 @@ const calculateActPricing = async (
   }
 
   if (!travelCalculated && (!selectedAddress || !selectedDate)) {
-    const totalPrice = Math.ceil(baseFeeTotal * 1.33);
+    const totalPrice = Math.ceil(baseFeeTotal);
     console.log("⚠️ No travel data → base + margin only", totalPrice);
     console.groupEnd();
     return {
