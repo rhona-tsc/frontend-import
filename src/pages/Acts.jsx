@@ -2065,7 +2065,7 @@ const toggleDurationExtras = () => {
                   onChange={toggleActSize}
                   checked={act_size.includes("3-Piece")}
                 />{" "}
-                Trio
+                3-Piece
               </label>
               <label className="flex gap-2">
                 <input
