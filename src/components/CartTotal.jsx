@@ -173,7 +173,7 @@ let deposit;
 if (isTestBooking) {
   deposit = Math.max(totalAmount, 0.50);
 } else {
-  deposit = totalAmount * 0.25;
+  deposit = totalAmount * 0.33;
 }
 
   return (

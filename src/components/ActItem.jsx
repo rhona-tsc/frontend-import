@@ -14,7 +14,7 @@ const dlog = (...a) => DBG && console.log('🎯[ActItem]', ...a);
 // ──────────────────────────────────────────────────────────────────────────────
 // Margin to apply on all displayed prices
 // ──────────────────────────────────────────────────────────────────────────────
-const MARGIN_RATE = 0.25; // 25%
+const MARGIN_RATE = 0.33; // 33%
 const applyMargin = (v) => {
   const n = Number(v) || 0;
   return Math.ceil(n * (1 + MARGIN_RATE));

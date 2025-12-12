@@ -546,7 +546,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     const per60Net = basePerMemberNet || 0; // already computed above from actData extras
     const members = lineupPerformers.length || 0; // performers only (management excluded)
     if (per60Net > 0 && members > 0 && typeof lateStayBandExtra.price === "number") {
-      const estimated = Math.round(((lateStayBandExtra.price * 0.75) / (per60Net * members)) * 60);
+      const estimated = Math.round(((lateStayBandExtra.price * 1.33) / (per60Net * members)) * 60);
       return Math.max(0, Math.min(180, estimated || 0));
     }
     return 0;

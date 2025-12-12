@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 /**
  * Flexible IntersectionObserver hook.
  * Usage A: const [ref, onScreen] = useOnScreen({ rootMargin: "200px" });
- * Usage B: const onScreen = useOnScreen(ref, { threshold: 0.25 });
+ * Usage B: const onScreen = useOnScreen(ref, { threshold: 0.2 });
  */
 export default function useOnScreen(refOrOptions, maybeOptions) {
   const hasRefArg =

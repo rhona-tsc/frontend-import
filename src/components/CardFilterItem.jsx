@@ -6,7 +6,7 @@ import { ShopContext } from '../context/ShopContext';
 
 const DBG = true;
 
-const MARGIN_RATE = 0.25;
+const MARGIN_RATE = 0.33;
 const applyMargin = (v) => Math.ceil((Number(v) || 0) * (1 + MARGIN_RATE));
 
 const getActId   = (src) => src?.actId || src?._id || src?.id || '';

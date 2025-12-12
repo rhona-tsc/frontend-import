@@ -295,7 +295,7 @@ const subtotal = baseFeeTotal + travelFeeTotal;
   console.log("➕ 25% margin applied (divide by 1.33)");
   console.log("✅ Final total price (rounded):", finalTotal);
 
- console.log("✅ Final:", { baseFeeTotal, travelFeeTotal, marginApplied: 0.25, finalTotal, travelCalculated });
+ console.log("✅ Final:", { baseFeeTotal, travelFeeTotal, marginApplied: 0.33, finalTotal, travelCalculated });
   console.groupEnd();
   return { total: finalTotal, travelCalculated };
 };
