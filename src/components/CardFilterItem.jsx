@@ -1,5 +1,5 @@
 // frontend/src/components/CardFilterActItem.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import calculateActPricing from '../pages/utils/pricing';
 import { ShopContext } from '../context/ShopContext';
@@ -61,6 +61,14 @@ const computeBaseFromSmallestLineup = (act) => {
   return Number.isFinite(total) ? total : null;
 };
 
+// 💫 tiny UI bits
+const PriceSkeleton = () => (
+  <div className="flex items-center gap-2" aria-live="polite" aria-busy="true">
+    <span className="inline-block h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+    <span className="h-4 w-24 rounded bg-gray-200 animate-pulse" />
+  </div>
+);
+
 const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag = 'unknown' }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,8 +90,10 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
   const [isAnimating, setIsAnimating] = useState(false);
   const [loveCount, setLoveCount] = useState(() => getLove(actData, shortlistCount));
   const [price, setPrice] = useState(null);
+  const [isPriceLoading, setIsPriceLoading] = useState(false);
 
-
+  // prevent stale-set race conditions
+  const reqSeqRef = useRef(0);
 
   useEffect(() => {
     setLoveCount(getLove(actData, shortlistCount));
@@ -91,8 +101,15 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
 
   // Compute/refresh price
   useEffect(() => {
+    let cancelled = false;
+    const mySeq = ++reqSeqRef.current;
+
     const run = async () => {
       try {
+        setIsPriceLoading(true);
+        // hide previous price while recalculating to avoid flicker
+        setPrice(null);
+
         const id = getActId(actData);
         const baseOnly = getBasePrice(actData);
         const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
@@ -101,23 +118,29 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
 
         // Standalone mode: keep it super simple → show baseOnly or derived
         if (standalone) {
+          let next = null;
           if (baseOnly != null) {
-            setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+            next = { total: applyMargin(baseOnly), travelCalculated: false };
           } else {
             const derived = computeBaseFromSmallestLineup(actData);
-            if (derived != null) setPrice({ total: applyMargin(derived), travelCalculated: false });
+            if (derived != null) next = { total: applyMargin(derived), travelCalculated: false };
           }
+          if (!cancelled && mySeq === reqSeqRef.current) setPrice(next);
+          setIsPriceLoading(false);
           return;
         }
 
         // Otherwise, fall back to full context behavior
         if (!hasAnyLocation || !selectedDate) {
+          let next = null;
           const derived = computeBaseFromSmallestLineup(actData);
           if (derived != null) {
-            setPrice({ total: applyMargin(derived), travelCalculated: false });
+            next = { total: applyMargin(derived), travelCalculated: false };
           } else if (baseOnly != null) {
-            setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+            next = { total: applyMargin(baseOnly), travelCalculated: false };
           }
+          if (!cancelled && mySeq === reqSeqRef.current) setPrice(next);
+          setIsPriceLoading(false);
           return;
         }
 
@@ -125,14 +148,17 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
           if (typeof getCardPriceWithTravel === 'function') {
             try {
               const total = await getCardPriceWithTravel(id);
-              if (Number.isFinite(total)) {
+              if (Number.isFinite(total) && !cancelled && mySeq === reqSeqRef.current) {
                 setPrice({ total: applyMargin(total), travelCalculated: true });
+                setIsPriceLoading(false);
                 return;
               }
-            } catch (err) {
-            }
+            } catch {}
           }
-          if (baseOnly != null) setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+          if (baseOnly != null && !cancelled && mySeq === reqSeqRef.current) {
+            setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+          }
+          setIsPriceLoading(false);
           return;
         }
 
@@ -149,23 +175,32 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
           lineup
         );
 
-        if (!result || result.total == null) {
-          if (baseOnly != null) setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
-          return;
+        if (!cancelled && mySeq === reqSeqRef.current) {
+          if (!result || result.total == null) {
+            if (baseOnly != null) setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+          } else {
+            setPrice({ ...result, total: applyMargin(result.total) });
+          }
+          setIsPriceLoading(false);
         }
-
-        setPrice({ ...result, total: applyMargin(result.total) });
       } catch (err) {
         console.error('❌ Failed to calculate price:', { err, actId: getActId(actData), useCountyTravelFee: actData?.useCountyTravelFee });
         const baseOnly = getBasePrice(actData);
-        if (baseOnly != null) setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+        if (!cancelled && mySeq === reqSeqRef.current && baseOnly != null) {
+          setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+        }
+        setIsPriceLoading(false);
       }
     };
 
     run();
+    return () => { cancelled = true; };
   }, [actData, standalone, selectedCounty, selectedAddress, selectedDate, getCardPriceWithTravel]);
 
-  const rawTotal = price?.total ?? (getBasePrice(actData) != null ? applyMargin(getBasePrice(actData)) : null);
+  // Do not show fallback while loading
+  const rawTotal = isPriceLoading
+    ? null
+    : (price?.total ?? (getBasePrice(actData) != null ? applyMargin(getBasePrice(actData)) : null));
   const displayTotal = rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
 
   const handleHeartClick = (e) => {
@@ -203,8 +238,6 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
   const badgeMatches = Boolean(badgeActive && badgeDateISO && selectedISO && badgeDateISO === selectedISO);
   const resolvedImage = (badgeMatches && badgeHasPhoto) ? badge.photoUrl : getImageUrl(actData);
 
-
-
   return (
     <div className="relative group">
       <Link to={`/act/${getActId(actData)}`} onClick={() => window.scrollTo(0, 0)} className="block text-gray-700">
@@ -215,10 +248,15 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
             <p className="text-sm">{getTitle(actData)}</p>
-            <div className="act-price">
-              {displayTotal !== null
-                ? (price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`)
-                : 'Loading price...'}
+
+            <div className="act-price" aria-live="polite">
+              {isPriceLoading ? (
+                <PriceSkeleton />
+              ) : displayTotal !== null ? (
+                price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`
+              ) : (
+                <span className="text-gray-500">Loading price…</span>
+              )}
             </div>
           </div>
 
@@ -230,7 +268,6 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false, sourceTag
               aria-label={isShortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
               title={standalone ? 'Shortlist disabled here' : (isShortlisted ? 'Remove from shortlist' : 'Add to shortlist')}
             >
-              {/* keep same SVGs; visually identical */}
               {(!standalone && isShortlisted) ? (
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 34 32"
                   className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`} fill="#ff6667" stroke="#cc5253" strokeWidth="1.5">
