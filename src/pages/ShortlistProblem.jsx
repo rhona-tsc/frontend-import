@@ -244,7 +244,7 @@ const calculateActPricing = async (
           raw?.rows?.[0]?.elements?.[0]?.distance?.value ??
           0;
         const miles = meters / 1609.34;
-        travelFee += (miles || 0) * Number(act.costPerMile) * 25; // your round-trip multiplier
+        travelFee += (miles || 0) * Number(act.costPerMile) * 2; // your round-trip multiplier
       } catch (e) {
         console.warn("⚠️ travel fetch failed:", e?.message || e);
       }
@@ -300,12 +300,12 @@ const calculateActPricing = async (
     }
   }
 
-  // ---- gross with 25% margin ----
+  // ---- gross with 33% mark up ----
   const totalPrice = Math.ceil((fee + travelFee) * 1.33);
   console.log(`🧾 PRICING BREAKDOWN for ${act.name}`);
   console.log(`• Essential Fee Total: £${fee.toFixed(2)}`);
   console.log(`• Travel Fee Total: £${travelFee.toFixed(2)}`);
-  console.log(`• Margin 25%): £${((fee + travelFee) / .67).toFixed(2)}`);
+  console.log(`• Mark uo 33%): £${((fee + travelFee) * 1.33).toFixed(2)}`);
   console.log(`• Final Price: £${totalPrice}`);
 
   return `${totalPrice}`;

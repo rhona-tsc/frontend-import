@@ -345,7 +345,7 @@ const [availLoading, setAvailLoading] = useState(false);
             raw?.rows?.[0]?.elements?.[0]?.distance?.value ??
             0;
           const miles = meters / 1609.34;
-          travelFee += miles * Number(act.costPerMile) * 25; // your round-trip multiplier
+          travelFee += miles * Number(act.costPerMile) * 2; // your round-trip multiplier
         } catch (e) {
           console.warn("⚠️ travel fetch failed (per-mile):", e?.message || e);
         }

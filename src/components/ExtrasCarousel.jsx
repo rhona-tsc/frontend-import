@@ -156,7 +156,7 @@ function DjLiveSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtr
           "";
         if (proxyOrigin && destination) {
           const { miles = 0 } = await getTravelV2(proxyOrigin, destination, selectedDate);
-          travelNet = miles * Number(actData.costPerMile) * 25; // your NET rule
+          travelNet = miles * Number(actData.costPerMile) * 2; // your NET rule
         }
       }
 

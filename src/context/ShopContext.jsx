@@ -485,7 +485,7 @@ const urlCards = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&
         return [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
       })();
 
-      // base fee from smallest lineup with a 25% margin (site rule)
+      // base fee from smallest lineup with a 33% mark up (site rule)
       const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
       const basePrice = Number.isFinite(lineupBase)
         ? Math.ceil(lineupBase * 1.33)
@@ -643,7 +643,7 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
         return [...lineups].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
       })();
 
-      // --- base fee from smallest lineup with a 25% margin (site rule) ---
+      // --- base fee from smallest lineup with a 33% mark up (site rule) ---
       const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
       const basePrice = Number.isFinite(lineupBase)
         ? Math.ceil(lineupBase * 1.33)
@@ -873,7 +873,7 @@ async function fetchFilterCardActsForGrid() {
       return [...lineups].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
     })();
 
-    // --- base fee from smallest lineup with a 25% margin (site rule) ---
+    // --- base fee from smallest lineup with a 33% mark up (site rule) ---
     const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
     const basePrice = Number.isFinite(lineupBase) ? Math.ceil(lineupBase * 1.33) : null;
 

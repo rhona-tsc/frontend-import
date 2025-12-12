@@ -335,9 +335,9 @@ const calculateActPricing = async (
       if (!postCode || !destination) continue;
 
       const { miles } = await getTravelV2(postCode, destination, selectedDate);
-      const cost = (miles || 0) * costPerMileNorm * 25;
+      const cost = (miles || 0) * costPerMileNorm * 2;
       console.log(
-        `🛣️ ${m.firstName} travel: ${miles} miles × £${costPerMileNorm}/mi × 25 →`,
+        `🛣️ ${m.firstName} travel: ${miles} miles × £${costPerMileNorm}/mi × 2 →`,
         cost
       );
       travelFee += cost;

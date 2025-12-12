@@ -1603,7 +1603,7 @@ async function applyFilter() {
       }
     }
 
-    const totalPrice = Math.ceil((fee + travelFee) * 1.33); // 25% margin
+    const totalPrice = Math.ceil((fee + travelFee) * 1.33); // 33% mark up
     ACTS_DBG("$pricing:done", { actId: act?._id, totalPrice });
     return `${totalPrice}`;
   };
