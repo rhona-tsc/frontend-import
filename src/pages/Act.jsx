@@ -1578,31 +1578,34 @@ const Act = () => {
             </div>
 
             <p className="mt-5 text-3xl font-medium p-3">
-              {(() => {
-                const rawTotal =
-                  price?.total ??
-                  formattedPrice ??
-                  actData?.formattedPrice?.total ??
-                  null;
-                const cleanTotal =
-                  rawTotal != null
-                    ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ""))
-                    : null;
+            {(() => {
+  const rawTotal =
+    price?.total ??
+    formattedPrice ??
+    actData?.formattedPrice?.total ??
+    null;
 
-                // Prefer travelFeeTotal in price breakdowns if available
-                const travelFeeDisplay =
-                  price?.travelFeeTotal ??
-                  finalTravelPrice?.travelFeeTotal ??
-                  null;
+  const cleanTotal =
+    rawTotal != null
+      ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ""))
+      : null;
 
-                if (cleanTotal != null) {
-                  return price?.travelCalculated ||
-                    finalTravelPrice?.travelCalculated
-                    ? `£${cleanTotal*1.33}`
-                    : `from £${cleanTotal*1.33}`;
-                }
-                return "Loading price...";
-              })()}
+  // if pricing util returned margin info, don't apply again
+  const needsMargin = !(price && price.marginApplied === 0.33);
+
+  const displayTotal =
+    cleanTotal != null
+      ? Math.round(cleanTotal * (needsMargin ? 1.33 : 1))
+      : null;
+
+  const travelCalculated =
+    price?.travelCalculated || finalTravelPrice?.travelCalculated;
+
+  if (displayTotal != null) {
+    return travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`;
+  }
+  return "Loading price...";
+})()}
             </p>
 
             {/* ✅ Lineup Selection (Now Updates Price Instantly) */}
