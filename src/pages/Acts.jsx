@@ -637,13 +637,15 @@ const toggleExtraServices = (e) => {
     afternoon_duo: "Afternoon Reception Duo",
     afternoon_trio: "Afternoon Reception Trio",
     afternoon_4piece: "Afternoon Reception 4-piece",
-    early_arrival: "Early Arrival",
-    late_stay: "Late Stay",
-    extra_song: "Extra Song Requests",
-    extra_sets: "Extra Main Performance Sets",
+    early_arrival_60min_per_band_member: "Early Arrival",
+    late_stay_60min_per_band_member: "Late Stay",
+    extra_song_request_per_band_member: "Extra Song Requests",
+    extra_30min_performance_per_band_member: "Extra Main Performance Sets",
+    extra_40min_performance_per_band_member: "Extra Main Performance Sets",
+    extra_60min_performance_per_band_member: "Extra Main Performance Sets",
     add_another_vocalist: "Add another vocalist",
-    sound_engineering_for_another_act: "Sound engineering for another act",
-    israeli_sets: "Israeli dancing sets",
+    sound_engineering_for_another_act_with_your_acts_PA: "Sound engineering for another act",
+    israeli_dancing_20mins_per_band_member: "Israeli dancing sets",
   };
 
 
@@ -1041,7 +1043,7 @@ async function applyFilter() {
   ACTS_DBG("actsCopy built (first pass)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
 
   const allExtrasKeys = [
-    "sound_engineering_for_another_act",
+    "sound_engineering_for_another_act_with_your_acts_PA",
     "speedy_setup",
     "wired_mic",
     "wireless_mic",
@@ -1756,6 +1758,28 @@ async function applyFilter() {
     // acts arriving
     approvedActsCount
   ]);
+
+
+  const DURATION_KEYS = [
+  "extra_30min_performance_per_band_member",
+  "extra_40min_performance_per_band_member",
+  "extra_60min_performance_per_band_member",
+];
+
+const hasAnyDurationExtra = (arr) =>
+  Array.isArray(arr) && DURATION_KEYS.some(k => arr.includes(k));
+
+// If you manage state directly (have setExtraServices):
+const toggleDurationExtras = () => {
+  if (hasAnyDurationExtra(extraServices)) {
+    // remove all duration extras
+    setExtraServices(prev => prev.filter(x => !DURATION_KEYS.includes(x)));
+  } else {
+    // add a sensible default (pick one); here we add 40min
+    setExtraServices(prev => [...prev, "extra_40min_performance_per_band_member"]);
+  }
+};
+
   
   // ✅ Lightweight re-sort when the sort dropdown changes
   useEffect(() => {
@@ -1780,12 +1804,19 @@ async function applyFilter() {
   
       return sortType === "low-high" ? A - B : B - A;
     });
+
+
+
   
     setFilterProducts(sorted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortType]);
 
+
+
   const results = Array.isArray(filterProducts) ? filterProducts : [];
+
+
 
 
     return (
@@ -2030,9 +2061,9 @@ async function applyFilter() {
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"Trio"}
+                  value={"3-Piece"}
                   onChange={toggleActSize}
-                  checked={act_size.includes("Trio")}
+                  checked={act_size.includes("3-Piece")}
                 />{" "}
                 Trio
               </label>
@@ -2474,11 +2505,11 @@ async function applyFilter() {
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"Keytar"}
+                  value={"Keyboard"}
                   onChange={toggleWireless}
-                  checked={wireless.includes("Keytar")}
+                  checked={wireless.includes("Keyboard")}
                 />{" "}
-                Keytar
+                Keyboard (/ Keytar)
               </label>
               <label className="flex gap-2">
                 <input
@@ -3169,9 +3200,9 @@ checked={pli.includes(20)}                />{" "}
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"early_arrival"}
+                  value={"early_arrival_60min_per_band_member"}
                   onChange={toggleExtraServices}
-                  checked={extraServices.includes("early_arrival")}
+                  checked={extraServices.includes("early_arrival_60min_per_band_member")}
                 />{" "}
                 Early Arrival
               </p>
@@ -3179,9 +3210,9 @@ checked={pli.includes(20)}                />{" "}
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"late_stay"}
+                  value={"late_stay_60min_per_band_member"}
                   onChange={toggleExtraServices}
-                  checked={extraServices.includes("late_stay")}
+                  checked={extraServices.includes("late_stay_60min_per_band_member")}
                 />{" "}
                 Late Stay
               </p>
@@ -3189,40 +3220,31 @@ checked={pli.includes(20)}                />{" "}
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"extra_song"}
+                  value={"extra_song_request_per_band_member"}
                   onChange={toggleExtraServices}
-                  checked={extraServices.includes("extra_song")}
+                  checked={extraServices.includes("extra_song_request_per_band_member")}
                 />{" "}
                 Extra Song Requests
               </p>
+              <p className="flex gap-2 items-center">
+  <input
+    className="w-3"
+    type="checkbox"
+    onChange={toggleDurationExtras}
+    checked={hasAnyDurationExtra(extraServices)}
+  />
+  {" "}
+  Extra Main Performance Sets
+</p>
+           
               <p className="flex gap-2">
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"extra_sets"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("extra_sets")}
-                />{" "}
-                Extra Main Performance Sets
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"add_another_vocalist"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("add_another_vocalist")}
-                />{" "}
-                Add Another Vocalist
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"sound_engineering_for_another_act"}
+                  value={"sound_engineering_for_another_act_with_your_acts_PA"}
                   onChange={toggleExtraServices}
                   checked={extraServices.includes(
-                    "sound_engineering_for_another_act"
+                    "sound_engineering_for_another_act_with_your_acts_PA"
                   )}
                 />{" "}
                 Sound Engineering for Another Act
@@ -3231,9 +3253,9 @@ checked={pli.includes(20)}                />{" "}
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"israeli_sets"}
+                  value={"israeli_dancing_20mins_per_band_member"}
                   onChange={toggleExtraServices}
-                  checked={extraServices.includes("israeli_sets")}
+                  checked={extraServices.includes("israeli_dancing_20mins_per_band_member")}
                 />{" "}
                 Israeli Dancing Sets
               </p>
