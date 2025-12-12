@@ -391,8 +391,8 @@ const calculateActPricing = async (
   const subtotal = baseFeeTotal + travelFeeTotal;
   console.log(`🧮 Subtotal before margin: £${subtotal}`);
 
-  const finalTotal = Math.round(subtotal * 1.33);
-  console.log("➕ 33% margin applied (×1.33)");
+  const finalTotal = Math.round(subtotal);
+
   console.log("✅ Final total price (rounded):", finalTotal);
 
   const payload = {
@@ -401,7 +401,7 @@ const calculateActPricing = async (
     decision,
     baseFeeTotal,
     travelFeeTotal,
-    marginApplied: 0.33,
+
   };
   console.log("✅ Final summary:", payload);
   console.groupEnd();
