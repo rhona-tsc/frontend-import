@@ -2061,11 +2061,11 @@ const toggleDurationExtras = () => {
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"Trio"}
+                  value={"3-Piece"}
                   onChange={toggleActSize}
-                  checked={act_size.includes("Trio")}
+                  checked={act_size.includes("3-Piece")}
                 />{" "}
-                Trio
+                3-Piece
               </label>
               <label className="flex gap-2">
                 <input
