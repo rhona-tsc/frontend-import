@@ -125,7 +125,13 @@ const calculateActPricing = async (act, selectedCounty, selectedAddress, selecte
   const outcode = extractOutcode(selectedAddress);
   const guessedFromOutcode = countyFromOutcode(outcode);
   const derivedCounty = (selectedCounty && String(selectedCounty)) || guessedFromOutcode || "";
-  console.log("📍 County derived:", { selectedCounty, guessedFromOutcode, derivedCounty });
+  console.log("📍 County inputs/derivation:", {
+    selectedCounty,
+    outcodeFromAddress: outcode || null,
+    guessedFromOutcode,
+    derivedCounty,
+    selectedDate: selectedDate || null,
+  });
 
   // 🔄 Normalize travel fields for acts OR actfiltercards
   const TRAVEL = act?.travelModel || {};
@@ -134,15 +140,29 @@ const calculateActPricing = async (act, selectedCounty, selectedAddress, selecte
   const countyFees = act?.countyFees ?? TRAVEL.countyFees ?? null;
   const costPerMileNorm = Number(act?.costPerMile ?? TRAVEL.costPerMile) || 0;
 
-  console.log("🌍 Travel flags:", {
+  // Peek at fees keys for debug
+  let countyFeeKeys = [];
+  try {
+    if (countyFees && typeof countyFees.forEach === "function") {
+      countyFees.forEach((_, k) => countyFeeKeys.push(String(k)));
+    } else if (countyFees) {
+      countyFeeKeys = Object.keys(countyFees);
+    }
+  } catch {}
+
+  const hasCounty = hasAnyCountyFees(countyFees);
+
+  console.log("🌍 Travel flags (normalized):", {
     useCounty,
-    hasCountyFees: hasAnyCountyFees(countyFees),
+    hasCountyFees: hasCounty,
+    derivedCountyPresent: Boolean(derivedCounty),
     costPerMileNorm,
-    travelModel: TRAVEL?.type || null,
+    travelModelType: TRAVEL?.type || null,
+    countyFeeKeysPreview: countyFeeKeys.slice(0, 6),
   });
 
   if (useCounty && !derivedCounty) {
-    console.warn("⚠️ No county could be determined from postcode/address.");
+    console.warn("⚠️ useCounty=true but no derivedCounty from address/selectedCounty.");
     const now = Date.now();
     if (typeof window !== "undefined" && now - _postcodeToastShownAt > TOAST_COOLDOWN_MS) {
       _postcodeToastShownAt = now;
@@ -191,7 +211,10 @@ const calculateActPricing = async (act, selectedCounty, selectedAddress, selecte
   // Exclude band managers/non-performers from travel calculations
   const travelEligibleMembers = Array.isArray(bandMembers) ? bandMembers.filter((m) => !isManagerLike(m)) : [];
   const travelEligibleCount = travelEligibleMembers.length;
-  console.log("👥 Band members:", bandMembers.length, "Travel eligible:", travelEligibleMembers.length);
+  console.log("👥 Band members:", {
+    total: bandMembers.length,
+    travelEligible: travelEligibleMembers.length,
+  });
 
   // --- FEES (NET) ----------------------------------------------------------
   const perMemberFees = (smallestLineup.bandMembers || []).map((m) => {
@@ -219,32 +242,49 @@ const calculateActPricing = async (act, selectedCounty, selectedAddress, selecte
   const baseFeeTotal = perMemberFees.reduce((s, m) => s + (m.memberTotal || 0), 0);
   console.log("💸 Total base lineup fee:", baseFeeTotal);
 
-  // ----- TRAVEL -----
-  // Decide method with normalized fields
-  const hasCountyTable = !!(useCounty && hasAnyCountyFees(countyFees) && derivedCounty);
-  console.log("🗺️ Travel method:", hasCountyTable ? "County table" : costPerMileNorm > 0 ? "Cost per mile" : "MU Rates");
+  // ----- TRAVEL DECISION -----
+  const hasCountyTable = !!(useCounty && hasCounty && derivedCounty);
+  const decision =
+    hasCountyTable ? "county" : (costPerMileNorm > 0 ? "per-mile" : "mu");
 
+  console.log("🧮 Travel method decision:", {
+    decision, // "county" | "per-mile" | "mu"
+    reasons: {
+      useCounty,
+      hasCountyFees: hasCounty,
+      derivedCountyPresent: Boolean(derivedCounty),
+      costPerMileNormPositive: costPerMileNorm > 0,
+    },
+  });
+
+  // ----- TRAVEL -----
   // County-fee path (per-member)
-  if (hasCountyTable) {
+  if (decision === "county") {
     const feePerMemberRaw = getCountyFeeFromMap(countyFees, derivedCounty);
     const feePerMember = Number(feePerMemberRaw) || 0;
-    console.log("📊 County travel fee per member (raw):", feePerMemberRaw, "Parsed:", feePerMember);
+    console.log("📊 County travel fee per member (raw):", feePerMemberRaw, "→ parsed:", feePerMember);
     if (travelEligibleCount > 0) {
       travelFee = feePerMember * travelEligibleCount;
       travelCalculated = true;
+      console.log("✅ County travel applied:", { travelEligibleCount, travelFee });
+    } else {
+      console.log("ℹ️ No travel-eligible members, county travel = £0");
     }
   }
 
   // If county path didn't run and we don't have addr/date → return base+margin
   if (!travelCalculated && (!selectedAddress || !selectedDate)) {
     const totalPrice = Math.ceil(baseFeeTotal * 1.33);
-    console.log("⚠️ No travel data → base + margin only", totalPrice);
+    console.log("⚠️ No travel data (or county not applicable) → base + margin only:", totalPrice, {
+      selectedAddressPresent: Boolean(selectedAddress),
+      selectedDatePresent: Boolean(selectedDate),
+    });
     console.groupEnd();
     return { total: totalPrice, travelCalculated: false };
   }
 
   // Cost-per-mile path (normalized)
-  if (!travelCalculated && costPerMileNorm > 0) {
+  if (!travelCalculated && decision === "per-mile") {
     for (const m of travelEligibleMembers) {
       const postCode = m.postCode;
       const destination =
@@ -260,8 +300,11 @@ const calculateActPricing = async (act, selectedCounty, selectedAddress, selecte
       travelFee += cost;
     }
     travelCalculated = true;
-  } else if (!travelCalculated) {
-    // MU rate path
+    console.log("✅ Per-mile travel applied:", { travelFee });
+  }
+
+  // MU rate path
+  if (!travelCalculated && decision === "mu") {
     for (const m of travelEligibleMembers) {
       const postCode = m.postCode;
       const destination =
@@ -285,6 +328,7 @@ const calculateActPricing = async (act, selectedCounty, selectedAddress, selecte
       travelFee += cost;
     }
     travelCalculated = true;
+    console.log("✅ MU travel applied:", { travelFee });
   }
 
   const travelFeeTotal = travelFee;
@@ -298,7 +342,7 @@ const calculateActPricing = async (act, selectedCounty, selectedAddress, selecte
   console.log("➕ 33% margin applied (×1.33)");
   console.log("✅ Final total price (rounded):", finalTotal);
 
-  console.log("✅ Final:", { baseFeeTotal, travelFeeTotal, marginApplied: 0.33, finalTotal, travelCalculated });
+  console.log("✅ Final summary:", { baseFeeTotal, travelFeeTotal, marginApplied: 0.33, finalTotal, travelCalculated, decision });
   console.groupEnd();
   return { total: finalTotal, travelCalculated };
 };
