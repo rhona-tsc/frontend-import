@@ -50,18 +50,39 @@ const isTestLike = (item = {}) => {
   return flag || TEST_NAME_RE.test(name);
 };
 
-const shouldIncludeActItem = (item = {}) => {
-  if (!item) return false;
-
-  // If status exists, enforce it. If it’s missing, don’t punish it.
-  const status = String(item?.status || "").trim();
-  if (status && !ALLOWED_STATUSES_SET.has(status)) return false;
-
-  // Hide tests
-  if (isTestLike(item)) return false;
-
-  return true;
+const statusOk = (act = {}) => {
+  const st = String(act?.status || "").trim();
+  return ALLOWED_STATUSES_SET.size === 0 || ALLOWED_STATUSES_SET.has(st);
 };
+
+const AGENT_OVERRIDE_IDS = new Set(["680fb453a2de6618675ca9ed"]);
+
+const canSeeTestActs = (user) => {
+  const id = String(user?._id || user?.id || "");
+  const role = String(user?.role || "");
+
+  return role === "agent" || AGENT_OVERRIDE_IDS.has(id);
+};
+
+const shouldIncludeActItem = (act, opts) => {
+  const allowTestActs = !!(opts && typeof opts === "object" && opts.allowTestActs);
+
+  // agents can see everything (including test/demo + any statuses)
+  if (allowTestActs) return true;
+
+  // normal users: must be in allowed statuses AND not test-like
+  return statusOk(act) && !isTestLike(act);
+};
+
+const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
+};
+
+const getAllowTestActs = () => canSeeTestActs(getStoredUser());
 
   // --- Core UI / data ---
   const [search, setSearch] = useState("");
@@ -360,8 +381,10 @@ const searchActFilterCards = useCallback(async (payload) => {
 
     const data = await res.json();
     const cards = Array.isArray(data?.cards) ? data.cards : [];
-    const filtered = cards.filter(shouldIncludeActItem);
-
+const allowTestActs = getAllowTestActs();
+const filtered = (cards || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
     try { window.__ACTS_FILTER_CARDS__ = filtered; } catch {}
 
     setActsFilterCards(filtered);
@@ -388,8 +411,10 @@ const searchActCards = useCallback(async (payload) => {
 
     const data = await res.json();
     const cards = Array.isArray(data?.cards) ? data.cards : [];
-    const filtered = cards.filter(shouldIncludeActItem);
-
+const allowTestActs = getAllowTestActs();
+const filtered = (cards || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
     try { window.__ACT_FILTER_CARDS__ = filtered; } catch {}
 
     setActFilterCards(filtered);
@@ -482,7 +507,10 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
                 : [];
           if (arr.length) {
             const mapped = arr.map(buildCardFromAct);
-const filtered = mapped.filter(shouldIncludeActItem);
+const allowTestActs = getAllowTestActs();
+const filtered = (mapped || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
 setActsPageCards(filtered);
             return;
           }
@@ -498,7 +526,10 @@ setActsPageCards(filtered);
       const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
       if (!raw.length) return void (await fallbackFromActs());
       const mapped = raw.map(normalize);
-const filtered = mapped.filter(shouldIncludeActItem);
+const allowTestActs = getAllowTestActs();
+const filtered = (mapped || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
 setActsPageCards(filtered);
     } catch {
       await fallbackFromActs();
@@ -579,7 +610,10 @@ const urlCards = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&
 
           if (arr.length) {
             const cards = arr.map(buildCardFromAct);
-            const filtered = (cards || []).filter(shouldIncludeActItem);
+           const allowTestActs = getAllowTestActs();
+const filtered = (cards || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
 setActCards(filtered);
             try {
               window.__TSC_ACTS__ = cards;
@@ -622,7 +656,10 @@ setActCards(filtered);
         return;
       }
 
-      const filtered = (cards || []).filter(shouldIncludeActItem);
+    const allowTestActs = getAllowTestActs();
+const filtered = (cards || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
 setActCards(filtered);
       try {
         window.__TSC_ACTS__ = cards;
@@ -1091,7 +1128,10 @@ async function fetchFilterCardActsForGrid() {
       // ⬇ if this function is meant to hydrate the *filter* cards for the Acts page, prefer:
       // setActsFilterPageCards(cards);
       // ⬇ if you intentionally want to hydrate the generic cards used by Home, keep:
-      const filtered = (cards || []).filter(shouldIncludeActItem);
+     const allowTestActs = getAllowTestActs();
+const filtered = (cards || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
 setActCards(filtered);
       try { window.__TSC_ACTS__ = cards; } catch {}
       return;
@@ -1431,7 +1471,10 @@ async function getActCardsData() {
     const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
 
     // expose as dedicated cards state
-const filtered = (arr || []).filter(shouldIncludeActItem);
+const allowTestActs = getAllowTestActs();
+const filtered = (arr || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
 setActCards(filtered);
 
     // (optional) stash for quick inspection
@@ -1532,7 +1575,10 @@ const url = `${base}${path}`;
             const bt = new Date(b.createdAt || b.updatedAt || 0).getTime();
             return bt - at;
           });
-          const filtered = (sorted || []).filter(shouldIncludeActItem);
+         const allowTestActs = getAllowTestActs();
+const filtered = (sorted || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
 setActs(filtered);
           try {
             window.__TSC_ACTS__ = sorted;
