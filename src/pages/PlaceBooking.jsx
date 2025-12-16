@@ -1,6 +1,6 @@
 // Make sure to install react-signature-canvas:
 // npm install react-signature-canvas
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useMemo, useRef } from "react";
 import Title from "../components/Title";
 import CartTotal from "../components/CartTotal";
 import { ShopContext } from "../context/ShopContext";
@@ -459,19 +459,49 @@ actIds: actsSummary.map(a => a.actId),
     }
   };
 
-  const formattedDate = new Date(selectedDate).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const formattedDate = selectedDate
+    ? new Date(selectedDate).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "TBC";
 
-  const bookedActs = Object.keys(cartItems)
-    .map((actId) => {
-      const act = acts.find((a) => String(a._id) === String(actId));
-      return act?.tscName || act?.name || "";
-    })
-    .filter(Boolean)
-    .join(" + ");
+  const bookedActs = useMemo(() => {
+    const actIds =
+      cartItems && typeof cartItems === "object" ? Object.keys(cartItems) : [];
+
+    const resolveActName = (actId) => {
+      const act = (acts || []).find(
+        (a) => String(a?._id ?? a?.id) === String(actId)
+      );
+      if (act) return act?.tscName || act?.name || "";
+
+      const fromSummary = (actsSummaryState || []).find(
+        (s) => String(s?.actId) === String(actId)
+      );
+      if (fromSummary) return fromSummary?.tscName || fromSummary?.actName || "";
+
+      return "";
+    };
+
+    const names = actIds.map(resolveActName).filter(Boolean);
+    return names.length ? names.join(" + ") : "TBC";
+  }, [cartItems, acts, actsSummaryState]);
+
+  const loggedBookedActsOnceRef = useRef(false);
+  useEffect(() => {
+    if (loggedBookedActsOnceRef.current) return;
+    if (bookedActs && bookedActs !== "TBC") return;
+
+    loggedBookedActsOnceRef.current = true;
+    console.log("🧾 bookedActs not resolved yet", {
+      bookedActs,
+      cartActIds:
+        cartItems && typeof cartItems === "object" ? Object.keys(cartItems) : [],
+      actsCount: Array.isArray(acts) ? acts.length : 0,
+    });
+  }, [bookedActs, cartItems, acts]);
 
   return (
     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t pb-24 sm:pb-0">
