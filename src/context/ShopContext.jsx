@@ -2422,17 +2422,36 @@ const addToCart = async (actId, lineupId, selectedExtras = [], selectedAfternoon
   const actKey = String(actId);
   const providedLineupKey = lineupId ? String(lineupId) : "";
 
-  // IMPORTANT: resolve the act from a source that actually has lineups
-  const act = (actsFull || acts || []).find(a => String(a?._id) === actKey); // <- actsFull recommended
-  const available = (act?.lineups || []).map(l => String(l?._id || l?.lineupId));
-  const lineupKey = available.includes(providedLineupKey)
-    ? providedLineupKey
-    : (available[0] || providedLineupKey);
+  // 1) try local acts first (may be cards), then fetch full act if lineups missing
+  let act = (acts || []).find(a => String(a?._id) === actKey);
 
-  if (act && !available.includes(providedLineupKey)) {
-    console.warn("🛒 addToCart lineup mismatch", { actId: actKey, providedLineupKey, lineupKey, available });
+  const hasLineups = Array.isArray(act?.lineups) && act.lineups.length > 0;
+
+  if (!hasLineups) {
+    try {
+      const res = await axios.get(`${backendUrl}/api/act/${actKey}`);
+      act = res.data?.act || res.data; // depends on your API shape
+    } catch (e) {
+      console.warn("🛒 Failed to fetch full act for cart", actKey, e);
+    }
   }
 
+  const available = (act?.lineups || []).map(l => String(l?._id || l?.lineupId));
+  const lineupKey =
+    available.includes(providedLineupKey)
+      ? providedLineupKey
+      : (available[0] || providedLineupKey);
+
+  if (available.length && !available.includes(providedLineupKey)) {
+    console.warn("🛒 addToCart lineup mismatch", {
+      actId: actKey,
+      providedLineupKey,
+      lineupKey,
+      available
+    });
+  }
+
+  // now write cart
   setCartItems(prev => {
     const next = structuredClone(prev || {});
     next[actKey] = {
