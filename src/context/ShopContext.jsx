@@ -1146,10 +1146,12 @@ setActCards(filtered);
       return;
     }
 
-    setActCards(cards);
+    const filtered = (cards || []).filter(shouldIncludeActItem);
+ setActCards(filtered);
     try {
-      window.__TSC_ACTS__ = cards;
-    } catch {}
+     window.__TSC_ACTS_RAW__ = cards;      // raw
+    window.__TSC_ACTS__ = filtered;       // what UI uses
+   } catch {}
   } catch (err) {
     console.warn("⚠️[CardFilterShopContext] fetchFilterCardActsForGrid failed:", err?.message);
     await fallbackFromActs();
