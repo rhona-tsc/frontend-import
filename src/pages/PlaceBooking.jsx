@@ -99,23 +99,33 @@ const PlaceBooking = () => {
       return;
     }
 
+    // ✅ always read the freshest cart snapshot (state first, then localStorage fallback)
+    const cartItemsFresh = (() => {
+      const fromState =
+        cartItems && typeof cartItems === "object" ? cartItems : null;
+      if (fromState && Object.keys(fromState).length) return fromState;
+
+      try {
+        const raw = localStorage.getItem("cartItems");
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch (e) {
+        return {};
+      }
+    })();
+
     // ✅ move declarations up here
     const actsSummary = [];
     const items = [];
-    let performanceTimesTop = null;
-
-    const missingTimes = actsSummary.filter(
-      (a) =>
-        !a.performance ||
-        !a.performance.arrivalTime ||
-        !a.performance.finishTime
-    );
-
-    if (missingTimes.length) {
-      console.warn("⚠️ Some lineups missing performance times:", missingTimes);
-    }
 
     try {
+      // Guard: if the cart is genuinely empty, stop early
+      if (!cartItemsFresh || Object.keys(cartItemsFresh).length === 0) {
+        alert(
+          "Your cart appears to be empty. Please go back, select a lineup, then try again."
+        );
+        return;
+      }
       const resolveActFromCart = (cartActKey) => {
         const actsArr = Array.isArray(acts) ? acts : [];
 
@@ -127,10 +137,10 @@ const PlaceBooking = () => {
 
         // 2) fallback: match act by lineup ids stored under this cart key
         const lineupIdsObj =
-          cartItems &&
-          cartItems[cartActKey] &&
-          typeof cartItems[cartActKey] === "object"
-            ? cartItems[cartActKey]
+          cartItemsFresh &&
+          cartItemsFresh[cartActKey] &&
+          typeof cartItemsFresh[cartActKey] === "object"
+            ? cartItemsFresh[cartActKey]
             : null;
 
         const lineupIds = lineupIdsObj ? Object.keys(lineupIdsObj) : [];
@@ -151,13 +161,13 @@ const PlaceBooking = () => {
       const selectedCounty =
         selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
-      for (const actId in cartItems) {
+      for (const actId in cartItemsFresh) {
         const act = resolveActFromCart(actId);
         const chosenVocalists = selectedVocalists?.[actId] || [];
         if (!act) continue;
 
-        for (const lineupId in cartItems[actId]) {
-          const cartLine = cartItems[actId][lineupId] || {};
+        for (const lineupId in cartItemsFresh[actId]) {
+          const cartLine = cartItemsFresh[actId][lineupId] || {};
           const {
             quantity = 1,
             selectedExtras = [],
@@ -387,6 +397,17 @@ if (!Number.isFinite(total) || total <= 0) {
       }
 
           setActsSummaryState([...actsSummary]);
+
+      const missingTimes = actsSummary.filter(
+        (a) =>
+          !a.performance ||
+          !a.performance.arrivalTime ||
+          !a.performance.finishTime
+      );
+
+      if (missingTimes.length) {
+        console.warn("⚠️ Some lineups missing performance times:", missingTimes);
+      }
 
       console.log("🧾 Raw cartDetails:", items);
       console.log("🗒️ actsSummary snapshot:", actsSummary);
