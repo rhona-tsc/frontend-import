@@ -115,12 +115,43 @@ const PlaceBooking = () => {
     }
 
     try {
-      const getAct = (id) => acts.find((a) => String(a._id) === String(id));
+      const resolveActFromCart = (cartActKey) => {
+        const actsArr = Array.isArray(acts) ? acts : [];
+
+        // 1) direct id match
+        const direct = actsArr.find(
+          (a) => String(a?._id ?? a?.id) === String(cartActKey)
+        );
+        if (direct) return direct;
+
+        // 2) fallback: match act by lineup ids stored under this cart key
+        const lineupIdsObj =
+          cartItems &&
+          cartItems[cartActKey] &&
+          typeof cartItems[cartActKey] === "object"
+            ? cartItems[cartActKey]
+            : null;
+
+        const lineupIds = lineupIdsObj ? Object.keys(lineupIdsObj) : [];
+        if (!lineupIds.length) return null;
+
+        const lineupIdSet = new Set(lineupIds.map((x) => String(x)));
+
+        const byLineup = actsArr.find(
+          (a) =>
+            Array.isArray(a?.lineups) &&
+            a.lineups.some((l) =>
+              lineupIdSet.has(String(l?._id ?? l?.lineupId))
+            )
+        );
+
+        return byLineup || null;
+      };
       const selectedCounty =
         selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
       for (const actId in cartItems) {
-        const act = getAct(actId);
+        const act = resolveActFromCart(actId);
         const chosenVocalists = selectedVocalists?.[actId] || [];
         if (!act) continue;
 
@@ -274,7 +305,9 @@ const PlaceBooking = () => {
 
           // actsSummary snapshot for booking/event sheet
           actsSummary.push({
-            actId,
+            // cart key can drift from real act._id (eg legacy carts) — keep both
+            cartActKey: String(actId),
+            actId: String(act?._id ?? actId),
             actName: act.name,
             tscName: act.tscName,
 
@@ -471,14 +504,38 @@ actIds: actsSummary.map(a => a.actId),
     const actIds =
       cartItems && typeof cartItems === "object" ? Object.keys(cartItems) : [];
 
-    const resolveActName = (actId) => {
-      const act = (acts || []).find(
-        (a) => String(a?._id ?? a?.id) === String(actId)
-      );
-      if (act) return act?.tscName || act?.name || "";
+    const resolveActName = (cartActKey) => {
+      const actsArr = Array.isArray(acts) ? acts : [];
 
+      // 1) direct id match
+      const direct = actsArr.find(
+        (a) => String(a?._id ?? a?.id) === String(cartActKey)
+      );
+      if (direct) return direct?.tscName || direct?.name || "";
+
+      // 2) fallback: match act by lineup ids stored under this cart key
+      const lineupIdsObj =
+        cartItems &&
+        cartItems[cartActKey] &&
+        typeof cartItems[cartActKey] === "object"
+          ? cartItems[cartActKey]
+          : null;
+      const lineupIds = lineupIdsObj ? Object.keys(lineupIdsObj) : [];
+      if (lineupIds.length) {
+        const lineupIdSet = new Set(lineupIds.map((x) => String(x)));
+        const byLineup = actsArr.find(
+          (a) =>
+            Array.isArray(a?.lineups) &&
+            a.lineups.some((l) =>
+              lineupIdSet.has(String(l?._id ?? l?.lineupId))
+            )
+        );
+        if (byLineup) return byLineup?.tscName || byLineup?.name || "";
+      }
+
+      // 3) fallback: resolve from summary state (either cartActKey or real actId)
       const fromSummary = (actsSummaryState || []).find(
-        (s) => String(s?.actId) === String(actId)
+        (s) => String(s?.cartActKey ?? s?.actId) === String(cartActKey)
       );
       if (fromSummary) return fromSummary?.tscName || fromSummary?.actName || "";
 
@@ -514,19 +571,42 @@ actIds: actsSummary.map(a => a.actId),
       const match = actsArr.find(
         (a) => String(a?._id ?? a?.id) === String(actId)
       );
+
+      const lineupIdsObj =
+        cartItems && cartItems[actId] && typeof cartItems[actId] === "object"
+          ? cartItems[actId]
+          : null;
+      const lineupIds = lineupIdsObj ? Object.keys(lineupIdsObj) : [];
+      const lineupIdSet = new Set(lineupIds.map((x) => String(x)));
+
+      const matchByLineup = actsArr.find(
+        (a) =>
+          Array.isArray(a?.lineups) &&
+          a.lineups.some((l) => lineupIdSet.has(String(l?._id ?? l?.lineupId)))
+      );
+
       const fromSummary = (actsSummaryState || []).find(
-        (s) => String(s?.actId) === String(actId)
+        (s) => String(s?.cartActKey ?? s?.actId) === String(actId)
       );
 
       return {
         cartActId: actId,
         matchedInActs: !!match,
+        matchedByLineup: !!matchByLineup,
         matchedAct: match
           ? {
               _id: match?._id,
               id: match?.id,
               tscName: match?.tscName,
               name: match?.name,
+            }
+          : null,
+        matchedActByLineup: matchByLineup
+          ? {
+              _id: matchByLineup?._id,
+              id: matchByLineup?.id,
+              tscName: matchByLineup?.tscName,
+              name: matchByLineup?.name,
             }
           : null,
         matchedInActsSummary: !!fromSummary,
