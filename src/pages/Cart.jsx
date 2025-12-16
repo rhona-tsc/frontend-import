@@ -99,6 +99,11 @@ const Cart = () => {
     toggleVocalistForAct,
   availLoading, setSelectedVocalists, selectedVocalists,ensureLeadIncluded,
   } = useContext(ShopContext);
+useEffect(() => {
+  console.log("🛒 cartItems(state):", cartItems);
+  console.log("🛒 cartItems(storage):", localStorage.getItem("cartItems"));
+  console.log("🎭 acts count:", acts?.length, "first ids:", (acts||[]).slice(0,5).map(a=>String(a?._id)));
+}, [cartItems, acts]);
 
   const changingLineupRef = useRef(false);
 
