@@ -543,7 +543,6 @@ const clearFinishOverride = useCallback(
 
   
   useEffect(() => {
-    if (!acts || acts.length === 0) return;
     if (!cartItems || Object.keys(cartItems).length === 0) {
       setCartDetails([]);
       return;
@@ -554,49 +553,65 @@ const clearFinishOverride = useCallback(
       const selectedCounty =
         selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
-      for (const actId in cartItems) {
-  const act = await resolveActForCart(actId);
-if (!act) {
-  console.warn("🛒 Could not resolve act for cart", actId);
-  continue;
-}
+      for (const actId of Object.keys(cartItems || {})) {
+        const act = await resolveActForCart(actId);
+        if (!act) {
+          console.warn("🛒 Could not resolve act for cart", actId);
+          continue;
+        }
 
-const lineup = resolveLineupForCart(act, lineupId);
-if (!lineup) {
-  console.warn("🛒 Could not resolve lineup for cart", { actId, lineupId });
-  continue;
-}
-  }
+        const actCartBlock = cartItems?.[actId];
+        if (!actCartBlock || typeof actCartBlock !== "object") continue;
 
-  for (const lineupId in cartItems[actId]) {
-    const lineup = (act.lineups || []).find(l =>
-      String(l?._id || l?.lineupId) === String(lineupId)
-    );
-    if (!lineup) {
-      console.warn("🛒 LineupId in cart not found on act", {
-        actId,
-        lineupId,
-        available: (act.lineups || []).map(l => String(l?._id || l?.lineupId)),
-      });
-      continue;
-    }
+        for (const lineupId of Object.keys(actCartBlock || {})) {
+          const line = actCartBlock?.[lineupId] || {};
 
-    // ALSO wrap pricing so one throw doesn’t kill the whole effect:
-    let total = 0;
-    try {
-      const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
-      const res = await calculateActPricing(act, selectedCounty, selectedAddress, selectedDate, lineup);
-      total = Number(res?.total) || 0;
-    } catch (e) {
-      console.warn("💸 calculateActPricing failed (keeping item but with £0):", e);
-    }
+          const lineup = resolveLineupForCart(act, lineupId);
+          if (!lineup) {
+            console.warn("🛒 Could not resolve lineup for cart", { actId, lineupId });
+            continue;
+          }
 
+          const quantity = Number(line?.quantity) || 1;
+          const selectedExtras = Array.isArray(line?.selectedExtras)
+            ? line.selectedExtras
+            : line?.selectedExtras
+            ? [line.selectedExtras]
+            : [];
+
+          // Pricing (keep the item even if pricing fails)
+          let subtotalWithMargin = 0;
+          try {
+            const res = await calculateActPricing(
+              act,
+              selectedCounty,
+              selectedAddress,
+              selectedDate,
+              lineup
+            );
+            subtotalWithMargin = Number(res?.total) || 0;
+          } catch (e) {
+            console.warn(
+              "💸 calculateActPricing failed (keeping item but with £0):",
+              e
+            );
+          }
+
+          const adjustedTotal = subtotalWithMargin;
+          const basePrice = Math.round(subtotalWithMargin * 1.33);
+
+          const extrasTotal = (selectedExtras || []).reduce(
+            (s, ex) => s + (Number(ex?.price) || 0),
+            0
+          );
+
+          const itemTotal = (adjustedTotal + extrasTotal) * quantity;
 
           results.push({
-            actId,
-            actName: act.tscName,
+            actId: String(actId),
+            actName: act.tscName || act.name || "Act",
             image: act.images?.[0],
-            lineupId,
+            lineupId: String(lineup?._id || lineup?.lineupId || lineupId),
             lineup,
             quantity,
             subtotalWithMargin,
@@ -604,10 +619,9 @@ if (!lineup) {
             adjustedTotal,
             extrasTotal,
             total: itemTotal,
-            selectedExtras: Array.isArray(selectedExtras)
-              ? selectedExtras
-              : [selectedExtras],
-            allLineups: act.lineups,
+            selectedExtras,
+            dismissedExtras: line?.dismissedExtras || [],
+            allLineups: Array.isArray(act?.lineups) ? act.lineups : [],
             actData: act,
           });
         }
@@ -617,7 +631,7 @@ if (!lineup) {
     };
 
     loadPrices();
-  }, [cartItems, acts, selectedAddress, selectedDate]);
+  }, [cartItems, selectedAddress, selectedDate, resolveActForCart, resolveLineupForCart]);
 
   // ✅ Persist PA/Lights finish (time + dayOffset) to both performancePlans and cartItems
   const handleOverridePaFinishTime = useCallback(
