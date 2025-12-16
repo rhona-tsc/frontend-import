@@ -14,6 +14,12 @@ const CartTotal = () => {
     backendUrl,
   } = useContext(ShopContext);
 
+  const effectiveBackendUrl =
+  backendUrl ||
+  import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
+  import.meta.env.BACKEND_URL?.replace(/\/$/, "") ||
+  "";
+
   const [totalAmount, setTotalAmount] = useState(0);
   const [summaryItems, setSummaryItems] = useState([]);
 
@@ -61,17 +67,17 @@ const CartTotal = () => {
 
   useEffect(() => {
     const fetchActById = async (id) => {
-      if (!backendUrl || !id) return null;
+      if (!effectiveBackendUrl || !id) return null;
 
       // Cache first
       const cached = actCacheRef.current.get(String(id));
       if (cached) return cached;
 
       const candidates = [
-        `${backendUrl}/api/act/${id}`,
-        `${backendUrl}/api/act/get/${id}`,
-        `${backendUrl}/api/act/id/${id}`,
-        `${backendUrl}/api/act/one/${id}`,
+        `${effectiveBackendUrl}/api/act/${id}`,
+        `${effectiveBackendUrl}/api/act/get/${id}`,
+        `${effectiveBackendUrl}/api/act/id/${id}`,
+        `${effectiveBackendUrl}/api/act/one/${id}`,
       ];
 
       for (const url of candidates) {
@@ -91,11 +97,11 @@ const CartTotal = () => {
     };
 
     const loadTotal = async () => {
-      if (!acts || acts.length === 0 || !cartItems || Object.keys(cartItems).length === 0) {
-        setSummaryItems([]);
-        setTotalAmount(0);
-        return;
-      }
+     if (!cartItems || Object.keys(cartItems).length === 0) {
+  setSummaryItems([]);
+  setTotalAmount(0);
+  return;
+}
       console.log("🧾 [CartTotal] loadTotal", {
         actsCount: acts?.length,
         cartActIds: Object.keys(cartItems || {}),

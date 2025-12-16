@@ -2547,15 +2547,8 @@ useEffect(() => {
 
         {/* Cart Summary and Button */}
         <div className="w-full sm:w-[450px]">
-          {cartDetails?.length > 0 ? (
-   cartDetails.map((item) => (
-    <CartTotal
-      key={`${item._id}-${item.selectedLineup}`}
-      act={item.actData}
-      lineup={item.lineup}
-      total={item.adjustedTotal}
-    />
-   ))
+         {cartDetails?.length > 0 ? (
+  <CartTotal />
 ) : (
   <p className="text-gray-500">Your cart is empty.</p>
 )}
