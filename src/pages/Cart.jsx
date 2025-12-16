@@ -113,7 +113,7 @@ useEffect(() => {
   const seededLeadsRef = useRef(new Set());
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
 const [clearedBadges, setClearedBadges] = useState(new Set());
-
+const [isChangingLineup, setIsChangingLineup] = useState(false);
   const [selectedEventType, setSelectedEventType] = useState("Wedding");
   const [customEventType, setCustomEventType] = useState("");
   const [performancePlans, setPerformancePlans] = useState({});
@@ -690,6 +690,7 @@ const clearFinishOverride = useCallback(
     }
 
     changingLineupRef.current = true;
+setIsChangingLineup(true);
 
     try {
 const act = acts.find((a) => String(a?._id) === String(actId));      if (!act) {
