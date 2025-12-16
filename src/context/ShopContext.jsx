@@ -27,6 +27,42 @@ const ShopProvider = (props) => {
   const delivery_fee = 10;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 const CARD_STATUSES = "approved,live,approved_changes_pending";
+// ✅ Central filter for hiding Test/Demo acts everywhere (Home + /acts + search)
+const ALLOWED_STATUSES_SET = new Set(
+  String(CARD_STATUSES || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+
+// Be conservative: match common “test” prefixes without blocking legit names
+const TEST_NAME_RE = /^(test|demo)\b|^\s*(test|demo)\s*[-–—]/i;
+
+const isTestLike = (item = {}) => {
+  // explicit flags from backend/card payloads
+  const raw = item?.isTest;
+  const flag =
+    raw === true || raw === "true" || raw === 1 || raw === "1";
+
+  // name-based fallback
+  const name = String(item?.tscName || item?.name || "").trim();
+
+  return flag || TEST_NAME_RE.test(name);
+};
+
+const shouldIncludeActItem = (item = {}) => {
+  if (!item) return false;
+
+  // If status exists, enforce it. If it’s missing, don’t punish it.
+  const status = String(item?.status || "").trim();
+  if (status && !ALLOWED_STATUSES_SET.has(status)) return false;
+
+  // Hide tests
+  if (isTestLike(item)) return false;
+
+  return true;
+};
+
   // --- Core UI / data ---
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -310,54 +346,60 @@ const CARD_STATUSES = "approved,live,approved_changes_pending";
   }, [filterActsCards, actCards, acts, location?.pathname]);
 
   // In ShopContext (new helper; do NOT change existing functions) <---- This one is for the Acts page
-  const searchActFilterCards = useCallback(async (payload) => {
-    try {
-      const BASE = (
-        import.meta.env.VITE_BACKEND_URL ||
-        "https://tsc-backend-v2.onrender.com"
-      ).replace(/\/+$/, "");
-      const res = await fetch(`${BASE}/api/v2/act-cards/search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      const cards = Array.isArray(data?.cards) ? data.cards : [];
-      setActsFilterCards(cards); // ← hydrate context
-      console.log("🎯[ShopContext] setActsFilterCards:", { count: cards.length, sample: cards[0] });
-      try { window.__ACTS_FILTER_CARDS__ = cards; } catch {}
-      return cards;
-    } catch (e) {
-      console.warn("searchActFilterCards failed:", e?.message || e);
-      setActsFilterCards([]); // ← clear on failure
-      return [];
-    }
-  }, []);
+const searchActFilterCards = useCallback(async (payload) => {
+  try {
+    const BASE = (
+      import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com"
+    ).replace(/\/+$/, "");
+
+    const res = await fetch(`${BASE}/api/v2/act-cards/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    const cards = Array.isArray(data?.cards) ? data.cards : [];
+    const filtered = cards.filter(shouldIncludeActItem);
+
+    try { window.__ACTS_FILTER_CARDS__ = filtered; } catch {}
+
+    setActsFilterCards(filtered);
+    return filtered;
+  } catch (e) {
+    console.warn("searchActFilterCards failed:", e?.message || e);
+    setActsFilterCards([]);
+    return [];
+  }
+}, [shouldIncludeActItem]);
 
   // In ShopContext (new helper; do NOT change existing functions)
-  const searchActCards = useCallback(async (payload) => {
-    try {
-      const BASE = (
-        import.meta.env.VITE_BACKEND_URL ||
-        "https://tsc-backend-v2.onrender.com"
-      ).replace(/\/+$/, "");
-      const res = await fetch(`${BASE}/api/v2/act-cards/search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      const cards = Array.isArray(data?.cards) ? data.cards : [];
-      setActFilterCards(cards); // ← hydrate context
-      console.log("🎯[ShopContext] setActFilterCards:", { count: cards.length, sample: cards[0] });
-      try { window.__ACT_FILTER_CARDS__ = cards; } catch {}
-      return cards;
-    } catch (e) {
-      console.warn("searchActCards failed:", e?.message || e);
-      setActFilterCards([]); // ← clear on failure
-      return [];
-    }
-  }, []);
+const searchActCards = useCallback(async (payload) => {
+  try {
+    const BASE = (
+      import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com"
+    ).replace(/\/+$/, "");
+
+    const res = await fetch(`${BASE}/api/v2/act-cards/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    const cards = Array.isArray(data?.cards) ? data.cards : [];
+    const filtered = cards.filter(shouldIncludeActItem);
+
+    try { window.__ACT_FILTER_CARDS__ = filtered; } catch {}
+
+    setActFilterCards(filtered);
+    return filtered;
+  } catch (e) {
+    console.warn("searchActCards failed:", e?.message || e);
+    setActFilterCards([]);
+    return [];
+  }
+}, [shouldIncludeActItem]);
 
   // ⬇️ add this function (standalone; does NOT touch actCards)
   const getActsPageCards = React.useCallback(async () => {
@@ -439,7 +481,9 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
                 ? d
                 : [];
           if (arr.length) {
-            setActsPageCards(arr.map(buildCardFromAct));
+            const mapped = arr.map(buildCardFromAct);
+const filtered = mapped.filter(shouldIncludeActItem);
+setActsPageCards(filtered);
             return;
           }
         } catch {}
@@ -453,7 +497,9 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
       });
       const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
       if (!raw.length) return void (await fallbackFromActs());
-      setActsPageCards(raw.map(normalize));
+      const mapped = raw.map(normalize);
+const filtered = mapped.filter(shouldIncludeActItem);
+setActsPageCards(filtered);
     } catch {
       await fallbackFromActs();
     }
@@ -533,7 +579,8 @@ const urlCards = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&
 
           if (arr.length) {
             const cards = arr.map(buildCardFromAct);
-            setActCards(cards);
+            const filtered = (cards || []).filter(shouldIncludeActItem);
+setActCards(filtered);
             try {
               window.__TSC_ACTS__ = cards;
             } catch {}
@@ -575,7 +622,8 @@ const urlCards = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&
         return;
       }
 
-      setActCards(cards);
+      const filtered = (cards || []).filter(shouldIncludeActItem);
+setActCards(filtered);
       try {
         window.__TSC_ACTS__ = cards;
       } catch {}
@@ -825,7 +873,9 @@ const genres = Array.isArray(a?.genres)
                 ? d
                 : [];
           if (arr.length) {
-setActsFilterPageCards(arr.map(buildFilterCardFromAct));
+const mapped = arr.map(buildFilterCardFromAct);
+const filtered = mapped.filter(shouldIncludeActItem);
+setActsFilterPageCards(filtered);
             return;
           }
         } catch {}
@@ -839,7 +889,9 @@ setActsFilterPageCards([]);
       });
       const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
       if (!raw.length) return void (await fallbackFromActs());
-      setActsFilterPageCards(raw.map(normalize));
+      const mapped = raw.map(normalize);
+const filtered = mapped.filter(shouldIncludeActItem);
+setActsFilterPageCards(filtered);
     } catch {
       await fallbackFromActs();
     }
@@ -1039,7 +1091,8 @@ async function fetchFilterCardActsForGrid() {
       // ⬇ if this function is meant to hydrate the *filter* cards for the Acts page, prefer:
       // setActsFilterPageCards(cards);
       // ⬇ if you intentionally want to hydrate the generic cards used by Home, keep:
-      setActCards(cards);
+      const filtered = (cards || []).filter(shouldIncludeActItem);
+setActCards(filtered);
       try { window.__TSC_ACTS__ = cards; } catch {}
       return;
     }
@@ -1376,7 +1429,8 @@ async function getActCardsData() {
     const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
 
     // expose as dedicated cards state
-    setActCards(arr);
+const filtered = (arr || []).filter(shouldIncludeActItem);
+setActCards(filtered);
 
     // (optional) stash for quick inspection
     try { window.__TSC_ACT_CARDS__ = arr; } catch {}
@@ -1476,7 +1530,8 @@ const url = `${base}${path}`;
             const bt = new Date(b.createdAt || b.updatedAt || 0).getTime();
             return bt - at;
           });
-          setActs(sorted);
+          const filtered = (sorted || []).filter(shouldIncludeActItem);
+setActs(filtered);
           try {
             window.__TSC_ACTS__ = sorted;
           } catch {}
