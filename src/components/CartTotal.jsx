@@ -62,14 +62,29 @@ const CartTotal = () => {
         setTotalAmount(0);
         return;
       }
+      console.log("🧾 [CartTotal] loadTotal", {
+        actsCount: acts?.length,
+        cartActIds: Object.keys(cartItems || {}),
+        selectedDate,
+        selectedAddress,
+      });
 
       const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
       let grand = 0;
       const summary = [];
 
       for (const actId of Object.keys(cartItems)) {
-        const act = acts.find((a) => a._id === actId);
+        const act = acts.find((a) => String(a?._id || a?.id) === String(actId));
         if (!act) {
+          console.warn("⚠️ [CartTotal] Act not found for cart actId", {
+            actId,
+            sampleActIds: (acts || []).slice(0, 8).map((a) => ({
+              _id: a?._id,
+              id: a?.id,
+              tscName: a?.tscName,
+              name: a?.name,
+            })),
+          });
           continue;
         }
 
@@ -129,28 +144,48 @@ const CartTotal = () => {
 
           const combinedExtrasTotal = extrasTotal + afternoonExtrasTotal;
           const lineTotal = (subtotalWithMargin + combinedExtrasTotal) * quantity;
-// ✅ TEST ACT OVERRIDE — safe version (no const reassignment)
-const actNameLower = (act.tscName || act.name || "").toLowerCase();
-const isTestAct = actNameLower.includes("test dancefloor magic")
-  || actNameLower.includes("test soul allegiance")
-  || actNameLower.includes("test motown magic");
 
-// If test act → override totals WITHOUT mutating const
-const finalLineTotal = isTestAct ? 0.50 : lineTotal;
-const summaryBasePrice = isTestAct ? 0.50 : subtotalWithMargin;
+          // ✅ TEST ACT OVERRIDE — safe version (no const reassignment)
+          const actNameLower = (act.tscName || act.name || "").toLowerCase();
+          const isTestAct =
+            actNameLower.includes("test dancefloor magic") ||
+            actNameLower.includes("test soul allegiance") ||
+            actNameLower.includes("test motown magic");
 
-grand += combinedExtrasTotal * quantity;
-summary.push({
-  actName: act.name || "Unknown Act",
-  tscName: act.tscName || act.name || "",
-  lineupName: lineup.actSize || "",
-  basePrice: summaryBasePrice,
-  extras: selectedExtras,
-  quantity,
-});
+          // If test act → override totals WITHOUT mutating const
+          // (Keep quantity accounted for)
+          const finalLineTotal = isTestAct ? 0.5 * quantity : lineTotal;
+          const summaryBasePrice = isTestAct ? 0.5 : subtotalWithMargin;
+
+          // ✅ GRAND TOTAL MUST INCLUDE BASE + EXTRAS
+          grand += finalLineTotal;
+
+          // Include afternoon sets as "extras" for the summary list
+          const combinedExtrasForSummary = [
+            ...(selectedExtras || []),
+            ...((afternoonExtras || []).map((s) => ({
+              name: s?.name,
+              price: s?.price,
+              key: s?.key,
+              type: s?.type || "afternoon",
+            })) || []),
+          ];
+
+          summary.push({
+            actName: act.name || "Unknown Act",
+            tscName: act.tscName || act.name || "",
+            lineupName: lineup.actSize || "",
+            basePrice: Number(summaryBasePrice) || 0,
+            extras: combinedExtrasForSummary,
+            quantity,
+          });
         }
       }
-
+      console.log("✅ [CartTotal] computed", {
+        summaryCount: summary.length,
+        grand,
+        preview: summary.slice(0, 3),
+      });
       setSummaryItems(summary);
       setTotalAmount(grand);
     };
