@@ -216,7 +216,11 @@ const PlaceBooking = () => {
             );
             fee = Number(res?.fee || 0);
             travel = Number(res?.travel || 0);
-            total = Number(res?.total || res?.price || 0);
+            total = Number(res?.total ?? res?.price ?? 0);
+if (!Number.isFinite(total) || total <= 0) {
+  const ft = Number(fee || 0) + Number(travel || 0);
+  if (Number.isFinite(ft) && ft > 0) total = ft;
+}
             travelCalculated = !!res?.travelCalculated;
           } catch (e) {
             // fallback: use formatted/base figure if present
@@ -847,8 +851,7 @@ actIds: actsSummary.map(a => a.actId),
             <p>
               By signing below, you confirm that you are the authorised
               signatory for contract {bookingId || "TBC"}({bookedActsDisplay},{" "}
-              {formattedDate}) and agree to be bound by Bamboo Music
-              Management’s Terms and Conditions of booking.
+              {formattedDate}) and agree to be bound by The Supreme Collective’s Terms and Conditions of booking.
             </p>
 
             <p>
@@ -903,8 +906,7 @@ actIds: actsSummary.map(a => a.actId),
               <strong>Definition</strong>
             </p>
             <p>
-              The following definitions refer to the 'Contract' (Bamboo Music
-              Management Booking Contract) and these 'Terms and Conditions'.
+              The following definitions refer to the 'Contract' (The Supreme Collective Booking Contract) and these 'Terms and Conditions'.
               The Supreme Collective, Company No. 16883956, is the 'Agent', the
               proposed entertainment booker is the 'Client' and the proposed
               entertainment act is the 'Artist'.
