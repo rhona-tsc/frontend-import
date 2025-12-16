@@ -114,29 +114,56 @@ const CartTotal = () => {
       const summary = [];
 
       for (const actId of Object.keys(cartItems)) {
-        let act = acts.find((a) => String(a?._id || a?.id) === String(actId));
+        const actCartBlock = cartItems?.[actId];
+ if (!actCartBlock || typeof actCartBlock !== "object") {
+    console.warn("⚠️ [CartTotal] cartItems[actId] not an object", { actId, actCartBlock });
+    continue;
+  }
+
+  let act = (acts || []).find((a) => String(a?._id || a?.id) === String(actId));
 
         // If the cart references an act that isn’t in the preloaded cards list (e.g. test/draft/private act),
         // fetch the full act document by ID so totals can still compute.
-        if (!act) {
-          act = await fetchActById(actId);
-        }
+       const needsFullAct = !act || !Array.isArray(act?.lineups) || act.lineups.length === 0;
+ if (needsFullAct) {
+   act = await fetchActById(actId);
+ }
 
-        if (!act) {
-          console.warn("⚠️ [CartTotal] Act not found for cart actId (even after fetch)", {
-            actId,
-            actsCount: acts?.length,
-            sampleActIds: (acts || []).slice(0, 8).map((a) => ({
-              _id: a?._id,
-              id: a?.id,
-              tscName: a?.tscName,
-              name: a?.name,
-            })),
-          });
-          continue;
-        }
 
-        for (const lineupId of Object.keys(cartItems[actId])) {
+ if (!act) {
+    console.warn("⚠️ [CartTotal] Act not found for cart actId (even after fetch)", {
+      actId,
+      actsCount: acts?.length,
+      sampleActIds: (acts || []).slice(0, 8).map((a) => ({
+        _id: a?._id,
+        id: a?.id,
+        tscName: a?.tscName,
+        name: a?.name,
+      })),
+    });
+    continue;
+  }
+
+  // 🔎 Debug: confirm whether we have a full act (lineups) and what lineup keys the cart is using
+  console.log("🔎 [CartTotal] act shape", {
+    actId,
+    foundInActsList: !!(acts || []).find((a) => String(a?._id) === String(actId)),
+    hasLineups: Array.isArray(act?.lineups),
+    lineupsLen: act?.lineups?.length,
+    cartLineupIds: Object.keys(cartItems?.[actId] || {}),
+  });
+
+ if (!Array.isArray(act?.lineups) || act.lineups.length === 0) {
+   console.warn("⚠️ [CartTotal] Act has no lineups even after fetch", {
+     actId,
+          tscName: act?.tscName,
+     hasLineups: !!act?.lineups,
+     lineupsLen: act?.lineups?.length,
+   });
+      continue;
+ }
+
+        for (const lineupId of Object.keys(actCartBlock)) {
           const cartNode = cartItems[actId][lineupId] || {};
           const quantity = Number(cartNode.quantity || 1);
           const selectedExtras = Array.isArray(cartNode.selectedExtras)
@@ -152,8 +179,17 @@ const CartTotal = () => {
             (l) => String(l._id || l.lineupId) === String(lineupId)
           );
           if (!lineup) {
-            continue;
-          }
+     console.warn("⚠️ [CartTotal] Lineup not found for lineupId in cart", {
+       actId,
+       lineupId,
+       available: (act.lineups || []).map(l => String(l?._id || l?.lineupId)).slice(0, 12),
+     });
+     // Optional fallback so totals still show:
+     // const fallback = act.lineups?.[0];
+     // if (!fallback) continue;
+     // lineup = fallback;
+     continue;
+   }
 
           // Try calculateActPricing first (this includes travel + margin in your util)
           let calc = null;
