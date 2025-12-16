@@ -152,6 +152,51 @@ const FILTER_DATA_ENDPOINTS = [
   api("api/v2/act-cards/search"),     
 ];
 
+// 🔁 Make the helper accept a list (don’t read global `acts`)
+function getApprovedActs(list) {
+  const arr = Array.isArray(list) ? list : [];
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+  const effectiveUserRole = String(storedUser.userRole || "").toLowerCase();
+  const effectiveUserId = storedUser._id || storedUser.userId || "";
+  const effectiveUserEmail = storedUser.email || "";
+
+  const isAgent =
+    ["agent", "admin", "moderator"].includes(effectiveUserRole) ||
+    effectiveUserId === "680fb453a2de6618675ca9ed" ||
+    /@thesupremecollective\.co\.uk$/i.test(effectiveUserEmail);
+
+  const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
+
+  const isTestAct = (item) =>
+  looksLikeTrue(item?.isTest) ||
+  looksLikeTrue(item?.actData?.isTest) ||
+  looksLikeTrue(item?.__card?.isTest) ||
+  looksLikeTrue(item?.__card?.actData?.isTest);
+
+  const visibleCards = useMemo(() => {
+  const list = Array.isArray(actsFilterPageCards) ? actsFilterPageCards : [];
+  return isAgent ? list : list.filter((c) => !isTestAct(c));
+}, [actsFilterPageCards, isAgent]);
+
+  const normalizeStatus = (s) => String(s || "").trim().toLowerCase();
+
+  return arr.filter((item) => {
+    const st = normalizeStatus(item.status);
+    const isApprovedLike =
+      st === "approved" ||
+      st === "live" ||
+      st === "approved_changes_pending" ||
+      st === "live_changes_pending" ||
+      st.includes("changes pending");
+
+    const isTest =
+      looksLikeTrue(item.isTest) || looksLikeTrue(item.actData?.isTest);
+
+    return isAgent ? isApprovedLike : (isApprovedLike && !isTest);
+  });
+}
+
 const aliasGenre = (g) => {
   const raw = String(g || "");
   return [raw, raw.replace(/&/g, "and")];
@@ -319,61 +364,6 @@ const logToggle = (group, { value, checked, before = [], after = [] }) => {
   } catch {}
 };
 
-// 🔎 Snapshot Acts-page cards every time they change
-useEffect(() => {
-  if (!actsFilterPageCards) {
-    console.log("🧾 actsFilterPageCards = ", actsFilterPageCards);
-    return;
-  }
-  if (!Array.isArray(actsFilterPageCards)) {
-    console.warn("🧾 actsFilterPageCards not an array:", actsFilterPageCards);
-    return;
-  }
-
-  console.groupCollapsed(`🧾 actsFilterPageCards FULL (${actsFilterPageCards.length})`);
-  actsFilterPageCards.forEach((c, i) => {
-    console.log(`#${i} keys:`, Object.keys(c || {}));
-    try {
-      console.log(`#${i} snapshot:`, JSON.stringify(c, null, 2));
-    } catch {}
-
-    // 👇👇👇 Robust genre flatten/normalise logging
-    const rawArr =
-      Array.isArray(c?.genres)
-        ? c.genres
-        : Array.isArray(c?.genre)
-        ? c.genre
-        : typeof c?.genre === "string"
-        ? [c.genre]
-        : Array.isArray(c?.genres_raw)
-        ? c.genres_raw
-        : Array.isArray(c?.genresNormalized)
-        ? c.genresNormalized
-        : Array.isArray(c?.genres_norm)
-        ? c.genres_norm
-        : [];
-
-    const genresRaw = flat1(rawArr);
-    const genresNorm = genresRaw.map(NORM_GENRE);
-
-    console.log(`#${i} genres_raw:`, genresRaw);
-    console.log(`#${i} genres_norm:`, genresNorm);
-    // ☝️☝️☝️ END robust genre logging
-
-    if (c?.availabilityBadge) console.log(`#${i} availabilityBadge:`, c.availabilityBadge);
-    if (c?.travelConfig)      console.log(`#${i} travelConfig:`, c.travelConfig);
-
-    if (Array.isArray(c?.extras)) {
-      const preview = c.extras.slice(0, 8);
-      console.log(
-        `#${i} extras (${c.extras.length}):`,
-        preview,
-        c.extras.length > 8 ? `…+${c.extras.length - 8} more` : ""
-      );
-    }
-  });
-  console.groupEnd();
-}, [actsFilterPageCards]);
 
 // ---- server enrich (search) ----
 useEffect(() => {
@@ -735,38 +725,7 @@ const deriveActInstruments = (act) => {
   return Array.from(new Set(canonical));
 };
 
-// 🔁 Make the helper accept a list (don’t read global `acts`)
-function getApprovedActs(list) {
-  const arr = Array.isArray(list) ? list : [];
-  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
 
-  const effectiveUserRole = String(storedUser.userRole || "").toLowerCase();
-  const effectiveUserId = storedUser._id || storedUser.userId || "";
-  const effectiveUserEmail = storedUser.email || "";
-
-  const isAgent =
-    ["agent", "admin", "moderator"].includes(effectiveUserRole) ||
-    effectiveUserId === "680fb453a2de6618675ca9ed" ||
-    /@thesupremecollective\.co\.uk$/i.test(effectiveUserEmail);
-
-  const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
-  const normalizeStatus = (s) => String(s || "").trim().toLowerCase();
-
-  return arr.filter((item) => {
-    const st = normalizeStatus(item.status);
-    const isApprovedLike =
-      st === "approved" ||
-      st === "live" ||
-      st === "approved_changes_pending" ||
-      st === "live_changes_pending" ||
-      st.includes("changes pending");
-
-    const isTest =
-      looksLikeTrue(item.isTest) || looksLikeTrue(item.actData?.isTest);
-
-    return isAgent ? isApprovedLike : (isApprovedLike && !isTest);
-  });
-}
 
 // ✅ Use the Acts-page cards as the source
 const approvedActs = useMemo(() => getApprovedActs(actsFilterPageCards), [actsFilterPageCards]);
@@ -791,17 +750,7 @@ const approvedActsCount = useMemo(
 
 async function applyFilter() {
   const runId = ++filterRunIdRef.current;
-  GROUP(`🧪 applyFilter run #${runId}`);
-  ACTS_DBG("inputs", {
-    genre, act_size, djServices, instruments,
-    songSearch, actSearch,
-    wireless, soundLimiters, setupAndSoundcheck, paAndLights, pli, extraServices,
-    selectedDate, selectedAddress, selectedCounty,
-    availLoading,
-    availMapKeys: Object.keys(availableMap || {}).length,
-    cardsLen: Array.isArray(cards) ? cards.length : 0,
-    actCardsLen: Array.isArray(actsFilterPageCards) ? actsFilterPageCards.length : 0,
-  });
+ 
 
   // ───────────────────────────────────────────────────────────────────────────────
   // ✅ Normalizer + genre utilities
@@ -915,9 +864,6 @@ async function applyFilter() {
     ? allCards.filter((c) => serverIds.has(String(c.actId ?? c._id ?? c.id ?? "")))
     : allCards;
 
-  // Debug: print all IDs and names in actsFilterPageCards and approvedCards
-  console.log("actsFilterPageCards IDs:", (actsFilterPageCards || []).map(a => ({id: a.actId || a._id || a.id, name: a.tscName || a.name})));
-  console.log("approvedCards IDs:", (approvedCards || []).map(a => ({id: a.actId || a._id || a.id, name: a.tscName || a.name})));
 
   // Ensure safe genre fields on every card
   const withSafety = approvedCards.map((c) => {
@@ -1712,11 +1658,11 @@ async function applyFilter() {
   useEffect(() => {
     if (!initializing) {
       // Debug: print all fields from API response for each act
-      console.groupCollapsed('actsFilterPageCards FULL API response');
+     
       (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []).forEach((act, i) => {
         console.log(`#${i} actId:`, act.actId || act._id || act.id, act);
       });
-      console.groupEnd();
+
       applyFilter();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
