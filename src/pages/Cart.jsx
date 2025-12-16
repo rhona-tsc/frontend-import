@@ -456,59 +456,35 @@ const clearFinishOverride = useCallback(
         selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
       for (const actId in cartItems) {
-const act = acts.find((a) => String(a?._id) === String(actId));
-        if (!act) continue;
-
-        for (const lineupId in cartItems[actId]) {
-          const { quantity, selectedExtras = [] } = cartItems[actId][lineupId];
-          const lineup = act.lineups.find(
-            (l) => String(l._id || l.lineupId) === String(lineupId)
-          );
-          if (!lineup) continue;
-
-          let adjustedTotal = 0;
-
-try {
-  if (selectedDate && selectedAddress) {
-    const { total } = await calculateActPricing(act, selectedCounty, selectedAddress, selectedDate, lineup);
-    adjustedTotal = Number(total) || 0;
-  } else {
-    // fallback (optional): base_fee with margin, or 0
-    adjustedTotal = Number(lineup?.base_fee?.total_fee) ? Math.round(lineup.base_fee.total_fee * 1.2) : 0;
+  const act = acts.find(a => String(a?._id) === String(actId));
+  if (!act) {
+    console.warn("🛒 Cart act not in acts list (filtered out by status?)", actId);
+    continue;
   }
-} catch (e) {
-  console.warn("💸 Price calc failed in cart:", { actId, lineupId, e });
-  adjustedTotal = 0;
-}
-     
 
-          let basePrice = Math.round(adjustedTotal * 1.33);
-        lineup.bandMembers.forEach(() => {});
+  for (const lineupId in cartItems[actId]) {
+    const lineup = (act.lineups || []).find(l =>
+      String(l?._id || l?.lineupId) === String(lineupId)
+    );
+    if (!lineup) {
+      console.warn("🛒 LineupId in cart not found on act", {
+        actId,
+        lineupId,
+        available: (act.lineups || []).map(l => String(l?._id || l?.lineupId)),
+      });
+      continue;
+    }
 
-          // Add fees for isEssential additionalRoles (only those with valid additionalFee)
-          const additionalEssentialRoles = lineup.bandMembers.flatMap(
-            (member) =>
-              (member.additionalRoles || []).filter(
-                (r) => r.isEssential && typeof r.additionalFee === "number"
-              )
-          );
-          const additionalRolesTotal = additionalEssentialRoles.reduce(
-            (sum, role) => sum + role.additionalFee,
-            0
-          );
-          basePrice += additionalRolesTotal;
+    // ALSO wrap pricing so one throw doesn’t kill the whole effect:
+    let total = 0;
+    try {
+      const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+      const res = await calculateActPricing(act, selectedCounty, selectedAddress, selectedDate, lineup);
+      total = Number(res?.total) || 0;
+    } catch (e) {
+      console.warn("💸 calculateActPricing failed (keeping item but with £0):", e);
+    }
 
-          const safeExtras = Array.isArray(selectedExtras)
-            ? selectedExtras
-            : selectedExtras
-              ? [selectedExtras]
-              : [];
-          const extrasTotal = safeExtras.reduce(
-            (sum, extra) => sum + (extra.price || 0),
-            0
-          );
-          const subtotalWithMargin = adjustedTotal;
-          const itemTotal = (subtotalWithMargin + extrasTotal) * quantity;
 
           results.push({
             actId,
