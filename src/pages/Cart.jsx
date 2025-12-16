@@ -121,6 +121,96 @@ const [clearedBadges, setClearedBadges] = useState(new Set());
 
   const navigate = useNavigate();
 
+  // ✅ FULL ACT CACHE (so we don’t refetch repeatedly)
+const [fullActsById, setFullActsById] = useState({});
+
+// ✅ Read the full act from localStorage cache you already have
+const readCachedFullAct = useCallback((actId) => {
+  const key = `act:${String(actId)}:v2`;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const act = parsed?.act || parsed; // supports either shape
+    if (act && Array.isArray(act?.lineups) && act.lineups.length) return act;
+    return null;
+  } catch {
+    return null;
+  }
+}, []);
+
+// ✅ Fetch the full act from backend (try a few common routes; keep the first that works)
+const fetchFullActById = useCallback(async (actId) => {
+  const id = String(actId);
+
+  const candidates = [
+    `${BACKEND_URL}/api/act/${id}`,
+    `${BACKEND_URL}/api/act/get/${id}`,
+    `${BACKEND_URL}/api/act/one/${id}`,
+    `${BACKEND_URL}/api/act/single/${id}`,
+  ];
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) continue;
+
+      const json = await res.json();
+      const act = json?.act || json;
+
+      if (act && Array.isArray(act?.lineups) && act.lineups.length) {
+        return act;
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null;
+}, []);
+
+// ✅ Resolve act for cart: cards list → fullActsById → localStorage cache → backend fetch
+const resolveActForCart = useCallback(
+  async (actId) => {
+    const id = String(actId);
+
+    // 1) cards list (fast)
+    const fromCards = (acts || []).find((a) => String(a?._id) === id);
+    if (fromCards?.lineups?.length) return fromCards;
+
+    // 2) in-memory cache
+    const fromState = fullActsById[id];
+    if (fromState?.lineups?.length) return fromState;
+
+    // 3) localStorage cache (your Act page saves this)
+    const fromCache = readCachedFullAct(id);
+    if (fromCache?.lineups?.length) {
+      setFullActsById((prev) => (prev[id] ? prev : { ...prev, [id]: fromCache }));
+      return fromCache;
+    }
+
+    // 4) backend fetch
+    const fetched = await fetchFullActById(id);
+    if (fetched?.lineups?.length) {
+      setFullActsById((prev) => (prev[id] ? prev : { ...prev, [id]: fetched }));
+      return fetched;
+    }
+
+    // return whatever we found (even if lineups missing) to avoid hard-fails
+    return fromCards || fromState || fromCache || null;
+  },
+  [acts, fullActsById, readCachedFullAct, fetchFullActById]
+);
+
+// ✅ Find lineup safely, and optionally “self-heal” the cart lineupId if stale
+const resolveLineupForCart = useCallback((act, lineupId) => {
+  const id = String(lineupId || "");
+  const list = Array.isArray(act?.lineups) ? act.lineups : [];
+
+  const found = list.find((l) => String(l?._id || l?.lineupId) === id);
+  return found || list[0] || null; // fallback to first lineup
+}, []);
+
   // Seed: ensure each act's featured lead (if any) is selected exactly once and locked
   useEffect(() => {
     if (!selectedDate || !cartItems) return;
@@ -332,13 +422,8 @@ useEffect(() => {
   };
 
 useEffect(() => {
-  if (!Array.isArray(acts) || acts.length === 0) {
-    console.debug("🛒 No acts loaded yet — skipping cart data fetch");
-    return;
-  }
   if (!cartItems || Object.keys(cartItems).length === 0) {
-    console.debug("🛒 Cart is empty — clearing data");
-    setCartData?.([]); // safe optional chaining
+    setCartData?.([]);
     return;
   }
 
@@ -346,7 +431,7 @@ useEffect(() => {
     const tempData = [];
 
     for (const actId in cartItems) {
-const actData = acts.find((a) => String(a?._id) === String(actId));
+      const actData = await resolveActForCart(actId);
       if (!actData) continue;
 
       const actCart = cartItems[actId];
@@ -356,19 +441,33 @@ const actData = acts.find((a) => String(a?._id) === String(actId));
         const cartLine = actCart[lineupId];
         if (!cartLine) continue;
 
-        const lineup = actData.lineups?.find(
-          (l) => String(l?._id || l?.lineupId) === String(lineupId)
-        );
+        const lineup = resolveLineupForCart(actData, lineupId);
         if (!lineup) continue;
+
+        // ✅ (optional but recommended) self-heal stale lineupId in cart
+        const resolvedLineupId = String(lineup?._id || lineup?.lineupId || "");
+        if (resolvedLineupId && String(lineupId) !== resolvedLineupId) {
+          console.warn("🛒 lineupId mismatch → healing cart key", {
+            actId: String(actId),
+            old: String(lineupId),
+            new: resolvedLineupId,
+          });
+
+          setCartItems((prev) => {
+            const next = structuredClone(prev || {});
+            const block = next?.[actId]?.[lineupId];
+            if (!block) return prev;
+
+            delete next[actId][lineupId];
+            next[actId][resolvedLineupId] = block;
+            return next;
+          });
+        }
 
         const countyFromAddress =
           selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
         let adjustedTotal = 0;
-        if (typeof calculateActPricing !== "function") {
-  console.warn("⚠️ calculateActPricing not ready");
-  return;
-}
         try {
           const { total } =
             (await calculateActPricing?.(
@@ -380,12 +479,12 @@ const actData = acts.find((a) => String(a?._id) === String(actId));
             )) || {};
           adjustedTotal = Number(total) || 0;
         } catch (err) {
-          console.warn("💸 Price calc failed:", err.message);
+          console.warn("💸 Price calc failed:", err?.message);
         }
 
         tempData.push({
           _id: actId,
-          selectedLineup: lineupId,
+          selectedLineup: String(lineup?._id || lineup?.lineupId || lineupId),
           quantity: cartLine.quantity || 1,
           selectedExtras: Array.isArray(cartLine.selectedExtras)
             ? cartLine.selectedExtras
@@ -404,7 +503,7 @@ const actData = acts.find((a) => String(a?._id) === String(actId));
   };
 
   fetchCartData();
-}, [acts, cartItems, selectedAddress, selectedDate, setCartData]);
+}, [cartItems, selectedAddress, selectedDate, setCartData, resolveActForCart, resolveLineupForCart, setCartItems]);
 
 const triggerSearch = () => {
   setShowSearch?.(true);
@@ -456,10 +555,17 @@ const clearFinishOverride = useCallback(
         selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
       for (const actId in cartItems) {
-  const act = acts.find(a => String(a?._id) === String(actId));
-  if (!act) {
-    console.warn("🛒 Cart act not in acts list (filtered out by status?)", actId);
-    continue;
+  const act = await resolveActForCart(actId);
+if (!act) {
+  console.warn("🛒 Could not resolve act for cart", actId);
+  continue;
+}
+
+const lineup = resolveLineupForCart(act, lineupId);
+if (!lineup) {
+  console.warn("🛒 Could not resolve lineup for cart", { actId, lineupId });
+  continue;
+}
   }
 
   for (const lineupId in cartItems[actId]) {

@@ -2422,36 +2422,37 @@ const addToCart = async (actId, lineupId, selectedExtras = [], selectedAfternoon
   const actKey = String(actId);
   const providedLineupKey = lineupId ? String(lineupId) : "";
 
-  // 1) try local acts first (may be cards), then fetch full act if lineups missing
-  let act = (acts || []).find(a => String(a?._id) === actKey);
+  let actFull = null;
 
-  const hasLineups = Array.isArray(act?.lineups) && act.lineups.length > 0;
+  // 1) try cache you already have (seen in your localStorage screenshot)
+  try {
+    const cached = localStorage.getItem(`act:${actKey}:v2`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      actFull = parsed?.act || parsed;
+    }
+  } catch {}
 
-  if (!hasLineups) {
+  // 2) fetch if cache missing or doesn’t include lineups
+  if (!Array.isArray(actFull?.lineups) || actFull.lineups.length === 0) {
     try {
-      const res = await axios.get(`${backendUrl}/api/act/${actKey}`);
-      act = res.data?.act || res.data; // depends on your API shape
+      const res = await axios.get(`${backendUrl}/api/act/${actKey}`); // <-- MUST be your real "full act" route
+      actFull = res.data?.act || res.data;
     } catch (e) {
-      console.warn("🛒 Failed to fetch full act for cart", actKey, e);
+      console.warn("🛒 addToCart: could not fetch full act", actKey, e);
     }
   }
 
-  const available = (act?.lineups || []).map(l => String(l?._id || l?.lineupId));
+  const available = (actFull?.lineups || []).map(l => String(l?._id || l?.lineupId));
   const lineupKey =
     available.includes(providedLineupKey)
       ? providedLineupKey
       : (available[0] || providedLineupKey);
 
-  if (available.length && !available.includes(providedLineupKey)) {
-    console.warn("🛒 addToCart lineup mismatch", {
-      actId: actKey,
-      providedLineupKey,
-      lineupKey,
-      available
-    });
+  if (available.length && lineupKey !== providedLineupKey) {
+    console.warn("🛒 addToCart lineup mismatch → repaired", { actKey, providedLineupKey, lineupKey, available });
   }
 
-  // now write cart
   setCartItems(prev => {
     const next = structuredClone(prev || {});
     next[actKey] = {
