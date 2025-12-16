@@ -76,447 +76,481 @@ const PlaceBooking = () => {
   };
 
   // ---- Submit (create Stripe session + persist booking) ----
-  const handleSubmit = async () => {
-    // helper: days until event (date-only, avoids TZ off-by-one)
-    const daysUntil = (dateStr) => {
-      if (!dateStr) return null;
-      const now = new Date();
-      const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const ev = new Date(dateStr);
-      const d1 = new Date(ev.getFullYear(), ev.getMonth(), ev.getDate());
-      return Math.ceil((d1 - d0) / (1000 * 60 * 60 * 24));
-    };
+const handleSubmit = async () => {
+  // helper: days until event (date-only, avoids TZ off-by-one)
+  const daysUntil = (dateStr) => {
+    if (!dateStr) return null;
+    const now = new Date();
+    const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const ev = new Date(dateStr);
+    const d1 = new Date(ev.getFullYear(), ev.getMonth(), ev.getDate());
+    return Math.ceil((d1 - d0) / (1000 * 60 * 60 * 24));
+  };
 
-    const dte = daysUntil(selectedDate);
-    const clientWantsFull = dte != null && dte <= 28;
-
-    if (!termsAccepted) {
-      alert("Please accept the terms and conditions before booking.");
-      return;
+  // helper: handle prices that may be "£1,250.00" etc
+  const toNumberPrice = (v) => {
+    if (typeof v === "number") return v;
+    if (typeof v === "string") {
+      const cleaned = v.replace(/[^\d.]/g, ""); // strip currency + commas
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : 0;
     }
-    if (!signaturePad || signaturePad.isEmpty()) {
-      alert("Please provide a signature before booking.");
-      return;
-    }
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
 
-    // ✅ always read the freshest cart snapshot (state first, then localStorage fallback)
-    const cartItemsFresh = (() => {
-      const fromState =
-        cartItems && typeof cartItems === "object" ? cartItems : null;
-      if (fromState && Object.keys(fromState).length) return fromState;
+  const dte = daysUntil(selectedDate);
+  const clientWantsFull = dte != null && dte <= 28;
 
-      try {
-        const raw = localStorage.getItem("cartItems");
-        const parsed = raw ? JSON.parse(raw) : {};
-        return parsed && typeof parsed === "object" ? parsed : {};
-      } catch (e) {
-        return {};
-      }
-    })();
+  if (!termsAccepted) {
+    alert("Please accept the terms and conditions before booking.");
+    return;
+  }
+  if (!signaturePad || signaturePad.isEmpty()) {
+    alert("Please provide a signature before booking.");
+    return;
+  }
 
-    // ✅ move declarations up here
-    const actsSummary = [];
-    const items = [];
+  // ✅ always read the freshest cart snapshot (state first, then localStorage fallback)
+  const cartItemsFresh = (() => {
+    const fromState = cartItems && typeof cartItems === "object" ? cartItems : null;
+    if (fromState && Object.keys(fromState).length) return fromState;
 
     try {
-      // Guard: if the cart is genuinely empty, stop early
-      if (!cartItemsFresh || Object.keys(cartItemsFresh).length === 0) {
-        alert(
-          "Your cart appears to be empty. Please go back, select a lineup, then try again."
-        );
-        return;
+      const raw = localStorage.getItem("cartItems");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (e) {
+      return {};
+    }
+  })();
+
+  // ✅ declarations up front
+  const actsSummary = [];
+  const items = [];
+
+  try {
+    // Guard: empty cart
+    if (!cartItemsFresh || Object.keys(cartItemsFresh).length === 0) {
+      alert("Your cart appears to be empty. Please go back, select a lineup, then try again.");
+      return;
+    }
+
+    const actsArr = Array.isArray(acts) ? acts : [];
+    console.log("🛒 cartItemsFresh keys:", Object.keys(cartItemsFresh));
+    console.log("🎭 acts loaded:", actsArr.length);
+    console.log("📍 selectedAddress:", selectedAddress);
+    console.log("📅 selectedDate:", selectedDate);
+
+    const resolveActFromCart = (cartActKey) => {
+      // 1) direct id match
+      const direct = actsArr.find((a) => String(a?._id ?? a?.id) === String(cartActKey));
+      if (direct) return direct;
+
+      // 2) fallback: match act by lineup ids stored under this cart key
+      const lineupIdsObj =
+        cartItemsFresh &&
+        cartItemsFresh[cartActKey] &&
+        typeof cartItemsFresh[cartActKey] === "object"
+          ? cartItemsFresh[cartActKey]
+          : null;
+
+      const lineupIds = lineupIdsObj ? Object.keys(lineupIdsObj) : [];
+      if (!lineupIds.length) return null;
+
+      const lineupIdSet = new Set(lineupIds.map((x) => String(x)));
+
+      const byLineup = actsArr.find(
+        (a) =>
+          Array.isArray(a?.lineups) &&
+          a.lineups.some((l) => lineupIdSet.has(String(l?._id ?? l?.lineupId)))
+      );
+
+      return byLineup || null;
+    };
+
+    const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+
+    for (const actId in cartItemsFresh) {
+      const act = resolveActFromCart(actId);
+      const chosenVocalists = selectedVocalists?.[actId] || [];
+
+      console.log("🔑 cart actId:", actId, "→ resolved act:", act?.tscName || act?.name || null);
+
+      if (!act) {
+        console.warn("❌ Could not resolve act for cart key:", actId, {
+          cartActKey: actId,
+          cartLineupIds: Object.keys(cartItemsFresh?.[actId] || {}),
+          actsSample: actsArr.slice(0, 6).map((a) => ({
+            _id: a?._id,
+            id: a?.id,
+            tscName: a?.tscName,
+            name: a?.name,
+          })),
+        });
+        continue;
       }
-      const resolveActFromCart = (cartActKey) => {
-        const actsArr = Array.isArray(acts) ? acts : [];
 
-        // 1) direct id match
-        const direct = actsArr.find(
-          (a) => String(a?._id ?? a?.id) === String(cartActKey)
-        );
-        if (direct) return direct;
+      for (const lineupId in cartItemsFresh[actId]) {
+        const cartLine = cartItemsFresh[actId][lineupId] || {};
+        const {
+          quantity = 1,
+          selectedExtras = [],
+          selectedAfternoonSets = [],
+          dismissedExtras = [],
+          formattedPrice,
+        } = cartLine;
 
-        // 2) fallback: match act by lineup ids stored under this cart key
-        const lineupIdsObj =
-          cartItemsFresh &&
-          cartItemsFresh[cartActKey] &&
-          typeof cartItemsFresh[cartActKey] === "object"
-            ? cartItemsFresh[cartActKey]
-            : null;
+        const lineup =
+          (act.lineups || []).find(
+            (l) =>
+              String(l._id) === String(lineupId) ||
+              String(l.lineupId) === String(lineupId)
+          ) || null;
 
-        const lineupIds = lineupIdsObj ? Object.keys(lineupIdsObj) : [];
-        if (!lineupIds.length) return null;
+        console.log("🎼 lineupId:", lineupId, "found lineup:", !!lineup);
 
-        const lineupIdSet = new Set(lineupIds.map((x) => String(x)));
+        if (!lineup) {
+          console.warn("❌ Lineup not found on act", {
+            act: act?.tscName || act?.name,
+            lineupId,
+            actLineups: (act?.lineups || []).map((l) => String(l?._id ?? l?.lineupId)).slice(0, 12),
+            cartLineKeys: Object.keys(cartLine || {}),
+          });
+          continue;
+        }
 
-        const byLineup = actsArr.find(
-          (a) =>
-            Array.isArray(a?.lineups) &&
-            a.lineups.some((l) =>
-              lineupIdSet.has(String(l?._id ?? l?.lineupId))
-            )
-        );
-
-        return byLineup || null;
-      };
-      const selectedCounty =
-        selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
-
-      for (const actId in cartItemsFresh) {
-        const act = resolveActFromCart(actId);
-        const chosenVocalists = selectedVocalists?.[actId] || [];
-        if (!act) continue;
-
-        for (const lineupId in cartItemsFresh[actId]) {
-          const cartLine = cartItemsFresh[actId][lineupId] || {};
-          const {
-            quantity = 1,
-            selectedExtras = [],
-            selectedAfternoonSets = [],
-            dismissedExtras = [],
-
-            formattedPrice,
-          } = cartLine;
-
-          const lineup =
-            (act.lineups || []).find(
-              (l) =>
-                String(l._id) === String(lineupId) ||
-                String(l.lineupId) === String(lineupId)
-            ) || null;
-          if (!lineup) continue;
-
-          // Create a lineup snapshot for actsSummary
-          const lineupSnapshot = lineup
-            ? {
-                lineupId: String(lineup._id || lineup.lineupId || lineupId),
-                actSize:
-                  lineup.actSize ||
-                  (Array.isArray(lineup.bandMembers)
-                    ? `${lineup.bandMembers.length}-Piece`
-                    : ""),
-                bandMembers: Array.isArray(lineup.bandMembers)
-                  ? lineup.bandMembers.map((m) => ({
-                      firstName: m.firstName || "",
-                      lastName: m.lastName || "",
-                      instrument: m.instrument || "",
-                      isEssential: !!m.isEssential,
-                      additionalRoles: Array.isArray(m.additionalRoles)
-                        ? m.additionalRoles.map((r) => ({
-                            role: r.role || "",
-                            isEssential: !!r.isEssential,
-                          }))
-                        : [],
+        // Create a lineup snapshot for actsSummary
+        const lineupSnapshot = {
+          lineupId: String(lineup._id || lineup.lineupId || lineupId),
+          actSize:
+            lineup.actSize ||
+            (Array.isArray(lineup.bandMembers) ? `${lineup.bandMembers.length}-Piece` : ""),
+          bandMembers: Array.isArray(lineup.bandMembers)
+            ? lineup.bandMembers.map((m) => ({
+                firstName: m.firstName || "",
+                lastName: m.lastName || "",
+                instrument: m.instrument || "",
+                isEssential: !!m.isEssential,
+                additionalRoles: Array.isArray(m.additionalRoles)
+                  ? m.additionalRoles.map((r) => ({
+                      role: r.role || "",
+                      isEssential: !!r.isEssential,
                     }))
                   : [],
-              }
-            : null;
+              }))
+            : [],
+        };
 
-          // 💰 pricing snapshot
-          let fee = 0,
-            travel = 0,
-            total = 0,
-            travelCalculated = false;
-          try {
-            const res = await calculateActPricing(
-              act,
-              selectedCounty,
-              selectedAddress,
-              selectedDate,
-              lineup
-            );
-            fee = Number(res?.fee || 0);
-            travel = Number(res?.travel || 0);
-            total = Number(res?.total ?? res?.price ?? 0);
-if (!Number.isFinite(total) || total <= 0) {
-  const ft = Number(fee || 0) + Number(travel || 0);
-  if (Number.isFinite(ft) && ft > 0) total = ft;
-}
-            travelCalculated = !!res?.travelCalculated;
-          } catch (e) {
-            // fallback: use formatted/base figure if present
-            total = Number(formattedPrice || 0);
-            fee = Math.round(total * 1.33);
-            travel = Math.max(0, total - fee);
+        // 💰 pricing snapshot
+        let fee = 0,
+          travel = 0,
+          total = 0,
+          travelCalculated = false;
+
+        try {
+          const res = await calculateActPricing(
+            act,
+            selectedCounty,
+            selectedAddress,
+            selectedDate,
+            lineup
+          );
+
+          fee = toNumberPrice(res?.fee || 0);
+          travel = toNumberPrice(res?.travel || 0);
+          total = toNumberPrice(res?.total ?? res?.price ?? 0);
+
+          if (!Number.isFinite(total) || total <= 0) {
+            const ft = toNumberPrice(fee) + toNumberPrice(travel);
+            if (Number.isFinite(ft) && ft > 0) total = ft;
           }
 
-          // push a single “base” line (extras are added below)
-          if (total > 0) {
-            items.push({
-              name: `Booking: ${act.tscName} - ${lineup.actSize || "Lineup"}`,
-              price: total,
-              quantity: Number(quantity) || 1,
-            });
-          } else {
-            console.warn(
-              `⚠️ Skipping zero-price lineup item for ${act.tscName} (${lineupId}).`
-            );
-          }
+          travelCalculated = !!res?.travelCalculated;
 
-          // extras → Stripe items (positive only)
-          (selectedExtras || []).forEach((ex) => {
-            const exPrice = Number(ex?.price || 0);
-            const exQty = Number(ex?.quantity || 1);
-            if (exQty > 0 && exPrice > 0) {
-              items.push({
-                name: `${ex.name}${exQty > 1 ? ` x ${exQty}` : ""}`,
-                price: exPrice,
-                quantity: 1,
-              });
-            }
+          console.log("💰 pricing from calculateActPricing:", {
+            act: act?.tscName,
+            lineup: lineup?.actSize,
+            fee,
+            travel,
+            total,
+            travelCalculated,
+            raw: res,
           });
+        } catch (e) {
+          const fallbackTotal = toNumberPrice(formattedPrice || 0);
+          total = fallbackTotal;
+          fee = Math.round(fallbackTotal * 1.33);
+          travel = Math.max(0, fallbackTotal - fee);
+          travelCalculated = false;
 
-          // 🔧 Build the canonical performance block (now includes plan fields)
-          // inside the for (const lineupId...) loop in PlaceBooking
-          const perfSource = cartLine.performance || {};
-          const cartPerf = {
-            ...perfSource,
-            // Fall back to top-level fields if nested ones are missing
-            arrivalTime: perfSource.arrivalTime ?? cartLine.arrivalTime ?? "",
-            setupAndSoundcheckedBy:
-              perfSource.setupAndSoundcheckedBy ??
-              cartLine.setupAndSoundcheckedBy ??
-              "",
-            startTime: perfSource.startTime ?? cartLine.startTime ?? "",
-            finishTime: perfSource.finishTime ?? cartLine.finishTime ?? "",
-            finishDayOffset:
-              perfSource.finishDayOffset ?? cartLine.finishDayOffset ?? 0,
-            paLightsFinishTime:
-              perfSource.paLightsFinishTime ??
-              cartLine.paLightsFinishTime ??
-              "",
-            paLightsFinishDayOffset:
-              perfSource.paLightsFinishDayOffset ??
-              cartLine.paLightsFinishDayOffset ??
-              0,
-            planIndex: perfSource.planIndex ?? cartLine.planIndex,
-            plan: perfSource.plan ?? cartLine.plan,
-          };
-          const toInt = (v, def = 0) => {
-            const n = Number(v);
-            return Number.isInteger(n) ? n : def;
-          };
-          const perf = {
-            arrivalTime: cartPerf.arrivalTime || "",
-            setupAndSoundcheckedBy: cartPerf.setupAndSoundcheckedBy || "",
-            startTime: cartPerf.startTime || "",
-            finishTime: cartPerf.finishTime || "",
-            finishDayOffset: toInt(cartPerf.finishDayOffset, 0),
-
-            // pass through selected set plan (Evening Set Configuration)
-            planIndex: Number.isFinite(Number(cartPerf.planIndex))
-              ? Number(cartPerf.planIndex)
-              : undefined,
-            plan: cartPerf.plan
-              ? {
-                  sets: Number(cartPerf.plan?.sets) || undefined,
-                  length: Number(cartPerf.plan?.length) || undefined,
-                  minInterval: Number(cartPerf.plan?.minInterval) || undefined,
-                }
-              : undefined,
-
-            paLightsFinishTime: cartPerf.paLightsFinishTime || "",
-            paLightsFinishDayOffset: toInt(cartPerf.paLightsFinishDayOffset, 0),
-          };
-
-          // actsSummary snapshot for booking/event sheet
-          actsSummary.push({
-            // cart key can drift from real act._id (eg legacy carts) — keep both
-            cartActKey: String(actId),
-            actId: String(act?._id ?? actId),
-            actName: act.name,
-            tscName: act.tscName,
-
-            actSlug: act.slug || null,
-            image: act?.profileImage?.[0] || act?.images?.[0] || null,
-            chosenVocalists: chosenVocalists.map((id) => ({ musicianId: id })),
-            selectedVocalist:
-              chosenVocalists.length === 1
-                ? (() => {
-                    const musicianId = chosenVocalists[0];
-                    const member =
-                      act.allMusicians?.find(
-                        (m) => String(m._id) === String(musicianId)
-                      ) ||
-                      act.lineups
-                        .flatMap((l) => l.bandMembers)
-                        .find(
-                          (m) => String(m.musicianId) === String(musicianId)
-                        );
-
-                    return {
-                      musicianId,
-                      firstName: member?.firstName || "",
-                      lastNameInitial: member?.lastName
-                        ? member.lastName.charAt(0).toUpperCase()
-                        : "",
-                    };
-                  })()
-                : null,
-            lineupId: String(lineupId),
-            lineupLabel: lineup?.actSize || "",
-            lineup: lineupSnapshot,
-            bandMembersCount: Array.isArray(lineup?.bandMembers)
-              ? lineup.bandMembers.length
-              : null,
-
-            quantity: Number(quantity) || 1,
-
-            prices: {
-              base: fee, // gross base (incl. margin)
-              travel, // gross travel (incl. margin)
-              subtotalWithMargin: fee + travel, // equals total without extras
-              adjustedTotal: fee + travel, // keep both for compatibility
-              travelCalculated,
-            },
-
-            selectedExtras: (selectedExtras || []).map((ex) => ({
-              key: ex.key,
-              name: ex.name,
-              quantity: Number(ex.quantity || 0),
-              price: Number(ex.price || 0),
-              finishTime: ex.finishTime || null,
-              arrivalTime: ex.arrivalTime || null,
-            })),
-            selectedAfternoonSets: (selectedAfternoonSets || []).map((s) => ({
-              key: s.key,
-              name: s.name,
-              type: s.type || null,
-              price: Number(s.price || 0),
-            })),
-            dismissedExtras: Array.isArray(dismissedExtras)
-              ? [...dismissedExtras]
-              : [],
-
-            // 🔑 store as `performance` (NOT `timings`)
-            performance: perf,
-
-            venueAddress: selectedAddress || "",
-            eventDate: selectedDate || null,
+          console.warn("⚠️ calculateActPricing failed, using fallback", {
+            error: e?.message,
+            formattedPrice,
+            fallbackTotal,
+            fee,
+            travel,
           });
         }
+
+        // push a single “base” line (extras are added below)
+        if (Number.isFinite(total) && total > 0) {
+          items.push({
+            name: `Booking: ${act.tscName} - ${lineup.actSize || "Lineup"}`,
+            price: total,
+            quantity: Number(quantity) || 1,
+          });
+        } else {
+          console.warn(`⚠️ Skipping zero/invalid-price lineup item`, {
+            act: act?.tscName,
+            lineupId,
+            total,
+            fee,
+            travel,
+            formattedPrice,
+          });
+        }
+
+        // extras → Stripe items (positive only)
+        (selectedExtras || []).forEach((ex) => {
+          const exPrice = toNumberPrice(ex?.price || 0);
+          const exQty = Number(ex?.quantity || 1);
+          if (exQty > 0 && exPrice > 0) {
+            items.push({
+              name: `${ex.name}${exQty > 1 ? ` x ${exQty}` : ""}`,
+              price: exPrice,
+              quantity: 1,
+            });
+          }
+        });
+
+        // 🔧 performance block (includes plan fields)
+        const perfSource = cartLine.performance || {};
+        const cartPerf = {
+          ...perfSource,
+          arrivalTime: perfSource.arrivalTime ?? cartLine.arrivalTime ?? "",
+          setupAndSoundcheckedBy:
+            perfSource.setupAndSoundcheckedBy ?? cartLine.setupAndSoundcheckedBy ?? "",
+          startTime: perfSource.startTime ?? cartLine.startTime ?? "",
+          finishTime: perfSource.finishTime ?? cartLine.finishTime ?? "",
+          finishDayOffset: perfSource.finishDayOffset ?? cartLine.finishDayOffset ?? 0,
+          paLightsFinishTime: perfSource.paLightsFinishTime ?? cartLine.paLightsFinishTime ?? "",
+          paLightsFinishDayOffset:
+            perfSource.paLightsFinishDayOffset ?? cartLine.paLightsFinishDayOffset ?? 0,
+          planIndex: perfSource.planIndex ?? cartLine.planIndex,
+          plan: perfSource.plan ?? cartLine.plan,
+        };
+
+        const toInt = (v, def = 0) => {
+          const n = Number(v);
+          return Number.isInteger(n) ? n : def;
+        };
+
+        const perf = {
+          arrivalTime: cartPerf.arrivalTime || "",
+          setupAndSoundcheckedBy: cartPerf.setupAndSoundcheckedBy || "",
+          startTime: cartPerf.startTime || "",
+          finishTime: cartPerf.finishTime || "",
+          finishDayOffset: toInt(cartPerf.finishDayOffset, 0),
+
+          planIndex: Number.isFinite(Number(cartPerf.planIndex)) ? Number(cartPerf.planIndex) : undefined,
+          plan: cartPerf.plan
+            ? {
+                sets: Number(cartPerf.plan?.sets) || undefined,
+                length: Number(cartPerf.plan?.length) || undefined,
+                minInterval: Number(cartPerf.plan?.minInterval) || undefined,
+              }
+            : undefined,
+
+          paLightsFinishTime: cartPerf.paLightsFinishTime || "",
+          paLightsFinishDayOffset: toInt(cartPerf.paLightsFinishDayOffset, 0),
+        };
+
+        // actsSummary snapshot
+        actsSummary.push({
+          cartActKey: String(actId),
+          actId: String(act?._id ?? actId),
+          actName: act.name,
+          tscName: act.tscName,
+          actSlug: act.slug || null,
+          image: act?.profileImage?.[0] || act?.images?.[0] || null,
+
+          chosenVocalists: chosenVocalists.map((id) => ({ musicianId: id })),
+
+          selectedVocalist:
+            chosenVocalists.length === 1
+              ? (() => {
+                  const musicianId = chosenVocalists[0];
+                  const member =
+                    act.allMusicians?.find((m) => String(m._id) === String(musicianId)) ||
+                    act.lineups
+                      .flatMap((l) => l.bandMembers)
+                      .find((m) => String(m.musicianId) === String(musicianId));
+
+                  return {
+                    musicianId,
+                    firstName: member?.firstName || "",
+                    lastNameInitial: member?.lastName ? member.lastName.charAt(0).toUpperCase() : "",
+                  };
+                })()
+              : null,
+
+          lineupId: String(lineupId),
+          lineupLabel: lineup?.actSize || "",
+          lineup: lineupSnapshot,
+          bandMembersCount: Array.isArray(lineup?.bandMembers) ? lineup.bandMembers.length : null,
+
+          quantity: Number(quantity) || 1,
+
+          prices: {
+            base: fee,
+            travel,
+            subtotalWithMargin: fee + travel,
+            adjustedTotal: fee + travel,
+            travelCalculated,
+          },
+
+          selectedExtras: (selectedExtras || []).map((ex) => ({
+            key: ex.key,
+            name: ex.name,
+            quantity: Number(ex.quantity || 0),
+            price: toNumberPrice(ex.price || 0),
+            finishTime: ex.finishTime || null,
+            arrivalTime: ex.arrivalTime || null,
+          })),
+
+          selectedAfternoonSets: (selectedAfternoonSets || []).map((s) => ({
+            key: s.key,
+            name: s.name,
+            type: s.type || null,
+            price: toNumberPrice(s.price || 0),
+          })),
+
+          dismissedExtras: Array.isArray(dismissedExtras) ? [...dismissedExtras] : [],
+
+          performance: perf,
+          venueAddress: selectedAddress || "",
+          eventDate: selectedDate || null,
+        });
       }
-
-          setActsSummaryState([...actsSummary]);
-
-      const missingTimes = actsSummary.filter(
-        (a) =>
-          !a.performance ||
-          !a.performance.arrivalTime ||
-          !a.performance.finishTime
-      );
-
-      if (missingTimes.length) {
-        console.warn("⚠️ Some lineups missing performance times:", missingTimes);
-      }
-
-      console.log("🧾 Raw cartDetails:", items);
-      console.log("🗒️ actsSummary snapshot:", actsSummary);
-
-      const validItems = items.filter(
-        (i) =>
-          typeof i.price === "number" &&
-          !Number.isNaN(i.price) &&
-          i.price > 0 &&
-          (i.quantity || 1) > 0
-      );
-      if (validItems.length === 0) {
-        alert(
-          "We couldn't create your checkout because no paid items were found.\n\n" +
-            "Please check:\n• You’ve selected a lineup\n• Your date and venue are set (so pricing can calculate)\n• The act shows a price on the previous page"
-        );
-        return;
-      }
-
-      // ✅ Compute full amount & deposit with conditional logic
-      const fullAmount = actsSummary.reduce((sum, item) => {
-        const perUnit =
-          Number(item?.prices?.adjustedTotal || 0) +
-          (item.selectedExtras || []).reduce(
-            (s, ex) => s + (Number(ex.price) || 0),
-            0
-          );
-        return sum + perUnit * (item.quantity || 1);
-      }, 0);
-
-  
-
-
-
-  let depositAmount;
-
-if (clientWantsFull) {
-  depositAmount = fullAmount;         // event < 28 days
-} else {
-  depositAmount = fullAmount * 0.33;   // standard rule
-}
-
-      const signatureImage = signaturePad
-        .getTrimmedCanvas()
-        .toDataURL("image/png");
-
-      const endpoint = `${backendUrl}/api/booking/create-checkout-session`;
-      console.log("📡 POST", endpoint, {
-        items: validItems.length,
-        actsSummary: actsSummary.length,
-        eventType,
-        date: selectedDate,
-        venueAddress: selectedAddress,
-        userId,
-        userEmail,
-      });
-
-      const performanceTimesTop = actsSummary[0]?.performance
-        ? { ...actsSummary[0].performance }
-        : null;
-
-      const stripeResponse = await axios.post(endpoint, {
-        cartDetails: validItems, // Stripe line_items (if needed)
-        actsSummary, // rich snapshot persisted in DB
-        // 🔝 send top-level performance block too
-          lineupId: actsSummary[0]?.lineupId,   // <-- add this
-            lineupIds: actsSummary.map(a => a.lineupId),  // optional useful array
-
-actId: actsSummary[0]?.actId,
-actIds: actsSummary.map(a => a.actId),
-        performanceTimes: performanceTimesTop || undefined,
-        selectedVocalists,
-        eventType,
-        date: selectedDate,
-        venueAddress: selectedAddress, // store as venueAddress
-        venue: selectedAddress, // backward compat if API used "venue"
-        customer: userAddress,
-        signature: signatureImage,
-        paymentMode: clientWantsFull ? "full" : "deposit",
-        totals: {
-          fullAmount,
-          depositAmount,
-          isLessThanFourWeeks: clientWantsFull,
-          currency: "GBP",
-        },
-        cartMeta: {
-          selectedAddress,
-          selectedDate,
-          currency: "GBP",
-        },
-        bookingId, // optional: if you want server to use this
-        userId,
-        userEmail,
-      });
-
-      if (stripeResponse.data?.url) {
-        window.location.href = stripeResponse.data.url;
-        return;
-      }
-      alert("We couldn’t start checkout — no redirect URL returned.");
-    } catch (err) {
-      const serverMsg =
-        err?.response?.data?.error ||
-        err?.response?.data?.message ||
-        err?.message;
-      console.error("❌ Booking failed:", serverMsg, err?.response?.data || {});
-      alert(`Booking failed.\n\nDetails: ${serverMsg || "Unknown error"}`);
     }
-  };
+
+    setActsSummaryState([...actsSummary]);
+
+    const missingTimes = actsSummary.filter(
+      (a) => !a.performance || !a.performance.arrivalTime || !a.performance.finishTime
+    );
+    if (missingTimes.length) {
+      console.warn("⚠️ Some lineups missing performance times:", missingTimes);
+    }
+
+    console.log("🧾 items BEFORE filter:", items);
+
+    const validItems = items.filter(
+      (i) =>
+        typeof i.price === "number" &&
+        Number.isFinite(i.price) &&
+        i.price > 0 &&
+        (i.quantity || 1) > 0
+    );
+
+    if (validItems.length === 0) {
+      console.warn("❌ No validItems found. Debug dump:", {
+        cartItemsFresh,
+        actsCount: actsArr.length,
+        actsSummaryCount: actsSummary.length,
+        items,
+      });
+
+      alert(
+        "We couldn't create your checkout because no paid items were found.\n\n" +
+          "Please check:\n• You’ve selected a lineup\n• Your date and venue are set (so pricing can calculate)\n• The act shows a price on the previous page"
+      );
+      return;
+    }
+
+    // ✅ Compute full amount & deposit with conditional logic
+    const fullAmount = actsSummary.reduce((sum, item) => {
+      const perUnit =
+        Number(item?.prices?.adjustedTotal || 0) +
+        (item.selectedExtras || []).reduce((s, ex) => s + (Number(ex.price) || 0), 0);
+      return sum + perUnit * (item.quantity || 1);
+    }, 0);
+
+    let depositAmount;
+    if (clientWantsFull) depositAmount = fullAmount;
+    else depositAmount = fullAmount * 0.33;
+
+    const signatureImage = signaturePad.getTrimmedCanvas().toDataURL("image/png");
+
+    const endpoint = `${backendUrl}/api/booking/create-checkout-session`;
+    console.log("📡 POST", endpoint, {
+      items: validItems.length,
+      actsSummary: actsSummary.length,
+      eventType,
+      date: selectedDate,
+      venueAddress: selectedAddress,
+      userId,
+      userEmail,
+      fullAmount,
+      depositAmount,
+      paymentMode: clientWantsFull ? "full" : "deposit",
+    });
+
+    const performanceTimesTop = actsSummary[0]?.performance ? { ...actsSummary[0].performance } : null;
+
+    const stripeResponse = await axios.post(endpoint, {
+      cartDetails: validItems,
+      actsSummary,
+
+      // useful IDs
+      lineupId: actsSummary[0]?.lineupId,
+      lineupIds: actsSummary.map((a) => a.lineupId),
+      actId: actsSummary[0]?.actId,
+      actIds: actsSummary.map((a) => a.actId),
+
+      performanceTimes: performanceTimesTop || undefined,
+      selectedVocalists,
+      eventType,
+      date: selectedDate,
+      venueAddress: selectedAddress,
+      venue: selectedAddress, // backward compat
+
+      customer: userAddress,
+      signature: signatureImage,
+
+      paymentMode: clientWantsFull ? "full" : "deposit",
+
+      totals: {
+        fullAmount,
+        depositAmount,
+        isLessThanFourWeeks: clientWantsFull,
+        currency: "GBP",
+      },
+
+      cartMeta: {
+        selectedAddress,
+        selectedDate,
+        currency: "GBP",
+      },
+
+      bookingId, // if you want server to use this (server currently generates its own too)
+      userId,
+      userEmail,
+    });
+
+    if (stripeResponse.data?.url) {
+      window.location.href = stripeResponse.data.url;
+      return;
+    }
+
+    alert("We couldn’t start checkout — no redirect URL returned.");
+  } catch (err) {
+    const serverMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message;
+    console.error("❌ Booking failed:", serverMsg, err?.response?.data || {});
+    alert(`Booking failed.\n\nDetails: ${serverMsg || "Unknown error"}`);
+  }
+};
 
   const formattedDate = selectedDate
     ? new Date(selectedDate).toLocaleDateString("en-GB", {
