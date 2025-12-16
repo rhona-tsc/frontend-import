@@ -31,6 +31,7 @@ const PlaceBooking = () => {
   const [eventType, setEventType] = useState("Wedding");
   const navigate = useNavigate();
   const [actsSummaryState, setActsSummaryState] = useState([]);
+  const [bookedActsRemote, setBookedActsRemote] = useState("");
   // Always start at the top when this page mounts
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -546,6 +547,91 @@ actIds: actsSummary.map(a => a.actId),
     return names.length ? names.join(" + ") : "TBC";
   }, [cartItems, acts, actsSummaryState]);
 
+  // Fallback: if bookedActs is still TBC, try to resolve act names directly from backend
+  const lastBookedActsRemoteSigRef = useRef("");
+  useEffect(() => {
+    if (bookedActs !== "TBC") {
+      // if local resolution succeeds, ensure remote fallback is cleared
+      if (bookedActsRemote) setBookedActsRemote("");
+      return;
+    }
+
+    const cartActIds =
+      cartItems && typeof cartItems === "object" ? Object.keys(cartItems) : [];
+    if (!cartActIds.length || !backendUrl) return;
+
+    // Avoid repeating the same fetch endlessly
+    const sig = `${cartActIds.join(",")}|backend:${backendUrl}`;
+    if (lastBookedActsRemoteSigRef.current === sig) return;
+    lastBookedActsRemoteSigRef.current = sig;
+
+    const tryFetchActById = async (id) => {
+      const candidates = [
+        `${backendUrl}/api/act/${id}`,
+        `${backendUrl}/api/act/get/${id}`,
+        `${backendUrl}/api/act/single/${id}`,
+        `${backendUrl}/api/act/one/${id}`,
+      ];
+
+      for (const url of candidates) {
+        try {
+          const res = await axios.get(url);
+          const payload = res?.data;
+          // support common shapes: {act: {...}} or direct act object
+          const act = payload?.act || payload?.data || payload;
+          const tscName = act?.tscName || act?.name || "";
+          if (tscName) return { tscName, act };
+        } catch (e) {
+          // ignore and try next candidate
+        }
+      }
+      return null;
+    };
+
+    (async () => {
+      const actsArr = Array.isArray(acts) ? acts : [];
+      const results = await Promise.all(
+        cartActIds.map(async (id) => {
+          const fetched = await tryFetchActById(id);
+          let name = fetched?.tscName || "";
+
+          // If fetched is a Test act, try to map to a real/live card by stripping the prefix
+          if (name && /^test\s+/i.test(name) && actsArr.length) {
+            const stripped = name.replace(/^test\s+/i, "").trim();
+            const real = actsArr.find(
+              (a) =>
+                String(a?.tscName || "").trim().toLowerCase() ===
+                stripped.toLowerCase()
+            );
+            if (real?.tscName || real?.name) {
+              name = real.tscName || real.name;
+            }
+          }
+
+          return { id, name };
+        })
+      );
+
+      const names = results.map((r) => r.name).filter(Boolean);
+      const joined = names.length ? names.join(" + ") : "";
+
+      console.log("🧾 bookedActs remote fallback", {
+        bookedActs,
+        cartActIds,
+        resolvedNames: results,
+        joined,
+        note:
+          joined
+            ? "Using backend-resolved act names because local match was TBC."
+            : "Backend fallback couldn't resolve names (endpoint mismatch or permissions).",
+      });
+
+      if (joined) setBookedActsRemote(joined);
+    })();
+  }, [bookedActs, bookedActsRemote, cartItems, backendUrl, acts]);
+
+  const bookedActsDisplay = bookedActsRemote || bookedActs;
+
   // Debug: if bookedActs stays as TBC, log *why* (ID mismatch vs acts not loaded yet)
   const lastBookedActsDebugSigRef = useRef("");
   useEffect(() => {
@@ -622,6 +708,7 @@ actIds: actsSummary.map(a => a.actId),
 
     console.log("🧾 bookedActs is TBC — debug", {
       bookedActs,
+      bookedActsRemote,
       cartActIds,
       actsCount: actsArr.length,
       sampleActs,
@@ -631,7 +718,7 @@ actIds: actsSummary.map(a => a.actId),
           ? "acts[] is empty here (likely still loading)."
           : "acts[] is loaded — if matchedInActs=false, the cart actId keys probably don't match act._id/id.",
     });
-  }, [bookedActs, cartItems, acts, actsSummaryState]);
+  }, [bookedActs, bookedActsRemote, cartItems, acts, actsSummaryState]);
 
   return (
     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t pb-24 sm:pb-0">
@@ -759,7 +846,7 @@ actIds: actsSummary.map(a => a.actId),
             </p>
             <p>
               By signing below, you confirm that you are the authorised
-              signatory for contract {bookingId || "TBC"}({bookedActs},{" "}
+              signatory for contract {bookingId || "TBC"}({bookedActsDisplay},{" "}
               {formattedDate}) and agree to be bound by Bamboo Music
               Management’s Terms and Conditions of booking.
             </p>
@@ -771,7 +858,7 @@ actIds: actsSummary.map(a => a.actId),
               Company Name: The Supreme Collective
               <br />
               <div>
-                Artist Name(/s): {bookedActs}
+                Artist Name(/s): {bookedActsDisplay}
                 <br />
                {actsSummaryState.map((a) => {
   // Has the lineup *any* vocalists?
