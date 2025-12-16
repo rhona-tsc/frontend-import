@@ -2416,87 +2416,31 @@ setActs(filtered);
   };
 
   // Accepts: actId, lineupId, selectedExtras, selectedAfternoonSets, songSuggestions
-  const addToCart = async (
-    actId,
-    lineupId,
-    selectedExtras = [],
-    selectedAfternoonSets = [],
-    songSuggestions = []
-  ) => {
-    if (!actId || !lineupId) {
-      return;
-    }
-    const actKey = String(actId);
-    const lineupKey = String(lineupId);
+const addToCart = async (actId, lineupId, selectedExtras = [], selectedAfternoonSets = [], songSuggestions = []) => {
+  if (!actId) return;
 
-    // Normalize inputs: accept a single object or an array
-    const extrasInput = Array.isArray(selectedExtras)
-      ? selectedExtras.filter(Boolean)
-      : selectedExtras
-        ? [selectedExtras]
-        : [];
+  const actKey = String(actId);
+  const providedLineupKey = lineupId ? String(lineupId) : "";
 
-    const afternoonInput = Array.isArray(selectedAfternoonSets)
-      ? selectedAfternoonSets.filter(Boolean)
-      : selectedAfternoonSets
-        ? [selectedAfternoonSets]
-        : [];
+  // IMPORTANT: resolve the act from a source that actually has lineups
+  const act = (actsFull || acts || []).find(a => String(a?._id) === actKey); // <- actsFull recommended
+  const available = (act?.lineups || []).map(l => String(l?._id || l?.lineupId));
+  const lineupKey = available.includes(providedLineupKey)
+    ? providedLineupKey
+    : (available[0] || providedLineupKey);
 
-    const suggestionsInput = Array.isArray(songSuggestions)
-      ? songSuggestions.filter(Boolean)
-      : songSuggestions
-        ? [songSuggestions]
-        : [];
+  if (act && !available.includes(providedLineupKey)) {
+    console.warn("🛒 addToCart lineup mismatch", { actId: actKey, providedLineupKey, lineupKey, available });
+  }
 
-    // Split extras vs ceremony/afternoon sets
-    const allSelectedExtras = [];
-    const allAfternoonSets = [];
-    extrasInput.forEach((item) => {
-      if (["ceremony", "afternoon", "both"].includes(item?.type)) {
-        allAfternoonSets.push(item);
-      } else {
-        allSelectedExtras.push(item);
-      }
-    });
-
-    // 🔐 Require login to proceed; save pending payload and redirect to login
-    const storedUserRaw = localStorage.getItem("user");
-    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-    const uid = storedUser?._id || userId;
-    if (!uid) {
-      try {
-        const pending = {
-          actId: actKey,
-          lineupId: lineupKey,
-          selectedExtras: allSelectedExtras.length
-            ? allSelectedExtras
-            : extrasInput,
-          selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
-          songSuggestions: suggestionsInput,
-        };
-        sessionStorage.setItem("pendingCartPayload", JSON.stringify(pending));
-      } catch {}
-      promptLogin(
-        "Please log in to add this act to your cart and get availability updates.",
-        actKey,
-        null
-      );
-      return;
-    }
-
-    // Clone cart
-    const updated = structuredClone(cartItems || {});
-    // single-lineup-per-act model: clear existing
-    if (updated[actKey]) {
-      delete updated[actKey];
-    }
-
-    updated[actKey] = {
+  setCartItems(prev => {
+    const next = structuredClone(prev || {});
+    next[actKey] = {
       [lineupKey]: {
         quantity: 1,
-        selectedExtras: allSelectedExtras,
-        selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
-        songSuggestions: suggestionsInput,
+        selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
+        selectedAfternoonSets: Array.isArray(selectedAfternoonSets) ? selectedAfternoonSets : [],
+        songSuggestions: Array.isArray(songSuggestions) ? songSuggestions : [],
         dismissedExtras: [],
         performance: {
           arrivalTime: "",
@@ -2507,33 +2451,11 @@ setActs(filtered);
           paLightsFinishTime: "",
           paLightsFinishDayOffset: 0,
         },
-      },
+      }
     };
-
-    setCartItems(updated);
-
-    // Trigger availability (gated) if we have date+address and the act is allowed
-    if (selectedDate && selectedAddress && isActAllowed(actKey)) {
-      requestVocalistAvailability({ actId: actKey, lineupId: lineupKey });
-    }
-
-    // Optional: sync cart to backend
-    if (token) {
-      try {
-        await axios.post(
-          `${backendUrl}/api/cart/add`,
-          {
-            actId: actKey,
-            lineupId: lineupKey,
-            selectedExtras: allSelectedExtras,
-            selectedAfternoonSets: [...afternoonInput, ...allAfternoonSets],
-            songSuggestions: suggestionsInput,
-          },
-          { headers: { token } }
-        );
-      } catch (err) {}
-    }
-  };
+    return next;
+  });
+};
 
   const getCartCount = () => {
     return Object.values(cartItems).reduce((total, act) => {
