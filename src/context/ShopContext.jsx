@@ -22,7 +22,8 @@ const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
 const ShopProvider = (props) => {
   const navigate = useNavigate();
   const location = useLocation();
-
+const [cartTotal, setCartTotal] = useState(0);
+const [cartTotalLoading, setCartTotalLoading] = useState(false);
   const currency = "£";
   const delivery_fee = 10;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -1495,7 +1496,7 @@ setActCards(filtered);
       const lineup = pickSmallestLineup(act);
       if (!lineup) return null;
 
-      const county = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+selectedAddress?.split(",").slice(-2)[0]?.trim();
       const result = await calculateActPricing(
         act,
         county,
@@ -2495,11 +2496,24 @@ const addToCart = async (actId, lineupId, selectedExtras = [], selectedAfternoon
     if (quantity > 0) {
       if (!updated[actId]) updated[actId] = {};
 
-      const existingExtras = updated[actId][lineupId]?.selectedExtras || [];
-      updated[actId][lineupId] = {
-        quantity,
-        selectedExtras: existingExtras,
-      };
+     const existing = updated[actId][lineupId] || {};
+updated[actId][lineupId] = {
+  ...existing,
+  quantity,
+  selectedExtras: existing.selectedExtras || [],
+  selectedAfternoonSets: existing.selectedAfternoonSets || [],
+  songSuggestions: existing.songSuggestions || [],
+  dismissedExtras: existing.dismissedExtras || [],
+  performance: existing.performance || {
+    arrivalTime: "",
+    setupAndSoundcheckedBy: "",
+    startTime: "",
+    finishTime: "",
+    finishDayOffset: 0,
+    paLightsFinishTime: "",
+    paLightsFinishDayOffset: 0,
+  },
+};
     } else {
       if (updated[actId]) {
         delete updated[actId][lineupId];
@@ -2615,6 +2629,24 @@ const addToCart = async (actId, lineupId, selectedExtras = [], selectedAfternoon
     return Math.ceil(totalAmount);
   };
 
+  useEffect(() => {
+  let cancelled = false;
+
+  (async () => {
+    setCartTotalLoading(true);
+    try {
+      const total = await getCartAmount();
+      if (!cancelled) setCartTotal(Number(total) || 0);
+    } finally {
+      if (!cancelled) setCartTotalLoading(false);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [cartItems, selectedDate, selectedAddress]); // (add acts/backendUrl too if your totals depend on them)
+
   // Wrap the availability trigger in a debounce to avoid double-fire from rapid clicks or React rerenders
   const debouncedRequestVocalistAvailability = debounce(
     (params) => requestVocalistAvailability(params),
@@ -2705,6 +2737,9 @@ const addToCart = async (actId, lineupId, selectedExtras = [], selectedAfternoon
     getCartCount,
     getCartAmount,
     updatePerformance,
+    cartTotal,
+cartTotalLoading,
+
     // location/date
     selectedAddress,
     setSelectedAddress,
