@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useRef } from 'react';
+import axios from 'axios';
 import Title from './Title';
 import { ShopContext } from '../context/ShopContext';
 import calculateActPricing from '../pages/utils/pricing';
@@ -10,10 +11,13 @@ const CartTotal = () => {
     selectedAddress,
     selectedDate,
     currency,
+    backendUrl,
   } = useContext(ShopContext);
 
   const [totalAmount, setTotalAmount] = useState(0);
   const [summaryItems, setSummaryItems] = useState([]);
+
+  const actCacheRef = useRef(new Map());
 
   // --- helpers ----------------------------------------------------
   const daysUntilEvent = useMemo(() => {
@@ -56,6 +60,36 @@ const CartTotal = () => {
   // ---------------------------------------------------------------
 
   useEffect(() => {
+    const fetchActById = async (id) => {
+      if (!backendUrl || !id) return null;
+
+      // Cache first
+      const cached = actCacheRef.current.get(String(id));
+      if (cached) return cached;
+
+      const candidates = [
+        `${backendUrl}/api/act/${id}`,
+        `${backendUrl}/api/act/get/${id}`,
+        `${backendUrl}/api/act/id/${id}`,
+        `${backendUrl}/api/act/one/${id}`,
+      ];
+
+      for (const url of candidates) {
+        try {
+          const res = await axios.get(url);
+          const maybeAct = res?.data?.act || res?.data?.data || res?.data;
+          if (maybeAct && (maybeAct._id || maybeAct.id)) {
+            actCacheRef.current.set(String(id), maybeAct);
+            return maybeAct;
+          }
+        } catch (e) {
+          // try next candidate
+        }
+      }
+
+      return null;
+    };
+
     const loadTotal = async () => {
       if (!acts || acts.length === 0 || !cartItems || Object.keys(cartItems).length === 0) {
         setSummaryItems([]);
@@ -74,10 +108,18 @@ const CartTotal = () => {
       const summary = [];
 
       for (const actId of Object.keys(cartItems)) {
-        const act = acts.find((a) => String(a?._id || a?.id) === String(actId));
+        let act = acts.find((a) => String(a?._id || a?.id) === String(actId));
+
+        // If the cart references an act that isn’t in the preloaded cards list (e.g. test/draft/private act),
+        // fetch the full act document by ID so totals can still compute.
         if (!act) {
-          console.warn("⚠️ [CartTotal] Act not found for cart actId", {
+          act = await fetchActById(actId);
+        }
+
+        if (!act) {
+          console.warn("⚠️ [CartTotal] Act not found for cart actId (even after fetch)", {
             actId,
+            actsCount: acts?.length,
             sampleActIds: (acts || []).slice(0, 8).map((a) => ({
               _id: a?._id,
               id: a?.id,
@@ -100,7 +142,7 @@ const CartTotal = () => {
             ? cartNode.selectedAfternoonSets
             : [];
 
-          const lineup = act.lineups.find(
+          const lineup = (act.lineups || []).find(
             (l) => String(l._id || l.lineupId) === String(lineupId)
           );
           if (!lineup) {
@@ -191,7 +233,7 @@ const CartTotal = () => {
     };
 
     loadTotal();
-  }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate]);
+  }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate, backendUrl]);
 const isTestBooking = summaryItems.some(
   (item) => {
     const name = (item.tscName || item.actName || "").toLowerCase();
