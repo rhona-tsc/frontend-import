@@ -489,19 +489,69 @@ actIds: actsSummary.map(a => a.actId),
     return names.length ? names.join(" + ") : "TBC";
   }, [cartItems, acts, actsSummaryState]);
 
-  const loggedBookedActsOnceRef = useRef(false);
+  // Debug: if bookedActs stays as TBC, log *why* (ID mismatch vs acts not loaded yet)
+  const lastBookedActsDebugSigRef = useRef("");
   useEffect(() => {
-    if (loggedBookedActsOnceRef.current) return;
-    if (bookedActs && bookedActs !== "TBC") return;
+    if (bookedActs !== "TBC") return;
 
-    loggedBookedActsOnceRef.current = true;
-    console.log("🧾 bookedActs not resolved yet", {
-      bookedActs,
-      cartActIds:
-        cartItems && typeof cartItems === "object" ? Object.keys(cartItems) : [],
-      actsCount: Array.isArray(acts) ? acts.length : 0,
+    const cartActIds =
+      cartItems && typeof cartItems === "object" ? Object.keys(cartItems) : [];
+    const actsArr = Array.isArray(acts) ? acts : [];
+
+    // Only log once per unique (cartActIds + actsCount) combo to avoid console spam
+    const sig = `${cartActIds.join(",")}|acts:${actsArr.length}`;
+    if (lastBookedActsDebugSigRef.current === sig) return;
+    lastBookedActsDebugSigRef.current = sig;
+
+    const sampleActs = actsArr.slice(0, 8).map((a) => ({
+      _id: a?._id,
+      id: a?.id,
+      tscName: a?.tscName,
+      name: a?.name,
+    }));
+
+    const resolution = cartActIds.map((actId) => {
+      const match = actsArr.find(
+        (a) => String(a?._id ?? a?.id) === String(actId)
+      );
+      const fromSummary = (actsSummaryState || []).find(
+        (s) => String(s?.actId) === String(actId)
+      );
+
+      return {
+        cartActId: actId,
+        matchedInActs: !!match,
+        matchedAct: match
+          ? {
+              _id: match?._id,
+              id: match?.id,
+              tscName: match?.tscName,
+              name: match?.name,
+            }
+          : null,
+        matchedInActsSummary: !!fromSummary,
+        matchedSummary: fromSummary
+          ? {
+              actId: fromSummary?.actId,
+              tscName: fromSummary?.tscName,
+              actName: fromSummary?.actName,
+            }
+          : null,
+      };
     });
-  }, [bookedActs, cartItems, acts]);
+
+    console.log("🧾 bookedActs is TBC — debug", {
+      bookedActs,
+      cartActIds,
+      actsCount: actsArr.length,
+      sampleActs,
+      resolution,
+      hint:
+        actsArr.length === 0
+          ? "acts[] is empty here (likely still loading)."
+          : "acts[] is loaded — if matchedInActs=false, the cart actId keys probably don't match act._id/id.",
+    });
+  }, [bookedActs, cartItems, acts, actsSummaryState]);
 
   return (
     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t pb-24 sm:pb-0">
