@@ -341,7 +341,7 @@ useEffect(() => {
     const tempData = [];
 
     for (const actId in cartItems) {
-      const actData = acts.find((a) => a?._id === actId);
+const actData = acts.find((a) => String(a?._id) === String(actId));
       if (!actData) continue;
 
       const actCart = cartItems[actId];
@@ -451,7 +451,7 @@ const clearFinishOverride = useCallback(
         selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
 
       for (const actId in cartItems) {
-        const act = acts.find((a) => a._id === actId);
+const act = acts.find((a) => String(a?._id) === String(actId));
         if (!act) continue;
 
         for (const lineupId in cartItems[actId]) {
@@ -461,14 +461,21 @@ const clearFinishOverride = useCallback(
           );
           if (!lineup) continue;
 
-          const { total } = await calculateActPricing(
-            act,
-            selectedCounty,
-            selectedAddress,
-            selectedDate,
-            lineup
-          );
-          const adjustedTotal = Number(total) || 0;
+          let adjustedTotal = 0;
+
+try {
+  if (selectedDate && selectedAddress) {
+    const { total } = await calculateActPricing(act, selectedCounty, selectedAddress, selectedDate, lineup);
+    adjustedTotal = Number(total) || 0;
+  } else {
+    // fallback (optional): base_fee with margin, or 0
+    adjustedTotal = Number(lineup?.base_fee?.total_fee) ? Math.round(lineup.base_fee.total_fee * 1.2) : 0;
+  }
+} catch (e) {
+  console.warn("💸 Price calc failed in cart:", { actId, lineupId, e });
+  adjustedTotal = 0;
+}
+     
 
           let basePrice = Math.round(adjustedTotal * 1.33);
         lineup.bandMembers.forEach(() => {});
@@ -584,8 +591,7 @@ const clearFinishOverride = useCallback(
     changingLineupRef.current = true;
 
     try {
-      const act = acts.find((a) => a._id === actId);
-      if (!act) {
+const act = acts.find((a) => String(a?._id) === String(actId));      if (!act) {
         return;
       }
 
