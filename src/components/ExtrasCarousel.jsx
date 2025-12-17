@@ -12,6 +12,7 @@ import getTravelV2 from "../pages/utils/travelV2";
 
 
 const ExtrasCarousel = ({
+
   extras,
   selectedExtras,
   lineup,
@@ -184,11 +185,15 @@ function DjLiveSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtr
         }
       }
 
-      const gross = Math.ceil((baseNet + (travelNet || 0)) / 67);
+      // Correction: gross calculation should be (baseNet + travelNet) * 1.33
+      const gross = Math.ceil((baseNet + (travelNet || 0)) * 1.33);
       if (!cancelled) setDjSaxPrice(gross);
     })();
     return () => { cancelled = true; };
   }, [hasSaxInLineup, baseNet, actData, selectedCounty, selectedAddress, selectedDate, selectedLineup]);
+
+  // If the act doesn't offer this extra, don't render a slide
+  if (!baseNet || baseNet <= 0) return null;
 
   const selected = safeSelectedExtras.find(e => e.key === "DJ_live_sax_3x30mins");
   const displayPrice = djSaxPrice ?? Math.ceil(baseNet * 1.33);
@@ -200,6 +205,11 @@ function DjLiveSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtr
       </div>
       <p className="text-sm font-medium text-center">DJ Live Sax (3x30mins)</p>
       <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
+      <p className="text-[11px] text-gray-500 text-center">
+        {hasSaxInLineup
+          ? "Sax already in lineup (no extra travel)."
+          : "If sax isn’t in the lineup, travel is added for the saxophonist."}
+      </p>
       <button
         onClick={() => {
           updateExtras(actId, lineupId, {
@@ -1360,16 +1370,14 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           })()}
 
           {/* 🎚 DJ_live_sax_3x30mins */}
-          {(() => {
-            <DjLiveSaxCard
-  actData={actData}
-  selectedLineup={lineup}
-  safeSelectedExtras={safeSelectedExtras}
-  updateExtras={updateExtras}
-  actId={actId}
-  lineupId={lineupId}
-/>
- })()}
+          <DjLiveSaxCard
+            actData={actData}
+            selectedLineup={lineup}
+            safeSelectedExtras={safeSelectedExtras}
+            updateExtras={updateExtras}
+            actId={actId}
+            lineupId={lineupId}
+          />
           {/* 🎚 DJ_live_bongos_3x30mins */}
           {(() => {
             const raw = actData?.extras?.get

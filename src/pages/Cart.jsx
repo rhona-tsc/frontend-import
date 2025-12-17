@@ -477,7 +477,8 @@ useEffect(() => {
               selectedDate,
               lineup
             )) || {};
-          adjustedTotal = Number(total) || 0;
+const net = Number(total) || 0;
+adjustedTotal = Math.ceil(net * 1.33);
         } catch (err) {
           console.warn("💸 Price calc failed:", err?.message);
         }
@@ -589,7 +590,8 @@ const clearFinishOverride = useCallback(
               selectedDate,
               lineup
             );
-            subtotalWithMargin = Number(res?.total) || 0;
+const net = Number(res?.total) || 0;
+subtotalWithMargin = Math.ceil(net * 1.33);
           } catch (e) {
             console.warn(
               "💸 calculateActPricing failed (keeping item but with £0):",
@@ -598,7 +600,7 @@ const clearFinishOverride = useCallback(
           }
 
           const adjustedTotal = subtotalWithMargin;
-          const basePrice = Math.round(subtotalWithMargin * 1.33);
+const basePrice = subtotalWithMargin; // already gross
 
           const extrasTotal = (selectedExtras || []).reduce(
             (s, ex) => s + (Number(ex?.price) || 0),
@@ -712,8 +714,9 @@ const act = acts.find((a) => String(a?._id) === String(actId));      if (!act) {
         selectedDate,
         lineup
       );
-      const priceWithMargin = Number(total) || 0;
-      const basePrice = Math.round(priceWithMargin * 1.33);
+const net = Number(total) || 0;
+const priceWithMargin = Math.ceil(net * 1.33); // <-- this is your x1.33
+const basePrice = priceWithMargin;
 
       // 1) Move the node in cartItems (old key -> new key) FIRST so effects rebuild cartDetails reliably
       setCartItems((prev) => {
