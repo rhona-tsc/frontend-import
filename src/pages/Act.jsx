@@ -1602,7 +1602,7 @@ const Act = () => {
     price?.travelCalculated || finalTravelPrice?.travelCalculated;
 
   if (displayTotal != null) {
-    return travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`;
+return travelCalculated ? `£${Math.round(cleanTotal * 1.33)}` : `from £${Math.round(cleanTotal * 1.33)}`
   }
   return "Loading price...";
 })()}
