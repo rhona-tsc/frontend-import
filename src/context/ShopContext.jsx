@@ -1487,33 +1487,34 @@ setActCards(filtered);
 }
 
   // Compute a "from" price with travel on demand for a card when it's on screen
-  const getCardPriceWithTravel = async (actId) => {
-    try {
-      if (!actId) return null;
-      if (!selectedDate || !selectedAddress) return null; // need both
-      const act = await getActById(actId);
-      if (!act) return null;
-      const lineup = pickSmallestLineup(act);
-      if (!lineup) return null;
+const getCardPriceWithTravel = async (actId) => {
+  try {
+    if (!actId) return null;
+    if (!selectedDate || !selectedAddress) return null;
 
-selectedAddress?.split(",").slice(-2)[0]?.trim();
-      const result = await calculateActPricing(
-        act,
-        county,
-        selectedAddress,
-        selectedDate,
-        lineup
-      );
-      const total = Number(result?.total || 0);
-      return Number.isFinite(total) ? Math.ceil(total) : null;
-    } catch (e) {
-      console.warn(
-        "⚠️[ShopContext] getCardPriceWithTravel failed:",
-        e?.message || e
-      );
-      return null;
-    }
-  };
+    const act = await getActById(actId);
+    if (!act) return null;
+
+    const lineup = pickSmallestLineup(act);
+    if (!lineup) return null;
+
+    const county = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+
+    const result = await calculateActPricing(
+      act,
+      county,
+      selectedAddress,
+      selectedDate,
+      lineup
+    );
+
+    const total = Number(result?.total || 0);
+    return Number.isFinite(total) ? Math.ceil(total) : null;
+  } catch (e) {
+    console.warn("⚠️[ShopContext] getCardPriceWithTravel failed:", e?.message || e);
+    return null;
+  }
+};
 
   // ============ Data loaders ============
   const getActsData = async () => {
