@@ -1,14 +1,24 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { ShopContext } from '../context/ShopContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from "react-router-dom"; // ✅ add useLocation
 import { toast } from 'react-toastify';
 import axios from 'axios'; 
 import CustomToast from "../components/CustomToast";
 
 const Login = () => {
   const navigate = useNavigate(); 
+    const location = useLocation(); // ✅
+
   const [currentState, setCurrentState] = useState('Login');
-  const { token, setToken, backendUrl, shortlistAct, setUser } = useContext(ShopContext);
+  const {
+    token,
+    setToken,
+    backendUrl,
+    shortlistAct,
+    fetchShortlistedActs,
+    shortlistedActs,
+    setUser,
+  } = useContext(ShopContext);
 
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
@@ -16,6 +26,12 @@ const Login = () => {
   const [email,     setEmail]     = useState('');
   const [password,  setPassword]  = useState('');
 
+
+    useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname]); // ✅ runs whenever you navigate to /login
+
+  
   // ✅ Helper – send them to the page they wanted before login (or home)
   const redirectAfterAuth = () => {
     const next = sessionStorage.getItem('postLoginNext');
@@ -28,35 +44,70 @@ const Login = () => {
   };
 
   // ✅ Auto-shortlist logic: runs after a successful login
-const handleAutoShortlist = async (userId) => {
-  const pendingActId = sessionStorage.getItem("pendingShortlistActId");
-  const actName = sessionStorage.getItem("pendingShortlistActName");
-  if (!pendingActId) return;
+  // IMPORTANT: shortlistAct() is a toggle in many implementations.
+  // Here we make it behave like “ensure this act is added” to avoid accidentally removing it.
+  const handleAutoShortlist = async (userId) => {
+    const pendingActId = sessionStorage.getItem("pendingShortlistActId");
+    const actName = sessionStorage.getItem("pendingShortlistActName");
+    if (!pendingActId) return;
 
-  try {
-    await shortlistAct(userId, pendingActId);
+    try {
+      // 1) Pull latest shortlist from server so we don’t toggle-off something that’s already saved
+      let latest = Array.isArray(shortlistedActs) ? shortlistedActs : [];
 
-    // 🎉 Success toast with act name (if available)
-    toast(
-      <CustomToast
-        type="success"
-        message={`${actName || "Act"} added to your shortlist!`}
-      />
-    );
-  } catch (err) {
-    console.warn("⚠️ Failed to auto-shortlist after login:", err.message);
-    toast(
-      <CustomToast
-        type="error"
-        message="Couldn't add act to your shortlist automatically."
-      />
-    );
-  } finally {
-    // 🧹 Always clean up after
-    sessionStorage.removeItem("pendingShortlistActId");
-    sessionStorage.removeItem("pendingShortlistActName");
-  }
-};
+      if (typeof fetchShortlistedActs === "function") {
+        const res = await fetchShortlistedActs(userId);
+        // tolerate either returning the list or just updating context internally
+        if (Array.isArray(res)) latest = res;
+      }
+
+      const alreadyShortlisted = latest.some(
+        (id) => String(id) === String(pendingActId)
+      );
+
+      if (alreadyShortlisted) {
+        toast(
+          <CustomToast
+            type="info"
+            message={`${actName || "Act"} is already in your shortlist.`}
+          />
+        );
+        return;
+      }
+
+      // 2) Toggle (should add now, because we just confirmed it isn't already there)
+      const toggleRes = await shortlistAct(userId, pendingActId);
+
+      // If shortlistAct returns a success flag, respect it
+      if (toggleRes && toggleRes.success === false) {
+        throw new Error(toggleRes.message || "shortlist_toggle_failed");
+      }
+
+      // 3) Refresh again so UI state definitely matches server
+      if (typeof fetchShortlistedActs === "function") {
+        await fetchShortlistedActs(userId);
+      }
+
+      toast(
+        <CustomToast
+          type="success"
+          message={`${actName || "Act"} added to your shortlist!`}
+        />
+      );
+    } catch (err) {
+      console.warn("⚠️ Failed to auto-shortlist after login:", err?.message || err);
+      toast(
+        <CustomToast
+          type="error"
+          message="Couldn't add act to your shortlist automatically."
+        />
+      );
+    } finally {
+      // 🧹 Always clean up after
+      sessionStorage.removeItem("pendingShortlistActId");
+      sessionStorage.removeItem("pendingShortlistActName");
+    }
+  };
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
