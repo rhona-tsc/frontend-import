@@ -215,9 +215,21 @@ const CartTotal = () => {
           // Fallback must include your margin multiplier (otherwise Cart total looks "net")
           const fallbackGross = rawBase > 0 ? Math.ceil(rawBase * MARGIN_MULTIPLIER) : 0;
 
-          // If calcTotal is valid and > 0, use it. Otherwise fallback.
-          const subtotalWithMargin =
-            Number.isFinite(calcTotal) && calcTotal > 0 ? calcTotal : fallbackGross;
+          // Prefer calculateActPricing() when available.
+          // NOTE: if your pricing util already returns a gross/margin-included total, set one of these flags there:
+          //   { marginApplied: true } or { isGross: true } or { includesMargin: true }
+          const calcAlreadyGross =
+            calc?.marginApplied === true ||
+            calc?.isGross === true ||
+            calc?.includesMargin === true;
+
+          const calcGross =
+            Number.isFinite(calcTotal) && calcTotal > 0
+              ? Math.ceil(calcAlreadyGross ? calcTotal : calcTotal * MARGIN_MULTIPLIER)
+              : 0;
+
+          // If calcGross is valid and > 0, use it. Otherwise fallback.
+          const subtotalWithMargin = calcGross > 0 ? calcGross : fallbackGross;
 
           // Sum extras (defensively treat missing/strings)
           const extrasTotal =
