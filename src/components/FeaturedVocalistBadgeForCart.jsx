@@ -1,6 +1,5 @@
 import { assets } from "../assets/assets"; // top-level import
-const PUBLIC_SITE_BASE =
-  import.meta.env.FRONTEND_URL || window.location.origin; // fallback to current site origin
+
 
 // Extract a valid http(s) URL from an object that may have profile fields.
 const pickProfilePicture = (obj = {}) => {
@@ -12,6 +11,23 @@ const pickProfilePicture = (obj = {}) => {
 };
 
 import { useState } from "react";
+
+const DEFAULT_PUBLIC_SITE_BASE = "https://www.thesupremecollective.co.uk";
+
+const PUBLIC_SITE_BASE = (() => {
+  const raw =
+    import.meta.env.VITE_PUBLIC_SITE_BASE ||
+    import.meta.env.VITE_FRONTEND_URL ||
+    "";
+  const fromEnv = typeof raw === "string" ? raw.trim() : "";
+
+  if (fromEnv.startsWith("http")) return fromEnv.replace(/\/+$/, "");
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  if (/\/\/(admin|api)\./.test(origin)) return DEFAULT_PUBLIC_SITE_BASE;
+
+  return (origin || DEFAULT_PUBLIC_SITE_BASE).replace(/\/+$/, "");
+})();
 
 // 🎨 FeaturedVocalistBadge — single circular badge renderer
 export function FeaturedVocalistBadgeForCart({
@@ -44,8 +60,9 @@ export function FeaturedVocalistBadgeForCart({
     ? `${resolvedImageUrl}${resolvedImageUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(cacheBuster)}`
     : resolvedImageUrl;
 
-  const effectiveProfileUrl =
-    profileUrl || (musicianId ? `${PUBLIC_SITE_BASE}/musician/${musicianId}` : "");
+const effectiveProfileUrl =
+  profileUrl ||
+  (musicianId ? `${PUBLIC_SITE_BASE}/musician/${encodeURIComponent(musicianId)}` : "");
 
   const handleClick = () => {
     if (disabled) return;
