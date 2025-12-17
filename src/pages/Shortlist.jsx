@@ -55,10 +55,15 @@ const Shortlist = () => {
   } = useContext(ShopContext);
 
   // Always prefer the canonical list if present; fall back otherwise
-  const shortlistIds = React.useMemo(() => {
-    if (Array.isArray(shortlistedActs) && shortlistedActs.length >= 0) return [...shortlistedActs];
-    return Array.isArray(shortlistItems) ? [...shortlistItems] : [];
-  }, [shortlistedActs, shortlistItems]);
+const shortlistIds = React.useMemo(() => {
+  const canonical = Array.isArray(shortlistedActs) ? shortlistedActs : null;
+  const fallback  = Array.isArray(shortlistItems) ? shortlistItems : [];
+
+  const raw = (canonical && canonical.length > 0) ? canonical : fallback;
+
+  // handle cases where canonical is objects, or IDs, etc.
+  return [...new Set(raw.map((x) => String(x?._id || x?.actId || x)))];
+}, [shortlistedActs, shortlistItems]);
 
   const navigate = useNavigate();
 
