@@ -411,7 +411,25 @@ const handleSubmit = async () => {
               }))
             : [],
         };
-
+console.log("🧾 [PlaceBooking] lineup snapshot", {
+  act: act?.tscName || act?.name,
+  actId: act?._id,
+  lineupId,
+  lineupActSize: lineup?.actSize,
+  lineupBandMembersLen: Array.isArray(lineup?.bandMembers) ? lineup.bandMembers.length : 0,
+  snapshotBandMembersLen: Array.isArray(lineupSnapshot?.bandMembers) ? lineupSnapshot.bandMembers.length : 0,
+  snapshotEssentialLen: Array.isArray(lineupSnapshot?.bandMembers)
+    ? lineupSnapshot.bandMembers.filter(m => m?.isEssential).length
+    : 0,
+  snapshotFirst3: Array.isArray(lineupSnapshot?.bandMembers)
+    ? lineupSnapshot.bandMembers.slice(0, 3).map(m => ({
+        firstName: m.firstName,
+        instrument: m.instrument,
+        isEssential: m.isEssential,
+        roles: (m.additionalRoles || []).filter(r => r.isEssential).map(r => r.role),
+      }))
+    : [],
+});
         actsSummary.push({
           cartActKey: String(actId),
           actId: String(act?._id ?? actId),
@@ -419,7 +437,7 @@ const handleSubmit = async () => {
           tscName: act.tscName,
           actSlug: act.slug || null,
           image: act?.profileImage?.[0] || act?.images?.[0] || null,
-
+bandMembers: lineupSnapshot.bandMembers,
           chosenVocalists: (chosenVocalists || []).map((id) => ({ musicianId: id })),
 
           lineupId: String(lineupId),
