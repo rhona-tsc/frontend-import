@@ -5,6 +5,8 @@ import App from './App.jsx';
 import { BrowserRouter } from 'react-router-dom';
 import ShopProvider from './context/ShopContext';
 import { HelmetProvider } from "react-helmet-async";
+import ErrorBoundary from "./components/ErrorBoundary";
+
 
 // 🚫 Block accidental ngrok usage at runtime
 if (window.location.hostname.includes("ngrok")) {
@@ -23,8 +25,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <BrowserRouter>
   <HelmetProvider>
     <ShopProvider> 
+        <ErrorBoundary>
       <App />
+      </ErrorBoundary>
     </ShopProvider>
+
     </HelmetProvider>
   </BrowserRouter>
 );
