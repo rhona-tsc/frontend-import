@@ -51,6 +51,8 @@ const Musician = () => {
   const [selectedCounty, setSelectedCounty] = useState(
     sessionStorage.getItem("selectedCounty") || ""
   );
+  const [finalTravelPrice, setFinalTravelPrice] = useState(null);
+
   // Fetch musician/deputy profile for this page
   useEffect(() => {
     let abort = false;
@@ -61,11 +63,15 @@ const Musician = () => {
           ""
         );
         // Try common endpoints – your router mixes act/musician routes
-        const attempts = [
-          `${base}/api/musician/get/${musicianId}`, // in your musicianRouter (returns { success, act } OR a musician in some setups)
-          `${base}/api/musician/profile/${musicianId}`, // you’ve used this before (screenshot)
-          `${base}/api/musician/${musicianId}`, // simple fallback
-        ];
+       const attempts = [
+  `${base}/api/musician/get/${musicianId}`,
+  `${base}/api/musician/profile/${musicianId}`,
+  `${base}/api/musician/${musicianId}`,
+
+  `${base}/api/musicians/get/${musicianId}`,
+  `${base}/api/musicians/profile/${musicianId}`,
+  `${base}/api/musicians/${musicianId}`,
+];
         let payload = null;
         for (const url of attempts) {
           try {
@@ -225,23 +231,25 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData || nul
     return () => observer.disconnect();
   }, [videoVisible]);
 
-  useEffect(() => {
-    const fetchShortlist = async (userId) => {
-      try {
-        const userId = getStoredUserId();
-        if (!userId) return;
-        const res = await axios.get(
-          `${import.meta.env.VITE_BACKEND_URL}/api/shortlist/user/${userId}/shortlisted`
-        );
-        const musicianIds = res.data.acts.map((act) => act._id);
-        setShortlistedActs(musicianIds);
-      } catch (err) {
-        console.error("Failed to fetch shortlist", err);
-      }
-    };
+useEffect(() => {
+  const fetchShortlist = async () => {
+    try {
+      const storedUserId = getStoredUserId();
+      if (!storedUserId) return;
 
-    fetchShortlist();
-  }, []);
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_URL}/api/shortlist/user/${storedUserId}/shortlisted`
+      );
+
+      const musicianIds = (res?.data?.acts || []).map((act) => act._id);
+      setShortlistedActs(musicianIds);
+    } catch (err) {
+      console.error("Failed to fetch shortlist", err);
+    }
+  };
+
+  fetchShortlist();
+}, [setShortlistedActs]);
 
   // Touch/swipe gesture support for gallery carousel (images)
   useEffect(() => {
@@ -399,9 +407,9 @@ useEffect(() => {
 
   // Helper to get short name: first + last initial, with fallbacks
   const displayShortName = (act) => {
-    const first = act?.firstName || act?.tscName || 'Musician';
-    const lastInitial = act?.lastName ? ` ${act.lastName.charAt(0)}` : '';
-    return `${first}`.trim();
+    const first = act?.firstName || act?.tscName || act?.tscName || "Musician";
+    const lastInitial = act?.lastName ? ` ${act.lastName.charAt(0)}` : "";
+    return `${first}${lastInitial}`.trim();
   };
 
   // ------- generic content helpers -------
@@ -437,101 +445,105 @@ useEffect(() => {
     }
   };
 
-  const content = React.useMemo(() => {
-    if (!actData) {
-      return {
-        hasVideos: false,
-        hasBio: false,
-        hasInstrumentation: false,
-        hasVocals: false,
-        hasAnySkills: false,
-        hasLocation: false,
-        hasCredits: false,
-        hasGallery: false,
-        hasRepertoire: false,
-        hasEquipment: false,
-        hasSnapshot: false,
-        hasRelated: false,
-        bio: "",
-      };
-    }
-
-    const videosArr = [
-      ...(Array.isArray(actData?.tscApprovedFunctionBandVideoLinks)
-        ? actData.tscApprovedFunctionBandVideoLinks
-        : []),
-      ...(Array.isArray(actData?.tscApprovedOriginalBandVideoLinks)
-        ? actData.tscApprovedOriginalBandVideoLinks
-        : []),
-    ].filter((v) => v && v.url);
-
-    const hasVideos = videosArr.length > 0;
-
-    const bio = pickBioText(actData);
-    const hasBio = hasContent(bio);
-
-    const hasInstrumentation =
-      Array.isArray(actData?.instrumentation) && actData.instrumentation.length > 0;
-
-    const hasVocals =
-      (Array.isArray(actData?.vocals?.type) && actData.vocals.type.length > 0) ||
-      hasContent(actData?.vocals?.range) ||
-      (actData?.vocals?.rap === true || actData?.vocals?.rap === "true");
-
-    const otherSkillsArr = Array.isArray(actData?.other_skills) ? actData.other_skills : [];
-    const hasAnySkills = otherSkillsArr.length > 0;
-
-    const hasLocation = hasContent(actData?.address?.county);
-
-    const hasCredits =
-      (Array.isArray(actData?.academic_credentials) && actData.academic_credentials.length > 0) ||
-      (Array.isArray(actData?.awards) && actData.awards.length > 0) ||
-      (Array.isArray(actData?.function_bands_performed_with) && actData.function_bands_performed_with.length > 0) ||
-      (Array.isArray(actData?.original_bands_performed_with) && actData.original_bands_performed_with.length > 0) ||
-      (Array.isArray(actData?.sessions) && actData.sessions.length > 0);
-
-    const galleryCounts = [
-      actData?.digitalWardrobeBlackTie,
-      actData?.digitalWardrobeFormal,
-      actData?.digitalWardrobeSmartCasual,
-      actData?.digitalWardrobeSessionAllBlack,
-      actData?.additionalImages,
-    ].map((g) => (Array.isArray(g) ? g.length : 0));
-    const hasGallery = galleryCounts.some((n) => n > 0);
-
-    const hasRepertoire = Array.isArray(actData?.selectedSongs) && actData.selectedSongs.length > 0;
-
-    const hasEquipment =
-      hasContent(actData?.equipment_spec) ||
-      hasContent(actData?.pa_equipment) ||
-      hasContent(actData?.iem) ||
-      hasContent(actData?.dj_gear) ||
-      hasContent(actData?.lighting) ||
-      hasContent(actData?.additional_gear);
-
-    const hasSnapshot = hasInstrumentation || hasVocals || hasLocation || hasAnySkills;
-
-    const hasRelated =
-      (Array.isArray(actData?.vocals?.genres) && actData.vocals.genres.length > 0) ||
-      hasInstrumentation ||
-      hasContent(Array.isArray(actData?.vocals?.type) ? actData.vocals.type[0] : "");
-
+const content = React.useMemo(() => {
+  if (!actData) {
     return {
-      hasVideos,
-      hasBio,
-      hasInstrumentation,
-      hasVocals,
-      hasAnySkills,
-      hasLocation,
-      hasCredits,
-      hasGallery,
-      hasRepertoire,
-      hasEquipment,
-      hasSnapshot,
-      hasRelated,
-      bio,
+      hasVideos: false,
+      hasBio: false,
+      hasInstrumentation: false,
+      hasVocals: false,
+      hasAnySkills: false,
+      hasLocation: false,
+      hasCredits: false,
+      hasGallery: false,
+      hasRepertoire: false,
+      hasEquipment: false,
+      hasSnapshot: false,
+      hasRelated: false,
+      bio: "",
     };
-  }, [actData]);
+  }
+
+  const videosArr = [
+    ...(Array.isArray(actData?.tscApprovedFunctionBandVideoLinks)
+      ? actData.tscApprovedFunctionBandVideoLinks
+      : []),
+    ...(Array.isArray(actData?.tscApprovedOriginalBandVideoLinks)
+      ? actData.tscApprovedOriginalBandVideoLinks
+      : []),
+  ].filter((v) => v && v.url);
+
+  const hasVideos = videosArr.length > 0;
+
+  const bio = pickBioText(actData);
+  const hasBio = hasContent(bio);
+
+  const hasInstrumentation =
+    Array.isArray(actData?.instrumentation) && actData.instrumentation.length > 0;
+
+  const hasVocals =
+    (Array.isArray(actData?.vocals?.type) && actData.vocals.type.length > 0) ||
+    hasContent(actData?.vocals?.range) ||
+    actData?.vocals?.rap === true ||
+    actData?.vocals?.rap === "true";
+
+  const otherSkillsArr = Array.isArray(actData?.other_skills)
+    ? actData.other_skills
+    : [];
+  const hasAnySkills = otherSkillsArr.length > 0;
+
+  const hasLocation = hasContent(actData?.address?.county);
+
+  const hasCredits =
+    (Array.isArray(actData?.academic_credentials) && actData.academic_credentials.length > 0) ||
+    (Array.isArray(actData?.awards) && actData.awards.length > 0) ||
+    (Array.isArray(actData?.function_bands_performed_with) && actData.function_bands_performed_with.length > 0) ||
+    (Array.isArray(actData?.original_bands_performed_with) && actData.original_bands_performed_with.length > 0) ||
+    (Array.isArray(actData?.sessions) && actData.sessions.length > 0);
+
+  const galleryCounts = [
+    actData?.digitalWardrobeBlackTie,
+    actData?.digitalWardrobeFormal,
+    actData?.digitalWardrobeSmartCasual,
+    actData?.digitalWardrobeSessionAllBlack,
+    actData?.additionalImages,
+  ].map((g) => (Array.isArray(g) ? g.length : 0));
+  const hasGallery = galleryCounts.some((n) => n > 0);
+
+  const hasRepertoire =
+    Array.isArray(actData?.selectedSongs) && actData.selectedSongs.length > 0;
+
+  const hasEquipment =
+    hasContent(actData?.equipment_spec) ||
+    hasContent(actData?.pa_equipment) ||
+    hasContent(actData?.iem) ||
+    hasContent(actData?.dj_gear) ||
+    hasContent(actData?.lighting) ||
+    hasContent(actData?.additional_gear);
+
+  const hasSnapshot = hasInstrumentation || hasVocals || hasLocation || hasAnySkills;
+
+  const hasRelated =
+    (Array.isArray(actData?.vocals?.genres) && actData.vocals.genres.length > 0) ||
+    hasInstrumentation ||
+    hasContent(Array.isArray(actData?.vocals?.type) ? actData.vocals.type[0] : "");
+
+  return {
+    hasVideos,
+    hasBio,
+    hasInstrumentation,
+    hasVocals,
+    hasAnySkills,
+    hasLocation,
+    hasCredits,
+    hasGallery,
+    hasRepertoire,
+    hasEquipment,
+    hasSnapshot,
+    hasRelated,
+    bio,
+  };
+}, [actData]);
 
   // Tiny conditional wrapper
   const Section = ({ when, children }) => (when ? <>{children}</> : null);
@@ -550,7 +562,11 @@ useEffect(() => {
     </div>
 
     {/* HERO */}
-    <MusicianHero musicianId={musicianId} acts={acts} />
+    {actData ? (
+      <MusicianHero musicianId={musicianId} acts={acts} />
+    ) : (
+      <div className="h-56 bg-gray-100 animate-pulse rounded" />
+    )}
 
     {/* ===== ROW 1: LEFT (video + thumbs + bio), RIGHT (in brief) ===== */}
     <div className="border-t-2 pt-10">

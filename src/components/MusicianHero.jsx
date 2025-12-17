@@ -1,42 +1,40 @@
-import React, { useState, useEffect, useMemo, memo } from 'react';
-import PropTypes from 'prop-types';
-
-// import { assets } from '../assets/assets';
+import React, { useState, useEffect, useMemo, memo } from "react";
+import PropTypes from "prop-types";
 
 const pickHeroImageFromMusician = (m) => {
-  if (!m) return '';
+  if (!m) return "";
   if (m.coverHeroImage) return m.coverHeroImage;
   if (m.profilePicture) return m.profilePicture;
   if (Array.isArray(m.additionalImages) && m.additionalImages[0]) return m.additionalImages[0];
   const wardrobes = [
-    'digitalWardrobeBlackTie',
-    'digitalWardrobeFormal',
-    'digitalWardrobeSmartCasual',
-    'digitalWardrobeSessionAllBlack',
+    "digitalWardrobeBlackTie",
+    "digitalWardrobeFormal",
+    "digitalWardrobeSmartCasual",
+    "digitalWardrobeSessionAllBlack",
   ];
   for (const key of wardrobes) {
     const arr = m[key];
     if (Array.isArray(arr) && arr.length && arr[0]) return arr[0];
   }
-  return '';
+  return "";
 };
 
 const pickSubtitleFromMusician = (m) => {
-  if (!m) return '';
+  if (!m) return "";
   if (m.tagLine) return m.tagLine;
   if (Array.isArray(m.instrumentation) && m.instrumentation.length) {
     const instruments = m.instrumentation
       .map((i) => i?.instrument)
       .filter(Boolean)
       .slice(0, 4)
-      .join(' • ');
+      .join(" • ");
     if (instruments) return instruments;
   }
   if (m.bio) {
     const t = String(m.bio);
-    return t.length > 140 ? t.slice(0, 137) + '…' : t;
+    return t.length > 140 ? t.slice(0, 137) + "…" : t;
   }
-  return '';
+  return "";
 };
 
 const MusicianHero = ({
@@ -50,42 +48,59 @@ const MusicianHero = ({
   const [isLoaded, setIsLoaded] = useState(false);
 
   const resolvedId = musicianId || actId || null;
-  const resolvedList = Array.isArray(musicians) && musicians.length ? musicians : acts;
+
+  const resolvedList = useMemo(() => {
+    const list = Array.isArray(musicians) && musicians.length ? musicians : acts;
+    return Array.isArray(list) ? list : [];
+  }, [musicians, acts]);
+
+  // ✅ Unconditional memo hooks (safe even when musician is null)
+  const heroImage = useMemo(() => pickHeroImageFromMusician(musician), [musician]);
+
+  const title = useMemo(() => {
+    if (musician?.firstName) {
+      const lastInitial = musician?.lastName ? ` ${musician.lastName.charAt(0)}` : "";
+      return `${musician.firstName}${lastInitial}`;
+    }
+    return musician?.stageName || "Musician";
+  }, [musician?.firstName, musician?.lastName, musician?.stageName]);
+
+  const subtitle = useMemo(() => pickSubtitleFromMusician(musician), [musician]);
 
   useEffect(() => {
     let mounted = true;
 
-    // 1) Try provided list first
     const fromList =
+      resolvedId &&
       Array.isArray(resolvedList) &&
       resolvedList.find((item) => String(item?._id) === String(resolvedId));
 
     if (fromList) {
       if (mounted) setMusician(fromList);
-      return () => { mounted = false; };
+      return () => {
+        mounted = false;
+      };
     }
 
-    // 2) Otherwise fetch by id from API (try a few possible endpoints)
     const fetchMusician = async () => {
       if (!resolvedId) return;
 
-      const base = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
-     const urls = [
-       // ✅ your working endpoint that returns a musician document
-       `${base}/api/musician/profile/${resolvedId}`,
-       // Other common shapes, in case you add them later
+      const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+      const urls = [
+        `${base}/api/musician/profile/${resolvedId}`,
         `${base}/api/musicians/${resolvedId}`,
-       `${base}/api/musician/${resolvedId}`,
-       // auth-required admin route (will 401 on public)
-              `${base}/api/musician/moderation/deputy/${resolvedId}`      ];
-    
+        `${base}/api/musician/${resolvedId}`,
+        `${base}/api/musician/moderation/deputy/${resolvedId}`,
+      ];
 
       for (const url of urls) {
         try {
-          const res = await fetch(url, { credentials: 'include' });
+          const res = await fetch(url, { credentials: "include" });
           if (!res.ok) continue;
+
           const data = await res.json();
           const doc = data?.musician || data?.deputy || data?.act || data?.actData || data;
+
           if (doc && mounted) {
             setMusician(doc);
             return;
@@ -95,14 +110,17 @@ const MusicianHero = ({
         }
       }
 
-      console.error('❌ Failed to load musician: no matching endpoint for id', resolvedId);
+      console.error("❌ Failed to load musician: no matching endpoint for id", resolvedId);
     };
 
     fetchMusician();
 
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [resolvedId, resolvedList]);
 
+  // ✅ Conditional render AFTER hooks
   if (!musician) {
     return (
       <div className="relative w-full max-w-full">
@@ -111,25 +129,18 @@ const MusicianHero = ({
     );
   }
 
-  const heroImage = useMemo(() => pickHeroImageFromMusician(musician), [musician]);
-  const title = useMemo(() => {
-    if (musician?.firstName) {
-      const lastInitial = musician?.lastName ? ` ${musician.lastName.charAt(0)}` : '';
-      return `${musician.firstName}${lastInitial}`;
-    }
-    return musician?.stageName || 'Musician';
-  }, [musician?.firstName, musician?.lastName, musician?.stageName]);
-  const subtitle = useMemo(() => pickSubtitleFromMusician(musician), [musician]);
-
   return (
     <div className="relative w-full max-w-full">
       <div className="relative w-full aspect-video rounded-md overflow-hidden">
         {!isLoaded && <div className="absolute inset-0 bg-gray-100 animate-pulse z-10" />}
+
         {heroImage && (
           <img
             src={heroImage}
-            alt={title ? `${title} hero` : 'Musician hero'}
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            alt={title ? `${title} hero` : "Musician hero"}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+              isLoaded ? "opacity-100" : "opacity-0"
+            }`}
             loading="eager"
             decoding="async"
             fetchpriority="high"
@@ -181,5 +192,4 @@ MusicianHero.propTypes = {
   acts: PropTypes.array,
 };
 
-const MemoMusicianHero = memo(MusicianHero);
-export default MemoMusicianHero;
+export default memo(MusicianHero);
