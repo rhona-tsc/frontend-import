@@ -106,7 +106,7 @@ const shortlistIds = React.useMemo(() => {
 
   const [actsData, setActsData] = useStableFetchList(
     shortlistIds,
-   (id) => axios.get(`/api/v2/acts/${id}`).then((res) => res.data),
+   (id) => axios.get(`/api/act/${id}`).then((res) => res.data),
     { onEmpty: () => setHoveredAct(null) }
   );
 
