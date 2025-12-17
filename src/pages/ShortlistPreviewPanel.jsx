@@ -577,27 +577,30 @@ const handleLineupChange = async (lineup) => {
           )}
 
           {/* 🎭 Lineup Selection */}
-          <div className="flex flex-wrap gap-2 text-lg justify-start ml-3">
-            <p className="text-lg text-gray-600 m-3">
-              {generateDescription(selectedLineup) || "Add a Lineup"}
-            </p>
-            {actData?.lineups?.map((lineup, index) => {
-              const isSelected = selectedLineup?._id === lineup._id;
-              return (
-                <button
-                  key={`${lineup._id || "lineup"}-${index}`}
-                onClick={() => handleLineupChange(lineup)}
-                  className={`border py-2 px-4 rounded text-sm ${
-                    isSelected
-                      ? "bg-black text-white  hover:bg-[#ff6667]"
-                      : "bg-gray-100 text-gray-700  hover:bg-[#ff6667] hover:text-white"
-                  }`}
-                >
-                  {lineup.actSize || `Lineup ${index + 1}`}
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex flex-col gap-2 ml-3">
+  <p className="text-lg text-gray-600 mt-3">
+    {generateDescription(selectedLineup) || "Select a Lineup"}
+  </p>
+
+  <div className="flex flex-wrap gap-2">
+    {actData?.lineups?.map((lineup, index) => {
+      const isSelected = selectedLineup?._id === lineup._id;
+      return (
+        <button
+          key={`${lineup._id || "lineup"}-${index}`}
+          onClick={() => handleLineupChange(lineup)}
+          className={`border py-2 px-4 rounded text-sm ${
+            isSelected
+              ? "bg-black text-white hover:bg-[#ff6667]"
+              : "bg-gray-100 text-gray-700 hover:bg-[#ff6667] hover:text-white"
+          }`}
+        >
+          {lineup.actSize || `Lineup ${index + 1}`}
+        </button>
+      );
+    })}
+  </div>
+</div>
 
 <div className="my-3 mt-5">
   {(() => {
