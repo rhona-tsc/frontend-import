@@ -25,6 +25,9 @@ const CartTotal = () => {
 
   const actCacheRef = useRef(new Map());
 
+  // Match pricing used elsewhere in the app (your “gross” multiplier)
+  const MARGIN_MULTIPLIER = 1.33;
+
   // --- helpers ----------------------------------------------------
   const daysUntilEvent = useMemo(() => {
     if (!selectedDate) return null;
@@ -208,7 +211,9 @@ const CartTotal = () => {
           const baseFee = getSafeBaseFee(lineup);
           const essentialRoles = getEssentialRolesTotal(lineup);
           const rawBase = baseFee + essentialRoles;
-          const fallbackGross = rawBase > 0 ? Math.ceil(rawBase) : 0;
+
+          // Fallback must include your margin multiplier (otherwise Cart total looks "net")
+          const fallbackGross = rawBase > 0 ? Math.ceil(rawBase * MARGIN_MULTIPLIER) : 0;
 
           // If calcTotal is valid and > 0, use it. Otherwise fallback.
           const subtotalWithMargin =
