@@ -55,6 +55,20 @@ const getLove = (src, shortlistCount) => {
   return Math.max(0, Number(n) || 0);
 };
 
+// Manual override: if you set this in actcards/actfiltercards, we can show a stable "from" price
+// when no location/date is selected (avoids slow/buggy derived pricing for now).
+const getMinDisplayPrice = (src) => {
+  const v =
+    src?.minDisplayPrice ??
+    src?.minPriceDisplay ??
+    src?.minPrice ??
+    src?.minimumFee ??
+    src?.minFee;
+
+  const n = v == null ? null : Number(String(v).replace(/[^0-9.+-]/g, ''));
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Travel model normalizers (ActCards may store these under travelModel)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -172,8 +186,8 @@ const computeBaseFromSmallestLineup = (act) => {
       act: getTitle(act),
       lineupLabel: chosen?.act_size || chosen?.actSize || null,
       memberCount: members.length,
-      useCountyTravelFee: !!act?.useCountyTravelFee,
-      hasCountyFees: !!act?.countyFees,
+      useCountyTravelFee: getUseCountyTravelFee(act),
+      hasCountyFees: getHasCountyFees(act),
     });
 
     dlog('member breakdown', memberBreakdown);
@@ -235,6 +249,7 @@ const ActItem = ({ actData, shortlistCount }) => {
         const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
 
         const hasAnyLocation = !!(selectedAddress || selectedCounty);
+        const manualMin = getMinDisplayPrice(actData);
 
         pgroup(`Price build — ${getTitle(actData)} (${id})`, () => {
           dlog('inputs', {
@@ -257,8 +272,16 @@ const ActItem = ({ actData, shortlistCount }) => {
           });
         });
 
-        // No date/location → show derived base from lineups (preferred), else fallback base
+        // No date/location → show MANUAL minDisplayPrice first (if present), else derived base from lineups, else fallback base
         if (!hasAnyLocation || !selectedDate) {
+          if (manualMin != null) {
+            pgroup(`Price result (manual minDisplayPrice) — ${getTitle(actData)} (${id})`, () => {
+              dlog('manualMin (display, no extra margin applied)', pmoney(manualMin));
+            });
+            setPrice({ total: manualMin, travelCalculated: false, isManual: true });
+            return;
+          }
+
           const derived = computeBaseFromSmallestLineup(actData);
           if (derived != null) {
             const withMargin = applyMargin(derived);
@@ -276,7 +299,7 @@ const ActItem = ({ actData, shortlistCount }) => {
             setPrice({ total: withMargin, travelCalculated: false });
           } else {
             pgroup(`Price result (no when/where) — ${getTitle(actData)} (${id})`, () => {
-              dlog('no price available (derived + baseOnly missing)');
+              dlog('no price available (manualMin + derived + baseOnly missing)');
             });
           }
           return;
@@ -382,7 +405,15 @@ const ActItem = ({ actData, shortlistCount }) => {
 
   // Display total chooses computed price, else base from card/act
   // Ensure margin is applied even if we fell back to base price without computing `price`
-  const rawTotal = price?.total ?? (getBasePrice(actData) != null ? applyMargin(getBasePrice(actData)) : null);
+  const hasAnyLocation = !!(selectedAddress || selectedCounty);
+  const manualMin = (!hasAnyLocation || !selectedDate) ? getMinDisplayPrice(actData) : null;
+
+  // price.total is already post-margin when derived/calc’d, and already display-ready when manualMin is used.
+  const rawTotal =
+    price?.total ??
+    (manualMin != null
+      ? manualMin
+      : (getBasePrice(actData) != null ? applyMargin(getBasePrice(actData)) : null));
   // Helpful trace: what ends up in the UI
   useEffect(() => {
     pgroup(`UI total — ${getTitle(actData)} (${getActId(actData)})`, () => {
