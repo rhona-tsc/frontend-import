@@ -436,16 +436,19 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
     const normalize = (c = {}) => {
       const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
       return {
-        actId: String(c.actId || c._id || c.id || ""),
-        tscName: c.tscName || c.name || c.n || "",
-        name: c.name || c.tscName || c.n || "",
-        slug: c.slug || c.s || "",
-        imageUrl: c.imageUrl || c.img || "",
-        basePrice: num(c.basePrice ?? c.p),
-        loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
-        availabilityBadge: c.availabilityBadge || c.badge || null,
-        status: c.status || c.st || "",
-      };
+  actId: String(c.actId || c._id || c.id || ""),
+  tscName: c.tscName || c.name || c.n || "",
+  name: c.name || c.tscName || c.n || "",
+  slug: c.slug || c.s || "",
+  imageUrl: c.imageUrl || c.img || "",
+  basePrice: num(c.basePrice ?? c.p),
+  loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
+  availabilityBadge: c.availabilityBadge || c.badge || null,
+  status: c.status || c.st || "",
+  createdAt: c.createdAt || null,
+updatedAt: c.updatedAt || null,
+bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
+};
     };
 
     const buildCardFromAct = (a) => {
@@ -644,17 +647,22 @@ setActCards(filtered);
       });
       const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
 
-      const cards = arr.map((c) => ({
-        actId: String(c.actId || c._id || ""),
-        tscName: c.tscName || c.name || "",
-        name: c.name || "",
-        slug: c.slug || "",
-        imageUrl: c.imageUrl || "",
-        basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
-        loveCount: Number(c.loveCount) || 0,
-        availabilityBadge: c.availabilityBadge || null,
-        status: c.status || "",
-      }));
+const cards = arr.map((c) => ({
+  actId: String(c.actId || c._id || ""),
+  tscName: c.tscName || c.name || "",
+  name: c.name || "",
+  slug: c.slug || "",
+  imageUrl: c.imageUrl || "",
+  basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
+  loveCount: Number(c.loveCount) || 0,
+  availabilityBadge: c.availabilityBadge || null,
+  status: c.status || "",
+
+  // ✅ needed by NewActs + BestSeller
+  createdAt: c.createdAt || null,
+  updatedAt: c.updatedAt || null,
+  bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
+}));
 
       if (cards.length === 0) {
         // 🚑 If the /cards endpoint is empty, fall back to deriving from full acts
@@ -1173,7 +1181,10 @@ setActCards(filtered);
         loveCount: Number(c.loveCount || c.timesShortlisted || c.numberOfShortlistsIn) || 0,
         availabilityBadge: c.availabilityBadge || null,
         status: c.status || "",
-
+// ✅ needed by NewActs + BestSeller
+createdAt: c.createdAt || null,
+updatedAt: c.updatedAt || null,
+bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
         // optional enrichments (present in richer card docs)
         genres: Array.isArray(c.genres) ? c.genres.filter(Boolean) : [],
         lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.filter(Boolean) : [],
