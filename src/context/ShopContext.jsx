@@ -483,6 +483,9 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
           Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
         availabilityBadge: null,
         status: a?.status || "",
+        createdAt: a?.createdAt,
+updatedAt: a?.updatedAt,
+bestseller: a?.bestseller ?? a?.bestSeller ?? false,
       };
     };
 
@@ -576,7 +579,9 @@ const urlCards = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&
         slug: a?.slug || "",
         imageUrl: pickImage(a),
         basePrice,
-        // prefer a specific shortlist counter if present
+        createdAt: a.createdAt,
+updatedAt: a.updatedAt,
+bestseller: a.bestseller ?? a.bestSeller ?? false,
         loveCount:
           Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
         availabilityBadge: null,
