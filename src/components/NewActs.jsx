@@ -26,13 +26,12 @@ const NewActs = () => {
   const deferredCards = useDeferredValue(actCards);
   const maxToShow = useMaxToShow();
 
-  // Server already sorts by -createdAt; just slice here
   const newestSlice = useMemo(() => {
-    const list = Array.isArray(deferredCards) ? deferredCards : [];
-    const sliced = list.slice(0, maxToShow);
-    log("slice len:", sliced.length);
-    return sliced;
-  }, [deferredCards, maxToShow]);
+  const list = Array.isArray(deferredCards) ? [...deferredCards] : [];
+  list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return list.slice(0, maxToShow);
+}, [deferredCards, maxToShow]);
+
 
   return (
     <div className="my-10">
