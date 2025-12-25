@@ -26,9 +26,18 @@ const NewActs = () => {
   const deferredCards = useDeferredValue(actCards);
   const maxToShow = useMaxToShow();
 
-  const newestSlice = useMemo(() => {
+  useEffect(() => {
+  console.log("actCards[0] keys:", Object.keys(actCards?.[0] || {}));
+  console.log("sample createdAt:", actCards?.slice(0,5).map(a => ({ name: a?.tscName || a?.name, createdAt: a?.createdAt })));
+}, [actCards]);
+
+const newestSlice = useMemo(() => {
   const list = Array.isArray(deferredCards) ? [...deferredCards] : [];
-  list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  list.sort((a, b) => {
+    const ta = a?.createdAt ? new Date(a.createdAt).getTime() : new Date(String(a?.actId || a?._id).slice(0, 8) + "0000000000000000").getTime();
+    const tb = b?.createdAt ? new Date(b.createdAt).getTime() : new Date(String(b?.actId || b?._id).slice(0, 8) + "0000000000000000").getTime();
+    return tb - ta;
+  });
   return list.slice(0, maxToShow);
 }, [deferredCards, maxToShow]);
 
