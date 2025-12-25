@@ -54,7 +54,7 @@ const newestSlice = useMemo(() => {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
         {newestSlice.map((item) => (
           <div
-            key={String(item.actId || item._id)}
+            key={String(item.actId || item._id || item.id)}
             style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
           >
             <ActItem actData={item} />

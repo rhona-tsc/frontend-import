@@ -3,6 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import calculateActPricing from '../pages/utils/pricing';
 import { ShopContext } from '../context/ShopContext';
+import PropTypes from 'prop-types';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Lightweight debug logger for this component
@@ -55,6 +56,39 @@ const getLove = (src, shortlistCount) => {
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Travel model normalizers (ActCards may store these under travelModel)
+// ──────────────────────────────────────────────────────────────────────────────
+const getTravelModel = (src) => src?.travelModel || src?.travelModelHints || null;
+
+const getUseCountyTravelFee = (src) => {
+  const tm = getTravelModel(src);
+  return Boolean((src?.useCountyTravelFee ?? tm?.useCountyTravelFee) || false);
+};
+
+const getUseMUTravelRates = (src) => {
+  const tm = getTravelModel(src);
+  return Boolean((src?.useMUTravelRates ?? tm?.useMUTravelRates) || false);
+};
+
+const getCostPerMile = (src) => {
+  const tm = getTravelModel(src);
+  const v = src?.costPerMile ?? tm?.costPerMile;
+  return v == null ? null : num(v);
+};
+
+const getCountyFees = (src) => {
+  const tm = getTravelModel(src);
+  return src?.countyFees || tm?.countyFees || null;
+};
+
+const getHasCountyFees = (src) => {
+  const cf = getCountyFees(src);
+  const tm = getTravelModel(src);
+  if (cf && typeof cf === 'object' && Object.keys(cf).length > 0) return true;
+  return Boolean(tm?.hasCountyFees);
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Pricing helpers (fallback when base_fee is missing)
 //   • Choose the SMALLEST lineup by bandMembers count (tie-breaker: cheaper)
 //   • Sum each member's fee + essential additionalRoles' additionalFee
@@ -70,8 +104,10 @@ const essentialRolesFee = (member) => {
 const isManagerMember = (member) => /manager/i.test(String(member?.instrument || ''));
 
 const minCountyFeeFromAct = (act) => {
-  if (!(act?.useCountyTravelFee && act?.countyFees && typeof act.countyFees === 'object')) return 0;
-  const vals = Object.values(act.countyFees)
+  const useCounty = getUseCountyTravelFee(act);
+  const countyFees = getCountyFees(act);
+  if (!(useCounty && countyFees && typeof countyFees === 'object')) return 0;
+  const vals = Object.values(countyFees)
     .map((v) => Number(v))
     .filter((v) => Number.isFinite(v) && v > 0);
   return vals.length ? Math.min(...vals) : 0;
@@ -177,6 +213,8 @@ const ActItem = ({ actData, shortlistCount }) => {
     getCardPriceWithTravel, // 🔹 for travel-aware pricing when we only have a card
   } = useContext(ShopContext);
 
+  
+
   // Keep loveCount in sync when actData changes
   useEffect(() => {
     setLoveCount(getLove(actData, shortlistCount));
@@ -208,11 +246,12 @@ const ActItem = ({ actData, shortlistCount }) => {
             selectedCounty: selectedCounty || null,
             selectedAddress: selectedAddress || null,
             selectedDate: selectedDate || null,
-            useCountyTravelFee: !!actData?.useCountyTravelFee,
+            useCountyTravelFee: getUseCountyTravelFee(actData),
             travelModeHints: {
-              useMUTravelRates: !!actData?.useMUTravelRates,
-              useCountyTravelFee: !!actData?.useCountyTravelFee,
-              costPerMile: actData?.costPerMile ?? null,
+              useMUTravelRates: getUseMUTravelRates(actData),
+              useCountyTravelFee: getUseCountyTravelFee(actData),
+              costPerMile: getCostPerMile(actData),
+              hasCountyFees: getHasCountyFees(actData),
             },
             cardFields: Object.keys(actData || {}),
           });
@@ -278,10 +317,12 @@ const ActItem = ({ actData, shortlistCount }) => {
         }
 
         // Full act doc available → compute locally
-        const hasCountyTable = !!(
-          actData?.useCountyTravelFee &&
-          actData?.countyFees &&
-          Object.keys(actData.countyFees).length > 0
+        const countyFees = getCountyFees(actData);
+        const hasCountyTable = Boolean(
+          getUseCountyTravelFee(actData) &&
+          countyFees &&
+          typeof countyFees === 'object' &&
+          Object.keys(countyFees).length > 0
         );
         const lineup = actData.lineups[0];
 
@@ -318,10 +359,10 @@ const ActItem = ({ actData, shortlistCount }) => {
             selectedDate: selectedDate || null,
           });
           dlog('act travel flags', {
-            useMUTravelRates: !!actData?.useMUTravelRates,
-            useCountyTravelFee: !!actData?.useCountyTravelFee,
-            costPerMile: actData?.costPerMile ?? null,
-            hasCountyFees: !!actData?.countyFees,
+            useMUTravelRates: getUseMUTravelRates(actData),
+            useCountyTravelFee: getUseCountyTravelFee(actData),
+            costPerMile: getCostPerMile(actData),
+            hasCountyFees: getHasCountyFees(actData),
           });
         });
         setPrice({ ...result, total: withMargin });
@@ -343,12 +384,14 @@ const ActItem = ({ actData, shortlistCount }) => {
   // Ensure margin is applied even if we fell back to base price without computing `price`
   const rawTotal = price?.total ?? (getBasePrice(actData) != null ? applyMargin(getBasePrice(actData)) : null);
   // Helpful trace: what ends up in the UI
-  pgroup(`UI total — ${getTitle(actData)} (${getActId(actData)})`, () => {
-    if (!(DBG && DBG_PRICE)) return;
-    dlog('price state', price);
-    dlog('basePrice source (pre-margin)', getBasePrice(actData));
-    dlog('UI rawTotal (post-margin)', rawTotal);
-  });
+  useEffect(() => {
+    pgroup(`UI total — ${getTitle(actData)} (${getActId(actData)})`, () => {
+      if (!(DBG && DBG_PRICE)) return;
+      dlog('price state', price);
+      dlog('basePrice source (pre-margin)', getBasePrice(actData));
+      dlog('UI rawTotal (post-margin)', rawTotal);
+    });
+  }, [actData, price, rawTotal]);
 
   const displayTotal = rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
 
@@ -471,6 +514,11 @@ const ActItem = ({ actData, shortlistCount }) => {
       </Link>
     </div>
   );
+};
+
+ActItem.propTypes = {
+  actData: PropTypes.object.isRequired,
+  shortlistCount: PropTypes.number,
 };
 
 export default ActItem;
