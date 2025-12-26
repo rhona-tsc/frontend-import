@@ -16,6 +16,141 @@ const MARGIN_MULT = 1.33;
 const SPEEDY_SETUP_KEY =
   "speedy_setup (60mins) - roadie and engineer duties only (travel added on top later for additional team member)";
 
+
+  // ================================
+// Shared helpers for memoised cards
+// ================================
+const isManagerLike = (m = {}) => {
+  const hasManagerWord = (s = "") => /\b(manager|management)\b/i.test(String(s));
+
+  if (m.isManager === true || m.isNonPerformer === true) return true;
+  if (hasManagerWord(m.instrument) || hasManagerWord(m.title)) return true;
+
+  const rolesArr = Array.isArray(m.additionalRoles) ? m.additionalRoles : [];
+  if (rolesArr.some((r) => hasManagerWord(r?.role) || hasManagerWord(r?.title))) return true;
+
+  return false;
+};
+
+function looksLikeMap(obj) {
+  return obj && (obj instanceof Map || typeof obj.forEach === "function");
+}
+
+function getCountyFeeFromMap(fees, county) {
+  if (!fees || !county) return 0;
+
+  const norm = String(county).toLowerCase().trim();
+  const entries = looksLikeMap(fees)
+    ? (() => {
+        const a = [];
+        fees.forEach((v, k) => a.push([k, v]));
+        return a;
+      })()
+    : Object.entries(fees);
+
+  for (const [k, v] of entries) {
+    if (String(k).toLowerCase().trim() === norm) return Number(v) || 0;
+  }
+  return 0;
+}
+
+function resolveDestination(selectedAddress) {
+  if (typeof selectedAddress === "string") return selectedAddress;
+  return selectedAddress?.postcode || selectedAddress?.address || "";
+}
+
+function resolveProxyOrigin({ selectedLineup, actData }) {
+  const members = Array.isArray(selectedLineup?.bandMembers) ? selectedLineup.bandMembers : [];
+
+  const pick = (m) =>
+    !isManagerLike(m) && (m?.postCode || m?.postcode) ? (m.postCode || m.postcode) : "";
+
+  return (
+    members.map(pick).find(Boolean) ||
+    members.map((m) => m?.postCode || m?.postcode).find(Boolean) ||
+    actData?.defaultTravelPostcode ||
+    ""
+  );
+}
+
+// ✅ This is the one your memoised cards are calling
+function getExtraNetFromAct(actData, key) {
+  const raw = actData?.extras?.get ? actData.extras.get(key) : actData?.extras?.[key];
+  if (typeof raw === "number") return raw;
+  if (raw && typeof raw === "object") return Number(raw.price) || 0;
+  return 0;
+}
+
+// ✅ Used by SpeedySetupCard
+function lineupHasRoleLike(selectedLineup, regex) {
+  const members = Array.isArray(selectedLineup?.bandMembers) ? selectedLineup.bandMembers : [];
+
+  return members.some((m) => {
+    if (isManagerLike(m)) return false;
+
+    const hay = `${m?.instrument || ""} ${m?.title || ""}`;
+    if (regex.test(hay)) return true;
+
+    const rolesArr = Array.isArray(m?.additionalRoles) ? m.additionalRoles : [];
+    return rolesArr.some((r) => regex.test(`${r?.role || ""} ${r?.title || ""}`));
+  });
+}
+
+// ✅ Used by DjLiveBongosCard / DjLiveBongosAndSaxCard / SpeedySetupCard
+async function computeTravelNetForExtraPerformer({
+  actData,
+  selectedLineup,
+  selectedCounty,
+  selectedAddress,
+  selectedDate,
+}) {
+  let travelNet = 0;
+  const destination = resolveDestination(selectedAddress);
+
+  // 1) County table
+  const useCountyTable =
+    actData?.useCountyTravelFee &&
+    (looksLikeMap(actData?.countyFees) ||
+      (actData?.countyFees && Object.keys(actData.countyFees).length > 0)) &&
+    selectedCounty;
+
+  if (useCountyTable) {
+    travelNet = getCountyFeeFromMap(actData.countyFees, selectedCounty);
+  }
+
+  // 2) Cost-per-mile
+  if (!travelNet && Number(actData?.costPerMile) > 0) {
+    const proxyOrigin = resolveProxyOrigin({ selectedLineup, actData });
+    if (proxyOrigin && destination) {
+      const { miles = 0 } = await getTravelV2(proxyOrigin, destination, selectedDate);
+      travelNet = (Number(miles) || 0) * Number(actData.costPerMile) * 2; // return trip
+    }
+  }
+
+  // 3) MU fallback
+  if (!travelNet) {
+    const proxyOrigin = resolveProxyOrigin({ selectedLineup, actData });
+    if (proxyOrigin && destination) {
+      const { outbound, returnTrip } = await getTravelV2(proxyOrigin, destination, selectedDate);
+      if (outbound && returnTrip) {
+        const miles = (outbound.distance.value + returnTrip.distance.value) / 1609.34;
+        const hours = (outbound.duration.value + returnTrip.duration.value) / 3600;
+
+        const fuel = miles * 0.56;
+        const time = hours * 13.23;
+
+        // (keeping your existing late logic)
+        const late = returnTrip.duration.value / 3600 > 1 ? 136 : 0;
+
+        const toll = (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
+        travelNet = fuel + time + late + toll;
+      }
+    }
+  }
+
+  return Number(travelNet) || 0;
+}
+
 export const DjLiveBongosCard = React.memo(function DjLiveBongosCard({
   actData,
   selectedLineup,
@@ -756,6 +891,8 @@ const navigate = useNavigate();
   // Patch: local state for mic quantity and pending extra
   const [selectedMicQty, setSelectedMicQty] = useState("");
   const [pendingMicExtra, setPendingMicExtra] = useState(null);
+  // Extra Song Request dropdown state (must be top-level hook)
+  const [selectedSongRequests, setSelectedSongRequests] = useState("");
 
   const getPerformancePrice = (selectedKey) => {
     const option = extraPerformanceOptions.find(
@@ -861,399 +998,391 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     return baselineFinishTime(getArrivalHHMM());
   };
 
-  // Toggle Add/Remove for Late Stay (no longer used, replaced by select below)
-
-  // Toggle Add/Remove for Early Arrival (no longer used, replaced by select below)
-  {
-    /* --- Late Stay Slide --- */
-  }
-  <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-    <div className="overflow-hidden h-24 w-full rounded mb-2">
-      <img
-        src={assets.late_stay_icon}
-        alt="Late Stay"
-        className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-      />
-    </div>
-    <p className="text-sm font-medium text-center">Late Stay</p>
-    <p className="text-sm text-gray-600 text-center">
-      £{lateStayOptions[0]?.price || 0} / 60 mins{" "}
-      <span className="text-xs">(per band member)</span>
-    </p>
-    <div className="flex items-center justify-center gap-2 mt-1">
-      <label className="text-xs text-gray-600">Duration</label>
-      <select
-        className="border px-2 py-1 rounded text-sm"
-        value={String(selectedLateStay)}
-        onChange={(e) => {
-          const minutes = parseInt(e.target.value || "0", 10) || 0;
-          setSelectedLateStay(minutes);
-
-          // 1) Update extras immediately
-          const option = lateStayOptions.find((opt) => opt.value === minutes);
-          if (option) {
-            updateExtras(actId, lineupId, {
-              name: `Late Stay - ${option.label}`,
-              key: "late_stay_60min_per_band_member",
-              price: option.price,
-              quantity: 1,
-              memberCount: lineupSize, // ✅ performers only
-            });
-
-            // 2) Bump Finish Time in Cart (cap at 03:00 next day)
-            const baseFinish = baselineFinishTime(getArrivalHHMM());
-            let { hhmm, dayOffset } = addMinutesHHMM(baseFinish, minutes);
-            // Cap to 03:00 of next day
-            if (dayOffset > 1 || (dayOffset === 1 && hhmm > "03:00")) {
-              hhmm = "03:00";
-              dayOffset = 1;
-            }
-            if (typeof onOverrideFinishTime === "function") {
-              onOverrideFinishTime(actId, lineupId, { hhmm, dayOffset });
-            } else {
-              // best-effort local write so the dropdown reflects quickly
-              setCartItems((prev) => {
-                const u = { ...prev };
-                if (u?.[actId]?.[lineupId]) {
-                  u[actId][lineupId].finishTime = hhmm;
-                  u[actId][lineupId].finishDayOffset = dayOffset;
-                }
-                return u;
-              });
-            }
-          } // ← close if(option)
-        }}
-      >
-        {lateStayOptions.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
-    <button
-      onClick={() => {
-        // Remove late stay
-        updateExtras(actId, lineupId, {
-          name: "Late Stay",
-          key: "late_stay_60min_per_band_member",
-          price: 0,
-          quantity: 0,
-        });
-        setSelectedLateStay(lateStayOptions[0]?.value || 30);
-        // Reset finish time as well
-        setCartItems((prev) => {
-          const u = { ...prev };
-          if (u?.[actId]?.[lineupId]) {
-            u[actId][lineupId].finishTime =
-              baselineFinishTime(getArrivalHHMM());
-            u[actId][lineupId].finishDayOffset = 0;
-          }
-          return u;
-        });
-        if (typeof onLateStayRemoved === "function") {
-          onLateStayRemoved(actId, lineupId);
-        }
-      }}
-      className={`mt-2 px-4 py-2 text-base rounded text-white ${safeSelectedExtras.find((e) => e.key === "late_stay_60min_per_band_member") ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"}`}
-    >
-      {safeSelectedExtras.find(
-        (e) => e.key === "late_stay_60min_per_band_member"
-      )
-        ? "Remove"
-        : "Add"}
-    </button>
-  </div>;
-
-
-
-(() => {
-  // Show if act has PA or lights (upsell either)
-  const hasPA = Boolean(actData?.paSystem);
-  const hasLights = Boolean(actData?.lightingSystem);
-  if (!hasPA && !hasLights) return null;
-
-  // Base price is the band-member late stay NET fee × 2 band members
-  const lsRaw = actData?.extras?.get
-    ? actData.extras.get("late_stay_60min_per_band_member")
-    : actData?.extras?.["late_stay_60min_per_band_member"];
-  const basePerMemberNet =
-    typeof lsRaw === "number" ? lsRaw : (lsRaw?.price ?? 0);
-  if (!basePerMemberNet) return null;
-
-  // --- helpers for time conversion ---
-  const parseMins = (hhmm) => {
-    const [h, m] = String(hhmm || "00:00").split(":").map(Number);
-    return (h || 0) * 60 + (m || 0);
-  };
-  const to12h = (hhmm) => {
-    const [H, M] = String(hhmm || "00:00").split(":").map(Number);
-    let h = H % 12;
-    if (h === 0) h = 12;
-    const suffix = H >= 12 ? "pm" : "am";
-    return `${h}:${String(M).padStart(2, "0")}${suffix}`;
-  };
-
-  const finishTimes = ["00:30", "01:00", "01:30", "02:00", "02:30", "03:00"];
-
-  
-
-  const cartFinishHHMM =
-    (cartItems?.[actId]?.[lineupId]?.finishTime) || getFinishHHMM();
-  const cartFinishDayOffset = Number(
-    cartItems?.[actId]?.[lineupId]?.finishDayOffset || 0
-  );
-
-  // If Cart finish isn't set yet, infer band's late minutes from the selected band Late Stay extra
-  const lateStayBandExtra = liveSelectedExtras.find((e) => e.key === "late_stay_60min_per_band_member");
-
-  const inferBandLateMinsFromExtra = () => {
-    if (!lateStayBandExtra) return 0;
-    // 1) explicit minutes metadata if present
-    if (typeof lateStayBandExtra.minutes === "number" && lateStayBandExtra.minutes > 0) {
-      return Math.max(0, Math.min(180, lateStayBandExtra.minutes));
-    }
-    // 2) try to parse from name e.g. "Late Stay - 1 hour", "Late Stay - 1 hour 30 mins", "Late Stay - 30 mins"
-    const name = String(lateStayBandExtra.name || "").toLowerCase();
-    let mins = 0;
-    const mHours = name.match(/(\d+)\s*hour/);
-    const mMins = name.match(/(\d+)\s*mins?/);
-    if (mHours) mins += parseInt(mHours[1], 10) * 60;
-    if (mMins) mins += parseInt(mMins[1], 10);
-    if (mins > 0) return Math.max(0, Math.min(180, mins));
-    // 3) last resort – derive from price vs per-60 net and performer count
-    const per60Net = basePerMemberNet || 0; // already computed above from actData extras
-    const members = lineupPerformers.length || 0; // performers only (management excluded)
-    if (per60Net > 0 && members > 0 && typeof lateStayBandExtra.price === "number") {
-      const estimated = Math.round(((lateStayBandExtra.price * 1.33) / (per60Net * members)) * 60);
-      return Math.max(0, Math.min(180, estimated || 0));
-    }
-    return 0;
-  };
-
-  // If dayOffset is 1 or the time is between 00:00–05:59, treat as after midnight (minutes past midnight)
-  const bandLateMinsFromCart =
-    (cartFinishDayOffset > 0 || cartFinishHHMM < "06:00")
-      ? Math.max(0, Math.min(parseMins(cartFinishHHMM), 180))
-      : 0;
-
-  // Fallback: infer from the selected band Late Stay extra
-  const bandLateMins = Math.max(bandLateMinsFromCart, inferBandLateMinsFromExtra());
-
-  // Offer only finish times strictly AFTER the band's finish
-  const allowedFinishTimes = finishTimes.filter((ft) => {
-    const ftMin = parseMins(ft);
-    return Number.isFinite(ftMin) && ftMin > bandLateMins;
-  });
-  if (allowedFinishTimes.length === 0) return null;
-
-  // Read any existing selection from cart extras (keeps UI in sync)
-  const paLateStayExisting = liveSelectedExtras.find((e) => e.key === "pa_late_stay");
-  const preferredFinish = paLateStayExisting?.finishTime || paFinishChoice || allowedFinishTimes[0];
-  const effectiveFinish = allowedFinishTimes.includes(preferredFinish)
-    ? preferredFinish
-    : allowedFinishTimes[0];
-
-  const minutesAfterMidnight = Math.max(0, Math.min(parseMins(effectiveFinish), 180));
-  const deltaMins = Math.max(0, minutesAfterMidnight - bandLateMins); // charge only for PA beyond band finish
-  const priceGrossCalc = Math.ceil((basePerMemberNet * 2 * (deltaMins / 60)) * 1.33);
-  const priceGross = typeof paLateStayExisting?.price === "number" && paLateStayExisting.price > 0
-    ? paLateStayExisting.price
-    : priceGrossCalc;
-
-  const writeCartPaFinish = (hhmm) => {
-    if (typeof onOverridePaFinishTime === "function") {
-      onOverridePaFinishTime(actId, lineupId, {
-        hhmm,
-        dayOffset: hhmm < "12:00" ? 1 : 0,
-      });
-    } else {
-      setCartItems((prev) => {
-        const u = { ...prev };
-        if (u?.[actId]?.[lineupId]) {
-          u[actId][lineupId].paLightsFinishTime = hhmm;
-          u[actId][lineupId].paLightsFinishDayOffset = hhmm < "12:00" ? 1 : 0;
-        }
-        return u;
-      });
-    }
-  };
-
-  const handleSelectChange = (newFinish) => {
-    const mins = Math.max(0, Math.min(parseMins(newFinish), 180));
-    const delta = Math.max(0, mins - bandLateMins);
-    if (paLateStayExisting) {
-      if (delta === 0) {
-        // Selecting a time at/before the band's finish removes the PA Late Stay
-        updateExtras(actId, lineupId, { key: "pa_late_stay", name: "PA & Lights Late Stay", price: 0, quantity: 0 });
-        writeCartPaFinish("00:00");
-        return;
-      }
-      const newGross = Math.ceil((basePerMemberNet * 2 * (delta / 60)) * 1.33);
-      updateExtras(actId, lineupId, {
-        key: "pa_late_stay",
-        name: `PA Late Stay to ${to12h(newFinish)}`,
-        price: newGross,
-        quantity: 1,
-        finishTime: newFinish,
-      });
-      writeCartPaFinish(newFinish);
-    } else {
-      setPaFinishChoice(newFinish);
-    }
-  };
-
-  const handleAdd = () => {
-    const mins = Math.max(0, Math.min(parseMins(effectiveFinish), 180));
-    const delta = Math.max(0, mins - bandLateMins);
-    if (delta === 0) return; // nothing to charge beyond band finish
-    const gross = Math.ceil((basePerMemberNet * 2 * (delta / 60)) * 1.33);
-    updateExtras(actId, lineupId, {
-      key: "pa_late_stay",
-      name: `PA Late Stay to ${to12h(effectiveFinish)}`,
-      price: gross,
-      quantity: 1,
-      finishTime: effectiveFinish,
-    });
-    writeCartPaFinish(effectiveFinish);
-  };
-
-  const handleRemove = () => {
-    updateExtras(actId, lineupId, {
-      key: "pa_late_stay",
-      name: "PA & Lights Late Stay",
-      price: 0,
-      quantity: 0,
-    });
-    // Keep chosen dropdown value, but clear the cart field so the Cart line hides
-    writeCartPaFinish("00:00");
-  };
-
-  return (
+  // --- Slides that depend on cart timing (rendered inside the slider) ---
+  const renderLateStaySlide = () => (
     <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
       <div className="overflow-hidden h-24 w-full rounded mb-2">
         <img
-          src={assets.PA_speakers_icon}
-          alt="PA Late Stay"
+          src={assets.late_stay_icon}
+          alt="Late Stay"
           className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
         />
       </div>
-      <p className="text-sm font-medium text-center">PA Late Stay</p>
-      <p className="text-sm text-center text-gray-600">Covers PA & Lights past midnight</p>
-
-      <div className="flex items-center justify-center gap-2 mt-2">
-        <label className="text-xs text-gray-600">Finish Time</label>
+      <p className="text-sm font-medium text-center">Late Stay</p>
+      <p className="text-sm text-gray-600 text-center">
+        £{lateStayOptions[0]?.price || 0} / 60 mins{" "}
+        <span className="text-xs">(per band member)</span>
+      </p>
+      <div className="flex items-center justify-center gap-2 mt-1">
+        <label className="text-xs text-gray-600">Duration</label>
         <select
-          className="border px-3 py-1 rounded text-sm"
-          value={effectiveFinish}
-          onChange={(e) => handleSelectChange(e.target.value)}
+          className="border px-2 py-1 rounded text-sm"
+          value={String(selectedLateStay)}
+          onChange={(e) => {
+            const minutes = parseInt(e.target.value || "0", 10) || 0;
+            setSelectedLateStay(minutes);
+
+            // 1) Update extras immediately
+            const option = lateStayOptions.find((opt) => opt.value === minutes);
+            if (option) {
+              updateExtras(actId, lineupId, {
+                name: `Late Stay - ${option.label}`,
+                key: "late_stay_60min_per_band_member",
+                price: option.price,
+                quantity: 1,
+                memberCount: lineupSize, // performers only
+              });
+
+              // 2) Bump Finish Time in Cart (cap at 03:00 next day)
+              const baseFinish = baselineFinishTime(getArrivalHHMM());
+              let { hhmm, dayOffset } = addMinutesHHMM(baseFinish, minutes);
+              if (dayOffset > 1 || (dayOffset === 1 && hhmm > "03:00")) {
+                hhmm = "03:00";
+                dayOffset = 1;
+              }
+
+              if (typeof onOverrideFinishTime === "function") {
+                onOverrideFinishTime(actId, lineupId, { hhmm, dayOffset });
+              } else {
+                setCartItems((prev) => {
+                  const u = { ...prev };
+                  if (u?.[actId]?.[lineupId]) {
+                    u[actId][lineupId].finishTime = hhmm;
+                    u[actId][lineupId].finishDayOffset = dayOffset;
+                  }
+                  return u;
+                });
+              }
+            }
+          }}
         >
-          {allowedFinishTimes.map((ft) => (
-            <option key={ft} value={ft}>{ft}</option>
+          {lateStayOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
           ))}
         </select>
       </div>
 
-      <div className="text-center text-sm text-gray-700 mt-1">£{priceGross}</div>
+      <button
+        onClick={() => {
+          // Remove late stay
+          updateExtras(actId, lineupId, {
+            name: "Late Stay",
+            key: "late_stay_60min_per_band_member",
+            price: 0,
+            quantity: 0,
+          });
+          setSelectedLateStay(lateStayOptions[0]?.value || 30);
 
-      {paLateStayExisting ? (
-        <button onClick={handleRemove} className="mt-2 px-4 py-2 text-base rounded text-white bg-black">Remove</button>
-      ) : (
-        <button onClick={handleAdd} className="mt-2 px-4 py-2 text-base rounded text-white bg-gray-300 hover:bg-[#ff6667]">Add</button>
-      )}
-    </div>
-  );
-})()
+          // Reset finish time as well
+          setCartItems((prev) => {
+            const u = { ...prev };
+            if (u?.[actId]?.[lineupId]) {
+              u[actId][lineupId].finishTime = baselineFinishTime(getArrivalHHMM());
+              u[actId][lineupId].finishDayOffset = 0;
+            }
+            return u;
+          });
 
-  {
-    /* --- Early Arrival Slide --- */
-  }
-  <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-    <div className="overflow-hidden h-24 w-full rounded mb-2">
-      <img
-        src={assets.early_arrival_icon}
-        alt="Early Arrival"
-        className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-      />
-    </div>
-    <p className="text-sm font-medium text-center">Early Arrival</p>
-    <p className="text-sm text-gray-600 text-center">
-      £{earlyArrivalOptions[0]?.price || 0} / 60 mins{" "}
-      <span className="text-xs">(per band member)</span>
-    </p>
-    <div className="flex items-center justify-center gap-2 mt-1">
-      <label className="text-xs text-gray-600">Advance</label>
-      <select
-        className="border px-2 py-1 rounded text-sm"
-        value={String(selectedEarlyArrival)}
-        onChange={(e) => {
-          const minutes = parseInt(e.target.value || "0", 10) || 0;
-          setSelectedEarlyArrival(minutes);
-
-          // 1) Update extras immediately
-          const option = earlyArrivalOptions.find(
-            (opt) => opt.value === minutes
-          );
-          if (option) {
-      updateExtras(actId, lineupId, {
-  name: `Early Arrival - ${option.label}`,
-  key: "early_arrival_60min_per_band_member",
-  price: option.price,
-  quantity: 1,
-  memberCount: lineupSize,   
-});
-          }
-
-          // 2) Pull arrival back from 17:00 by minutes (floor at 09:00 same day)
-          const { hhmm } = addMinutesHHMM("17:00", -minutes);
-          const clamped = hhmm < "09:00" ? "09:00" : hhmm;
-          if (typeof onOverrideArrivalTime === "function") {
-            onOverrideArrivalTime(actId, lineupId, { hhmm: clamped });
-          } else {
-            setCartItems((prev) => {
-              const u = { ...prev };
-              if (u?.[actId]?.[lineupId]) {
-                u[actId][lineupId].arrivalTime = clamped;
-              }
-              return u;
-            });
+          if (typeof onLateStayRemoved === "function") {
+            onLateStayRemoved(actId, lineupId);
           }
         }}
+        className={`mt-2 px-4 py-2 text-base rounded text-white ${
+          safeSelectedExtras.find((e) => e.key === "late_stay_60min_per_band_member")
+            ? "bg-black"
+            : "bg-gray-300 hover:bg-[#ff6667]"
+        }`}
       >
-        {earlyArrivalOptions.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        {safeSelectedExtras.find((e) => e.key === "late_stay_60min_per_band_member")
+          ? "Remove"
+          : "Add"}
+      </button>
     </div>
-    <button
-      onClick={() => {
-        // Remove early arrival
-        updateExtras(actId, lineupId, {
-          name: "Early Arrival",
-          key: "early_arrival_60min_per_band_member",
-          price: 0,
-          quantity: 0,
+  );
+
+  const renderPaLateStaySlide = () => {
+    const hasPA = Boolean(actData?.paSystem);
+    const hasLights = Boolean(actData?.lightingSystem);
+    if (!hasPA && !hasLights) return null;
+
+    const lsRaw = actData?.extras?.get
+      ? actData.extras.get("late_stay_60min_per_band_member")
+      : actData?.extras?.["late_stay_60min_per_band_member"];
+
+    const basePerMemberNet = typeof lsRaw === "number" ? lsRaw : (lsRaw?.price ?? 0);
+    if (!basePerMemberNet) return null;
+
+    const parseMins = (hhmm) => {
+      const [h, m] = String(hhmm || "00:00").split(":").map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+
+    const to12h = (hhmm) => {
+      const [H, M] = String(hhmm || "00:00").split(":").map(Number);
+      let h = H % 12;
+      if (h === 0) h = 12;
+      const suffix = H >= 12 ? "pm" : "am";
+      return `${h}:${String(M).padStart(2, "0")}${suffix}`;
+    };
+
+    const finishTimes = ["00:30", "01:00", "01:30", "02:00", "02:30", "03:00"];
+
+    const cartFinishHHMM = cartItems?.[actId]?.[lineupId]?.finishTime || getFinishHHMM();
+    const cartFinishDayOffset = Number(cartItems?.[actId]?.[lineupId]?.finishDayOffset || 0);
+
+    const lateStayBandExtra = liveSelectedExtras.find((e) => e.key === "late_stay_60min_per_band_member");
+
+    const inferBandLateMinsFromExtra = () => {
+      if (!lateStayBandExtra) return 0;
+      if (typeof lateStayBandExtra.minutes === "number" && lateStayBandExtra.minutes > 0) {
+        return Math.max(0, Math.min(180, lateStayBandExtra.minutes));
+      }
+      const name = String(lateStayBandExtra.name || "").toLowerCase();
+      let mins = 0;
+      const mHours = name.match(/(\d+)\s*hour/);
+      const mMins = name.match(/(\d+)\s*mins?/);
+      if (mHours) mins += parseInt(mHours[1], 10) * 60;
+      if (mMins) mins += parseInt(mMins[1], 10);
+      if (mins > 0) return Math.max(0, Math.min(180, mins));
+      return 0;
+    };
+
+    const bandLateMinsFromCart =
+      cartFinishDayOffset > 0 || cartFinishHHMM < "06:00"
+        ? Math.max(0, Math.min(parseMins(cartFinishHHMM), 180))
+        : 0;
+
+    const bandLateMins = Math.max(bandLateMinsFromCart, inferBandLateMinsFromExtra());
+
+    const allowedFinishTimes = finishTimes.filter((ft) => {
+      const ftMin = parseMins(ft);
+      return Number.isFinite(ftMin) && ftMin > bandLateMins;
+    });
+
+    if (allowedFinishTimes.length === 0) return null;
+
+    const paLateStayExisting = liveSelectedExtras.find((e) => e.key === "pa_late_stay");
+    const preferredFinish = paLateStayExisting?.finishTime || paFinishChoice || allowedFinishTimes[0];
+    const effectiveFinish = allowedFinishTimes.includes(preferredFinish)
+      ? preferredFinish
+      : allowedFinishTimes[0];
+
+    const minutesAfterMidnight = Math.max(0, Math.min(parseMins(effectiveFinish), 180));
+    const deltaMins = Math.max(0, minutesAfterMidnight - bandLateMins);
+
+    const priceGrossCalc = Math.ceil((basePerMemberNet * 2 * (deltaMins / 60)) * 1.33);
+    const priceGross =
+      typeof paLateStayExisting?.price === "number" && paLateStayExisting.price > 0
+        ? paLateStayExisting.price
+        : priceGrossCalc;
+
+    const writeCartPaFinish = (hhmm) => {
+      if (typeof onOverridePaFinishTime === "function") {
+        onOverridePaFinishTime(actId, lineupId, {
+          hhmm,
+          dayOffset: hhmm < "12:00" ? 1 : 0,
         });
-        setSelectedEarlyArrival(earlyArrivalOptions[0]?.value || 30);
+      } else {
         setCartItems((prev) => {
           const u = { ...prev };
           if (u?.[actId]?.[lineupId]) {
-            u[actId][lineupId].arrivalTime = "17:00";
+            u[actId][lineupId].paLightsFinishTime = hhmm;
+            u[actId][lineupId].paLightsFinishDayOffset = hhmm < "12:00" ? 1 : 0;
           }
           return u;
         });
-      }}
-      className={`mt-2 px-4 py-2 text-base rounded text-white ${safeSelectedExtras.find((e) => e.key === "early_arrival_60min_per_band_member") ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"}`}
-    >
-      {safeSelectedExtras.find(
-        (e) => e.key === "early_arrival_60min_per_band_member"
-      )
-        ? "Remove"
-        : "Add"}
-    </button>
-  </div>;
+      }
+    };
+
+    const handleSelectChange = (newFinish) => {
+      const mins = Math.max(0, Math.min(parseMins(newFinish), 180));
+      const delta = Math.max(0, mins - bandLateMins);
+
+      if (paLateStayExisting) {
+        if (delta === 0) {
+          updateExtras(actId, lineupId, {
+            key: "pa_late_stay",
+            name: "PA & Lights Late Stay",
+            price: 0,
+            quantity: 0,
+          });
+          writeCartPaFinish("00:00");
+          return;
+        }
+
+        const newGross = Math.ceil((basePerMemberNet * 2 * (delta / 60)) * 1.33);
+        updateExtras(actId, lineupId, {
+          key: "pa_late_stay",
+          name: `PA Late Stay to ${to12h(newFinish)}`,
+          price: newGross,
+          quantity: 1,
+          finishTime: newFinish,
+        });
+        writeCartPaFinish(newFinish);
+      } else {
+        setPaFinishChoice(newFinish);
+      }
+    };
+
+    const handleAdd = () => {
+      if (deltaMins === 0) return;
+      const gross = Math.ceil((basePerMemberNet * 2 * (deltaMins / 60)) * 1.33);
+      updateExtras(actId, lineupId, {
+        key: "pa_late_stay",
+        name: `PA Late Stay to ${to12h(effectiveFinish)}`,
+        price: gross,
+        quantity: 1,
+        finishTime: effectiveFinish,
+      });
+      writeCartPaFinish(effectiveFinish);
+    };
+
+    const handleRemove = () => {
+      updateExtras(actId, lineupId, {
+        key: "pa_late_stay",
+        name: "PA & Lights Late Stay",
+        price: 0,
+        quantity: 0,
+      });
+      writeCartPaFinish("00:00");
+    };
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-2">
+          <img
+            src={assets.PA_speakers_icon}
+            alt="PA Late Stay"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          />
+        </div>
+        <p className="text-sm font-medium text-center">PA Late Stay</p>
+        <p className="text-sm text-center text-gray-600">Covers PA & Lights past midnight</p>
+
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <label className="text-xs text-gray-600">Finish Time</label>
+          <select
+            className="border px-3 py-1 rounded text-sm"
+            value={effectiveFinish}
+            onChange={(e) => handleSelectChange(e.target.value)}
+          >
+            {allowedFinishTimes.map((ft) => (
+              <option key={ft} value={ft}>
+                {ft}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="text-center text-sm text-gray-700 mt-1">£{priceGross}</div>
+
+        {paLateStayExisting ? (
+          <button
+            onClick={handleRemove}
+            className="mt-2 px-4 py-2 text-base rounded text-white bg-black"
+          >
+            Remove
+          </button>
+        ) : (
+          <button
+            onClick={handleAdd}
+            className="mt-2 px-4 py-2 text-base rounded text-white bg-gray-300 hover:bg-[#ff6667]"
+          >
+            Add
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderEarlyArrivalSlide = () => (
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="overflow-hidden h-24 w-full rounded mb-2">
+        <img
+          src={assets.early_arrival_icon}
+          alt="Early Arrival"
+          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+        />
+      </div>
+      <p className="text-sm font-medium text-center">Early Arrival</p>
+      <p className="text-sm text-gray-600 text-center">
+        £{earlyArrivalOptions[0]?.price || 0} / 60 mins{" "}
+        <span className="text-xs">(per band member)</span>
+      </p>
+      <div className="flex items-center justify-center gap-2 mt-1">
+        <label className="text-xs text-gray-600">Advance</label>
+        <select
+          className="border px-2 py-1 rounded text-sm"
+          value={String(selectedEarlyArrival)}
+          onChange={(e) => {
+            const minutes = parseInt(e.target.value || "0", 10) || 0;
+            setSelectedEarlyArrival(minutes);
+
+            const option = earlyArrivalOptions.find((opt) => opt.value === minutes);
+            if (option) {
+              updateExtras(actId, lineupId, {
+                name: `Early Arrival - ${option.label}`,
+                key: "early_arrival_60min_per_band_member",
+                price: option.price,
+                quantity: 1,
+                memberCount: lineupSize,
+              });
+            }
+
+            const { hhmm } = addMinutesHHMM("17:00", -minutes);
+            const clamped = hhmm < "09:00" ? "09:00" : hhmm;
+            if (typeof onOverrideArrivalTime === "function") {
+              onOverrideArrivalTime(actId, lineupId, { hhmm: clamped });
+            } else {
+              setCartItems((prev) => {
+                const u = { ...prev };
+                if (u?.[actId]?.[lineupId]) {
+                  u[actId][lineupId].arrivalTime = clamped;
+                }
+                return u;
+              });
+            }
+          }}
+        >
+          {earlyArrivalOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <button
+        onClick={() => {
+          updateExtras(actId, lineupId, {
+            name: "Early Arrival",
+            key: "early_arrival_60min_per_band_member",
+            price: 0,
+            quantity: 0,
+          });
+          setSelectedEarlyArrival(earlyArrivalOptions[0]?.value || 30);
+          setCartItems((prev) => {
+            const u = { ...prev };
+            if (u?.[actId]?.[lineupId]) {
+              u[actId][lineupId].arrivalTime = "17:00";
+            }
+            return u;
+          });
+        }}
+        className={`mt-2 px-4 py-2 text-base rounded text-white ${
+          safeSelectedExtras.find((e) => e.key === "early_arrival_60min_per_band_member")
+            ? "bg-black"
+            : "bg-gray-300 hover:bg-[#ff6667]"
+        }`}
+      >
+        {safeSelectedExtras.find((e) => e.key === "early_arrival_60min_per_band_member")
+          ? "Remove"
+          : "Add"}
+      </button>
+    </div>
+  );
 
   // 📦 Filter all other extras (remove special handled ones)
   const ignoredKeys = [
@@ -1416,6 +1545,9 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
         </div>
 
        <div ref={sliderRef} className="keen-slider w-full">
+        {renderLateStaySlide()}
+        {renderPaLateStaySlide()}
+        {renderEarlyArrivalSlide()}
   {/* 🎚 sound_engineering_for_another_act with your acts PA */}
   {(() => {
     const raw = actData?.extras?.get
@@ -2087,8 +2219,6 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
 
     const lineupSize = lineup?.bandMembers?.length || 0;
     if (!base || !lineupSize) return null;
-
-    const [selectedSongRequests, setSelectedSongRequests] = React.useState("");
 
     const options = [];
     for (let i = 1; i <= 30; i++) {
