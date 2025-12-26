@@ -536,7 +536,7 @@ function ExtraVocalistCard({ actData, selectedLineup, safeSelectedExtras, update
   const displayPrice = priceGross ?? Math.ceil(baseNet * 1.33);
 
   return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow">
       <div className="overflow-hidden h-24 w-full rounded mb-2">
         <img
           src={assets.additional_band_member_DJ_icon /* swap to your vocalist icon if you have one */}
@@ -799,7 +799,7 @@ function DjLiveSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtr
   const displayPrice = djSaxPrice ?? Math.ceil(baseNet * 1.33);
 
   return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow">
       <div className="overflow-hidden h-24 w-full rounded mb-2">
         <img src={assets.dj_live_sax_icon} alt="DJ Live Sax (3x30mins)" className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110" />
       </div>
@@ -1000,7 +1000,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
 
   // --- Slides that depend on cart timing (rendered inside the slider) ---
   const renderLateStaySlide = () => (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
       <div className="overflow-hidden h-24 w-full rounded mb-2">
         <img
           src={assets.late_stay_icon}
@@ -1250,7 +1250,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     };
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-2">
           <img
             src={assets.PA_speakers_icon}
@@ -1298,7 +1298,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
   };
 
   const renderEarlyArrivalSlide = () => (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
       <div className="overflow-hidden h-24 w-full rounded mb-2">
         <img
           src={assets.early_arrival_icon}
@@ -1422,7 +1422,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
               {displayExtras.map((extra, idx) => (
                 <li
                   key={idx}
-                  className="group flex items-center justify-between text-gray-700 text-base"
+                  className="group flex items-center  text-gray-700 text-base"
                 >
                   {/* Left: name + qty + hover delete */}
                   <div className="flex items-center gap-2 min-w-0">
@@ -1558,7 +1558,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     if (!base || base === 0) return null;
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-2">
           <img
             src={assets.PA_speakers_icon}
@@ -1609,7 +1609,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
   })()}
 
   {/* Ceremony / Afternoon Performances Slide */}
-  <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+  <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
     <div className="overflow-hidden h-24 w-full rounded mb-2">
       <img
         src={assets.ceremony_afternoon_icon}
@@ -1668,7 +1668,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     if (!base || base === 0) return null;
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-2">
           <img
             src={assets.playlist_icon}
@@ -1739,7 +1739,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     if (!base || base === 0) return null;
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-2">
           <img
             src={assets.manned_playlist_icon}
@@ -1810,7 +1810,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     if (!base || base === 0) return null;
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-2">
           <img
             src={assets.band_member_DJ_icon}
@@ -1892,7 +1892,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     const quantity = selected?.quantity || 0;
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-2">
           <img
             src={assets.additional_band_member_DJ_icon}
@@ -2010,7 +2010,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     if (availableOptions.length === 0) return null;
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-2">
           <img
             src={assets.extra_performance_icon}
@@ -2110,7 +2110,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     }
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex justify-between flex-col shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex  flex-col shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-2">
           <img
             src={assets.wireless_mic_icon}
@@ -2232,7 +2232,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     }
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-1">
           <img
             src={assets.extra_song_request_icon}
@@ -2315,7 +2315,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
     if (!base || base === 0) return null;
 
     return (
-      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col  shadow">
         <div className="overflow-hidden h-24 w-full rounded mb-2">
           <img
             src={assets.israeli_dancing_icon}
