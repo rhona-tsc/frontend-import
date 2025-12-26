@@ -9,7 +9,429 @@ import { ShopContext } from "../context/ShopContext";
 import { addMinutesHHMM, baselineFinishTime } from "../pages/utils/time";
 import getTravelV2 from "../pages/utils/travelV2";
 
+// assumes assets, getExtraNetFromAct, computeTravelNetForExtraPerformer, lineupHasRoleLike exist in scope/imports
 
+const MARGIN_MULT = 1.33;
+
+const SPEEDY_SETUP_KEY =
+  "speedy_setup (60mins) - roadie and engineer duties only (travel added on top later for additional team member)";
+
+export const DjLiveBongosCard = React.memo(function DjLiveBongosCard({
+  actData,
+  selectedLineup,
+  safeSelectedExtras,
+  updateExtras,
+  actId,
+  lineupId,
+}) {
+  const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
+  const [djBongosPrice, setDjBongosPrice] = useState(null);
+
+  const hasBongosInLineup = useMemo(() => {
+    const members = selectedLineup?.bandMembers || [];
+    return members.some((m) =>
+      /bongo|percussion/i.test(m?.instrument || m?.title || "")
+    );
+  }, [selectedLineup]);
+
+  const baseNet = useMemo(
+    () => getExtraNetFromAct(actData, "DJ_live_bongos_3x30mins"),
+    [actData]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (!baseNet || baseNet <= 0) {
+        if (!cancelled) setDjBongosPrice(null);
+        return;
+      }
+
+      // If already in lineup, no extra travel.
+      if (hasBongosInLineup) {
+        if (!cancelled) setDjBongosPrice(Math.ceil(baseNet * MARGIN_MULT));
+        return;
+      }
+
+      // Otherwise, add travel for the extra performer.
+      const travelNet = await computeTravelNetForExtraPerformer({
+        actData,
+        selectedLineup,
+        selectedCounty,
+        selectedAddress,
+        selectedDate,
+      });
+
+      const gross = Math.ceil((baseNet + (travelNet || 0)) * MARGIN_MULT);
+      if (!cancelled) setDjBongosPrice(gross);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    baseNet,
+    hasBongosInLineup,
+    actData,
+    selectedLineup,
+    selectedCounty,
+    selectedAddress,
+    selectedDate,
+  ]);
+
+  if (!baseNet || baseNet <= 0) return null;
+
+  const selected = safeSelectedExtras.find((e) => e.key === "DJ_live_bongos_3x30mins");
+  const displayPrice = djBongosPrice ?? Math.ceil(baseNet * MARGIN_MULT);
+
+  return (
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow h-full">
+      <div className="overflow-hidden h-24 w-full rounded mb-2">
+        <img
+          src={assets.dj_live_bongos_icon}
+          alt="DJ Live Bongos (3x30mins)"
+          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        <p className="text-sm font-medium text-center">DJ Live Bongos (3x30mins)</p>
+        <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
+
+        <p className="text-[11px] text-gray-500 text-center mt-1">
+          {hasBongosInLineup
+            ? "Bongos/percussion already in lineup (no extra travel)."
+            : "If bongos/percussion isn’t in the lineup, travel is added for the percussionist."}
+        </p>
+      </div>
+
+      <button
+        onClick={() => {
+          updateExtras(actId, lineupId, {
+            name: "DJ Live Bongos (3x30mins)",
+            key: "DJ_live_bongos_3x30mins",
+            price: displayPrice,
+            quantity: selected ? 0 : 1,
+          });
+        }}
+        className={`mt-2 px-4 py-2 text-base rounded text-white ${
+          selected ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"
+        }`}
+      >
+        {selected ? "Remove" : "Add"}
+      </button>
+    </div>
+  );
+});
+
+export const DjLiveBongosAndSaxCard = React.memo(function DjLiveBongosAndSaxCard({
+  actData,
+  selectedLineup,
+  safeSelectedExtras,
+  updateExtras,
+  actId,
+  lineupId,
+}) {
+  const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
+  const [djBongosSaxPrice, setDjBongosSaxPrice] = useState(null);
+
+  // Support both legacy keys
+  const keyUsed = useMemo(() => {
+    const a = getExtraNetFromAct(actData, "DJ_live_bongos_and_sax_3x30mins");
+    if (a > 0) return "DJ_live_bongos_and_sax_3x30mins";
+
+    const b = getExtraNetFromAct(actData, "DJ_live_sax_and_bongos_3x30mins");
+    if (b > 0) return "DJ_live_sax_and_bongos_3x30mins";
+
+    return "DJ_live_bongos_and_sax_3x30mins";
+  }, [actData]);
+
+  const baseNet = useMemo(() => getExtraNetFromAct(actData, keyUsed), [actData, keyUsed]);
+
+  const hasSaxInLineup = useMemo(() => {
+    const members = selectedLineup?.bandMembers || [];
+    return members.some((m) => /sax/i.test(m?.instrument || m?.title || ""));
+  }, [selectedLineup]);
+
+  const hasBongosInLineup = useMemo(() => {
+    const members = selectedLineup?.bandMembers || [];
+    return members.some((m) =>
+      /bongo|percussion/i.test(m?.instrument || m?.title || "")
+    );
+  }, [selectedLineup]);
+
+  const missingCount = (hasSaxInLineup ? 0 : 1) + (hasBongosInLineup ? 0 : 1);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (!baseNet || baseNet <= 0) {
+        if (!cancelled) setDjBongosSaxPrice(null);
+        return;
+      }
+
+      // If both already in lineup, no extra travel.
+      if (missingCount === 0) {
+        if (!cancelled) setDjBongosSaxPrice(Math.ceil(baseNet * MARGIN_MULT));
+        return;
+      }
+
+      // Otherwise add travel for each missing performer.
+      const onePerformerTravel = await computeTravelNetForExtraPerformer({
+        actData,
+        selectedLineup,
+        selectedCounty,
+        selectedAddress,
+        selectedDate,
+      });
+
+      const travelNet = (onePerformerTravel || 0) * missingCount;
+      const gross = Math.ceil((baseNet + travelNet) * MARGIN_MULT);
+
+      if (!cancelled) setDjBongosSaxPrice(gross);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    baseNet,
+    missingCount,
+    actData,
+    selectedLineup,
+    selectedCounty,
+    selectedAddress,
+    selectedDate,
+  ]);
+
+  if (!baseNet || baseNet <= 0) return null;
+
+  const selected = safeSelectedExtras.find((e) => e.key === keyUsed);
+  const displayPrice = djBongosSaxPrice ?? Math.ceil(baseNet * MARGIN_MULT);
+
+  return (
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow h-full">
+      <div className="overflow-hidden h-24 w-full rounded mb-2">
+        <img
+          src={assets.dj_live_sax_and_bongos_icon}
+          alt="DJ Live Sax & Bongos (3x30mins)"
+          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        <p className="text-sm font-medium text-center">DJ Live Sax & Bongos (3x30mins)</p>
+        <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
+
+        <p className="text-[11px] text-gray-500 text-center mt-1">
+          {missingCount === 0
+            ? "Sax + bongos already in lineup (no extra travel)."
+            : `Travel added for ${missingCount} extra performer${
+                missingCount > 1 ? "s" : ""
+              } (missing sax and/or bongos).`}
+        </p>
+      </div>
+
+      <button
+        onClick={() => {
+          updateExtras(actId, lineupId, {
+            name: "DJ Live Sax & Bongos (3x30mins)",
+            key: keyUsed,
+            price: displayPrice,
+            quantity: selected ? 0 : 1,
+          });
+        }}
+        className={`mt-2 px-4 py-2 text-base rounded text-white ${
+          selected ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"
+        }`}
+      >
+        {selected ? "Remove" : "Add"}
+      </button>
+    </div>
+  );
+});
+
+export const SpeedySetupCard = React.memo(function SpeedySetupCard({
+  actData,
+  selectedLineup,
+  safeSelectedExtras,
+  updateExtras,
+  actId,
+  lineupId,
+}) {
+  const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
+  const [priceGross, setPriceGross] = useState(null);
+
+  const baseNet = useMemo(() => getExtraNetFromAct(actData, SPEEDY_SETUP_KEY), [actData]);
+
+  const hasRoadieOrEngineerInLineup = useMemo(() => {
+    return lineupHasRoleLike(selectedLineup, /\b(roadie|engineer|sound\s*engineer)\b/i);
+  }, [selectedLineup]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (!baseNet || baseNet <= 0) {
+        if (!cancelled) setPriceGross(null);
+        return;
+      }
+
+      // If already covered in lineup, no extra travel.
+      if (hasRoadieOrEngineerInLineup) {
+        if (!cancelled) setPriceGross(Math.ceil(baseNet * MARGIN_MULT));
+        return;
+      }
+
+      // Otherwise, add travel for ONE additional team member.
+      const travelNet = await computeTravelNetForExtraPerformer({
+        actData,
+        selectedLineup,
+        selectedCounty,
+        selectedAddress,
+        selectedDate,
+      });
+
+      const gross = Math.ceil((baseNet + (travelNet || 0)) * MARGIN_MULT);
+      if (!cancelled) setPriceGross(gross);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    baseNet,
+    hasRoadieOrEngineerInLineup,
+    actData,
+    selectedLineup,
+    selectedCounty,
+    selectedAddress,
+    selectedDate,
+  ]);
+
+  if (!baseNet || baseNet <= 0) return null;
+
+  const selected = safeSelectedExtras.find((e) => e.key === SPEEDY_SETUP_KEY);
+  const displayPrice = priceGross ?? Math.ceil(baseNet * MARGIN_MULT);
+
+  return (
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow h-full">
+      <div className="overflow-hidden h-24 w-full rounded mb-2">
+        <img
+          src={assets.speedysetup_icon}
+          alt="Speedy Setup & Soundcheck (60mins)"
+          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        <p className="text-sm font-medium text-center">
+          Speedy Setup &amp; Soundcheck (60mins)
+        </p>
+        <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
+
+        <p className="text-[11px] text-gray-500 text-center mt-1">
+          {hasRoadieOrEngineerInLineup
+            ? "Roadie/engineer already in lineup (no extra travel)."
+            : "Travel added for 1 additional team member."}
+        </p>
+      </div>
+
+      <button
+        onClick={() => {
+          updateExtras(actId, lineupId, {
+            name: "Speedy Setup & Soundcheck (60mins)",
+            key: SPEEDY_SETUP_KEY,
+            price: displayPrice,
+            quantity: selected ? 0 : 1,
+          });
+        }}
+        className={`mt-2 px-4 py-2 text-base rounded text-white ${
+          selected ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"
+        }`}
+      >
+        {selected ? "Remove" : "Add"}
+      </button>
+    </div>
+  );
+});
+
+function ExtraVocalistCard({ actData, selectedLineup, safeSelectedExtras, updateExtras, actId, lineupId }) {
+  const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
+  const [priceGross, setPriceGross] = useState(null);
+
+  const keyUsed = useMemo(() => {
+    const candidates = ["add_another_vocalist", "add another vocalist", "additional_vocalist"];
+    for (const k of candidates) {
+      if (getExtraNetFromAct(actData, k) > 0) return k;
+    }
+    return "add_another_vocalist";
+  }, [actData]);
+
+  const baseNet = useMemo(() => getExtraNetFromAct(actData, keyUsed), [actData, keyUsed]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (!baseNet || baseNet <= 0) {
+        if (!cancelled) setPriceGross(null);
+        return;
+      }
+
+      const travelNet = await computeTravelNetForExtraPerformer({
+        actData,
+        selectedLineup,
+        selectedCounty,
+        selectedAddress,
+        selectedDate,
+      });
+
+      if (!cancelled) setPriceGross(Math.ceil((baseNet + (travelNet || 0)) * 1.33));
+    })();
+
+    return () => { cancelled = true; };
+  }, [baseNet, actData, selectedLineup, selectedCounty, selectedAddress, selectedDate]);
+
+  if (!baseNet || baseNet <= 0) return null;
+
+  const selected = safeSelectedExtras.find((e) => e.key === keyUsed);
+  const displayPrice = priceGross ?? Math.ceil(baseNet * 1.33);
+
+  return (
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+      <div className="overflow-hidden h-24 w-full rounded mb-2">
+        <img
+          src={assets.additional_band_member_DJ_icon /* swap to your vocalist icon if you have one */}
+          alt="Add Another Vocalist"
+          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+        />
+      </div>
+
+      <p className="text-sm font-medium text-center">Add Another Vocalist</p>
+      <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
+      <p className="text-[11px] text-gray-500 text-center">Travel added for 1 additional vocalist.</p>
+
+      <button
+        onClick={() => {
+          updateExtras(actId, lineupId, {
+            name: "Add Another Vocalist",
+            key: keyUsed,
+            price: displayPrice,
+            quantity: selected ? 0 : 1,
+          });
+        }}
+        className={`mt-2 px-4 py-2 text-base rounded text-white ${
+          selected ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"
+        }`}
+      >
+        {selected ? "Remove" : "Add"}
+      </button>
+    </div>
+  );
+}
 
 const ExtrasCarousel = ({
 
@@ -270,337 +692,8 @@ function DjLiveSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtr
   );
 }
 
-function DjLiveBongosCard({ actData, selectedLineup, safeSelectedExtras, updateExtras, actId, lineupId }) {
-  const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
-  const [djBongosPrice, setDjBongosPrice] = useState(null);
 
-  const hasBongosInLineup = useMemo(() => {
-    const members = selectedLineup?.bandMembers || [];
-    return members.some((m) => /bongo|percussion/i.test(m?.instrument || m?.title || ""));
-  }, [selectedLineup]);
 
-  const baseNet = useMemo(() => getExtraNetFromAct(actData, "DJ_live_bongos_3x30mins"), [actData]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (hasBongosInLineup) {
-        const gross = Math.ceil(baseNet * 1.33);
-        if (!cancelled) setDjBongosPrice(gross);
-        return;
-      }
-
-      let travelNet = 0;
-      travelNet = await computeTravelNetForExtraPerformer({
-        actData,
-        selectedLineup,
-        selectedCounty,
-        selectedAddress,
-        selectedDate,
-      });
-
-      const gross = Math.ceil((baseNet + (travelNet || 0)) * 1.33);
-      if (!cancelled) setDjBongosPrice(gross);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [hasBongosInLineup, baseNet, actData, selectedCounty, selectedAddress, selectedDate, selectedLineup]);
-
-  if (!baseNet || baseNet <= 0) return null;
-
-  const selected = safeSelectedExtras.find((e) => e.key === "DJ_live_bongos_3x30mins");
-  const displayPrice = djBongosPrice ?? Math.ceil(baseNet * 1.33);
-
-  return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-      <div className="overflow-hidden h-24 w-full rounded mb-2">
-        <img
-          src={assets.dj_live_bongos_icon}
-          alt="DJ Live Bongos (3x30mins)"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-        />
-      </div>
-      <p className="text-sm font-medium text-center">DJ Live Bongos (3x30mins)</p>
-      <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
-      <p className="text-[11px] text-gray-500 text-center">
-        {hasBongosInLineup
-          ? "Bongos/percussion already in lineup (no extra travel)."
-          : "If bongos/percussion isn’t in the lineup, travel is added for the percussionist."}
-      </p>
-      <button
-        onClick={() => {
-          updateExtras(actId, lineupId, {
-            name: "DJ Live Bongos (3x30mins)",
-            key: "DJ_live_bongos_3x30mins",
-            price: displayPrice,
-            quantity: selected ? 0 : 1,
-          });
-        }}
-        className={`mt-2 px-4 py-2 text-base rounded text-white ${
-          selected ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"
-        }`}
-      >
-        {selected ? "Remove" : "Add"}
-      </button>
-    </div>
-  );
-}
-
-function DjLiveBongosAndSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtras, actId, lineupId }) {
-  const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
-  const [djBongosSaxPrice, setDjBongosSaxPrice] = useState(null);
-
-  // NOTE: support both legacy keys (some acts may use either)
-  const keyUsed = useMemo(() => {
-    const a = getExtraNetFromAct(actData, "DJ_live_bongos_and_sax_3x30mins");
-    if (a > 0) return "DJ_live_bongos_and_sax_3x30mins";
-    const b = getExtraNetFromAct(actData, "DJ_live_sax_and_bongos_3x30mins");
-    if (b > 0) return "DJ_live_sax_and_bongos_3x30mins";
-    return "DJ_live_bongos_and_sax_3x30mins";
-  }, [actData]);
-
-  const baseNet = useMemo(() => getExtraNetFromAct(actData, keyUsed), [actData, keyUsed]);
-
-  const hasSaxInLineup = useMemo(() => {
-    const members = selectedLineup?.bandMembers || [];
-    return members.some((m) => /sax/i.test(m?.instrument || m?.title || ""));
-  }, [selectedLineup]);
-
-  const hasBongosInLineup = useMemo(() => {
-    const members = selectedLineup?.bandMembers || [];
-    return members.some((m) => /bongo|percussion/i.test(m?.instrument || m?.title || ""));
-  }, [selectedLineup]);
-
-  const missingCount = (hasSaxInLineup ? 0 : 1) + (hasBongosInLineup ? 0 : 1);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (missingCount === 0) {
-        const gross = Math.ceil(baseNet * 1.33);
-        if (!cancelled) setDjBongosSaxPrice(gross);
-        return;
-      }
-
-      let travelNet = 0;
-      const onePerformerTravel = await computeTravelNetForExtraPerformer({
-        actData,
-        selectedLineup,
-        selectedCounty,
-        selectedAddress,
-        selectedDate,
-      });
-      travelNet = onePerformerTravel * missingCount;
-
-      const gross = Math.ceil((baseNet + (travelNet || 0)) * 1.33);
-      if (!cancelled) setDjBongosSaxPrice(gross);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [missingCount, baseNet, actData, selectedCounty, selectedAddress, selectedDate, selectedLineup]);
-
-  if (!baseNet || baseNet <= 0) return null;
-
-  const selected = safeSelectedExtras.find((e) => e.key === keyUsed);
-  const displayPrice = djBongosSaxPrice ?? Math.ceil(baseNet * 1.33);
-
-  return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-      <div className="overflow-hidden h-24 w-full rounded mb-2">
-        <img
-          src={assets.dj_live_sax_and_bongos_icon}
-          alt="DJ Live Sax & Bongos (3x30mins)"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-        />
-      </div>
-      <p className="text-sm font-medium text-center">DJ Live Sax & Bongos (3x30mins)</p>
-      <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
-      <p className="text-[11px] text-gray-500 text-center">
-        {missingCount === 0
-          ? "Sax + bongos already in lineup (no extra travel)."
-          : `Travel added for ${missingCount} extra performer${missingCount > 1 ? "s" : ""} (missing sax and/or bongos).`}
-      </p>
-      <button
-        onClick={() => {
-          updateExtras(actId, lineupId, {
-            name: "DJ Live Sax & Bongos (3x30mins)",
-            key: keyUsed,
-            price: displayPrice,
-            quantity: selected ? 0 : 1,
-          });
-        }}
-        className={`mt-2 px-4 py-2 text-base rounded text-white ${
-          selected ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"
-        }`}
-      >
-        {selected ? "Remove" : "Add"}
-      </button>
-    </div>
-  );
-}
-
-function SpeedySetupCard({ actData, selectedLineup, safeSelectedExtras, updateExtras, actId, lineupId }) {
-  const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
-  const [priceGross, setPriceGross] = useState(null);
-
-  const EXTRA_KEY =
-    "speedy_setup (60mins) - roadie and engineer duties only (travel added on top later for additional team member)";
-
-  const baseNet = useMemo(() => getExtraNetFromAct(actData, EXTRA_KEY), [actData]);
-
-  const hasRoadieOrEngineerInLineup = useMemo(() => {
-    return lineupHasRoleLike(selectedLineup, /\b(roadie|engineer|sound\s*engineer)\b/i);
-  }, [selectedLineup]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      if (!baseNet || baseNet <= 0) {
-        if (!cancelled) setPriceGross(null);
-        return;
-      }
-
-      // If the lineup already has someone doing this job, no extra travel.
-      if (hasRoadieOrEngineerInLineup) {
-        if (!cancelled) setPriceGross(Math.ceil(baseNet * 1.33));
-        return;
-      }
-
-      // Otherwise, add travel for ONE additional team member
-      const travelNet = await computeTravelNetForExtraPerformer({
-        actData,
-        selectedLineup,
-        selectedCounty,
-        selectedAddress,
-        selectedDate,
-      });
-
-      if (!cancelled) setPriceGross(Math.ceil((baseNet + (travelNet || 0)) * 1.33));
-    })();
-
-    return () => { cancelled = true; };
-  }, [baseNet, hasRoadieOrEngineerInLineup, actData, selectedLineup, selectedCounty, selectedAddress, selectedDate]);
-
-  if (!baseNet || baseNet <= 0) return null;
-
-  const selected = safeSelectedExtras.find((e) => e.key === EXTRA_KEY);
-  const displayPrice = priceGross ?? Math.ceil(baseNet * 1.33);
-
-  return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-      <div className="overflow-hidden h-24 w-full rounded mb-2">
-        <img
-          src={assets.speedysetup_icon}
-          alt="Speedy Setup & Soundcheck (60mins)"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-        />
-      </div>
-
-      <p className="text-sm font-medium text-center">Speedy Setup &amp; Soundcheck (60mins)</p>
-      <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
-
-      <p className="text-[11px] text-gray-500 text-center">
-        {hasRoadieOrEngineerInLineup
-          ? "Roadie/engineer already in lineup (no extra travel)."
-          : "Travel added for 1 additional team member."}
-      </p>
-
-      <button
-        onClick={() => {
-          updateExtras(actId, lineupId, {
-            name: "Speedy Setup & Soundcheck (60mins)",
-            key: EXTRA_KEY,
-            price: displayPrice,
-            quantity: selected ? 0 : 1,
-          });
-        }}
-        className={`mt-2 px-4 py-2 text-base rounded text-white ${
-          selected ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"
-        }`}
-      >
-        {selected ? "Remove" : "Add"}
-      </button>
-    </div>
-  );
-}
-
-function ExtraVocalistCard({ actData, selectedLineup, safeSelectedExtras, updateExtras, actId, lineupId }) {
-  const { selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
-  const [priceGross, setPriceGross] = useState(null);
-
-  const keyUsed = useMemo(() => {
-    const candidates = ["add_another_vocalist", "add another vocalist", "additional_vocalist"];
-    for (const k of candidates) {
-      if (getExtraNetFromAct(actData, k) > 0) return k;
-    }
-    return "add_another_vocalist";
-  }, [actData]);
-
-  const baseNet = useMemo(() => getExtraNetFromAct(actData, keyUsed), [actData, keyUsed]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      if (!baseNet || baseNet <= 0) {
-        if (!cancelled) setPriceGross(null);
-        return;
-      }
-
-      const travelNet = await computeTravelNetForExtraPerformer({
-        actData,
-        selectedLineup,
-        selectedCounty,
-        selectedAddress,
-        selectedDate,
-      });
-
-      if (!cancelled) setPriceGross(Math.ceil((baseNet + (travelNet || 0)) * 1.33));
-    })();
-
-    return () => { cancelled = true; };
-  }, [baseNet, actData, selectedLineup, selectedCounty, selectedAddress, selectedDate]);
-
-  if (!baseNet || baseNet <= 0) return null;
-
-  const selected = safeSelectedExtras.find((e) => e.key === keyUsed);
-  const displayPrice = priceGross ?? Math.ceil(baseNet * 1.33);
-
-  return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-      <div className="overflow-hidden h-24 w-full rounded mb-2">
-        <img
-          src={assets.additional_band_member_DJ_icon /* swap to your vocalist icon if you have one */}
-          alt="Add Another Vocalist"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-        />
-      </div>
-
-      <p className="text-sm font-medium text-center">Add Another Vocalist</p>
-      <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
-      <p className="text-[11px] text-gray-500 text-center">Travel added for 1 additional vocalist.</p>
-
-      <button
-        onClick={() => {
-          updateExtras(actId, lineupId, {
-            name: "Add Another Vocalist",
-            key: keyUsed,
-            price: displayPrice,
-            quantity: selected ? 0 : 1,
-          });
-        }}
-        className={`mt-2 px-4 py-2 text-base rounded text-white ${
-          selected ? "bg-black" : "bg-gray-300 hover:bg-[#ff6667]"
-        }`}
-      >
-        {selected ? "Remove" : "Add"}
-      </button>
-    </div>
-  );
-}
 
 // end of dj sax live calculation helpers
 
