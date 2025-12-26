@@ -29,7 +29,7 @@ function useMaxToShow() {
   return max;
 }
 
-const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActId }) => {
+const RelatedActs = ({ genres = [], instruments = [], vocalist = "", leadRole = "", currentActId }) => {
   const { actCards } = useContext(ShopContext);
   const deferredCards = useDeferredValue(actCards);
   const maxToShow = useMaxToShow();
@@ -87,6 +87,41 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
         .map((x) => String(x).toLowerCase().trim())
         .filter(Boolean);
 
+    const normalizeRoleWord = (w) => {
+      const s = String(w || "").toLowerCase().trim();
+      if (!s) return "";
+
+      // common synonyms -> canonical tokens
+      if (s === "vocals" || s === "vocal" || s === "singer" || s === "singers") return "vocalist";
+      if (s === "guitar" || s === "gtr" || s === "guitars") return "guitarist";
+      if (s === "keys" || s === "key" || s === "keyboard") return "keyboardist";
+      if (s === "dj" || s === "deejay") return "dj";
+
+      return s;
+    };
+
+    const tokenizeRole = (val) => {
+      const raw = String(val || "");
+      if (!raw.trim()) return [];
+
+      // Split on punctuation / separators that show compound roles
+      const parts = raw
+        .toLowerCase()
+        .replace(/[()]/g, " ")
+        .replace(/[,_]/g, " ")
+        .replace(/[\/|+&]/g, " ")
+        .replace(/[-]+/g, " ")
+        .split(/\s+/)
+        .map((w) => w.trim())
+        .filter(Boolean)
+        .map(normalizeRoleWord)
+        .filter(Boolean);
+
+      // Remove non-signal words that often appear in lead role labels
+      const stop = new Set(["lead", "male", "female", "front", "person", "main"]);
+      return parts.filter((t) => !stop.has(t));
+    };
+
     const isVisibleStatus = (s) => {
       const v = String(s || "").toLowerCase().trim();
       // allow common variants like "approved, changes pending"
@@ -106,6 +141,11 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
     const iWant = norm(instruments);
     const vWant = String(vocalist || "").toLowerCase().trim();
 
+    // Prefer compound leadRole when provided; fall back to vocalist string
+    const leadWant = tokenizeRole(leadRole || "")
+      .concat(tokenizeRole(vWant))
+      .filter(Boolean);
+
     const score = (a) => {
       // ✅ IMPORTANT: don’t use ?? here because [] blocks fallback.
       const gSource = pickNonEmpty(a?.genres, a?.genre, a?.genreTags, a?.styleTags, a?.styles);
@@ -115,11 +155,48 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
       const iHave = norm(iSource);
       const vHave = String(a?.vocalist || a?.leadVocalist || "").toLowerCase().trim();
 
+      // Build a token set for the candidate from vocalist-ish fields + instruments-ish fields
+      const haveTokens = new Set([
+        ...tokenizeRole(a?.leadRole || ""),
+        ...tokenizeRole(a?.leadVocalist || ""),
+        ...tokenizeRole(a?.vocalist || ""),
+        ...tokenizeRole(vHave),
+        ...iHave.flatMap((x) => tokenizeRole(x)),
+      ]);
+
       const genreMatches = gWant.length ? gHave.filter((g) => gWant.includes(g)).length : 0;
       const instrumentMatch = iWant.length && iHave.some((i) => iWant.includes(i)) ? 1 : 0;
-      const vocalistMatch = vWant && vHave === vWant ? 1 : 0;
 
-      return genreMatches * 10 + vocalistMatch * 3 + instrumentMatch * 1;
+      // Lead-role token scoring:
+      // - Big score if ALL wanted tokens are present (e.g. vocalist + guitarist)
+      // - Smaller scores for partial matches (vocalist > guitarist > other)
+      let leadRoleScore = 0;
+      if (leadWant.length) {
+        const wantSet = Array.from(new Set(leadWant));
+        const hasAll = wantSet.every((t) => haveTokens.has(t));
+
+        if (hasAll) {
+          leadRoleScore = 12;
+        } else {
+          // partial scoring
+          if (wantSet.includes("vocalist") && haveTokens.has("vocalist")) leadRoleScore += 3;
+          if (wantSet.includes("guitarist") && haveTokens.has("guitarist")) leadRoleScore += 2;
+
+          // other wanted tokens get a small bump
+          for (const t of wantSet) {
+            if (t === "vocalist" || t === "guitarist") continue;
+            if (haveTokens.has(t)) leadRoleScore += 2;
+          }
+
+          // cap so partials never outrank a full match
+          leadRoleScore = Math.min(leadRoleScore, 11);
+        }
+      }
+
+      // Keep the legacy vocalist exact match as a tiny tie-breaker
+      const vocalistExact = vWant && vHave === vWant ? 1 : 0;
+
+      return genreMatches * 10 + leadRoleScore + vocalistExact * 1 + instrumentMatch * 1;
     };
 
     // If no cards yet, return empty with debug
@@ -133,7 +210,7 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
           scoredCount: 0,
           positiveCount: 0,
           finalCount: 0,
-          wants: { gWant, iWant, vWant },
+          wants: { gWant, iWant, vWant, leadRole, leadWant },
           sampleCardKeys: [],
           top5Scored: [],
           reason: "no_cards",
@@ -164,7 +241,7 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
       scoredCount: scored.length,
       positiveCount: positive.length,
       finalCount: items.length,
-      wants: { gWant, iWant, vWant },
+      wants: { gWant, iWant, vWant, leadRole, leadWant },
       sampleCardKeys: list[0] ? Object.keys(list[0]) : [],
       top5Scored: scored
         .slice()
@@ -177,13 +254,14 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
           genres: a?.genres ?? a?.genre,
           instruments: a?.instruments ?? a?.instrument,
           vocalist: a?.vocalist ?? a?.leadVocalist,
+          leadRole: a?.leadRole,
           _score: a?._score,
         })),
       usedFallback: positive.length === 0,
     };
 
     return { items, debug };
-  }, [deferredCards, genres, instruments, vocalist, currentActId, maxToShow]);
+  }, [deferredCards, genres, instruments, vocalist, leadRole, currentActId, maxToShow]);
 
   const related = memo.items;
   const dbg = memo.debug;
@@ -202,6 +280,7 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
       genres,
       instruments,
       vocalist,
+      leadRole,
       maxToShow,
       counts: dbg
         ? {
@@ -229,7 +308,7 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
     console.groupCollapsed(
       `[RelatedActs] cards=${sigObj.deferredLen} related=${Array.isArray(related) ? related.length : 0}`
     );
-    console.log("props:", { genres, instruments, vocalist, currentActId, maxToShow });
+    console.log("props:", { genres, instruments, vocalist, leadRole, currentActId, maxToShow });
     console.log("actCards:", {
       type: sigObj.actCardsType,
       len: sigObj.actCardsLen,
@@ -256,7 +335,7 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
 
     console.table(dbg?.top5Scored || []);
     console.groupEnd();
-  }, [DEBUG_RELATED_ACTS, actCards, deferredCards, related, dbg, genres, instruments, vocalist, currentActId, maxToShow]);
+  }, [DEBUG_RELATED_ACTS, actCards, deferredCards, related, dbg, genres, instruments, vocalist, leadRole, currentActId, maxToShow]);
 
   return (
     <div className="my-10">
