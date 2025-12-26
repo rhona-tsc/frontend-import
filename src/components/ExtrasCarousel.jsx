@@ -1289,12 +1289,12 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           )}
         </div>
       </div>
-      <div className="relative w-[90%] mx-auto bg-black p-3 rounded ">
+      <div className="relative w-full mx-auto bg-black px-10 py-3 rounded overflow-hidden">
         {/* Left arrow */}
-        <div className="absolute -left-6 top-1/2 transform -translate-y-1/2 z-10">
+        <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
           <button
             onClick={() => instanceRef.current?.prev()}
-            className="text-3xl text-gray-800 hover:text-black transition-colors"
+            className="p-1 rounded bg-white/90 hover:bg-white transition"
             aria-label="Scroll left"
             type="button"
           >
@@ -1307,10 +1307,10 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
         </div>
 
         {/* Right arrow */}
-        <div className="absolute -right-6 top-1/2 transform -translate-y-1/2 z-10">
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
           <button
             onClick={() => instanceRef.current?.next()}
-            className="text-3xl text-gray-800 hover:text-black transition-colors"
+            className="p-1 rounded bg-white/90 hover:bg-white transition"
             aria-label="Scroll right"
             type="button"
           >
@@ -1322,7 +1322,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           </button>
         </div>
 
-        <div ref={sliderRef} className="keen-slider ">
+        <div ref={sliderRef} className="keen-slider w-full">
           {/* 🎚 sound_engineering_for_another_act with your acts PA */}
           {(() => {
             const raw = actData?.extras?.get
