@@ -1,5 +1,5 @@
 // src/components/RelatedActs.jsx
-import React, { useContext, useMemo, useDeferredValue } from "react";
+import React, { useContext, useMemo, useDeferredValue, useEffect, useRef } from "react";
 import Title from "./Title";
 import { ShopContext } from "../context/ShopContext";
 import ActItem from "./ActItem";
@@ -28,9 +28,12 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
   const deferredCards = useDeferredValue(actCards);
   const maxToShow = useMaxToShow();
 
+  // 🔎 DEBUG (toggle off when done)
+  const DEBUG_RELATED_ACTS = true;
+  const lastDebugSigRef = useRef("");
+
   const related = useMemo(() => {
     const list = Array.isArray(deferredCards) ? deferredCards : [];
-    if (!list.length) return [];
 
     const toList = (val) => {
       if (val == null) return [];
@@ -86,10 +89,7 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
       const iHave = norm(a?.instruments ?? a?.instrument);
       const vHave = String(a?.vocalist || a?.leadVocalist || "").toLowerCase().trim();
 
-      const genreMatches = gWant.length
-        ? gHave.filter((g) => gWant.includes(g)).length
-        : 0;
-
+      const genreMatches = gWant.length ? gHave.filter((g) => gWant.includes(g)).length : 0;
       const instrumentMatch = iWant.length && iHave.some((i) => iWant.includes(i)) ? 1 : 0;
       const vocalistMatch = vWant && vHave === vWant ? 1 : 0;
 
@@ -107,13 +107,111 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
       );
     };
 
-    return [...list]
-      .filter((a) => String(a?.actId || a?._id) !== String(currentActId))
-      .filter((a) => !a?.status || isVisibleStatus(a.status))
-      .map((a) => ({ ...a, _score: score(a) }))
-      .sort((A, B) => B._score - A._score)
-      .slice(0, maxToShow);
+    // If no cards, return early (but still allow logging via effect below)
+    if (!list.length) return [];
+
+    // --- Pipeline with counts for debugging ---
+    const afterId = list.filter((a) => String(a?.actId || a?._id) !== String(currentActId));
+    const afterStatus = afterId.filter((a) => !a?.status || isVisibleStatus(a.status));
+    const scored = afterStatus.map((a) => ({ ...a, _score: score(a) }));
+    const positive = scored.filter((a) => a._score > 0);
+    const final = [...positive].sort((A, B) => B._score - A._score).slice(0, maxToShow);
+
+    // Stash debug info on the array itself (read in useEffect)
+    final.__debug = {
+      listCount: list.length,
+      afterIdCount: afterId.length,
+      afterStatusCount: afterStatus.length,
+      scoredCount: scored.length,
+      positiveCount: positive.length,
+      finalCount: final.length,
+      wants: { gWant, iWant, vWant },
+      sampleCardKeys: list[0] ? Object.keys(list[0]) : [],
+      top5Scored: scored
+        .slice()
+        .sort((A, B) => (B._score || 0) - (A._score || 0))
+        .slice(0, 5)
+        .map((a) => ({
+          id: String(a?.actId || a?._id),
+          name: a?.name || a?.tscName || a?.title,
+          status: a?.status,
+          genres: a?.genres ?? a?.genre,
+          instruments: a?.instruments ?? a?.instrument,
+          vocalist: a?.vocalist ?? a?.leadVocalist,
+          _score: a?._score,
+        })),
+    };
+
+    return final;
   }, [deferredCards, genres, instruments, vocalist, currentActId, maxToShow]);
+
+  useEffect(() => {
+    if (!DEBUG_RELATED_ACTS) return;
+
+    const list = Array.isArray(deferredCards) ? deferredCards : [];
+    const dbg = related && related.__debug ? related.__debug : null;
+
+    // Build a signature to avoid spamming the console with identical logs
+    const sigObj = {
+      actCardsType: Array.isArray(actCards) ? "array" : typeof actCards,
+      actCardsLen: Array.isArray(actCards) ? actCards.length : 0,
+      deferredLen: list.length,
+      currentActId: String(currentActId || ""),
+      genres,
+      instruments,
+      vocalist,
+      maxToShow,
+      counts: dbg
+        ? {
+            listCount: dbg.listCount,
+            afterIdCount: dbg.afterIdCount,
+            afterStatusCount: dbg.afterStatusCount,
+            positiveCount: dbg.positiveCount,
+            finalCount: dbg.finalCount,
+          }
+        : null,
+    };
+
+    let sig = "";
+    try {
+      sig = JSON.stringify(sigObj);
+    } catch {
+      sig = String(Date.now());
+    }
+
+    if (sig === lastDebugSigRef.current) return;
+    lastDebugSigRefRef.current = sig;
+
+    console.groupCollapsed(
+      `[RelatedActs] cards=${sigObj.deferredLen} related=${Array.isArray(related) ? related.length : 0}`
+    );
+    console.log("props:", { genres, instruments, vocalist, currentActId, maxToShow });
+    console.log("actCards:", {
+      type: sigObj.actCardsType,
+      len: sigObj.actCardsLen,
+      deferredLen: sigObj.deferredLen,
+    });
+
+    if (!list.length) {
+      console.warn("No actCards yet (deferredCards is empty). RelatedActs will be empty until cards load.");
+      console.groupEnd();
+      return;
+    }
+
+    console.log("first card keys:", dbg?.sampleCardKeys || (list[0] ? Object.keys(list[0]) : []));
+    console.log("wants:", dbg?.wants || null);
+    console.log("pipeline counts:", dbg ? {
+      listCount: dbg.listCount,
+      afterIdCount: dbg.afterIdCount,
+      afterStatusCount: dbg.afterStatusCount,
+      scoredCount: dbg.scoredCount,
+      positiveCount: dbg.positiveCount,
+      finalCount: dbg.finalCount,
+    } : null);
+
+    console.table(dbg?.top5Scored || []);
+    console.groupEnd();
+  }, [DEBUG_RELATED_ACTS, actCards, deferredCards, related, genres, instruments, vocalist, currentActId, maxToShow]);
 
   return (
     <div className="my-10">
@@ -125,12 +223,15 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
         <p className="text-center text-sm text-gray-500">No similar acts found.</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
-          {related.map((item) => (
+          {(Array.isArray(related) ? related : []).map((item) => (
             <div
               key={String(item.actId || item._id)}
               style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
             >
-              <ActItem actData={item} />
+              {(() => {
+                const { _score, __debug, ...clean } = item || {};
+                return <ActItem actData={clean} />;
+              })()}
             </div>
           ))}
         </div>
