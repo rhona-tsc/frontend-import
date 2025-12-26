@@ -227,7 +227,7 @@ const ActPerformanceOverview = ({ actData }) => {
           <div className="text-gray-600 text-sm md:text-[17px]">
             <strong>No Hidden Charges</strong>
             <p className="text-sm md:text-base break-words">
-              VAT is included and applicable to {vatRegistered ? "100%" : "25%"} of the booking value
+              VAT is included and applicable to {vatRegistered ? "100%" : "33%"} of the booking value
             </p>
           </div>
         </div>

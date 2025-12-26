@@ -111,7 +111,6 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
       .filter((a) => String(a?.actId || a?._id) !== String(currentActId))
       .filter((a) => !a?.status || isVisibleStatus(a.status))
       .map((a) => ({ ...a, _score: score(a) }))
-      .filter((a) => a._score > 0) // only show genuine matches
       .sort((A, B) => B._score - A._score)
       .slice(0, maxToShow);
   }, [deferredCards, genres, instruments, vocalist, currentActId, maxToShow]);
