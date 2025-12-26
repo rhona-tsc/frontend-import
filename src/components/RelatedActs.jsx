@@ -32,17 +32,59 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
     const list = Array.isArray(deferredCards) ? deferredCards : [];
     if (!list.length) return [];
 
-    const norm = (arr) =>
-      Array.isArray(arr) ? arr.map((x) => String(x).toLowerCase()) : [];
+    const toList = (val) => {
+      if (val == null) return [];
+      // Arrays of strings/objects
+      if (Array.isArray(val)) {
+        return val
+          .flatMap((x) => {
+            if (x == null) return [];
+            if (typeof x === "string") return [x];
+            if (typeof x === "number" || typeof x === "boolean") return [String(x)];
+            if (typeof x === "object") {
+              // common shapes: { label }, { name }, { value }
+              if (x.label) return [String(x.label)];
+              if (x.name) return [String(x.name)];
+              if (x.value) return [String(x.value)];
+            }
+            return [String(x)];
+          })
+          .map((s) => String(s));
+      }
+
+      // Single string: may be comma-separated
+      if (typeof val === "string") {
+        return val
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+
+      // Single object
+      if (typeof val === "object") {
+        if (val.label) return [String(val.label)];
+        if (val.name) return [String(val.name)];
+        if (val.value) return [String(val.value)];
+        return [String(val)];
+      }
+
+      // number/boolean/etc
+      return [String(val)];
+    };
+
+    const norm = (val) =>
+      toList(val)
+        .map((x) => String(x).toLowerCase().trim())
+        .filter(Boolean);
 
     const gWant = norm(genres);
     const iWant = norm(instruments);
-    const vWant = String(vocalist || "").toLowerCase();
+    const vWant = String(vocalist || "").toLowerCase().trim();
 
     const score = (a) => {
-      const gHave = norm(a?.genre);
-      const iHave = norm(a?.instruments);
-      const vHave = String(a?.vocalist || "").toLowerCase();
+      const gHave = norm(a?.genres ?? a?.genre);
+      const iHave = norm(a?.instruments ?? a?.instrument);
+      const vHave = String(a?.vocalist || a?.leadVocalist || "").toLowerCase().trim();
 
       const genreMatches = gWant.length
         ? gHave.filter((g) => gWant.includes(g)).length
@@ -55,9 +97,14 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
     };
 
     const isVisibleStatus = (s) => {
-      const v = String(s || "").toLowerCase();
-      // ✅ loosen this so you don’t accidentally filter everything out
-      return v === "approved" || v === "live" || v === "active" || v === "published";
+      const v = String(s || "").toLowerCase().trim();
+      // allow common variants like "approved, changes pending"
+      return (
+        v.includes("approved") ||
+        v.includes("live") ||
+        v.includes("active") ||
+        v.includes("published")
+      );
     };
 
     return [...list]
