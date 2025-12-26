@@ -446,6 +446,7 @@ const url = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit
   availabilityBadge: c.availabilityBadge || c.badge || null,
   status: c.status || c.st || "",
   createdAt: c.createdAt || null,
+  minDisplayPrice: num(c.minDisplayPrice ?? c.minPrice ?? c.dp),
 updatedAt: c.updatedAt || null,
 bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
 };
@@ -585,6 +586,7 @@ const urlCards = `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&
         createdAt: a.createdAt,
 updatedAt: a.updatedAt,
 bestseller: a.bestseller ?? a.bestSeller ?? false,
+minDisplayPrice: a.minDisplayPrice || null,
         loveCount:
           Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
         availabilityBadge: null,
@@ -660,6 +662,9 @@ const cards = arr.map((c) => ({
 
   // ✅ needed by NewActs + BestSeller
   createdAt: c.createdAt || null,
+  minDisplayPrice: Number.isFinite(c.minDisplayPrice)
+    ? Number(c.minDisplayPrice)
+    : null,
   updatedAt: c.updatedAt || null,
   bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
 }));
@@ -1183,6 +1188,7 @@ setActCards(filtered);
         status: c.status || "",
 // ✅ needed by NewActs + BestSeller
 createdAt: c.createdAt || null,
+minDisplayPrice: Number.isFinite(c.minDisplayPrice) ? Number(c.minDisplayPrice) : null,
 updatedAt: c.updatedAt || null,
 bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
         // optional enrichments (present in richer card docs)
