@@ -221,12 +221,12 @@ export const DjLiveBongosCard = React.memo(function DjLiveBongosCard({
   const displayPrice = djBongosPrice ?? Math.ceil(baseNet * MARGIN_MULT);
 
   return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow h-full">
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow ">
       <div className="overflow-hidden h-24 w-full rounded mb-2">
         <img
           src={assets.dj_live_bongos_icon}
           alt="DJ Live Bongos (3x30mins)"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
         />
       </div>
 
@@ -347,12 +347,12 @@ export const DjLiveBongosAndSaxCard = React.memo(function DjLiveBongosAndSaxCard
   const displayPrice = djBongosSaxPrice ?? Math.ceil(baseNet * MARGIN_MULT);
 
   return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow h-full">
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow ">
       <div className="overflow-hidden h-24 w-full rounded mb-2">
         <img
           src={assets.dj_live_sax_and_bongos_icon}
           alt="DJ Live Sax & Bongos (3x30mins)"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
         />
       </div>
 
@@ -452,12 +452,12 @@ export const SpeedySetupCard = React.memo(function SpeedySetupCard({
   const displayPrice = priceGross ?? Math.ceil(baseNet * MARGIN_MULT);
 
   return (
-    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow h-full">
+    <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow ">
       <div className="overflow-hidden h-24 w-full rounded mb-2">
         <img
           src={assets.speedysetup_icon}
           alt="Speedy Setup & Soundcheck (60mins)"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
         />
       </div>
 
@@ -541,7 +541,7 @@ function ExtraVocalistCard({ actData, selectedLineup, safeSelectedExtras, update
         <img
           src={assets.additional_band_member_DJ_icon /* swap to your vocalist icon if you have one */}
           alt="Add Another Vocalist"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
         />
       </div>
 
@@ -801,7 +801,7 @@ function DjLiveSaxCard({ actData, selectedLineup, safeSelectedExtras, updateExtr
   return (
     <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col shadow">
       <div className="overflow-hidden h-24 w-full rounded mb-2">
-        <img src={assets.dj_live_sax_icon} alt="DJ Live Sax (3x30mins)" className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110" />
+        <img src={assets.dj_live_sax_icon} alt="DJ Live Sax (3x30mins)" className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110" />
       </div>
       <p className="text-sm font-medium text-center">DJ Live Sax (3x30mins)</p>
       <p className="text-sm text-gray-600 text-center">£{displayPrice}</p>
@@ -1005,7 +1005,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
         <img
           src={assets.late_stay_icon}
           alt="Late Stay"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
         />
       </div>
       <p className="text-sm font-medium text-center">Late Stay</p>
@@ -1255,7 +1255,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.PA_speakers_icon}
             alt="PA Late Stay"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
         <p className="text-sm font-medium text-center">PA Late Stay</p>
@@ -1303,7 +1303,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
         <img
           src={assets.early_arrival_icon}
           alt="Early Arrival"
-          className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
         />
       </div>
       <p className="text-sm font-medium text-center">Early Arrival</p>
@@ -1563,7 +1563,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.PA_speakers_icon}
             alt="PA & Sound Engineering for an External Act"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
 
@@ -1614,7 +1614,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
       <img
         src={assets.ceremony_afternoon_icon}
         alt="Ceremony or Afternoon Performances"
-        className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+        className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
       />
     </div>
 
@@ -1673,7 +1673,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.playlist_icon}
             alt="Background Music Playlist"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
 
@@ -1744,7 +1744,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.manned_playlist_icon}
             alt="Up to 3 Hours Manned Playlist"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
 
@@ -1815,7 +1815,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.band_member_DJ_icon}
             alt="Up to 3 Hours Band Member DJ"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
 
@@ -1897,7 +1897,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.additional_band_member_DJ_icon}
             alt="Additional DJing per 30 mins"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
 
@@ -2015,7 +2015,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.extra_performance_icon}
             alt="Extra Performance"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
 
@@ -2115,7 +2115,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.wireless_mic_icon}
             alt="Mic for Speeches"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
 
@@ -2237,7 +2237,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.extra_song_request_icon}
             alt="Extra Song Request"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full  object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
 
@@ -2320,7 +2320,7 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           <img
             src={assets.israeli_dancing_icon}
             alt="Israeli Dancing (20mins)"
-            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+            className="w-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
         </div>
 
