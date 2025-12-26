@@ -178,7 +178,7 @@ const Act = () => {
   const heroUrlHigh = React.useMemo(() => {
     try {
       const u = actData?.images?.[0]?.url || "";
-      return u ? cld(u, 1600) : "";
+      return u ? cld(u, { w: 1600, ar: "3:1", fill: true }) : "";
     } catch {
       return "";
     }
@@ -938,6 +938,37 @@ const Act = () => {
     reviews: reviews.length,
     songs: selectedSongs.length,
   });
+
+  // ✅ Lead role for "Similar Acts" matching
+const leadRole = React.useMemo(() => {
+  const lineups = Array.isArray(actData?.lineups) ? actData.lineups : [];
+  if (!lineups.length) return "";
+
+  // Pick the smallest lineup (by actSize if numeric, else by bandMembers length)
+  const smallest = [...lineups].sort((a, b) => {
+    const aSize = Number(String(a?.actSize || "").match(/\d+/)?.[0]) || (a?.bandMembers?.length || 999);
+    const bSize = Number(String(b?.actSize || "").match(/\d+/)?.[0]) || (b?.bandMembers?.length || 999);
+    return aSize - bSize;
+  })[0];
+
+  const members = Array.isArray(smallest?.bandMembers) ? smallest.bandMembers : [];
+  if (!members.length) return "";
+
+  // Try to find a "lead" member, else just use the first
+  const lead =
+    members.find((m) => m?.isLead || m?.isFeaturedVocalist || /lead/i.test(m?.role || "")) ||
+    members[0];
+
+  // Build a compound role string (tweak keys to match your schema)
+  const role =
+    lead?.instrument ||
+    lead?.role ||
+    lead?.primaryRole ||
+    lead?.position ||
+    "";
+
+  return String(role || "").trim();
+}, [actData?.lineups]);
 
   return (
     <div className="p-4">
@@ -2406,12 +2437,13 @@ return travelCalculated ? `£${Math.round(cleanTotal * 1.33)}` : `from £${Math.
 
         <Suspense fallback={null}>
           <VisibleOnScroll>
-            <RelatedActsLazy
-              genres={actData.genre || []}
-              instruments={actData.instruments || []}
-              vocalist={actData.vocalist || ""}
-              currentActId={actData._id}
-            />
+           <RelatedActsLazy
+  genres={actData.genre || []}
+    instruments={actData.instruments || []}
+
+  leadRole={leadRole}
+  currentActId={actData._id}
+/>
           </VisibleOnScroll>
         </Suspense>
       </div>
