@@ -180,7 +180,7 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
     }
 
     if (sig === lastDebugSigRef.current) return;
-    lastDebugSigRefRef.current = sig;
+lastDebugSigRef.current = sig;
 
     console.groupCollapsed(
       `[RelatedActs] cards=${sigObj.deferredLen} related=${Array.isArray(related) ? related.length : 0}`
