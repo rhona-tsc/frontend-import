@@ -6,20 +6,26 @@ import ActItem from "./ActItem";
 
 function useMaxToShow() {
   const [max, setMax] = React.useState(5);
+
   React.useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
+
     const mqPhone = window.matchMedia("(max-width: 639px)");
     const mqTablet = window.matchMedia("(min-width: 640px) and (max-width: 1023px)");
+
     const compute = () => setMax(mqPhone.matches || mqTablet.matches ? 4 : 5);
     compute();
+
     const onChange = () => compute();
     mqPhone.addEventListener("change", onChange);
     mqTablet.addEventListener("change", onChange);
+
     return () => {
       mqPhone.removeEventListener("change", onChange);
       mqTablet.removeEventListener("change", onChange);
     };
   }, []);
+
   return max;
 }
 
@@ -32,11 +38,12 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
   const DEBUG_RELATED_ACTS = true;
   const lastDebugSigRef = useRef("");
 
-  const related = useMemo(() => {
+  const memo = useMemo(() => {
     const list = Array.isArray(deferredCards) ? deferredCards : [];
 
     const toList = (val) => {
       if (val == null) return [];
+
       // Arrays of strings/objects
       if (Array.isArray(val)) {
         return val
@@ -80,13 +87,32 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
         .map((x) => String(x).toLowerCase().trim())
         .filter(Boolean);
 
+    const isVisibleStatus = (s) => {
+      const v = String(s || "").toLowerCase().trim();
+      // allow common variants like "approved, changes pending"
+      return v.includes("approved") || v.includes("live") || v.includes("active") || v.includes("published");
+    };
+
+    const pickNonEmpty = (...candidates) => {
+      for (const c of candidates) {
+        if (Array.isArray(c) && c.length) return c; // non-empty array
+        if (typeof c === "string" && c.trim()) return c; // non-empty string
+        if (c && typeof c === "object") return c; // object (we’ll stringify in toList)
+      }
+      return [];
+    };
+
     const gWant = norm(genres);
     const iWant = norm(instruments);
     const vWant = String(vocalist || "").toLowerCase().trim();
 
     const score = (a) => {
-      const gHave = norm(a?.genres ?? a?.genre);
-      const iHave = norm(a?.instruments ?? a?.instrument);
+      // ✅ IMPORTANT: don’t use ?? here because [] blocks fallback.
+      const gSource = pickNonEmpty(a?.genres, a?.genre, a?.genreTags, a?.styleTags, a?.styles);
+      const iSource = pickNonEmpty(a?.instruments, a?.instrument, a?.instrumentation, a?.lineupInstruments);
+
+      const gHave = norm(gSource);
+      const iHave = norm(iSource);
       const vHave = String(a?.vocalist || a?.leadVocalist || "").toLowerCase().trim();
 
       const genreMatches = gWant.length ? gHave.filter((g) => gWant.includes(g)).length : 0;
@@ -96,40 +122,53 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
       return genreMatches * 10 + vocalistMatch * 3 + instrumentMatch * 1;
     };
 
-    const isVisibleStatus = (s) => {
-      const v = String(s || "").toLowerCase().trim();
-      // allow common variants like "approved, changes pending"
-      return (
-        v.includes("approved") ||
-        v.includes("live") ||
-        v.includes("active") ||
-        v.includes("published")
-      );
-    };
+    // If no cards yet, return empty with debug
+    if (!list.length) {
+      return {
+        items: [],
+        debug: {
+          listCount: 0,
+          afterIdCount: 0,
+          afterStatusCount: 0,
+          scoredCount: 0,
+          positiveCount: 0,
+          finalCount: 0,
+          wants: { gWant, iWant, vWant },
+          sampleCardKeys: [],
+          top5Scored: [],
+          reason: "no_cards",
+        },
+      };
+    }
 
-    // If no cards, return early (but still allow logging via effect below)
-    if (!list.length) return [];
-
-    // --- Pipeline with counts for debugging ---
+    // --- Pipeline ---
     const afterId = list.filter((a) => String(a?.actId || a?._id) !== String(currentActId));
     const afterStatus = afterId.filter((a) => !a?.status || isVisibleStatus(a.status));
     const scored = afterStatus.map((a) => ({ ...a, _score: score(a) }));
-    const positive = scored.filter((a) => a._score > 0);
-    const final = [...positive].sort((A, B) => B._score - A._score).slice(0, maxToShow);
+    const positive = scored.filter((a) => (a?._score || 0) > 0);
 
-    // Stash debug info on the array itself (read in useEffect)
-    final.__debug = {
+    // ✅ Fallback: if nobody scores > 0 (because card data is missing),
+    // show “recommended” acts instead of showing nothing.
+    const fallback = [...afterStatus]
+      .sort((A, B) => Number(B?.loveCount || 0) - Number(A?.loveCount || 0))
+      .slice(0, maxToShow);
+
+    const items = (positive.length ? [...positive] : fallback)
+      .sort((A, B) => Number(B?._score || 0) - Number(A?._score || 0))
+      .slice(0, maxToShow);
+
+    const debug = {
       listCount: list.length,
       afterIdCount: afterId.length,
       afterStatusCount: afterStatus.length,
       scoredCount: scored.length,
       positiveCount: positive.length,
-      finalCount: final.length,
+      finalCount: items.length,
       wants: { gWant, iWant, vWant },
       sampleCardKeys: list[0] ? Object.keys(list[0]) : [],
       top5Scored: scored
         .slice()
-        .sort((A, B) => (B._score || 0) - (A._score || 0))
+        .sort((A, B) => Number(B?._score || 0) - Number(A?._score || 0))
         .slice(0, 5)
         .map((a) => ({
           id: String(a?.actId || a?._id),
@@ -140,16 +179,19 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
           vocalist: a?.vocalist ?? a?.leadVocalist,
           _score: a?._score,
         })),
+      usedFallback: positive.length === 0,
     };
 
-    return final;
+    return { items, debug };
   }, [deferredCards, genres, instruments, vocalist, currentActId, maxToShow]);
+
+  const related = memo.items;
+  const dbg = memo.debug;
 
   useEffect(() => {
     if (!DEBUG_RELATED_ACTS) return;
 
     const list = Array.isArray(deferredCards) ? deferredCards : [];
-    const dbg = related && related.__debug ? related.__debug : null;
 
     // Build a signature to avoid spamming the console with identical logs
     const sigObj = {
@@ -168,6 +210,8 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
             afterStatusCount: dbg.afterStatusCount,
             positiveCount: dbg.positiveCount,
             finalCount: dbg.finalCount,
+            usedFallback: dbg.usedFallback,
+            reason: dbg.reason,
           }
         : null,
     };
@@ -180,7 +224,7 @@ const RelatedActs = ({ genres = [], instruments = [], vocalist = "", currentActI
     }
 
     if (sig === lastDebugSigRef.current) return;
-lastDebugSigRef.current = sig;
+    lastDebugSigRef.current = sig;
 
     console.groupCollapsed(
       `[RelatedActs] cards=${sigObj.deferredLen} related=${Array.isArray(related) ? related.length : 0}`
@@ -207,11 +251,12 @@ lastDebugSigRef.current = sig;
       scoredCount: dbg.scoredCount,
       positiveCount: dbg.positiveCount,
       finalCount: dbg.finalCount,
+      usedFallback: dbg.usedFallback,
     } : null);
 
     console.table(dbg?.top5Scored || []);
     console.groupEnd();
-  }, [DEBUG_RELATED_ACTS, actCards, deferredCards, related, genres, instruments, vocalist, currentActId, maxToShow]);
+  }, [DEBUG_RELATED_ACTS, actCards, deferredCards, related, dbg, genres, instruments, vocalist, currentActId, maxToShow]);
 
   return (
     <div className="my-10">
@@ -223,17 +268,17 @@ lastDebugSigRef.current = sig;
         <p className="text-center text-sm text-gray-500">No similar acts found.</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
-          {(Array.isArray(related) ? related : []).map((item) => (
-            <div
-              key={String(item.actId || item._id)}
-              style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
-            >
-              {(() => {
-                const { _score, __debug, ...clean } = item || {};
-                return <ActItem actData={clean} />;
-              })()}
-            </div>
-          ))}
+          {related.map((item) => {
+            const { _score, ...clean } = item || {};
+            return (
+              <div
+                key={String(clean.actId || clean._id)}
+                style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
+              >
+                <ActItem actData={clean} />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
