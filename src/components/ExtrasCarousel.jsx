@@ -46,7 +46,7 @@ const ExtrasCarousel = ({
       },
       // Desktops (≥1280px)
       "(min-width: 1280px)": {
-        slides: { perView: 6, spacing: 15 },
+        slides: { perView: 7, spacing: 15 },
       
       },
     },
