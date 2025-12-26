@@ -59,6 +59,9 @@ const getLove = (src, shortlistCount) => {
 // when no location/date is selected (avoids slow/buggy derived pricing for now).
 const getMinDisplayPrice = (src) => {
   const v =
+    src?.minBasePrice ??
+    src?.min_base_price ??
+    src?.minBase ??
     src?.minDisplayPrice ??
     src?.minPriceDisplay ??
     src?.minPrice ??
@@ -248,7 +251,7 @@ const ActItem = ({ actData, shortlistCount }) => {
         const baseOnly = getBasePrice(actData);
         const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
 
-        const hasAnyLocation = !!(selectedAddress || selectedCounty);
+        const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
         const manualMin = getMinDisplayPrice(actData);
 
         pgroup(`Price build — ${getTitle(actData)} (${id})`, () => {
@@ -257,7 +260,7 @@ const ActItem = ({ actData, shortlistCount }) => {
             title: getTitle(actData),
             hasLineups,
             baseOnly,
-            hasAnyLocation,
+            hasAddress,
             selectedCounty: selectedCounty || null,
             selectedAddress: selectedAddress || null,
             selectedDate: selectedDate || null,
@@ -273,7 +276,7 @@ const ActItem = ({ actData, shortlistCount }) => {
         });
 
         // No date/location → show MANUAL minDisplayPrice first (if present), else derived base from lineups, else fallback base
-        if (!hasAnyLocation || !selectedDate) {
+        if (!hasAddress || !selectedDate) {
           if (manualMin != null) {
             pgroup(`Price result (manual minDisplayPrice) — ${getTitle(actData)} (${id})`, () => {
               dlog('manualMin (display, no extra margin applied)', pmoney(manualMin));
@@ -405,8 +408,8 @@ const ActItem = ({ actData, shortlistCount }) => {
 
   // Display total chooses computed price, else base from card/act
   // Ensure margin is applied even if we fell back to base price without computing `price`
-  const hasAnyLocation = !!(selectedAddress || selectedCounty);
-  const manualMin = (!hasAnyLocation || !selectedDate) ? getMinDisplayPrice(actData) : null;
+  const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
+  const manualMin = (!hasAddress || !selectedDate) ? getMinDisplayPrice(actData) : null;
 
   // price.total is already post-margin when derived/calc’d, and already display-ready when manualMin is used.
   const rawTotal =
