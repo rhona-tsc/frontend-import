@@ -2351,100 +2351,142 @@ const ShopProvider = (props) => {
     await shortlistAct(u, String(itemId));
   };
 
-  // ✅ Toggle shortlist via PATCH routes with optimistic UI
-  const shortlistAct = async (uid, actId) => {
-    if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
+// ✅ Toggle shortlist via PATCH routes with optimistic UI
+const shortlistAct = async (uid, actId) => {
+  if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
 
-    const storedUserRaw = localStorage.getItem("user");
-    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-    const userId = uid || storedUser?._id; // ✅ consistent naming
+  const storedUserRaw = localStorage.getItem("user");
+  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+  const userId = uid || storedUser?._id; // ✅ consistent naming
 
-    if (!actId) return;
+  if (!actId) return;
 
-    // ✅ Only consider date/address if user actually provided BOTH (no placeholders)
-    const hasDate = !!selectedDate;
-    const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
+  // ✅ Only consider date/address if user actually provided BOTH (no placeholders)
+  const hasDate = !!selectedDate;
+  const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
 
-    const selectedDateFinal = hasDate
-      ? new Date(selectedDate).toISOString().slice(0, 10)
-      : null;
-    const selectedAddressFinal = hasAddress
-      ? String(selectedAddress).trim()
-      : null;
+  const selectedDateFinal = hasDate
+    ? new Date(selectedDate).toISOString().slice(0, 10)
+    : null;
+  const selectedAddressFinal = hasAddress ? String(selectedAddress).trim() : null;
 
-    // Build payload WITHOUT placeholder date/address to avoid accidental availability triggers
-    const clientPayload = {
-      userId,
-      clientEmail: storedUser?.email || "",
-      clientName:
-        storedUser?.firstName || storedUser?.name || storedUser?.surname || "",
-    };
-    if (selectedDateFinal && selectedAddressFinal) {
-      clientPayload.selectedDate = selectedDateFinal;
-      clientPayload.selectedAddress = selectedAddressFinal;
-    }
+  // Build payload WITHOUT placeholder date/address to avoid accidental availability triggers
+  const clientPayload = {
+    userId,
+    clientEmail: storedUser?.email || "",
+    clientName:
+      storedUser?.firstName || storedUser?.name || storedUser?.surname || "",
+  };
+  if (selectedDateFinal && selectedAddressFinal) {
+    clientPayload.selectedDate = selectedDateFinal;
+    clientPayload.selectedAddress = selectedAddressFinal;
+  }
 
-    if (!userId) {
-      promptLogin("Please log in to manage your shortlist.");
-      return;
-    }
+  if (!userId) {
+    promptLogin("Please log in to manage your shortlist.");
+    return;
+  }
 
-    const idStr = String(actId);
-    const isShortlistedNow =
-      Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
+  const idStr = String(actId);
+  const isShortlistedNow =
+    Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
 
-    // ⚡ Optimistic update
-    const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
-    const next = isShortlistedNow
-      ? prev.filter((id) => id !== idStr)
-      : [...new Set([...prev, idStr])];
+  // ✅ Helper: sync loveCount in your cards list from server value
+  const syncLoveCountFromServer = (newLoveCount) => {
+    if (newLoveCount === undefined || newLoveCount === null) return;
 
-    setShortlistedActs(next);
-    setShortlistItems(next);
-    try {
-      localStorage.setItem("shortlistItems", JSON.stringify(next));
-    } catch {}
+    // 🔁 Change this setter name if yours differs
+    if (typeof setFilterActCards === "function") {
+      setFilterActCards((prevCards) => {
+        if (!Array.isArray(prevCards)) return prevCards;
 
-    try {
-      if (isShortlistedNow) {
-        // 🔵 Removing from shortlist
-        await axios.patch(
-          `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
-          clientPayload
-        );
-      } else {
-        // 🟢 Adding to shortlist
-        await axios.patch(
-          `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
-          clientPayload
-        );
+        return prevCards.map((card) => {
+          // Try a few common id shapes
+          const cardId =
+            String(
+              card?.actId ??
+                card?._id ??
+                card?.act?._id ??
+                card?.act ??
+                ""
+            ) || "";
 
-        // 🩵 Only sync date/address (and any downstream availability) when BOTH are present
-        if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
-          await axios.patch(`${backendUrl}/api/shortlist/update`, {
-            actId: idStr,
-            dateISO: selectedDateFinal,
-            formattedAddress: selectedAddressFinal,
-            ...clientPayload,
-          });
-        }
-      }
-    } catch (err) {
-      console.error("❌ shortlistAct error:", err.message);
+          if (cardId !== idStr) return card;
 
-      // 🔁 Revert on failure
-      setShortlistedActs(prev);
-      setShortlistItems(prev);
-      try {
-        localStorage.setItem("shortlistItems", JSON.stringify(prev));
-      } catch {}
-      try {
-        toast(
-          <CustomToast type="error" message="Could not update shortlist." />
-        );
-      } catch {}
+          return {
+            ...card,
+            loveCount: Number(newLoveCount) || 0,
+          };
+        });
+      });
     }
   };
+
+  // ⚡ Optimistic shortlist list update (NOT loveCount — we’ll trust server response)
+  const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
+  const next = isShortlistedNow
+    ? prev.filter((id) => id !== idStr)
+    : [...new Set([...prev, idStr])];
+
+  setShortlistedActs(next);
+  setShortlistItems(next);
+  try {
+    localStorage.setItem("shortlistItems", JSON.stringify(next));
+  } catch {}
+
+  try {
+    if (isShortlistedNow) {
+      // 🔵 Removing from shortlist
+      const res = await axios.patch(
+        `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
+        clientPayload
+      );
+
+      // ✅ Expect your backend to return: { success: true, loveCount: <number> }
+      const loveCountFromServer =
+        res?.data?.loveCount ??
+        res?.data?.numberOfShortlistsIn ??
+        res?.data?.count;
+
+      syncLoveCountFromServer(loveCountFromServer);
+    } else {
+      // 🟢 Adding to shortlist
+      const res = await axios.patch(
+        `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
+        clientPayload
+      );
+
+      const loveCountFromServer =
+        res?.data?.loveCount ??
+        res?.data?.numberOfShortlistsIn ??
+        res?.data?.count;
+
+      syncLoveCountFromServer(loveCountFromServer);
+
+      // 🩵 Only sync date/address (and any downstream availability) when BOTH are present
+      if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
+        await axios.patch(`${backendUrl}/api/shortlist/update`, {
+          actId: idStr,
+          dateISO: selectedDateFinal,
+          formattedAddress: selectedAddressFinal,
+          ...clientPayload,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("❌ shortlistAct error:", err.message);
+
+    // 🔁 Revert on failure
+    setShortlistedActs(prev);
+    setShortlistItems(prev);
+    try {
+      localStorage.setItem("shortlistItems", JSON.stringify(prev));
+    } catch {}
+    try {
+      toast(<CustomToast type="error" message="Could not update shortlist." />);
+    } catch {}
+  }
+};
 
   // ============ Invoicing helpers ============
   const computeBalanceDueDate = (eventISO) => {
