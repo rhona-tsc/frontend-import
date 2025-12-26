@@ -31,7 +31,7 @@ const ExtrasCarousel = ({
 }) => {
 
   const [sliderRef, instanceRef] = useKeenSlider({
-    loop: true,
+    loop: false,
     mode: "snap",
     // Base: phones (portrait & small devices) → exactly 1 slide
     slides: { perView: 1, spacing: 8 },
@@ -1322,899 +1322,833 @@ const generateTimeOptions = (minMinutes, basePrice, dynamicMaxMinutes = 180) => 
           </button>
         </div>
 
-        <div ref={sliderRef} className="keen-slider w-full">
-          {/* 🎚 sound_engineering_for_another_act with your acts PA */}
-          {(() => {
-            const raw = actData?.extras?.get
-              ? actData.extras.get(
-                  "sound_engineering_for_another_act with your acts PA"
-                )
-              : actData?.extras?.[
-                  "sound_engineering_for_another_act with your acts PA"
-                ];
-            const base = typeof raw === "number" ? raw : raw?.price || 0;
-            if (!base || base === 0) return null;
+       <div ref={sliderRef} className="keen-slider w-full">
+  {/* 🎚 sound_engineering_for_another_act with your acts PA */}
+  {(() => {
+    const raw = actData?.extras?.get
+      ? actData.extras.get("sound_engineering_for_another_act with your acts PA")
+      : actData?.extras?.["sound_engineering_for_another_act with your acts PA"];
 
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-2">
-                  <img
-                    src={assets.PA_speakers_icon}
-                    alt="PA & Sound Engineering for an External Act"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
-                <p className="text-sm font-medium text-center">
-                  PA & Sound Engineering for an External Act
-                </p>
-                <p className="text-sm text-gray-600 text-center">
-                  £{Math.ceil(base * 1.33)}
-                </p>
-                <button
-                  onClick={() => {
-                    const selected = safeSelectedExtras.find(
-                      (e) =>
-                        e.key ===
-                        "sound_engineering_for_another_act with your acts PA"
-                    );
-                    const price = Math.ceil(base * 1.33);
-                    updateExtras(actId, lineupId, {
-                      name: "PA Use For an External Act",
-                      key: "sound_engineering_for_another_act with your acts PA",
-                      price,
-                      quantity: selected ? 0 : 1,
-                    });
-                  }}
-                  className={`mt-2 px-4 py-2 text-base rounded text-white ${
-                    safeSelectedExtras.find(
-                      (e) =>
-                        e.key ===
-                        "sound_engineering_for_another_act with your acts PA"
-                    )
-                      ? "bg-black"
-                      : "bg-gray-300 hover:bg-[#ff6667]"
-                  }`}
-                >
-                  {safeSelectedExtras.find(
-                    (e) =>
-                      e.key ===
-                      "sound_engineering_for_another_act with your acts PA"
-                  )
-                    ? "Remove"
-                    : "Add"}
-                </button>
-              </div>
+    const base = typeof raw === "number" ? raw : raw?.price || 0;
+    if (!base || base === 0) return null;
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-2">
+          <img
+            src={assets.PA_speakers_icon}
+            alt="PA & Sound Engineering for an External Act"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          />
+        </div>
+
+        <p className="text-sm font-medium text-center">
+          PA & Sound Engineering for an External Act
+        </p>
+
+        <p className="text-sm text-gray-600 text-center">£{Math.ceil(base * 1.33)}</p>
+
+        <button
+          onClick={() => {
+            const selected = safeSelectedExtras.find(
+              (e) =>
+                e.key === "sound_engineering_for_another_act with your acts PA"
             );
-          })()}
+            const price = Math.ceil(base * 1.33);
 
-          {/* Ceremony / Afternoon Performances Slide */}
-          <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-            <div className="overflow-hidden h-24 w-full rounded mb-2">
-              <img
-                src={assets.ceremony_afternoon_icon} // <- Replace with a relevant icon/image asset
-                alt="Ceremony or Afternoon Performances"
-                className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-              />
-            </div>
-            <p className="text-sm font-medium text-center">
-              Ceremony or Afternoon Performances
-            </p>
-            <p className="text-sm text-gray-600 text-center">
-              Click through to the performance selector
-            </p>
-            <button
-              onClick={() => setShowCeremonyModal(true)}
-              className="mt-2 px-4 py-2 text-base rounded text-white bg-gray-300 hover:bg-[#ff6667]"
-            >
-              Explore
-            </button>
-          </div>
+            updateExtras(actId, lineupId, {
+              name: "PA Use For an External Act",
+              key: "sound_engineering_for_another_act with your acts PA",
+              price,
+              quantity: selected ? 0 : 1,
+            });
+          }}
+          className={`mt-2 px-4 py-2 text-base rounded text-white ${
+            safeSelectedExtras.find(
+              (e) =>
+                e.key === "sound_engineering_for_another_act with your acts PA"
+            )
+              ? "bg-black"
+              : "bg-gray-300 hover:bg-[#ff6667]"
+          }`}
+        >
+          {safeSelectedExtras.find(
+            (e) =>
+              e.key === "sound_engineering_for_another_act with your acts PA"
+          )
+            ? "Remove"
+            : "Add"}
+        </button>
+      </div>
+    );
+  })()}
 
-          {showCeremonyModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-              <div
-                className="bg-white rounded-lg p-6 w-[90%] max-w-3xl relative overflow-y-auto"
-                style={{
-                  maxHeight: "90vh", // limit height to viewport
-                }}
-              >
-                <button
-                  className="absolute top-3 right-3 text-gray-500 hover:text-black"
-                  onClick={() => setShowCeremonyModal(false)}
-                >
-                  ✕
-                </button>
-                <h2 className="text-xl font-bold mb-4">
-                  Ceremony / Afternoon Performances
-                </h2>
+  {/* Ceremony / Afternoon Performances Slide */}
+  <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+    <div className="overflow-hidden h-24 w-full rounded mb-2">
+      <img
+        src={assets.ceremony_afternoon_icon}
+        alt="Ceremony or Afternoon Performances"
+        className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+      />
+    </div>
 
-                <AcousticExtrasSelector
-                  actData={actData}
-                  lineups={actData.lineups}
-                  selectedLineup={lineup}
-                  addToCart={updateExtras}
-                  selectedLineupId={lineupId}
-                />
-              </div>
-            </div>
-          )}
+    <p className="text-sm font-medium text-center">Ceremony or Afternoon Performances</p>
 
-          {/* 🎚 background_music_playlist */}
+    <p className="text-sm text-gray-600 text-center">
+      Click through to the performance selector
+    </p>
+
+    <button
+      onClick={() => setShowCeremonyModal(true)}
+      className="mt-2 px-4 py-2 text-base rounded text-white bg-gray-300 hover:bg-[#ff6667]"
+    >
+      Explore
+    </button>
+  </div>
+
+  {showCeremonyModal && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div
+        className="bg-white rounded-lg p-6 w-[90%] max-w-3xl relative overflow-y-auto"
+        style={{ maxHeight: "90vh" }}
+      >
+        <button
+          className="absolute top-3 right-3 text-gray-500 hover:text-black"
+          onClick={() => setShowCeremonyModal(false)}
+        >
+          ✕
+        </button>
+
+        <h2 className="text-xl font-bold mb-4">Ceremony / Afternoon Performances</h2>
+
+        <AcousticExtrasSelector
+          actData={actData}
+          lineups={actData.lineups}
+          selectedLineup={lineup}
+          addToCart={updateExtras}
+          selectedLineupId={lineupId}
+        />
+      </div>
+    </div>
+  )}
+
+  {/* 🎚 background_music_playlist */}
+  {(() => {
+    const raw = actData?.extras?.get
+      ? actData.extras.get("background_music_playlist")
+      : actData?.extras?.["background_music_playlist"];
+
+    const base = typeof raw === "number" ? raw : raw?.price || 0;
+    if (!base || base === 0) return null;
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-2">
+          <img
+            src={assets.playlist_icon}
+            alt="Background Music Playlist"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          />
+        </div>
+
+        <p className="text-sm font-medium text-center">Background Music Playlist</p>
+
+        <p className="text-sm text-gray-600 text-center">
+          £
           {(() => {
             const raw = actData?.extras?.get
               ? actData.extras.get("background_music_playlist")
               : actData?.extras?.["background_music_playlist"];
-            const base = typeof raw === "number" ? raw : raw?.price || 0;
-            if (!base || base === 0) return null;
-
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-2">
-                  <img
-                    src={assets.playlist_icon}
-                    alt="Background Music Playlist"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
-                <p className="text-sm font-medium text-center">
-                  Background Music Playlist
-                </p>
-                <p className="text-sm text-gray-600 text-center">
-                  £
-                  {(() => {
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("background_music_playlist")
-                      : actData?.extras?.["background_music_playlist"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    return Math.ceil(base * 1.33);
-                  })()}
-                </p>
-                <button
-                  onClick={() => {
-                    const selected = safeSelectedExtras.find(
-                      (e) => e.key === "background_music_playlist"
-                    );
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("background_music_playlist")
-                      : actData?.extras?.["background_music_playlist"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    const price = Math.ceil(base * 1.33);
-                    updateExtras(actId, lineupId, {
-                      name: "Background Music Playlist",
-                      key: "background_music_playlist",
-                      price,
-                      quantity: selected ? 0 : 1,
-                    });
-                  }}
-                  className={`mt-2 px-4 py-2 text-base rounded text-white ${
-                    safeSelectedExtras.find(
-                      (e) => e.key === "background_music_playlist"
-                    )
-                      ? "bg-black"
-                      : "bg-gray-300 hover:bg-[#ff6667]"
-                  }`}
-                >
-                  {safeSelectedExtras.find(
-                    (e) => e.key === "background_music_playlist"
-                  )
-                    ? "Remove"
-                    : "Add"}
-                </button>
-              </div>
-            );
+            let base = 0;
+            if (typeof raw === "number") base = raw;
+            else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+            return Math.ceil(base * 1.33);
           })()}
+        </p>
 
-          {/* 🎚 up_to_3_hours_manned_playlist */}
+        <button
+          onClick={() => {
+            const selected = safeSelectedExtras.find(
+              (e) => e.key === "background_music_playlist"
+            );
+
+            const raw = actData?.extras?.get
+              ? actData.extras.get("background_music_playlist")
+              : actData?.extras?.["background_music_playlist"];
+
+            let base = 0;
+            if (typeof raw === "number") base = raw;
+            else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+
+            const price = Math.ceil(base * 1.33);
+
+            updateExtras(actId, lineupId, {
+              name: "Background Music Playlist",
+              key: "background_music_playlist",
+              price,
+              quantity: selected ? 0 : 1,
+            });
+          }}
+          className={`mt-2 px-4 py-2 text-base rounded text-white ${
+            safeSelectedExtras.find((e) => e.key === "background_music_playlist")
+              ? "bg-black"
+              : "bg-gray-300 hover:bg-[#ff6667]"
+          }`}
+        >
+          {safeSelectedExtras.find((e) => e.key === "background_music_playlist")
+            ? "Remove"
+            : "Add"}
+        </button>
+      </div>
+    );
+  })()}
+
+  {/* 🎚 up_to_3_hours_manned_playlist */}
+  {(() => {
+    const raw = actData?.extras?.get
+      ? actData.extras.get("up_to_3_hours_manned_playlist")
+      : actData?.extras?.["up_to_3_hours_manned_playlist"];
+
+    const base = typeof raw === "number" ? raw : raw?.price || 0;
+    if (!base || base === 0) return null;
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-2">
+          <img
+            src={assets.manned_playlist_icon}
+            alt="Up to 3 Hours Manned Playlist"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          />
+        </div>
+
+        <p className="text-sm font-medium text-center">Up to 3 Hours Manned Playlist</p>
+
+        <p className="text-sm text-gray-600 text-center">
+          £
           {(() => {
             const raw = actData?.extras?.get
               ? actData.extras.get("up_to_3_hours_manned_playlist")
               : actData?.extras?.["up_to_3_hours_manned_playlist"];
-            const base = typeof raw === "number" ? raw : raw?.price || 0;
-            if (!base || base === 0) return null;
-
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-2">
-                  <img
-                    src={assets.manned_playlist_icon}
-                    alt="Up to 3 Hours Manned Playlist"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
-                <p className="text-sm font-medium text-center">
-                  Up to 3 Hours Manned Playlist
-                </p>
-                <p className="text-sm text-gray-600 text-center">
-                  £
-                  {(() => {
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("up_to_3_hours_manned_playlist")
-                      : actData?.extras?.["up_to_3_hours_manned_playlist"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    return Math.ceil(base * 1.33);
-                  })()}
-                </p>
-                <button
-                  onClick={() => {
-                    const selected = safeSelectedExtras.find(
-                      (e) => e.key === "up_to_3_hours_manned_playlist"
-                    );
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("up_to_3_hours_manned_playlist")
-                      : actData?.extras?.["up_to_3_hours_manned_playlist"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    const price = Math.ceil(base * 1.33);
-                    updateExtras(actId, lineupId, {
-                      name: "Up to 3 Hours Manned Playlist",
-                      key: "up_to_3_hours_manned_playlist",
-                      price,
-                      quantity: selected ? 0 : 1,
-                    });
-                  }}
-                  className={`mt-2 px-4 py-2 text-base rounded text-white ${
-                    safeSelectedExtras.find(
-                      (e) => e.key === "up_to_3_hours_manned_playlist"
-                    )
-                      ? "bg-black"
-                      : "bg-gray-300 hover:bg-[#ff6667]"
-                  }`}
-                >
-                  {safeSelectedExtras.find(
-                    (e) => e.key === "up_to_3_hours_manned_playlist"
-                  )
-                    ? "Remove"
-                    : "Add"}
-                </button>
-              </div>
-            );
+            let base = 0;
+            if (typeof raw === "number") base = raw;
+            else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+            return Math.ceil(base * 1.33);
           })()}
+        </p>
 
-          {/* 🎚 up_to_3_hours_band_member_DJ */}
+        <button
+          onClick={() => {
+            const selected = safeSelectedExtras.find(
+              (e) => e.key === "up_to_3_hours_manned_playlist"
+            );
+
+            const raw = actData?.extras?.get
+              ? actData.extras.get("up_to_3_hours_manned_playlist")
+              : actData?.extras?.["up_to_3_hours_manned_playlist"];
+
+            let base = 0;
+            if (typeof raw === "number") base = raw;
+            else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+
+            const price = Math.ceil(base * 1.33);
+
+            updateExtras(actId, lineupId, {
+              name: "Up to 3 Hours Manned Playlist",
+              key: "up_to_3_hours_manned_playlist",
+              price,
+              quantity: selected ? 0 : 1,
+            });
+          }}
+          className={`mt-2 px-4 py-2 text-base rounded text-white ${
+            safeSelectedExtras.find((e) => e.key === "up_to_3_hours_manned_playlist")
+              ? "bg-black"
+              : "bg-gray-300 hover:bg-[#ff6667]"
+          }`}
+        >
+          {safeSelectedExtras.find((e) => e.key === "up_to_3_hours_manned_playlist")
+            ? "Remove"
+            : "Add"}
+        </button>
+      </div>
+    );
+  })()}
+
+  {/* 🎚 up_to_3_hours_band_member_DJ */}
+  {(() => {
+    const raw = actData?.extras?.get
+      ? actData.extras.get("up_to_3_hours_band_member_DJ")
+      : actData?.extras?.["up_to_3_hours_band_member_DJ"];
+
+    const base = typeof raw === "number" ? raw : raw?.price || 0;
+    if (!base || base === 0) return null;
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-2">
+          <img
+            src={assets.band_member_DJ_icon}
+            alt="Up to 3 Hours Band Member DJ"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          />
+        </div>
+
+        <p className="text-sm font-medium text-center">Up to 3 Hours Band Member DJ</p>
+
+        <p className="text-sm text-gray-600 text-center">
+          £
           {(() => {
             const raw = actData?.extras?.get
               ? actData.extras.get("up_to_3_hours_band_member_DJ")
               : actData?.extras?.["up_to_3_hours_band_member_DJ"];
-            const base = typeof raw === "number" ? raw : raw?.price || 0;
-            if (!base || base === 0) return null;
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-2">
-                  <img
-                    src={assets.band_member_DJ_icon}
-                    alt="Up to 3 Hours Band Member DJ"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
-                <p className="text-sm font-medium text-center">
-                  Up to 3 Hours Band Member DJ
-                </p>
-                <p className="text-sm text-gray-600 text-center">
-                  £
-                  {(() => {
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("up_to_3_hours_band_member_DJ")
-                      : actData?.extras?.["up_to_3_hours_band_member_DJ"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    return Math.ceil(base * 1.33);
-                  })()}
-                </p>
-                <button
-                  onClick={() => {
-                    const selected = safeSelectedExtras.find(
-                      (e) => e.key === "up_to_3_hours_band_member_DJ"
-                    );
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("up_to_3_hours_band_member_DJ")
-                      : actData?.extras?.["up_to_3_hours_band_member_DJ"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    const price = Math.ceil(base * 1.33);
-                    updateExtras(actId, lineupId, {
-                      name: "Up to 3 Hours Band Member DJ",
-                      key: "up_to_3_hours_band_member_DJ",
-                      price,
-                      quantity: selected ? 0 : 1,
-                    });
-                  }}
-                  className={`mt-2 px-4 py-2 text-base rounded text-white ${
-                    safeSelectedExtras.find(
-                      (e) => e.key === "up_to_3_hours_band_member_DJ"
-                    )
-                      ? "bg-black"
-                      : "bg-gray-300 hover:bg-[#ff6667]"
-                  }`}
-                >
-                  {safeSelectedExtras.find(
-                    (e) => e.key === "up_to_3_hours_band_member_DJ"
-                  )
-                    ? "Remove"
-                    : "Add"}
-                </button>
-              </div>
-            );
+            let base = 0;
+            if (typeof raw === "number") base = raw;
+            else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+            return Math.ceil(base * 1.33);
           })()}
+        </p>
 
-          {/* (removed duplicate PA Late Stay block; using the filtered PA Late Stay above) */}
-
-          {/* 🎚 extra DJing per 30 mins */}
-          {(() => {
-            const getExtraValue = (key) => {
-              const raw = actData?.extras?.get
-                ? actData.extras.get(key)
-                : actData?.extras?.[key];
-              if (typeof raw === "number") return raw;
-              if (typeof raw === "object" && raw !== null)
-                return raw.price || 0;
-              return 0;
-            };
-
-            const dj30Base = getExtraValue("extra DJing per 30 mins");
-            const maxDjHours = getExtraValue("max_dj_hours");
-
-            // Don’t render if base price is 0 or max hours <= 3
-            if (!dj30Base || maxDjHours <= 3) return null;
-
-            const pricePer30 = Math.ceil(dj30Base * 1.33);
-
+        <button
+          onClick={() => {
             const selected = safeSelectedExtras.find(
-              (e) => e.key === "extra DJing per 30 mins"
+              (e) => e.key === "up_to_3_hours_band_member_DJ"
             );
-            const quantity = selected?.quantity || 0;
 
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-2">
-                  <img
-                    src={assets.additional_band_member_DJ_icon}
-                    alt="Additional DJing per 30 mins"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
-                <p className="text-sm font-medium text-center">
-                  Additional DJing per 30 mins
-                </p>
-                <p className="text-sm text-gray-600 text-center">
-                  £{pricePer30}
-                </p>
+            const raw = actData?.extras?.get
+              ? actData.extras.get("up_to_3_hours_band_member_DJ")
+              : actData?.extras?.["up_to_3_hours_band_member_DJ"];
 
-                <div className="flex items-center justify-center mt-2 gap-2">
-                  <button
-                    onClick={() => {
-                      if (quantity > 0) {
-                        updateExtras(actId, lineupId, {
-                          name: "Additional DJing per 30 mins",
-                          key: "extra DJing per 30 mins",
-                          price: pricePer30,
-                          quantity: quantity - 1,
-                        });
-                      }
-                    }}
-                    className="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded text-black"
-                    disabled={quantity === 0}
-                  >
-                    -
-                  </button>
-                  <span>{quantity}</span>
-                  <button
-                    onClick={() => {
-                      if (quantity * 0.5 < maxDjHours - 3) {
-                        // ensures max limit
-                        updateExtras(actId, lineupId, {
-                          name: "Additional DJing per 30 mins",
-                          key: "extra DJing per 30 mins",
-                          price: pricePer30,
-                          quantity: quantity + 1,
-                        });
-                      }
-                    }}
-                    className="px-3 py-1 bg-[#ff6667] hover:bg-black rounded text-white"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
+            let base = 0;
+            if (typeof raw === "number") base = raw;
+            else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
 
-          {/* 🎚 DJ_live_sax_3x30mins */}
-          <DjLiveSaxCard
-            actData={actData}
-            selectedLineup={lineup}
-            safeSelectedExtras={safeSelectedExtras}
-            updateExtras={updateExtras}
-            actId={actId}
-            lineupId={lineupId}
+            const price = Math.ceil(base * 1.33);
+
+            updateExtras(actId, lineupId, {
+              name: "Up to 3 Hours Band Member DJ",
+              key: "up_to_3_hours_band_member_DJ",
+              price,
+              quantity: selected ? 0 : 1,
+            });
+          }}
+          className={`mt-2 px-4 py-2 text-base rounded text-white ${
+            safeSelectedExtras.find((e) => e.key === "up_to_3_hours_band_member_DJ")
+              ? "bg-black"
+              : "bg-gray-300 hover:bg-[#ff6667]"
+          }`}
+        >
+          {safeSelectedExtras.find((e) => e.key === "up_to_3_hours_band_member_DJ")
+            ? "Remove"
+            : "Add"}
+        </button>
+      </div>
+    );
+  })()}
+
+  {/* 🎚 extra DJing per 30 mins */}
+  {(() => {
+    const getExtraValue = (key) => {
+      const raw = actData?.extras?.get ? actData.extras.get(key) : actData?.extras?.[key];
+      if (typeof raw === "number") return raw;
+      if (typeof raw === "object" && raw !== null) return raw.price || 0;
+      return 0;
+    };
+
+    const dj30Base = getExtraValue("extra DJing per 30 mins");
+    const maxDjHours = getExtraValue("max_dj_hours");
+
+    // Don’t render if base price is 0 or max hours <= 3
+    if (!dj30Base || maxDjHours <= 3) return null;
+
+    const pricePer30 = Math.ceil(dj30Base * 1.33);
+
+    const selected = safeSelectedExtras.find((e) => e.key === "extra DJing per 30 mins");
+    const quantity = selected?.quantity || 0;
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-2">
+          <img
+            src={assets.additional_band_member_DJ_icon}
+            alt="Additional DJing per 30 mins"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
-          {/* 🎚 DJ_live_bongos_3x30mins */}
-          <DjLiveBongosCard
-            actData={actData}
-            selectedLineup={lineup}
-            safeSelectedExtras={safeSelectedExtras}
-            updateExtras={updateExtras}
-            actId={actId}
-            lineupId={lineupId}
+        </div>
+
+        <p className="text-sm font-medium text-center">Additional DJing per 30 mins</p>
+
+        <p className="text-sm text-gray-600 text-center">£{pricePer30}</p>
+
+        <div className="flex items-center justify-center mt-2 gap-2">
+          <button
+            onClick={() => {
+              if (quantity > 0) {
+                updateExtras(actId, lineupId, {
+                  name: "Additional DJing per 30 mins",
+                  key: "extra DJing per 30 mins",
+                  price: pricePer30,
+                  quantity: quantity - 1,
+                });
+              }
+            }}
+            className="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded text-black"
+            disabled={quantity === 0}
+          >
+            -
+          </button>
+
+          <span>{quantity}</span>
+
+          <button
+            onClick={() => {
+              if (quantity * 0.5 < maxDjHours - 3) {
+                updateExtras(actId, lineupId, {
+                  name: "Additional DJing per 30 mins",
+                  key: "extra DJing per 30 mins",
+                  price: pricePer30,
+                  quantity: quantity + 1,
+                });
+              }
+            }}
+            className="px-3 py-1 bg-[#ff6667] hover:bg-black rounded text-white"
+          >
+            +
+          </button>
+        </div>
+      </div>
+    );
+  })()}
+
+  {/* 🎚 DJ_live_sax_3x30mins */}
+  <DjLiveSaxCard
+    actData={actData}
+    selectedLineup={lineup}
+    safeSelectedExtras={safeSelectedExtras}
+    updateExtras={updateExtras}
+    actId={actId}
+    lineupId={lineupId}
+  />
+
+  {/* 🎚 DJ_live_bongos_3x30mins */}
+  <DjLiveBongosCard
+    actData={actData}
+    selectedLineup={lineup}
+    safeSelectedExtras={safeSelectedExtras}
+    updateExtras={updateExtras}
+    actId={actId}
+    lineupId={lineupId}
+  />
+
+  {/* 🎚 DJ_live_sax_and_bongos_3x30mins */}
+  <DjLiveBongosAndSaxCard
+    actData={actData}
+    selectedLineup={lineup}
+    safeSelectedExtras={safeSelectedExtras}
+    updateExtras={updateExtras}
+    actId={actId}
+    lineupId={lineupId}
+  />
+
+  <ExtraVocalistCard
+    actData={actData}
+    selectedLineup={lineup}
+    safeSelectedExtras={safeSelectedExtras}
+    updateExtras={updateExtras}
+    actId={actId}
+    lineupId={lineupId}
+  />
+
+  {/* 🎚 Extra Performance (Dropdown for 30/40/60 min) */}
+  {(() => {
+    const keyMap = {
+      30: "extra_30min_performance_per_band_member",
+      40: "extra_40min_performance_per_band_member",
+      60: "extra_60min_performance_per_band_member",
+    };
+
+    const lineupSize = parseInt(lineup?.actSize || lineup?.bandMembers?.length || 0);
+
+    const availableOptions = Object.entries(keyMap)
+      .map(([duration, key]) => {
+        const raw = actData?.extras?.get ? actData.extras.get(key) : actData?.extras?.[key];
+
+        let base = 0;
+        if (typeof raw === "number") base = raw;
+        else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+
+        const total = Math.ceil(base * (lineupSize || 1) * 1.33);
+        return { duration, key, base, total };
+      })
+      .filter((opt) => opt.base > 0);
+
+    if (availableOptions.length === 0) return null;
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-2">
+          <img
+            src={assets.extra_performance_icon}
+            alt="Extra Performance"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
+        </div>
 
-          {/* 🎚 DJ_live_sax_and_bongos_3x30mins */}
-          <DjLiveBongosAndSaxCard
-            actData={actData}
-            selectedLineup={lineup}
-            safeSelectedExtras={safeSelectedExtras}
-            updateExtras={updateExtras}
-            actId={actId}
-            lineupId={lineupId}
+        <p className="text-sm font-medium text-center">Extra Performance</p>
+
+        <select
+          value={selectedDuration || ""}
+          onChange={(e) => setSelectedDuration(e.target.value)}
+          className="mt-2 px-2 py-1 border rounded text-sm"
+        >
+          <option value="">Select</option>
+          {availableOptions.map((opt) => (
+            <option key={opt.duration} value={opt.duration}>
+              {opt.duration} mins
+            </option>
+          ))}
+        </select>
+
+        <p className="text-sm text-gray-600 text-center mt-2">
+          {selectedDuration
+            ? `£${
+                availableOptions.find((o) => o.duration === selectedDuration)?.total || ""
+              }`
+            : `from £${availableOptions[0]?.total}`}
+        </p>
+
+        <button
+          disabled={!selectedDuration}
+          onClick={() => {
+            const selected = availableOptions.find((o) => o.duration === selectedDuration);
+            if (!selected) return;
+
+            const existing = safeSelectedExtras.find((e) => e.key === selected.key);
+
+            updateExtras(actId, lineupId, {
+              name: `Extra ${selected.duration}min Performance`,
+              key: selected.key,
+              price: selected.total,
+              quantity: existing ? 0 : 1,
+            });
+          }}
+          className={`mt-2 px-4 py-2 text-base rounded text-white ${
+            !selectedDuration
+              ? "bg-gray-300 cursor-not-allowed"
+              : safeSelectedExtras.find((e) => e.key === keyMap[selectedDuration])
+                ? "bg-black"
+                : "bg-gray-300 hover:bg-[#ff6667]"
+          }`}
+        >
+          {safeSelectedExtras.find((e) => e.key === keyMap[selectedDuration])
+            ? "Remove"
+            : "Add"}
+        </button>
+      </div>
+    );
+  })()}
+
+  {/* 🎚 Mic for Speeches (Dropdown for Wired/Wireless) */}
+  {(() => {
+    const micOptions = ["wired_mic for speeches", "wireless_mic for speeches"]
+      .map((key) => {
+        const raw = actData?.extras?.get ? actData.extras.get(key) : actData?.extras?.[key];
+
+        let base = 0;
+        if (typeof raw === "number") base = raw;
+        else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+
+        return { key, base, total: Math.ceil(base * 1.33) };
+      })
+      .filter((opt) => opt.base > 0);
+
+    if (micOptions.length === 0) return null;
+
+    // Find selected extra for this mic type
+    const selectedExtra = safeSelectedExtras.find((e) => e.key === selectedMicType);
+
+    // Use local state for selected quantity
+    const micQty = selectedMicQty;
+
+    // For display price, use pending or selected
+    let displayPrice = "";
+    if (selectedMicType && micQty) {
+      const raw = actData?.extras?.get
+        ? actData.extras.get(selectedMicType)
+        : actData?.extras?.[selectedMicType];
+
+      let base = 0;
+      if (typeof raw === "number") base = raw;
+      else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+
+      displayPrice = Math.ceil(base * 1.33 * micQty);
+    }
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex justify-between flex-col shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-2">
+          <img
+            src={assets.wireless_mic_icon}
+            alt="Mic for Speeches"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
           />
-          <ExtraVocalistCard
-  actData={actData}
-  selectedLineup={lineup}
-  safeSelectedExtras={safeSelectedExtras}
-  updateExtras={updateExtras}
-  actId={actId}
-  lineupId={lineupId}
-/>
+        </div>
 
-          {/* 🎚 Extra Performance (Dropdown for 30/40/60 min) */}
-          {(() => {
-            const keyMap = {
-              30: "extra_30min_performance_per_band_member",
-              40: "extra_40min_performance_per_band_member",
-              60: "extra_60min_performance_per_band_member",
-            };
+        <p className="text-sm font-medium text-center">Mic for Speeches</p>
 
-            const lineupSize = parseInt(
-              lineup?.actSize || lineup?.bandMembers?.length || 0
-            );
+        <div className="flex flex-row gap-2 mt-2 items-start">
+          <select
+            value={selectedMicType || ""}
+            onChange={(e) => {
+              setSelectedMicType(e.target.value);
+              setSelectedMicQty(""); // Reset quantity when type changes
+              setPendingMicExtra(null);
+            }}
+            className="px-2 py-1 border rounded text-sm flex-1"
+          >
+            <option value="">Select</option>
+            {micOptions.map((opt) => (
+              <option key={opt.key} value={opt.key}>
+                {opt.key.includes("wireless") ? "Wireless" : "Wired"}
+              </option>
+            ))}
+          </select>
 
-            const availableOptions = Object.entries(keyMap)
-              .map(([duration, key]) => {
-                const raw = actData?.extras?.get
-                  ? actData.extras.get(key)
-                  : actData?.extras?.[key];
-                let base = 0;
-                if (typeof raw === "number") {
-                  base = raw;
-                } else if (typeof raw === "object" && raw !== null) {
-                  base = raw.price || 0;
-                }
-                const total = Math.ceil((base * (lineupSize || 1)) * 1.33);
-                return { duration, key, base, total };
-              })
-              .filter((opt) => opt.base > 0);
+          <select
+            value={selectedMicQty}
+            onChange={(e) => {
+              const quantity = parseInt(e.target.value, 10);
+              setSelectedMicQty(quantity);
 
-            if (availableOptions.length === 0) return null;
-
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-2">
-                  <img
-                    src={assets.extra_performance_icon}
-                    alt="Extra Performance"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
-                <p className="text-sm font-medium text-center">
-                  Extra Performance
-                </p>
-
-                <select
-                  value={selectedDuration || ""}
-                  onChange={(e) => setSelectedDuration(e.target.value)}
-                  className="mt-2 px-2 py-1 border rounded text-sm"
-                >
-                  <option value="">Select</option>
-                  {availableOptions.map((opt) => (
-                    <option key={opt.duration} value={opt.duration}>
-                      {opt.duration} mins
-                    </option>
-                  ))}
-                </select>
-
-                <p className="text-sm text-gray-600 text-center mt-2">
-                  {selectedDuration
-                    ? `£${
-                        availableOptions.find(
-                          (o) => o.duration === selectedDuration
-                        )?.total || ""
-                      }`
-                    : `from £${availableOptions[0]?.total}`}
-                </p>
-
-                <button
-                  disabled={!selectedDuration}
-                  onClick={() => {
-                    const selected = availableOptions.find(
-                      (o) => o.duration === selectedDuration
-                    );
-                    if (!selected) return;
-                    const existing = safeSelectedExtras.find(
-                      (e) => e.key === selected.key
-                    );
-                    updateExtras(actId, lineupId, {
-                      name: `Extra ${selected.duration}min Performance`,
-                      key: selected.key,
-                      price: selected.total,
-                      quantity: existing ? 0 : 1,
-                    });
-                  }}
-                  className={`mt-2 px-4 py-2 text-base rounded text-white ${
-                    !selectedDuration
-                      ? "bg-gray-300 cursor-not-allowed"
-                      : safeSelectedExtras.find(
-                            (e) => e.key === keyMap[selectedDuration]
-                          )
-                        ? "bg-black"
-                        : "bg-gray-300 hover:bg-[#ff6667]"
-                  }`}
-                >
-                  {safeSelectedExtras.find(
-                    (e) => e.key === keyMap[selectedDuration]
-                  )
-                    ? "Remove"
-                    : "Add"}
-                </button>
-              </div>
-            );
-          })()}
-
-          {/* 🎚 Mic for Speeches (Dropdown for Wired/Wireless) */}
-          {(() => {
-            const micOptions = [
-              "wired_mic for speeches",
-              "wireless_mic for speeches",
-            ]
-              .map((key) => {
-                const raw = actData?.extras?.get
-                  ? actData.extras.get(key)
-                  : actData?.extras?.[key];
-                let base = 0;
-                if (typeof raw === "number") {
-                  base = raw;
-                } else if (typeof raw === "object" && raw !== null) {
-                  base = raw.price || 0;
-                }
-                return { key, base, total: Math.ceil(base * 1.33) };
-              })
-              .filter((opt) => opt.base > 0);
-
-            if (micOptions.length === 0) return null;
-
-            // Find selected extra for this mic type
-            const selectedExtra = safeSelectedExtras.find(
-              (e) => e.key === selectedMicType
-            );
-            // Use local state for selected quantity
-            const micQty = selectedMicQty;
-            // For display price, use pending or selected
-            let displayPrice = "";
-            if (selectedMicType && micQty) {
               const raw = actData?.extras?.get
                 ? actData.extras.get(selectedMicType)
                 : actData?.extras?.[selectedMicType];
+
               let base = 0;
-              if (typeof raw === "number") {
-                base = raw;
-              } else if (typeof raw === "object" && raw !== null) {
-                base = raw.price || 0;
-              }
-              displayPrice = Math.ceil((base * 1.33) * micQty);
-            }
+              if (typeof raw === "number") base = raw;
+              else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
 
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex justify-between flex-col shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-2">
-                  <img
-                    src={assets.wireless_mic_icon}
-                    alt="Mic for Speeches"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
-                <p className="text-sm font-medium text-center">
-                  Mic for Speeches
-                </p>
+              const price = Math.ceil(base * 1.33) * quantity;
 
-                <div className="flex flex-row gap-2 mt-2 items-start">
-                  <select
-                    value={selectedMicType || ""}
-                    onChange={(e) => {
-                      setSelectedMicType(e.target.value);
-                      setSelectedMicQty(""); // Reset quantity when type changes
-                      setPendingMicExtra(null);
-                    }}
-                    className="px-2 py-1 border rounded text-sm flex-1"
-                  >
-                    <option value="">Select</option>
-                    {micOptions.map((opt) => (
-                      <option key={opt.key} value={opt.key}>
-                        {opt.key.includes("wireless") ? "Wireless" : "Wired"}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={selectedMicQty}
-                    onChange={(e) => {
-                      const quantity = parseInt(e.target.value);
-                      setSelectedMicQty(quantity);
-                      const raw = actData?.extras?.get
-                        ? actData.extras.get(selectedMicType)
-                        : actData?.extras?.[selectedMicType];
-                      let base = 0;
-                      if (typeof raw === "number") {
-                        base = raw;
-                      } else if (typeof raw === "object" && raw !== null) {
-                        base = raw.price || 0;
-                      }
-                      const price = Math.ceil(base * 1.33) * quantity;
-                      setPendingMicExtra({
-                        name: `Mic for Speeches - ${
-                          selectedMicType.includes("wireless")
-                            ? "Wireless"
-                            : "Wired"
-                        }`,
-                        key: selectedMicType,
-                        price,
-                        quantity,
-                      });
-                    }}
-                    className="px-2 py-1 border rounded text-sm w-[80px] "
-                    disabled={!selectedMicType}
-                  >
-                    <option value="">Qty</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                  </select>
-                </div>
-
-                <p className="text-sm text-gray-600 text-center mt-2">
-                  {selectedMicType && micQty ? `£${displayPrice}` : ""}
-                </p>
-
-                <button
-                  disabled={!selectedMicType || !selectedMicQty}
-                  onClick={() => {
-                    const selected = safeSelectedExtras.find(
-                      (e) => e.key === selectedMicType
-                    );
-                    if (selected) {
-                      updateExtras(actId, lineupId, {
-                        name: selected.name,
-                        key: selected.key,
-                        price: 0,
-                        quantity: 0,
-                      });
-                    } else if (pendingMicExtra) {
-                      updateExtras(actId, lineupId, pendingMicExtra);
-                    }
-                  }}
-                  className={`mt-2 px-4 py-2 text-base rounded text-white ${
-                    !selectedMicType || !selectedMicQty
-                      ? "bg-gray-300 cursor-not-allowed"
-                      : safeSelectedExtras.find(
-                            (e) => e.key === selectedMicType
-                          )
-                        ? "bg-black"
-                        : "bg-gray-300 hover:bg-[#ff6667]"
-                  }`}
-                >
-                  {safeSelectedExtras.find((e) => e.key === selectedMicType)
-                    ? "Remove"
-                    : "Add"}
-                </button>
-              </div>
-            );
-          })()}
-
-
-
-
-
-
-          {/* 🎚 extra_song_request_per_band_member */}
-          {(() => {
-            const raw = actData?.extras?.get
-              ? actData.extras.get("extra_song_request_per_band_member")
-              : actData?.extras?.["extra_song_request_per_band_member"];
-            let base = 0;
-            if (typeof raw === "number") {
-              base = raw;
-            } else if (typeof raw === "object" && raw !== null) {
-              base = raw.price || 0;
-            }
-            const lineupSize = lineup?.bandMembers?.length || 0;
-            if (!base || !lineupSize) return null;
-
-            const [selectedSongRequests, setSelectedSongRequests] =
-              React.useState("");
-
-            const options = [];
-            for (let i = 1; i <= 30; i++) {
-              const total = base * i * lineupSize;
-              const withMargin = Math.ceil(total * 1.33);
-              options.push({
-                value: i,
-                label: `${i} request${i > 1 ? "s" : ""}`,
-                price: withMargin,
+              setPendingMicExtra({
+                name: `Mic for Speeches - ${
+                  selectedMicType.includes("wireless") ? "Wireless" : "Wired"
+                }`,
+                key: selectedMicType,
+                price,
+                quantity,
               });
+            }}
+            className="px-2 py-1 border rounded text-sm w-[80px]"
+            disabled={!selectedMicType}
+          >
+            <option value="">Qty</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+          </select>
+        </div>
+
+        <p className="text-sm text-gray-600 text-center mt-2">
+          {selectedMicType && micQty ? `£${displayPrice}` : ""}
+        </p>
+
+        <button
+          disabled={!selectedMicType || !selectedMicQty}
+          onClick={() => {
+            const selected = safeSelectedExtras.find((e) => e.key === selectedMicType);
+
+            if (selected) {
+              updateExtras(actId, lineupId, {
+                name: selected.name,
+                key: selected.key,
+                price: 0,
+                quantity: 0,
+              });
+            } else if (pendingMicExtra) {
+              updateExtras(actId, lineupId, pendingMicExtra);
             }
+          }}
+          className={`mt-2 px-4 py-2 text-base rounded text-white ${
+            !selectedMicType || !selectedMicQty
+              ? "bg-gray-300 cursor-not-allowed"
+              : safeSelectedExtras.find((e) => e.key === selectedMicType)
+                ? "bg-black"
+                : "bg-gray-300 hover:bg-[#ff6667]"
+          }`}
+        >
+          {safeSelectedExtras.find((e) => e.key === selectedMicType) ? "Remove" : "Add"}
+        </button>
+      </div>
+    );
+  })()}
 
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-1">
-                  <img
-                    src={assets.extra_song_request_icon}
-                    alt="Extra Song Request"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
+  {/* 🎚 extra_song_request_per_band_member */}
+  {(() => {
+    const raw = actData?.extras?.get
+      ? actData.extras.get("extra_song_request_per_band_member")
+      : actData?.extras?.["extra_song_request_per_band_member"];
 
-                <p className="text-sm font-medium text-center">
-                  Extra Song Request
-                </p>
+    let base = 0;
+    if (typeof raw === "number") base = raw;
+    else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
 
-                <select
-                  value={selectedSongRequests || ""}
-                  onChange={(e) =>
-                    setSelectedSongRequests(parseInt(e.target.value))
-                  }
-                  className="mt-2 px-2 py-1 border rounded text-sm"
-                >
-                  <option value="">Select</option>
-                  {options.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-sm text-gray-600 text-center mt-2">
-                  {selectedSongRequests
-                    ? `£${options.find((o) => o.value === selectedSongRequests)?.price}`
-                    : `from £${options[0]?.price}`}
-                </p>
-                <button
-                  disabled={!selectedSongRequests}
-                  onClick={() => {
-                    const selected = safeSelectedExtras.find(
-                      (e) => e.key === "extra_song_request_per_band_member"
-                    );
-                    const opt = options.find(
-                      (o) => o.value === selectedSongRequests
-                    );
-                    updateExtras(actId, lineupId, {
-                      name: `Extra Song Requests (${selectedSongRequests})`,
-                      key: "extra_song_request_per_band_member",
-                      price: opt?.price || 0,
-                      quantity: selected ? 0 : 1,
-                    });
-                  }}
-                  className={`mt-2 px-4 py-2 text-base rounded text-white ${
-                    !selectedSongRequests
-                      ? "bg-gray-300 cursor-not-allowed"
-                      : safeSelectedExtras.find(
-                            (e) =>
-                              e.key === "extra_song_request_per_band_member"
-                          )
-                        ? "bg-black"
-                        : "bg-gray-300 hover:bg-[#ff6667]"
-                  }`}
-                >
-                  {safeSelectedExtras.find(
-                    (e) => e.key === "extra_song_request_per_band_member"
-                  )
-                    ? "Remove"
-                    : "Add"}
-                </button>
-              </div>
+    const lineupSize = lineup?.bandMembers?.length || 0;
+    if (!base || !lineupSize) return null;
+
+    const [selectedSongRequests, setSelectedSongRequests] = React.useState("");
+
+    const options = [];
+    for (let i = 1; i <= 30; i++) {
+      const total = base * i * lineupSize;
+      const withMargin = Math.ceil(total * 1.33);
+      options.push({
+        value: i,
+        label: `${i} request${i > 1 ? "s" : ""}`,
+        price: withMargin,
+      });
+    }
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-1">
+          <img
+            src={assets.extra_song_request_icon}
+            alt="Extra Song Request"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          />
+        </div>
+
+        <p className="text-sm font-medium text-center">Extra Song Request</p>
+
+        <select
+          value={selectedSongRequests || ""}
+          onChange={(e) => setSelectedSongRequests(parseInt(e.target.value, 10))}
+          className="mt-2 px-2 py-1 border rounded text-sm"
+        >
+          <option value="">Select</option>
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+
+        <p className="text-sm text-gray-600 text-center mt-2">
+          {selectedSongRequests
+            ? `£${options.find((o) => o.value === selectedSongRequests)?.price}`
+            : `from £${options[0]?.price}`}
+        </p>
+
+        <button
+          disabled={!selectedSongRequests}
+          onClick={() => {
+            const selected = safeSelectedExtras.find(
+              (e) => e.key === "extra_song_request_per_band_member"
             );
-          })()}
+            const opt = options.find((o) => o.value === selectedSongRequests);
 
-          {/* 🎚 speedy_setup (60mins) - roadie and engineer duties only (travel added on top later for additional team member) */}
-     <SpeedySetupCard
-  actData={actData}
-  selectedLineup={lineup}
-  safeSelectedExtras={safeSelectedExtras}
-  updateExtras={updateExtras}
-  actId={actId}
-  lineupId={lineupId}
-/>
+            updateExtras(actId, lineupId, {
+              name: `Extra Song Requests (${selectedSongRequests})`,
+              key: "extra_song_request_per_band_member",
+              price: opt?.price || 0,
+              quantity: selected ? 0 : 1,
+            });
+          }}
+          className={`mt-2 px-4 py-2 text-base rounded text-white ${
+            !selectedSongRequests
+              ? "bg-gray-300 cursor-not-allowed"
+              : safeSelectedExtras.find(
+                    (e) => e.key === "extra_song_request_per_band_member"
+                )
+                ? "bg-black"
+                : "bg-gray-300 hover:bg-[#ff6667]"
+          }`}
+        >
+          {safeSelectedExtras.find((e) => e.key === "extra_song_request_per_band_member")
+            ? "Remove"
+            : "Add"}
+        </button>
+      </div>
+    );
+  })()}
 
-          {/* 🎚 israeli_dancing */}
+  {/* 🎚 speedy_setup (60mins) - roadie and engineer duties only (travel added on top later for additional team member) */}
+  <SpeedySetupCard
+    actData={actData}
+    selectedLineup={lineup}
+    safeSelectedExtras={safeSelectedExtras}
+    updateExtras={updateExtras}
+    actId={actId}
+    lineupId={lineupId}
+  />
+
+  {/* 🎚 israeli_dancing */}
+  {(() => {
+    const raw = actData?.extras?.get
+      ? actData.extras.get("israeli_dancing")
+      : actData?.extras?.["israeli_dancing"];
+
+    const base = typeof raw === "number" ? raw : raw?.price || 0;
+    if (!base || base === 0) return null;
+
+    return (
+      <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
+        <div className="overflow-hidden h-24 w-full rounded mb-2">
+          <img
+            src={assets.israeli_dancing_icon}
+            alt="Israeli Dancing (20mins)"
+            className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
+          />
+        </div>
+
+        <p className="text-sm font-medium text-center">Israeli Dancing (20mins)</p>
+
+        <p className="text-sm text-gray-600 text-center">
+          £
           {(() => {
             const raw = actData?.extras?.get
               ? actData.extras.get("israeli_dancing")
               : actData?.extras?.["israeli_dancing"];
-            const base = typeof raw === "number" ? raw : raw?.price || 0;
-            if (!base || base === 0) return null;
-            return (
-              <div className="keen-slider__slide bg-white border rounded p-2 flex flex-col justify-between shadow">
-                <div className="overflow-hidden h-24 w-full rounded mb-2">
-                  <img
-                    src={assets.israeli_dancing_icon}
-                    alt="Israeli Dancing (20mins)"
-                    className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-110"
-                  />
-                </div>
-                <p className="text-sm font-medium text-center">
-                  Israeli Dancing (20mins)
-                </p>
-                <p className="text-sm text-gray-600 text-center">
-                  £
-                  {(() => {
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("israeli_dancing")
-                      : actData?.extras?.["israeli_dancing"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    return Math.ceil(base * 1.33);
-                  })()}
-                </p>
-                <button
-                  onClick={() => {
-                    const selected = safeSelectedExtras.find(
-                      (e) => e.key === "israeli_dancing"
-                    );
-                    const raw = actData?.extras?.get
-                      ? actData.extras.get("israeli_dancing")
-                      : actData?.extras?.["israeli_dancing"];
-                    let base = 0;
-                    if (typeof raw === "number") {
-                      base = raw;
-                    } else if (typeof raw === "object" && raw !== null) {
-                      base = raw.price || 0;
-                    }
-                    const price = Math.ceil(base * 1.33);
-                    updateExtras(actId, lineupId, {
-                      name: "Israeli Dancing (20mins)",
-                      key: "israeli_dancing",
-                      price,
-                      quantity: selected ? 0 : 1,
-                    });
-                  }}
-                  className={`mt-2 px-4 py-2 text-base rounded text-white ${
-                    safeSelectedExtras.find((e) => e.key === "israeli_dancing")
-                      ? "bg-black"
-                      : "bg-gray-300 hover:bg-[#ff6667]"
-                  }`}
-                >
-                  {safeSelectedExtras.find((e) => e.key === "israeli_dancing")
-                    ? "Remove"
-                    : "Add"}
-                </button>
-              </div>
-            );
+            let base = 0;
+            if (typeof raw === "number") base = raw;
+            else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+            return Math.ceil(base * 1.33);
           })()}
-        </div>
+        </p>
+
+        <button
+          onClick={() => {
+            const selected = safeSelectedExtras.find((e) => e.key === "israeli_dancing");
+
+            const raw = actData?.extras?.get
+              ? actData.extras.get("israeli_dancing")
+              : actData?.extras?.["israeli_dancing"];
+
+            let base = 0;
+            if (typeof raw === "number") base = raw;
+            else if (typeof raw === "object" && raw !== null) base = raw.price || 0;
+
+            const price = Math.ceil(base * 1.33);
+
+            updateExtras(actId, lineupId, {
+              name: "Israeli Dancing (20mins)",
+              key: "israeli_dancing",
+              price,
+              quantity: selected ? 0 : 1,
+            });
+          }}
+          className={`mt-2 px-4 py-2 text-base rounded text-white ${
+            safeSelectedExtras.find((e) => e.key === "israeli_dancing")
+              ? "bg-black"
+              : "bg-gray-300 hover:bg-[#ff6667]"
+          }`}
+        >
+          {safeSelectedExtras.find((e) => e.key === "israeli_dancing") ? "Remove" : "Add"}
+        </button>
+      </div>
+    );
+  })()}
+</div>
       </div>
     </div>
   );
