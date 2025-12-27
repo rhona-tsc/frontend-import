@@ -116,37 +116,6 @@ const Act = () => {
     return Math.round((sum / reviews.length) * 2) / 2; // nearest 0.5
   }, [reviews]);
 
-  // ✅ Lead role for "Similar Acts" matching
-  const leadRole = React.useMemo(() => {
-    const lineups = Array.isArray(actData?.lineups) ? actData.lineups : [];
-    if (!lineups.length) return "";
-
-    // Pick the smallest lineup (by actSize if numeric, else by bandMembers length)
-    const smallest = [...lineups].sort((a, b) => {
-      const aSize = Number(String(a?.actSize || "").match(/\d+/)?.[0]) || (a?.bandMembers?.length || 999);
-      const bSize = Number(String(b?.actSize || "").match(/\d+/)?.[0]) || (b?.bandMembers?.length || 999);
-      return aSize - bSize;
-    })[0];
-
-    const members = Array.isArray(smallest?.bandMembers) ? smallest.bandMembers : [];
-    if (!members.length) return "";
-
-    // Try to find a "lead" member, else just use the first
-    const lead =
-      members.find((m) => m?.isLead || m?.isFeaturedVocalist || /lead/i.test(m?.role || "")) ||
-      members[0];
-
-    // Build a compound role string (tweak keys to match your schema)
-    const role =
-      lead?.instrument ||
-      lead?.role ||
-      lead?.primaryRole ||
-      lead?.position ||
-      "";
-
-    return String(role || "").trim();
-  }, [actData?.lineups]);
-
   // at top of Act.jsx
   const RepertoireSectionLazy = React.lazy(
     () => import("../components/RepertoireSection")
@@ -209,7 +178,7 @@ const Act = () => {
   const heroUrlHigh = React.useMemo(() => {
     try {
       const u = actData?.images?.[0]?.url || "";
-      return u ? cld(u, { w: 1600, ar: "3:1", fill: true }) : "";
+      return u ? cld(u, 1600) : "";
     } catch {
       return "";
     }
@@ -940,8 +909,37 @@ const Act = () => {
     cartItems[actData._id] &&
     Object.keys(cartItems[actData._id]).length > 0;
 
-  // ✅ Lead role for "Similar Acts" matching
+  // Derived cart lineup and comparison (for sticky cart button)
+  const cartLineupId =
+    actData && cartItems[actData._id]
+      ? Object.keys(cartItems[actData._id])[0] || null
+      : null;
+  const selectedLineupId =
+    selectedLineup?._id || selectedLineup?.lineupId || null;
+  const isSameLineupAsCart =
+    !!cartLineupId &&
+    !!selectedLineupId &&
+    String(cartLineupId) === String(selectedLineupId);
 
+  // Is this act currently shortlisted?
+  const isShortlisted =
+    Array.isArray(shortlistedActs) && actData?._id
+      ? shortlistedActs.includes(actData._id)
+      : false;
+
+  // ✅ new: render as soon as actData exists; handle "no lineup" gracefully
+  if (!actData) {
+    return <div className="p-4 text-gray-500">Loading act details...</div>;
+  }
+
+  // use a safe local reference everywhere you read selectedLineup
+  const safeSelectedLineup = selectedLineup || actData.lineups?.[0] || null;
+  console.log("[Act] counts", {
+    reviews: reviews.length,
+    songs: selectedSongs.length,
+  });
+
+  
 
   return (
     <div className="p-4">
@@ -2410,13 +2408,12 @@ return travelCalculated ? `£${Math.round(cleanTotal * 1.33)}` : `from £${Math.
 
         <Suspense fallback={null}>
           <VisibleOnScroll>
-           <RelatedActsLazy
-  genres={actData.genre || []}
-    instruments={actData.instruments || []}
-
-  leadRole={leadRole}
-  currentActId={actData._id}
-/>
+            <RelatedActsLazy
+              genres={actData.genre || []}
+              instruments={actData.instruments || []}
+              vocalist={actData.vocalist || ""}
+              currentActId={actData._id}
+            />
           </VisibleOnScroll>
         </Suspense>
       </div>
