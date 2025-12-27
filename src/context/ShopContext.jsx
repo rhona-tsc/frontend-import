@@ -208,87 +208,48 @@ const ShopProvider = (props) => {
     if (!noActsYet) return;
     if (!hasCards && !hasFilter) return;
 
-    const normalize = (srcItem = {}, fallbackCard = {}) => {
-      const id = String(
-        srcItem?.actId ??
-          srcItem?._id ??
-          fallbackCard?.actId ??
-          fallbackCard?._id ??
-          ""
-      );
+const asArray = (v) =>
+  Array.isArray(v) ? v.filter(Boolean)
+  : typeof v === "string" ? v.split(",").map(s => s.trim()).filter(Boolean)
+  : [];
 
-      const image =
-        srcItem?.imageUrl ||
-        fallbackCard?.imageUrl ||
-        srcItem?.images?.[0]?.url ||
-        "";
+const asStr = (v) => (typeof v === "string" ? v : v == null ? "" : String(v));
 
-      return {
-        _id: id,
-        actId: id,
-        tscName:
-          srcItem?.tscName ??
-          srcItem?.name ??
-          fallbackCard?.tscName ??
-          fallbackCard?.name ??
-          "",
-        name:
-          srcItem?.name ??
-          srcItem?.tscName ??
-          fallbackCard?.name ??
-          fallbackCard?.tscName ??
-          "",
-        slug: srcItem?.slug ?? fallbackCard?.slug ?? "",
-        images: image ? [{ url: image }] : [],
-        status: srcItem?.status ?? fallbackCard?.status ?? "",
-        lineups: Array.isArray(srcItem?.lineups) ? srcItem.lineups : [],
-        hasLineups:
-          typeof srcItem?.hasLineups === "boolean"
-            ? srcItem.hasLineups
-            : Array.isArray(srcItem?.lineups) && srcItem.lineups.length > 0,
-        basePrice: srcItem?.basePrice ?? fallbackCard?.basePrice ?? null,
-        baseOnly: srcItem?.baseOnly ?? fallbackCard?.baseOnly ?? null,
-        hasAnyLocation: Boolean(
-          srcItem?.hasAnyLocation ?? fallbackCard?.hasAnyLocation
-        ),
-        ...srcItem,
-      };
-    };
+const normalize = (srcItem = {}, fallbackCard = {}) => {
+  // ✅ merge so fallback fields (genres/instruments/leadRole/vocalist) survive
+  const merged = { ...fallbackCard, ...srcItem };
 
-    if (hasFilter) {
-      const byId = new Map(
-        (actCards || []).map((c) => [String(c.actId ?? c._id ?? ""), c])
-      );
-      setActs(
-        filterCards.map((f) =>
-          normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {})
-        )
-      );
-      return;
-    }
+  const id = String(merged?.actId ?? merged?._id ?? merged?.id ?? "");
 
-    // Fallback: project from actCards only
-    setActs(
-      actCards.map((c) =>
-        normalize(
-          {
-            _id: String(c.actId ?? c._id ?? ""),
-            actId: String(c.actId ?? c._id ?? ""),
-            tscName: c.tscName ?? c.name ?? "",
-            name: c.name ?? "",
-            slug: c.slug ?? "",
-            images: c.imageUrl ? [{ url: c.imageUrl }] : [],
-            status: c.status ?? "",
-            lineups: [],
-            basePrice: c.basePrice ?? null,
-            baseOnly: c.baseOnly ?? null,
-            hasAnyLocation: !!c.hasAnyLocation,
-          },
-          c
-        )
-      )
-    );
-  }, [filterCards, actCards, acts, location?.pathname]);
+  const imageUrl =
+    merged?.imageUrl ||
+    merged?._imageUrl ||
+    merged?.images?.[0]?.url ||
+    "";
+
+  return {
+    ...merged,
+
+    // ensure consistent identifiers
+    _id: id,
+    actId: id,
+
+    // display fields
+    tscName: merged?.tscName ?? merged?.name ?? "",
+    name: merged?.name ?? merged?.tscName ?? "",
+    slug: merged?.slug ?? "",
+
+    // ensure image shapes are consistent
+    imageUrl,
+    images: imageUrl ? [{ url: imageUrl }] : (Array.isArray(merged?.images) ? merged.images : []),
+
+    // ✅ force types so RelatedActs can score reliably
+    genres: asArray(merged?.genres ?? merged?.genre),
+    instruments: asArray(merged?.instruments),
+    leadRole: asStr(merged?.leadRole),
+    vocalist: asStr(merged?.vocalist),
+  };
+};
 
   // Assumes you have actsFilterCards in scope (from context or props). <--- This one is for the Acts page
   useEffect(() => {

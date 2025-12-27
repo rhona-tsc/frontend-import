@@ -1644,34 +1644,59 @@ const leadRole = React.useMemo(() => {
             </div>
 
             <p className="mt-5 text-3xl font-medium p-3">
-            {(() => {
-  const rawTotal =
-    price?.total ??
-    formattedPrice ??
-    actData?.formattedPrice?.total ??
-    null;
+              {(() => {
+                // If we don't have an address (e.g. nothing persisted in localStorage), show the act's min display price
+                const hasAddress =
+                  typeof selectedAddress === "string" && selectedAddress.trim().length > 0;
 
-  const cleanTotal =
-    rawTotal != null
-      ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ""))
-      : null;
+                if (!hasAddress) {
+                  const rawMin =
+                    actData?.minDisplayPrice ??
+                    actData?.formattedPrice?.minDisplayPrice ??
+                    actData?.formattedPrice?.min ??
+                    actData?.formattedPrice?.total ??
+                    null;
 
-  // if pricing util returned margin info, don't apply again
-  const needsMargin = !(price && price.marginApplied === 0.33);
+                  const minClean =
+                    rawMin != null
+                      ? Number(String(rawMin).replace(/[^0-9.+-]/g, ""))
+                      : null;
 
-  const displayTotal =
-    cleanTotal != null
-      ? Math.round(cleanTotal * (needsMargin ? 1.33 : 1))
-      : null;
+                  if (minClean != null && !Number.isNaN(minClean)) {
+                    return `from £${Math.round(minClean)}`;
+                  }
 
-  const travelCalculated =
-    price?.travelCalculated || finalTravelPrice?.travelCalculated;
+                  return "Add date & location for an accurate price";
+                }
 
-  if (displayTotal != null) {
-return travelCalculated ? `£${Math.round(cleanTotal * 1.33)}` : `from £${Math.round(cleanTotal * 1.33)}`
-  }
-  return "Loading price...";
-})()}
+                const rawTotal =
+                  price?.total ??
+                  formattedPrice ??
+                  actData?.formattedPrice?.total ??
+                  null;
+
+                const cleanTotal =
+                  rawTotal != null
+                    ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ""))
+                    : null;
+
+                // if pricing util returned margin info, don't apply again
+                const needsMargin = !(price && price.marginApplied === 0.33);
+
+                const displayTotal =
+                  cleanTotal != null && !Number.isNaN(cleanTotal)
+                    ? Math.round(cleanTotal * (needsMargin ? 1.33 : 1))
+                    : null;
+
+                const travelCalculated =
+                  price?.travelCalculated || finalTravelPrice?.travelCalculated;
+
+                if (displayTotal != null) {
+                  return travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`;
+                }
+
+                return "Loading price...";
+              })()}
             </p>
 
             {/* ✅ Lineup Selection (Now Updates Price Instantly) */}
