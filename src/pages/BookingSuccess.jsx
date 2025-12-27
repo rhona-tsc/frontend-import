@@ -45,6 +45,26 @@ const BookingSuccess = () => {
   localStorage.removeItem("cart");
 }, []);
 
+
+
+  useEffect(() => {
+    // prevent double-firing on refresh/back button
+    const key = "gads_purchase_fired";
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+
+    // ✅ replace CONVERSION_LABEL with the label Google gives you
+    window.gtag?.("event", "conversion", {
+      send_to: "AW-17648722186/CONVERSION_LABEL",
+      // Optional but recommended if you have it:
+      // value: 1234.56,
+      // currency: "GBP",
+      // transaction_id: "yourBookingIdOrStripeSessionId",
+    });
+  }, []);
+
+ 
+
   // 2) Load the newest booking for the logged-in user (or by ref in state)
   useEffect(() => {
     const stateRef = location.state?.bookingRef || location.state?.bookingId || null;
