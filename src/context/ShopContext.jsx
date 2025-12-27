@@ -478,6 +478,10 @@ const ShopProvider = (props) => {
         minDisplayPrice: num(c.minDisplayPrice ?? c.minPrice ?? c.dp),
         updatedAt: c.updatedAt || null,
         bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
+        genres: Array.isArray(c.genres) ? c.genres : [],
+instruments: Array.isArray(c.instruments) ? c.instruments : [],
+leadRole: c.leadRole || "",
+vocalist: c.vocalist || "",
       };
     };
 
@@ -620,6 +624,10 @@ const ShopProvider = (props) => {
           Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
         availabilityBadge: null,
         status: a?.status || "",
+        genres: Array.isArray(a.genres) ? a.genres : [],
+instruments: Array.isArray(a.instruments) ? a.instruments : [],
+leadRole: a.leadRole || "",
+vocalist: a.vocalist || "",
       };
     };
 
@@ -688,7 +696,10 @@ const ShopProvider = (props) => {
         loveCount: Number(c.loveCount) || 0,
         availabilityBadge: c.availabilityBadge || null,
         status: c.status || "",
-
+genres: Array.isArray(c.genres) ? c.genres : [],
+instruments: Array.isArray(c.instruments) ? c.instruments : [],
+leadRole: c.leadRole || "",
+vocalist: c.vocalist || "",
         // ✅ needed by NewActs + BestSeller
         createdAt: c.createdAt || null,
         minDisplayPrice: Number.isFinite(c.minDisplayPrice)
@@ -753,6 +764,10 @@ const ShopProvider = (props) => {
         loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
         availabilityBadge: c.availabilityBadge || c.badge || null,
         status: c.status || c.st || "",
+        genres: Array.isArray(c.genres) ? c.genres : [],
+instruments: Array.isArray(c.instruments) ? c.instruments : [],
+leadRole: c.leadRole || "",
+vocalist: c.vocalist || "",
       };
     };
 
@@ -1168,6 +1183,7 @@ const ShopProvider = (props) => {
         extras,
         availabilityBadge,
         availabilitySummary,
+        
       };
     };
 
@@ -1275,6 +1291,8 @@ const ShopProvider = (props) => {
             c.isTest === 1 ||
             c.isTest === "1",
           images: c.images || c.coverImages || null,
+leadRole: c.leadRole || "",
+vocalist: c.vocalist || "",
         };
       });
 
