@@ -132,6 +132,70 @@ const Act = () => {
     if (DEBUG) console.log(...a);
   };
 
+  // 🎯 Lead role (compound) used by RelatedActs to find truly similar acts
+// IMPORTANT: must be called on EVERY render (even when actData is null) to avoid Hook order crashes.
+const leadRole = React.useMemo(() => {
+  try {
+    if (!actData) return "";
+
+    // 1) Prefer explicit fields if you have them
+    const explicit =
+      (typeof actData?.leadRole === "string" && actData.leadRole.trim()) ||
+      (typeof actData?.leadVocalist === "string" && actData.leadVocalist.trim()) ||
+      (typeof actData?.vocalist === "string" && actData.vocalist.trim()) ||
+      "";
+
+    if (explicit) return explicit;
+
+    // 2) Derive from the smallest lineup
+    const lineups = Array.isArray(actData?.lineups) ? actData.lineups : [];
+    if (!lineups.length) return "";
+
+    const sizeOf = (l) => {
+      const raw = l?.actSize ?? l?.bandMembers?.length ?? 999;
+      const n = Number(String(raw).match(/\d+/)?.[0] || raw);
+      return Number.isFinite(n) ? n : 999;
+    };
+
+    const smallest = [...lineups].sort((a, b) => sizeOf(a) - sizeOf(b))[0];
+    const members = Array.isArray(smallest?.bandMembers) ? smallest.bandMembers : [];
+    if (!members.length) return "";
+
+    const roleOf = (m) =>
+      String(
+        m?.customRole ||
+          m?.role ||
+          m?.instrument ||
+          m?.mainInstrument ||
+          m?.primaryInstrument ||
+          ""
+      ).trim();
+
+    const isVocal = (m) => /vocal|singer/i.test(roleOf(m));
+    const isCompound = (m) =>
+      /guitar|keys|keyboard|piano|dj|sax|trumpet|violin|bongos|perc/i.test(roleOf(m));
+
+    const vocalists = members.filter(isVocal);
+    const best =
+      vocalists.find(isCompound) ||
+      vocalists[0] ||
+      members.find(isCompound) ||
+      members[0] ||
+      null;
+
+    return best ? roleOf(best) : "";
+  } catch {
+    return "";
+  }
+}, [
+  // keep deps stable + safe even when actData is null
+  actData?._id,
+  actData?.leadRole,
+  actData?.leadVocalist,
+  actData?.vocalist,
+  actData?.lineups,
+]);
+
   useRenderTracker("Act", {
     actId,
     hasActData: !!actData,
@@ -2408,12 +2472,13 @@ return travelCalculated ? `£${Math.round(cleanTotal * 1.33)}` : `from £${Math.
 
         <Suspense fallback={null}>
           <VisibleOnScroll>
-            <RelatedActsLazy
-              genres={actData.genre || []}
-              instruments={actData.instruments || []}
-              vocalist={actData.vocalist || ""}
-              currentActId={actData._id}
-            />
+           <RelatedActsLazy
+  genres={actData.genre || actData.genres || []}
+  instruments={actData.instruments || actData.instrumentation || []}
+  vocalist={actData.vocalist || ""}
+  leadRole={leadRole || ""}
+  currentActId={actData._id}
+/>
           </VisibleOnScroll>
         </Suspense>
       </div>
