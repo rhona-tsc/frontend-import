@@ -50,7 +50,6 @@ const RelatedActs = ({
     const toList = (val) => {
       if (val == null) return [];
 
-      // Arrays of strings/objects
       if (Array.isArray(val)) {
         return val
           .flatMap((x) => {
@@ -67,7 +66,6 @@ const RelatedActs = ({
           .map((s) => String(s));
       }
 
-      // Single string: may be comma-separated
       if (typeof val === "string") {
         return val
           .split(",")
@@ -75,7 +73,6 @@ const RelatedActs = ({
           .filter(Boolean);
       }
 
-      // Single object
       if (typeof val === "object") {
         if (val.label) return [String(val.label)];
         if (val.name) return [String(val.name)];
@@ -142,13 +139,12 @@ const RelatedActs = ({
     const iWant = norm(instruments);
     const vWant = String(vocalist || "").toLowerCase().trim();
 
-    // e.g. "vocalist-guitarist" => ["vocalist","guitarist"]
+    // e.g. "Vocalist-Guitarist" => ["vocalist","guitarist"]
     const leadWant = tokenizeRole(leadRole || "")
       .concat(tokenizeRole(vWant))
       .filter(Boolean);
 
-    // ✅ returns total + breakdown for console/debugging
-    const scoreWithBreakdown = (a) => {
+    const scoreBreakdown = (a) => {
       const gSource = pickNonEmpty(a?.genres, a?.genre, a?.genreTags, a?.styleTags, a?.styles);
       const iSource = pickNonEmpty(a?.instruments, a?.instrument, a?.instrumentation, a?.lineupInstruments);
 
@@ -156,93 +152,61 @@ const RelatedActs = ({
       const iHave = norm(iSource);
       const vHave = String(a?.vocalist || a?.leadVocalist || "").toLowerCase().trim();
 
-      const haveTokens = new Set([
+      const haveTokensArr = [
         ...tokenizeRole(a?.leadRole || ""),
         ...tokenizeRole(a?.leadVocalist || ""),
         ...tokenizeRole(a?.vocalist || ""),
         ...tokenizeRole(vHave),
         ...iHave.flatMap((x) => tokenizeRole(x)),
-      ]);
+      ];
+      const haveTokens = new Set(haveTokensArr);
 
-      const genreMatchList = gWant.length ? gHave.filter((g) => gWant.includes(g)) : [];
-      const genreMatches = genreMatchList.length;
-
-      const instrumentMatched = iWant.length && iHave.some((i) => iWant.includes(i));
-      const instrumentMatch = instrumentMatched ? 1 : 0;
+      const genreMatches = gWant.length ? gHave.filter((g) => gWant.includes(g)).length : 0;
+      const instrumentMatched = iWant.length && iHave.some((i) => iWant.includes(i)) ? 1 : 0;
 
       let leadRoleScore = 0;
-      let leadRoleWhy = "no_lead_want";
-      let leadRoleMatchedTokens = [];
-      let leadRoleMissingTokens = [];
+      let leadRoleWhy = "no_leadWant";
 
       if (leadWant.length) {
         const wantSet = Array.from(new Set(leadWant));
         const hasAll = wantSet.every((t) => haveTokens.has(t));
 
-        leadRoleMatchedTokens = wantSet.filter((t) => haveTokens.has(t));
-        leadRoleMissingTokens = wantSet.filter((t) => !haveTokens.has(t));
-
         if (hasAll) {
           leadRoleScore = 12;
-          leadRoleWhy = "full_match(+12)";
+          leadRoleWhy = `full_match(+12) want=[${wantSet.join(",")}] have=[${Array.from(haveTokens).join(",")}]`;
         } else {
-          leadRoleWhy = "partial_match";
-          if (wantSet.includes("vocalist") && haveTokens.has("vocalist")) leadRoleScore += 3;
-          if (wantSet.includes("guitarist") && haveTokens.has("guitarist")) leadRoleScore += 2;
+          let add = 0;
+          if (wantSet.includes("vocalist") && haveTokens.has("vocalist")) add += 3;
+          if (wantSet.includes("guitarist") && haveTokens.has("guitarist")) add += 2;
 
           for (const t of wantSet) {
             if (t === "vocalist" || t === "guitarist") continue;
-            if (haveTokens.has(t)) leadRoleScore += 2;
+            if (haveTokens.has(t)) add += 2;
           }
 
-          leadRoleScore = Math.min(leadRoleScore, 11);
-          leadRoleWhy += `(+${leadRoleScore})`;
+          leadRoleScore = Math.min(add, 11);
+          leadRoleWhy = `partial_match(+${leadRoleScore}) want=[${wantSet.join(",")}] have=[${Array.from(haveTokens).join(",")}]`;
         }
       }
 
       const vocalistExact = vWant && vHave === vWant ? 1 : 0;
 
-      const genrePoints = genreMatches * 10;
-      const vocalistPoints = vocalistExact * 1;
-      const instrumentPoints = instrumentMatch * 1;
-
-      const total = genrePoints + leadRoleScore + vocalistPoints + instrumentPoints;
+      const total =
+        genreMatches * 10 +
+        leadRoleScore +
+        vocalistExact * 1 +
+        instrumentMatched * 1;
 
       return {
         total,
-        breakdown: {
-          id: String(a?.actId || a?._id),
-          name: a?.name || a?.tscName || a?.title,
-          status: a?.status,
-
-          // wants
-          gWant,
-          iWant,
-          vWant,
-          leadRole,
-          leadWant: Array.from(new Set(leadWant)),
-
-          // have (summarised)
-          gHave,
-          iHave,
-          vHave,
-          haveTokens: Array.from(haveTokens),
-
-          // scoring pieces
-          genreMatches,
-          genreMatchList,
-          genrePoints,
-          leadRoleScore,
-          leadRoleWhy,
-          leadRoleMatchedTokens,
-          leadRoleMissingTokens,
-          vocalistExact,
-          vocalistPoints,
-          instrumentMatched,
-          instrumentPoints,
-
-          total,
-        },
+        genreMatches,
+        leadRoleScore,
+        leadRoleWhy,
+        instrumentMatched,
+        gHave,
+        iHave,
+        vHave,
+        haveTokens: Array.from(new Set(haveTokensArr)),
       };
     };
 
@@ -258,23 +222,20 @@ const RelatedActs = ({
           finalCount: 0,
           wants: { gWant, iWant, vWant, leadRole, leadWant },
           sampleCardKeys: [],
-          top5Scored: [],
+          sampleCardPreview: [],
+          scoreTable: [],
           reason: "no_cards",
+          usedFallback: false,
         },
       };
     }
 
-    // --- Pipeline ---
     const afterId = list.filter((a) => String(a?.actId || a?._id) !== String(currentActId));
     const afterStatus = afterId.filter((a) => !a?.status || isVisibleStatus(a.status));
 
     const scored = afterStatus.map((a) => {
-      const r = scoreWithBreakdown(a);
-      return {
-        ...a,
-        _score: r.total,
-        _scoreBreakdown: r.breakdown, // ✅ attach breakdown for logging
-      };
+      const b = scoreBreakdown(a);
+      return { ...a, _score: b.total, _scoreBreakdown: b };
     });
 
     const positive = scored.filter((a) => (a?._score || 0) > 0);
@@ -287,6 +248,41 @@ const RelatedActs = ({
       .sort((A, B) => Number(B?._score || 0) - Number(A?._score || 0))
       .slice(0, maxToShow);
 
+    // 🧾 Build a readable table for console.table
+    const scoreTable = scored
+      .slice()
+      .sort((A, B) => Number(B?._score || 0) - Number(A?._score || 0))
+      .slice(0, 15)
+      .map((a) => {
+        const b = a?._scoreBreakdown || {};
+        return {
+          id: String(a?.actId || a?._id),
+          name: a?.name || a?.tscName || a?.title,
+          status: a?.status,
+          _score: a?._score || 0,
+          genreMatches: b.genreMatches ?? 0,
+          leadRoleScore: b.leadRoleScore ?? 0,
+          instrumentMatched: b.instrumentMatched ?? 0,
+          candidateGenres: Array.isArray(b.gHave) ? b.gHave.join(" | ") : "",
+          candidateInstruments: Array.isArray(b.iHave) ? b.iHave.join(" | ") : "",
+          candidateVocalist: b.vHave || "",
+          candidateLeadRole: a?.leadRole || "",
+          wantTokens: Array.from(new Set(leadWant)).join(","),
+          haveTokens: Array.isArray(b.haveTokens) ? b.haveTokens.join(",") : "",
+          leadRoleWhy: b.leadRoleWhy || "",
+        };
+      });
+
+    const sampleCardPreview = afterStatus.slice(0, 3).map((a) => ({
+      id: String(a?.actId || a?._id),
+      name: a?.name || a?.tscName || a?.title,
+      genres: a?.genres ?? a?.genre,
+      instruments: a?.instruments ?? a?.instrument ?? a?.instrumentation,
+      vocalist: a?.vocalist ?? a?.leadVocalist,
+      leadRole: a?.leadRole,
+      lineupSizes: a?.lineupSizes,
+    }));
+
     const debug = {
       listCount: list.length,
       afterIdCount: afterId.length,
@@ -296,29 +292,12 @@ const RelatedActs = ({
       finalCount: items.length,
       wants: { gWant, iWant, vWant, leadRole, leadWant },
       sampleCardKeys: list[0] ? Object.keys(list[0]) : [],
-      top5Scored: scored
-        .slice()
-        .sort((A, B) => Number(B?._score || 0) - Number(A?._score || 0))
-        .slice(0, 5)
-        .map((a) => ({
-          id: String(a?.actId || a?._id),
-          name: a?.name || a?.tscName || a?.title,
-          status: a?.status,
-          genres: a?.genres ?? a?.genre,
-          instruments: a?.instruments ?? a?.instrument,
-          vocalist: a?.vocalist ?? a?.leadVocalist,
-          leadRole: a?.leadRole,
-          _score: a?._score,
-          // include mini breakdown bits for quick scan
-          leadRoleScore: a?._scoreBreakdown?.leadRoleScore,
-          leadRoleWhy: a?._scoreBreakdown?.leadRoleWhy,
-          genreMatches: a?._scoreBreakdown?.genreMatches,
-          instrumentMatched: a?._scoreBreakdown?.instrumentMatched,
-        })),
+      sampleCardPreview,
+      scoreTable,
       usedFallback: positive.length === 0,
     };
 
-    return { items, debug, scoredAll: scored };
+    return { items, debug };
   }, [deferredCards, genres, instruments, vocalist, leadRole, currentActId, maxToShow]);
 
   const related = memo.items;
@@ -347,7 +326,6 @@ const RelatedActs = ({
             positiveCount: dbg.positiveCount,
             finalCount: dbg.finalCount,
             usedFallback: dbg.usedFallback,
-            reason: dbg.reason,
           }
         : null,
     };
@@ -358,14 +336,15 @@ const RelatedActs = ({
     } catch {
       sig = String(Date.now());
     }
-
     if (sig === lastDebugSigRef.current) return;
     lastDebugSigRef.current = sig;
 
     console.groupCollapsed(
       `[RelatedActs] cards=${sigObj.deferredLen} related=${Array.isArray(related) ? related.length : 0}`
     );
+
     console.log("props:", { genres, instruments, vocalist, leadRole, currentActId, maxToShow });
+
     console.log("actCards:", {
       type: sigObj.actCardsType,
       len: sigObj.actCardsLen,
@@ -373,13 +352,15 @@ const RelatedActs = ({
     });
 
     if (!list.length) {
-      console.warn("No actCards yet (deferredCards is empty). RelatedActs will be empty until cards load.");
+      console.warn("No actCards yet (deferredCards is empty).");
       console.groupEnd();
       return;
     }
 
     console.log("first card keys:", dbg?.sampleCardKeys || (list[0] ? Object.keys(list[0]) : []));
+    console.log("sample cards (raw fields):", dbg?.sampleCardPreview || []);
     console.log("wants:", dbg?.wants || null);
+
     console.log(
       "pipeline counts:",
       dbg
@@ -395,34 +376,18 @@ const RelatedActs = ({
         : null
     );
 
-    console.table(dbg?.top5Scored || []);
+    console.groupCollapsed("[RelatedActs] scoring breakdown (top 15 candidates)");
+    console.table(dbg?.scoreTable || []);
+    console.groupEnd();
 
-    // ✅ NEW: show full breakdown for ONLY the rendered related items
-    const breakdownRows = (related || [])
-      .map((a) => a?._scoreBreakdown)
-      .filter(Boolean)
-      .map((b) => ({
-        id: b.id,
-        name: b.name,
-        total: b.total,
-        genrePoints: b.genrePoints,
-        genreMatches: b.genreMatches,
-        leadRoleScore: b.leadRoleScore,
-        leadRoleWhy: b.leadRoleWhy,
-        matchedTokens: (b.leadRoleMatchedTokens || []).join(", "),
-        missingTokens: (b.leadRoleMissingTokens || []).join(", "),
-        instrumentMatched: b.instrumentMatched,
-        vocalistExact: b.vocalistExact,
-      }));
+    if (dbg?.usedFallback) {
+      console.warn(
+        "[RelatedActs] usedFallback=true because positiveCount=0. " +
+          "That usually means the cards payload is missing genres/instruments/vocalist/leadRole fields (or they’re empty)."
+      );
+    }
 
-    console.groupCollapsed("[RelatedActs] scoring breakdown (rendered items)");
-    console.table(breakdownRows);
-
-    // If you want to drill into one item, expand it here:
-    // console.log("full breakdown objects:", (related || []).map(r => r._scoreBreakdown));
-
-    console.groupEnd(); // scoring breakdown
-    console.groupEnd(); // main group
+    console.groupEnd();
   }, [
     DEBUG_RELATED_ACTS,
     actCards,
