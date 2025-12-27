@@ -208,7 +208,7 @@ const ShopProvider = (props) => {
     if (!noActsYet) return;
     if (!hasCards && !hasFilter) return;
 
-const asArray = (v) =>
+   const asArray = (v) =>
   Array.isArray(v) ? v.filter(Boolean)
   : typeof v === "string" ? v.split(",").map(s => s.trim()).filter(Boolean)
   : [];
@@ -250,6 +250,41 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
     vocalist: asStr(merged?.vocalist),
   };
 };
+
+    if (hasFilter) {
+      const byId = new Map(
+        (actCards || []).map((c) => [String(c.actId ?? c._id ?? ""), c])
+      );
+      setActs(
+        filterCards.map((f) =>
+          normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {})
+        )
+      );
+      return;
+    }
+
+    // Fallback: project from actCards only
+    setActs(
+      actCards.map((c) =>
+        normalize(
+          {
+            _id: String(c.actId ?? c._id ?? ""),
+            actId: String(c.actId ?? c._id ?? ""),
+            tscName: c.tscName ?? c.name ?? "",
+            name: c.name ?? "",
+            slug: c.slug ?? "",
+            images: c.imageUrl ? [{ url: c.imageUrl }] : [],
+            status: c.status ?? "",
+            lineups: [],
+            basePrice: c.basePrice ?? null,
+            baseOnly: c.baseOnly ?? null,
+            hasAnyLocation: !!c.hasAnyLocation,
+          },
+          c
+        )
+      )
+    );
+  }, [filterCards, actCards, acts, location?.pathname]);
 
   // Assumes you have actsFilterCards in scope (from context or props). <--- This one is for the Acts page
   useEffect(() => {
