@@ -534,6 +534,18 @@ if (READ_ONLY) {
   const depositAmount = Number(booking?.totals?.depositAmount ?? 0);
   const remainingAmount = Math.max(0, fullAmount - depositAmount);
 
+// Some bookings are paid in full at checkout; treat deposit as N/A and balance as 0
+const chargedAmount = Number(
+  booking?.totals?.chargedAmount ??
+    booking?.totals?.paidAmount ??
+    booking?.totals?.amountPaid ??
+    0
+);
+
+// If they’ve paid the full amount (or essentially full, allowing 1p rounding), treat as paid-in-full
+const isPaidInFull =
+  Number(fullAmount || 0) > 0 && chargedAmount >= Number(fullAmount || 0) - 0.01;
+
   // Pro-rate deposit across items for a per-item view
   const detailedItems = useMemo(() => {
     const fa = fullAmount || 0;
@@ -5204,40 +5216,50 @@ const peopleSection = isWedding
             ))}
 
             <hr className="my-2" />
-            {/* Booking-level totals */}
-            <div className="text-sm">
-              <div className="flex justify-between">
-                <span>Booking total</span>
-                <span>
-                  {"£"}
-                  {Number(booking?.totals?.fullAmount || 0).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Deposit paid</span>
-                <span>
-                  {"£"}
-                  {Number(booking?.totals?.depositAmount || 0).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between font-bold mt-4">
-                <p>Outstanding Balance</p>
-                <p>
-                  {currencySymbol(booking?.currency)}
-                  {remainingAmount.toFixed(2)}
-                </p>
-              </div>
+           {/* Booking-level totals */}
+<div className="text-sm">
+  <div className="flex justify-between">
+    <span>Booking total</span>
+    <span>
+      {currencySymbol(booking?.currency)}
+      {Number(fullAmount || 0).toFixed(2)}
+    </span>
+  </div>
 
-              {/* Pay button */}
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={handleOpenBalanceInvoice}
-                  className="px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667] transition-colors"
-                >
-                  Pay Balance
-                </button>
-              </div>
-            </div>
+  <div className="flex justify-between">
+    <span>Deposit paid</span>
+    <span>
+      {isPaidInFull ? (
+        <span className="text-gray-700">N/A</span>
+      ) : (
+        <>
+          {currencySymbol(booking?.currency)}
+          {Number(depositAmount || 0).toFixed(2)}
+        </>
+      )}
+    </span>
+  </div>
+
+  <div className="flex justify-between font-bold mt-4">
+    <p>Outstanding Balance</p>
+    <p>
+      {currencySymbol(booking?.currency)}
+      {(isPaidInFull ? 0 : Number(remainingAmount || 0)).toFixed(2)}
+    </p>
+  </div>
+
+  {/* Pay button */}
+  {!READ_ONLY && !isPaidInFull && Number(remainingAmount || 0) > 0.01 && (
+    <div className="mt-3 flex justify-end">
+      <button
+        onClick={handleOpenBalanceInvoice}
+        className="px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667] transition-colors"
+      >
+        Pay Balance
+      </button>
+    </div>
+  )}
+</div>
           </div>
         )}
       </div>
