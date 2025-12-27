@@ -11,6 +11,7 @@ const BookingSuccess = () => {
   const [booking, setBooking] = useState(null);
   const [eventSheetDue, setEventSheetDue] = useState(null);
   const [balanceDue, setBalanceDue] = useState(null);
+  const [stripeSessionId, setStripeSessionId] = useState(null);
   const { setCartItems } = useContext(ShopContext);
 
   // 1) One-shot server finalize (guarded + cleans URL)
@@ -18,6 +19,9 @@ const BookingSuccess = () => {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
     if (!sessionId) return;
+
+    // keep for conversion tracking + idempotency
+    setStripeSessionId(sessionId);
 
     // idempotency: guard per-sessionId so back/refresh doesn't re-trigger
     const guardKey = `bookingComplete:${sessionId}`;
@@ -48,20 +52,31 @@ const BookingSuccess = () => {
 
 
   useEffect(() => {
-    // prevent double-firing on refresh/back button
-    const key = "gads_purchase_fired";
-    if (sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key, "1");
+    // Fire the Google Ads conversion once per *payment success*.
+    // Prefer a stable per-purchase key (Stripe session id), otherwise fall back to booking id.
+    const purchaseKey = stripeSessionId || booking?.stripeSessionId || booking?.bookingId || booking?._id;
+    if (!purchaseKey) return;
 
-    // ✅ replace CONVERSION_LABEL with the label Google gives you
+    const guardKey = `gads_purchase_fired:${purchaseKey}`;
+    if (sessionStorage.getItem(guardKey) === "1") return;
+
+    // If you have totals, record the amount actually charged on this checkout.
+    const totals = booking?.totals || {};
+    const value = Number(
+      totals.chargedAmount ?? totals.depositAmount ?? totals.fullAmount ?? 0
+    );
+    const currency = String(booking?.currency || "GBP").toUpperCase();
+
+    // ✅ Replace CONVERSION_LABEL with the label Google gives you for this conversion action.
     window.gtag?.("event", "conversion", {
-      send_to: "AW-17648722186/CONVERSION_LABEL",
-      // Optional but recommended if you have it:
-      // value: 1234.56,
-      // currency: "GBP",
-      // transaction_id: "yourBookingIdOrStripeSessionId",
+      send_to: "AW-17648722186",
+      value,
+      currency,
+      transaction_id: String(purchaseKey),
     });
-  }, []);
+
+    sessionStorage.setItem(guardKey, "1");
+  }, [stripeSessionId, booking]);
 
  
 
