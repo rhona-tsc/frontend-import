@@ -203,10 +203,7 @@ const Acts = ({ userRole, email }) => {
       setupAndSoundcheck: filters.setupAndSoundcheck ?? [],
       songSearch: filters.songSearch ?? [],
       extraServices: filters.extraServices ?? [],
-
-      // IMPORTANT: DJ services filtering is handled client-side (see `djServices` filter below)
-      // so we do NOT send `djServices` to the server search endpoint.
-
+      djServices: filters.djServices ?? [],
       actSearch: filters.actSearch ?? [],
     };
   }
@@ -224,7 +221,8 @@ const Acts = ({ userRole, email }) => {
       "pli",
       "songSearch",
       "extraServices",
-      /* "djServices", */ "actSearch",
+      "djServices",
+      "actSearch",
     ];
     return keys.some((k) => Array.isArray(f[k]) && f[k].length);
   };
@@ -1023,7 +1021,29 @@ const hasExtra = (act, key) => {
     // ───────────────────────────────────────────────────────────────────────────────
     const filters = buildServerFilterPayload();
     const payload = buildServerPayload(filters);
-    console.info("🔶 Server search yielded 0 ids — showing no results.");
+
+    // Detect when DJ services is the only active filter (lets us safely fall back if backend isn't ready)
+    const ACTIVE_FILTER_KEYS = [
+      "genres",
+      "lineupSizes",
+      "instruments",
+      "wireless",
+      "soundLimiters",
+      "setupAndSoundcheck",
+      "paAndLights",
+      "pli",
+      "songSearch",
+      "extraServices",
+      "djServices",
+      "actSearch",
+    ];
+
+    const activeKeys = ACTIVE_FILTER_KEYS.filter(
+      (k) => Array.isArray(filters?.[k]) && filters[k].length
+    );
+
+    const onlyDjServices = activeKeys.length === 1 && activeKeys[0] === "djServices";
+  
     const postCandidates = async (urls, body) => {
       for (const url of urls) {
         try {
@@ -1077,20 +1097,26 @@ const hasExtra = (act, key) => {
             .trim()
         ),
       };
-      // Ensure DJ services never affect backend search (client-side only)
-      delete compatPayload.djServices;
-      delete compatPayload.dj_services;
       //, api("api/act/cards/search")
-console.log("📤 sending search payload:", payload, JSON.stringify(payload));
+      console.log("📤 sending search payload:", payload, JSON.stringify(payload));
       const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search")];
       serverIds = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
+
       if (serverIds.size === 0) {
-        console.info("🔶 Server search yielded 0 ids — showing no results.");
-        setFilterProducts([]);
-        ACTS_DBG(
-          "No matching records after server search, setting filterProducts to []"
-        );
-        return;
+        if (onlyDjServices) {
+          console.info(
+            "🔶 Server search returned 0 ids for djServices — falling back to client-side DJ filtering."
+          );
+          // Fall back to client-side DJ services filtering using local cards/extras
+          serverIds = new Set();
+        } else {
+          console.info("🔶 Server search yielded 0 ids — showing no results.");
+          setFilterProducts([]);
+          ACTS_DBG(
+            "No matching records after server search, setting filterProducts to []"
+          );
+          return;
+        }
       }
     } else if (DEBUG_FILTER) {
       console.info("🔶 Server search disabled — using client-only filtering.");
