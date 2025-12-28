@@ -9,8 +9,16 @@ import { assets } from "../assets/assets";
 
 // --- DEBUG HELPERS ---------------------------------------------------------
 const ACTS_DBG = (...args) => console.log("🎯 [Acts]", ...args);
-const GROUP = (label) => { try { console.groupCollapsed(label); } catch (_) {} };
-const ENDGROUP = () => { try { console.groupEnd(); } catch (_) {} };
+const GROUP = (label) => {
+  try {
+    console.groupCollapsed(label);
+  } catch (_) {}
+};
+const ENDGROUP = () => {
+  try {
+    console.groupEnd();
+  } catch (_) {}
+};
 
 // Keep this ABOVE any usage
 const DEBUG_FILTER = true;
@@ -26,14 +34,13 @@ const api = (path = "") => {
   return `${BASE}/${p}`;
 };
 
-const norm = (s="") =>
+const norm = (s = "") =>
   String(s)
     .toLowerCase()
     .replace(/&/g, "and")
     .replace(/[^a-z0-9 ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-
 
 // Helper for normalising ACT SIZE values
 const norm2 = (s) => {
@@ -68,8 +75,8 @@ const norm2 = (s) => {
   return v;
 };
 
-
-const flat1 = (v) => (Array.isArray(v) ? (v.flat ? v.flat() : [].concat(...v)) : v);
+const flat1 = (v) =>
+  Array.isArray(v) ? (v.flat ? v.flat() : [].concat(...v)) : v;
 
 const imagesFromImageUrl = (imageUrl) => {
   if (Array.isArray(imageUrl)) {
@@ -78,8 +85,8 @@ const imagesFromImageUrl = (imageUrl) => {
         typeof x === "string"
           ? { url: x }
           : x && typeof x === "object" && x.url
-          ? { url: x.url, title: x.title || "" }
-          : null
+            ? { url: x.url, title: x.title || "" }
+            : null
       )
       .filter(Boolean);
   }
@@ -93,14 +100,26 @@ const imagesFromImageUrl = (imageUrl) => {
 };
 
 const Acts = ({ userRole, email }) => {
-  const { actsFilterPageCards, getFilterCardActsPageCards, setShowSearch, selectedDate, selectedAddress, setSelectedDate, setSelectedAddress, userId, showSearch, search, isShortlisted, shortlistAct, searchActCards } = useContext(ShopContext);
+  const {
+    actsFilterPageCards,
+    getFilterCardActsPageCards,
+    setShowSearch,
+    selectedDate,
+    selectedAddress,
+    setSelectedDate,
+    setSelectedAddress,
+    userId,
+    showSearch,
+    search,
+    isShortlisted,
+    shortlistAct,
+    searchActCards,
+  } = useContext(ShopContext);
 
-
-  
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
   const [genre, setGenre] = useState([]);
- const [isGenreSelected, setIsGenreSelected] = useState(false); // Track if any checkbox is checked
+  const [isGenreSelected, setIsGenreSelected] = useState(false); // Track if any checkbox is checked
   const [isActSizeSelected, setIsActSizeSelected] = useState(false); // Track if any checkbox is checked
   const [isDjServicesSelected, setIsDjServicesSelected] = useState(false); // Track if any checkbox is checked
   const [isInstrumentsSelected, setIsInstrumentsSelected] = useState(false); // Track if any checkbox is checked
@@ -111,7 +130,7 @@ const Acts = ({ userRole, email }) => {
   const [isPaAndLightsSelected, setIsPaAndLightsSelected] = useState(false); // Track if any checkbox is checked
   const [isPliSelected, setIsPliSelected] = useState(false); // Track if any checkbox is checked
   const [isExtraServicesSelected, setIsExtraServicesSelected] = useState(false); // Track if any checkbox is checked
- const [showSoundLimiterFilter, setShowSoundLimitersFilter] = useState(false);
+  const [showSoundLimiterFilter, setShowSoundLimitersFilter] = useState(false);
   const [showPliFilter, setShowPliFilter] = useState(false);
   const [showSongFilter, setShowSongFilter] = useState(false);
   const [showActFilter, setShowActFilter] = useState(false);
@@ -121,24 +140,24 @@ const Acts = ({ userRole, email }) => {
   const [showExtraServicesFilter, setShowExtraServicesFilter] = useState(false);
   const [showSetupAndSoundcheckFilter, setShowSetupAndSoundcheckFilter] =
     useState(false);
-      const [act_size, setActSize] = useState([]);
-      const [djServices, setDjServices] = useState([]);
-      const [instruments, setInstruments] = useState([]);
-      const [soundLimiters, setSoundLimiters] = useState([]);
-      const [setupAndSoundcheck, setSetupAndSoundcheck] = useState([]);
-      const [paAndLights, setPaAndLights] = useState([]);
-      const [pli, setPli] = useState([]);
-      const [extraServices, setExtraServices] = useState([]);
-      const [wireless, setWireless] = useState([]);
-const [sortType, setSortType] = useState("relevant");
-      const [songSearch, setSongSearch] = useState([]);
-      const [actSearch, setActSearch] = useState([]);
-    const [updatingResults, setUpdatingResults] = useState(false);
-    const [initializing, setInitializing] = useState(true);
-    const [availableMap, setAvailableMap] = useState({}); 
-    const [availLoading, setAvailLoading] = useState(false); 
-      const [filterProducts, setFilterProducts] = useState([]);
-    
+  const [act_size, setActSize] = useState([]);
+  const [djServices, setDjServices] = useState([]);
+  const [instruments, setInstruments] = useState([]);
+  const [soundLimiters, setSoundLimiters] = useState([]);
+  const [setupAndSoundcheck, setSetupAndSoundcheck] = useState([]);
+  const [paAndLights, setPaAndLights] = useState([]);
+  const [pli, setPli] = useState([]);
+  const [extraServices, setExtraServices] = useState([]);
+  const [wireless, setWireless] = useState([]);
+  const [sortType, setSortType] = useState("relevant");
+  const [songSearch, setSongSearch] = useState([]);
+  const [actSearch, setActSearch] = useState([]);
+  const [updatingResults, setUpdatingResults] = useState(false);
+  const [initializing, setInitializing] = useState(true);
+  const [availableMap, setAvailableMap] = useState({});
+  const [availLoading, setAvailLoading] = useState(false);
+  const [filterProducts, setFilterProducts] = useState([]);
+
   const [showActSizeFilter, setShowActSizeFilter] = useState(false);
   const [showWirelessFilter, setShowWirelessFilter] = useState(false);
   const navigate = useNavigate();
@@ -147,323 +166,424 @@ const [sortType, setSortType] = useState("relevant");
     sessionStorage.getItem("selectedCounty")?.trim().toLowerCase() || ""
   );
 
-// near the top
-const FILTER_DATA_ENDPOINTS = [
-  api("api/v2/act-cards/search"),     
-];
+  // near the top
+  const FILTER_DATA_ENDPOINTS = [api("api/v2/act-cards/search")];
 
-const aliasGenre = (g) => {
-  const raw = String(g || "");
-  return [raw, raw.replace(/&/g, "and")];
-};
-const normGenreToken = (s) =>
-  String(s).toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9]+/g," ").trim();
-
-function buildServerPayload(filters) {
-  const raw = filters.genres ?? filters.genre ?? [];
-  const expanded = [...new Set(raw.flatMap(aliasGenre))];
-  const tokens = [...new Set(expanded.map(normGenreToken))];
-  return {
-    includeStatuses: ['approved','live','approved_changes_pending','live_changes_pending'],
-    excludeTests: true,
-    genres: expanded,           // keep raw/alias
-    genres_norm: tokens,        // optional if you add it server-side
-    lineupSizes: filters.lineupSizes ?? filters.act_size ?? [],
-    instruments: filters.instruments ?? [],
-    wireless: filters.wireless ?? [],
-    soundLimiters: filters.soundLimiters ?? [],
-    paAndLights: filters.paAndLights ?? [],
-    pli: filters.pli ?? [],
-    setupAndSoundcheck: filters.setupAndSoundcheck ?? [],
-    songSearch: filters.songSearch ?? [],
-    extraServices: filters.extraServices ?? [],
-    actSearch: filters.actSearch ?? []
+  const aliasGenre = (g) => {
+    const raw = String(g || "");
+    return [raw, raw.replace(/&/g, "and")];
   };
-}
+  const normGenreToken = (s) =>
+    String(s)
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
 
-// Is any server-side filter actually set?
-const hasActiveFilters = (f = {}) => {
-  const keys = [
-    "genres","lineupSizes","instruments","wireless","soundLimiters",
-    "setupAndSoundcheck","paAndLights","pli","songSearch","extraServices","actSearch",
-  ];
-  return keys.some(k => Array.isArray(f[k]) && f[k].length);
-};
-
-// Extract IDs regardless of server response shape
-const extractIds = (res) => {
-  if (!res) return [];
-  if (Array.isArray(res?.ids)) return res.ids;
-  if (Array.isArray(res?.items)) return res.items.map(x => x?._id || x?.id || x?.actId).filter(Boolean);
-  if (Array.isArray(res)) return res.map(x => x?._id || x?.id || x?.actId).filter(Boolean);
-  return [];
-};
-
-async function fetchActFilterData({ ids, status = "approved,live", limit = 200 }) {
-  const idParam = Array.isArray(ids) ? ids.join(",") : String(ids || "");
-  const qs = `?ids=${encodeURIComponent(idParam)}&status=${encodeURIComponent(status)}&limit=${limit}`;
-
-  // Try GET first across candidates
-  for (const base of FILTER_DATA_ENDPOINTS) {
-    try {
-      const { data } = await axios.get(`${base}${qs}`);
-      if (data) return data;
-    } catch {}
-  }
-
-  // Fallback to POST payload across candidates
-  const payload = {
-    ids: Array.isArray(ids) ? ids : (idParam ? idParam.split(",") : []),
-    status: status.split(","),
-    limit,
-  };
-
-  for (const base of FILTER_DATA_ENDPOINTS) {
-    try {
-      const { data } = await axios.post(base, payload);
-      if (data) return data;
-    } catch {}
-  }
-
-  console.warn("⚠️ search: no matching endpoint found (all candidates failed).");
-  return null;
-}
-  // ---- search helper (acts enrichment) ----
-const normalize = (arr) =>
-  Array.isArray(arr) ? arr.map((x) => String(x).toLowerCase().trim()) : [];
-
-
-
-function mergeFilterDataIntoCards(cards = [], enrich = []) {
-  if (!cards.length || !enrich.length) return cards;
-
-  const byId = new Map(
-    enrich.map((x) => [String(x._id || x.actId || x.id), x])
-  );
-
-  return cards.map((c) => {
-    const add = byId.get(String(c.actId || c._id || c.id));
-    if (!add) return c;
-
-    const rawGenres = add.genres || add.genres_raw || [];
-    const genres_norm = normalize(add.genres_norm || rawGenres);
-
+  function buildServerPayload(filters) {
+    const raw = filters.genres ?? filters.genre ?? [];
+    const expanded = [...new Set(raw.flatMap(aliasGenre))];
+    const tokens = [...new Set(expanded.map(normGenreToken))];
     return {
-      ...c,
-      slug: add.slug ?? c.slug ?? "",
-      status: add.status ?? c.status ?? "",
-      genres_raw: rawGenres,
-      genres_norm,
-      lineupSizes: add.lineupSizes || add.act_sizes || c.lineupSizes || [],
-      instruments: add.instruments || c.instruments || [],
-      pliAmount: add.pliAmount ?? c.pliAmount ?? null,
-      paTrue: typeof add.paTrue === "boolean" ? add.paTrue : c.paTrue,
-      lightTrue: typeof add.lightTrue === "boolean" ? add.lightTrue : c.lightTrue,
-      extrasTrue: typeof add.extrasTrue === "boolean" ? add.extrasTrue : c.extrasTrue,
-      lineupsCount: Array.isArray(add.lineups) ? add.lineups.length : (c.lineupsCount || 0),
-      hasImages: Array.isArray(add.images) ? add.images.length > 0 : !!c.hasImages,
+      includeStatuses: [
+        "approved",
+        "live",
+        "approved_changes_pending",
+        "live_changes_pending",
+      ],
+      excludeTests: true,
+      genres: expanded, // keep raw/alias
+      genres_norm: tokens, // optional if you add it server-side
+      lineupSizes: filters.lineupSizes ?? filters.act_size ?? [],
+      instruments: filters.instruments ?? [],
+      wireless: filters.wireless ?? [],
+      soundLimiters: filters.soundLimiters ?? [],
+      paAndLights: filters.paAndLights ?? [],
+      pli: filters.pli ?? [],
+      setupAndSoundcheck: filters.setupAndSoundcheck ?? [],
+      songSearch: filters.songSearch ?? [],
+      extraServices: filters.extraServices ?? [],
+
+      // IMPORTANT: DJ services filtering is handled client-side (see `djServices` filter below)
+      // so we do NOT send `djServices` to the server search endpoint.
+
+      actSearch: filters.actSearch ?? [],
     };
-  });
-}
+  }
 
-const filterRunIdRef = useRef(0);
+  // Is any server-side filter actually set?
+  const hasActiveFilters = (f = {}) => {
+    const keys = [
+      "genres",
+      "lineupSizes",
+      "instruments",
+      "wireless",
+      "soundLimiters",
+      "setupAndSoundcheck",
+      "paAndLights",
+      "pli",
+      "songSearch",
+      "extraServices",
+      /* "djServices", */ "actSearch",
+    ];
+    return keys.some((k) => Array.isArray(f[k]) && f[k].length);
+  };
 
-const lastFiltersRef = useRef({});
-useEffect(() => {
-  if (!DEBUG_FILTER) return;
-  const next = buildServerFilterPayload();
-  const prev = lastFiltersRef.current || {};
-  console.groupCollapsed("🧾 FILTERS CHANGED → server payload snapshot");
-  console.log("prev:", prev);
-  console.log("next:", next);
-  console.groupEnd();
-  lastFiltersRef.current = next;
-}, [
-  genre, act_size, djServices, instruments, wireless,
-  soundLimiters, setupAndSoundcheck, paAndLights, pli,
-  extraServices, songSearch, actSearch
-]);
+  // Extract IDs regardless of server response shape
+  const extractIds = (res) => {
+    if (!res) return [];
+    if (Array.isArray(res?.ids)) return res.ids;
+    if (Array.isArray(res?.items))
+      return res.items.map((x) => x?._id || x?.id || x?.actId).filter(Boolean);
+    if (Array.isArray(res))
+      return res.map((x) => x?._id || x?.id || x?.actId).filter(Boolean);
+    return [];
+  };
+
+  async function fetchActFilterData({
+    ids,
+    status = "approved,live",
+    limit = 200,
+  }) {
+    const idParam = Array.isArray(ids) ? ids.join(",") : String(ids || "");
+    const qs = `?ids=${encodeURIComponent(idParam)}&status=${encodeURIComponent(status)}&limit=${limit}`;
+
+    // Try GET first across candidates
+    for (const base of FILTER_DATA_ENDPOINTS) {
+      try {
+        const { data } = await axios.get(`${base}${qs}`);
+        if (data) return data;
+      } catch {}
+    }
+
+    // Fallback to POST payload across candidates
+    const payload = {
+      ids: Array.isArray(ids) ? ids : idParam ? idParam.split(",") : [],
+      status: status.split(","),
+      limit,
+    };
+
+    for (const base of FILTER_DATA_ENDPOINTS) {
+      try {
+        const { data } = await axios.post(base, payload);
+        if (data) return data;
+      } catch {}
+    }
+
+    console.warn(
+      "⚠️ search: no matching endpoint found (all candidates failed)."
+    );
+    return null;
+  }
+  // ---- search helper (acts enrichment) ----
+  const normalize = (arr) =>
+    Array.isArray(arr) ? arr.map((x) => String(x).toLowerCase().trim()) : [];
+
+  // --- Extras key normaliser + matcher (DJ services etc) ----------------------
+const normalizeExtraKey = (s) =>
+  String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^\w]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const hasExtra = (act, key) => {
+  const extras = act?.extras || act?.__card?.extras || {};
+  if (!extras || typeof extras !== "object") return false;
+
+  const rawKey = String(key || "");
+  const nk = normalizeExtraKey(rawKey);
+
+  // direct key
+  const direct = extras[rawKey];
+  if (direct === true) return true;
+  if (direct && direct !== false) return true;
+
+  // normalized lookup
+  for (const [k, v] of Object.entries(extras)) {
+    if (normalizeExtraKey(k) !== nk) continue;
+
+    if (v === true) return true;
+    if (v === false) return false;
+
+    if (typeof v === "number") return v > 0;
+
+    if (typeof v === "object" && v) {
+      const price = Number(v.price ?? v.amount ?? 0);
+      const complimentary = v.complimentary === true;
+      const enabled = v.enabled === true || v.active === true;
+      return price > 0 || complimentary || enabled;
+    }
+
+    if (typeof v === "string") return v.toLowerCase() === "true";
+    return Boolean(v);
+  }
+
+  return false;
+};
+
+  function mergeFilterDataIntoCards(cards = [], enrich = []) {
+    if (!cards.length || !enrich.length) return cards;
+
+    const byId = new Map(
+      enrich.map((x) => [String(x._id || x.actId || x.id), x])
+    );
+
+    return cards.map((c) => {
+      const add = byId.get(String(c.actId || c._id || c.id));
+      if (!add) return c;
+
+      const rawGenres = add.genres || add.genres_raw || [];
+      const genres_norm = normalize(add.genres_norm || rawGenres);
+
+      return {
+        ...c,
+        slug: add.slug ?? c.slug ?? "",
+        status: add.status ?? c.status ?? "",
+        genres_raw: rawGenres,
+        genres_norm,
+        lineupSizes: add.lineupSizes || add.act_sizes || c.lineupSizes || [],
+        instruments: add.instruments || c.instruments || [],
+        pliAmount: add.pliAmount ?? c.pliAmount ?? null,
+        paTrue: typeof add.paTrue === "boolean" ? add.paTrue : c.paTrue,
+        lightTrue:
+          typeof add.lightTrue === "boolean" ? add.lightTrue : c.lightTrue,
+        extrasTrue:
+          typeof add.extrasTrue === "boolean" ? add.extrasTrue : c.extrasTrue,
+        lineupsCount: Array.isArray(add.lineups)
+          ? add.lineups.length
+          : c.lineupsCount || 0,
+        hasImages: Array.isArray(add.images)
+          ? add.images.length > 0
+          : !!c.hasImages,
+      };
+    });
+  }
+
+  const filterRunIdRef = useRef(0);
+
+  const lastFiltersRef = useRef({});
+  useEffect(() => {
+    if (!DEBUG_FILTER) return;
+    const next = buildServerFilterPayload();
+    const prev = lastFiltersRef.current || {};
+    console.groupCollapsed("🧾 FILTERS CHANGED → server payload snapshot");
+    console.log("prev:", prev);
+    console.log("next:", next);
+    console.groupEnd();
+    lastFiltersRef.current = next;
+  }, [
+    genre,
+    act_size,
+    djServices,
+    instruments,
+    wireless,
+    soundLimiters,
+    setupAndSoundcheck,
+    paAndLights,
+    pli,
+    extraServices,
+    songSearch,
+    actSearch,
+  ]);
 
   // helper to package your current UI state into the server payload
-const buildServerFilterPayload = () => ({
-  genres: genre,
-  lineupSizes: Array.isArray(act_size) ? act_size : [], // send original values, not normalized
-  instruments,
-  wireless,
-  soundLimiters,
-  setupAndSoundcheck,
-  paAndLights,
-  pli,
-  extraServices,
-  actSearch,
-  songSearch,
-  includeStatuses: ["approved", "live", "approved_changes_pending", "live_changes_pending"],
-  excludeTests: true,
-});
+  const buildServerFilterPayload = () => ({
+    genres: genre,
+    lineupSizes: Array.isArray(act_size) ? act_size : [], // send original values, not normalized
+    instruments,
+    wireless,
+    soundLimiters,
+    setupAndSoundcheck,
+    paAndLights,
+    pli,
+    extraServices,
+    djServices,
+    actSearch,
+    songSearch,
+    includeStatuses: [
+      "approved",
+      "live",
+      "approved_changes_pending",
+      "live_changes_pending",
+    ],
+    excludeTests: true,
+  });
 
-useEffect(() => { getFilterCardActsPageCards(); /* once */ }, []);
+  useEffect(() => {
+    getFilterCardActsPageCards(); /* once */
+  }, []);
 
-// --- FILTER TOGGLE DEBUG ---------------------------------------------------
+  // --- FILTER TOGGLE DEBUG ---------------------------------------------------
 
+  const uniqPush = (arr = [], v) => (arr.includes(v) ? arr : [...arr, v]);
 
-const uniqPush = (arr = [], v) => (arr.includes(v) ? arr : [...arr, v]);
-
-const logToggle = (group, { value, checked, before = [], after = [] }) => {
-  if (!DEBUG_FILTER) return;
-  try {
-    const ts = new Date().toLocaleTimeString();
-    console.groupCollapsed(`☑️ [${ts}] ${group} — ${checked ? "ADD ➕" : "REMOVE ❌"} "${value}"`);
-    console.log("before (%d):", before.length, before);
-    console.log("after  (%d):", after.length, after);
-    console.groupEnd();
-  } catch {}
-};
-
-// 🔎 Snapshot Acts-page cards every time they change
-useEffect(() => {
-  if (!actsFilterPageCards) {
-    console.log("🧾 actsFilterPageCards = ", actsFilterPageCards);
-    return;
-  }
-  if (!Array.isArray(actsFilterPageCards)) {
-    console.warn("🧾 actsFilterPageCards not an array:", actsFilterPageCards);
-    return;
-  }
-
-  console.groupCollapsed(`🧾 actsFilterPageCards FULL (${actsFilterPageCards.length})`);
-  actsFilterPageCards.forEach((c, i) => {
-    console.log(`#${i} keys:`, Object.keys(c || {}));
+  const logToggle = (group, { value, checked, before = [], after = [] }) => {
+    if (!DEBUG_FILTER) return;
     try {
-      console.log(`#${i} snapshot:`, JSON.stringify(c, null, 2));
+      const ts = new Date().toLocaleTimeString();
+      console.groupCollapsed(
+        `☑️ [${ts}] ${group} — ${checked ? "ADD ➕" : "REMOVE ❌"} "${value}"`
+      );
+      console.log("before (%d):", before.length, before);
+      console.log("after  (%d):", after.length, after);
+      console.groupEnd();
     } catch {}
+  };
 
-    // 👇👇👇 Robust genre flatten/normalise logging
-    const rawArr =
-      Array.isArray(c?.genres)
+  // 🔎 Snapshot Acts-page cards every time they change
+  useEffect(() => {
+    if (!actsFilterPageCards) {
+      console.log("🧾 actsFilterPageCards = ", actsFilterPageCards);
+      return;
+    }
+    if (!Array.isArray(actsFilterPageCards)) {
+      console.warn("🧾 actsFilterPageCards not an array:", actsFilterPageCards);
+      return;
+    }
+
+    console.groupCollapsed(
+      `🧾 actsFilterPageCards FULL (${actsFilterPageCards.length})`
+    );
+    actsFilterPageCards.forEach((c, i) => {
+      console.log(`#${i} keys:`, Object.keys(c || {}));
+      try {
+        console.log(`#${i} snapshot:`, JSON.stringify(c, null, 2));
+      } catch {}
+
+      // 👇👇👇 Robust genre flatten/normalise logging
+      const rawArr = Array.isArray(c?.genres)
         ? c.genres
         : Array.isArray(c?.genre)
-        ? c.genre
-        : typeof c?.genre === "string"
-        ? [c.genre]
-        : Array.isArray(c?.genres_raw)
-        ? c.genres_raw
-        : Array.isArray(c?.genresNormalized)
-        ? c.genresNormalized
-        : Array.isArray(c?.genres_norm)
-        ? c.genres_norm
-        : [];
+          ? c.genre
+          : typeof c?.genre === "string"
+            ? [c.genre]
+            : Array.isArray(c?.genres_raw)
+              ? c.genres_raw
+              : Array.isArray(c?.genresNormalized)
+                ? c.genresNormalized
+                : Array.isArray(c?.genres_norm)
+                  ? c.genres_norm
+                  : [];
 
-    const genresRaw = flat1(rawArr);
-    const genresNorm = genresRaw.map(NORM_GENRE);
+      const genresRaw = flat1(rawArr);
+      const genresNorm = genresRaw.map(NORM_GENRE);
 
-    console.log(`#${i} genres_raw:`, genresRaw);
-    console.log(`#${i} genres_norm:`, genresNorm);
-    // ☝️☝️☝️ END robust genre logging
+      console.log(`#${i} genres_raw:`, genresRaw);
+      console.log(`#${i} genres_norm:`, genresNorm);
+      // ☝️☝️☝️ END robust genre logging
 
-    if (c?.availabilityBadge) console.log(`#${i} availabilityBadge:`, c.availabilityBadge);
-    if (c?.travelConfig)      console.log(`#${i} travelConfig:`, c.travelConfig);
+      if (c?.availabilityBadge)
+        console.log(`#${i} availabilityBadge:`, c.availabilityBadge);
+      if (c?.travelConfig) console.log(`#${i} travelConfig:`, c.travelConfig);
 
-    if (Array.isArray(c?.extras)) {
-      const preview = c.extras.slice(0, 8);
-      console.log(
-        `#${i} extras (${c.extras.length}):`,
-        preview,
-        c.extras.length > 8 ? `…+${c.extras.length - 8} more` : ""
-      );
-    }
-  });
-  console.groupEnd();
-}, [actsFilterPageCards]);
-
-// ---- server enrich (search) ----
-useEffect(() => {
-  let alive = true;
-
-  (async () => {
-    try {
-      // Whatever array you render before enrichment; your logs call it actsFilterPageCards/actCards.
-      const base = (Array.isArray(actsFilterPageCards) && actsFilterPageCards.length) ? actsFilterPageCards : [];
-      if (!base.length) return;
-
-      const ids = Array.from(new Set(
-        base
-          .map((c) => c.actId || c._id || c.id)
-          .filter(Boolean)
-      ));
-
-      if (!ids.length) {
-        // nothing to enrich — keep current cards
-        setFilterProducts(base);
-        return;
+      if (Array.isArray(c?.extras)) {
+        const preview = c.extras.slice(0, 8);
+        console.log(
+          `#${i} extras (${c.extras.length}):`,
+          preview,
+          c.extras.length > 8 ? `…+${c.extras.length - 8} more` : ""
+        );
       }
+    });
+    console.groupEnd();
+  }, [actsFilterPageCards]);
 
-      const enrich = await fetchActFilterData({
-        ids,
-        status: "approved,live,approved_changes_pending,live_changes_pending",
-        limit: 200,
-      });
+  // ---- server enrich (search) ----
+  useEffect(() => {
+    let alive = true;
 
-      if (!alive) return;
+    (async () => {
+      try {
+        // Whatever array you render before enrichment; your logs call it actsFilterPageCards/actCards.
+        const base =
+          Array.isArray(actsFilterPageCards) && actsFilterPageCards.length
+            ? actsFilterPageCards
+            : [];
+        if (!base.length) return;
 
-      const merged = (Array.isArray(enrich) && enrich.length)
-        ? mergeFilterDataIntoCards(base, enrich)
-        : base;
+        const ids = Array.from(
+          new Set(base.map((c) => c.actId || c._id || c.id).filter(Boolean))
+        );
 
-      // If you keep a local “actsPageCards” state, set it here; otherwise push to your pipeline:
-      setFilterProducts(merged);
-    } catch (err) {
-      console.warn("search enrich failed:", err?.message || err);
-      // IMPORTANT: fall back to current cards instead of wiping to []
-      const base = (Array.isArray(actsFilterPageCards) && actsFilterPageCards.length) ? actsFilterPageCards : [];
-      setFilterProducts(base);
-    }
-  })();
+        if (!ids.length) {
+          // nothing to enrich — keep current cards
+          setFilterProducts(base);
+          return;
+        }
 
-  return () => { alive = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [actsFilterPageCards]);
+        const enrich = await fetchActFilterData({
+          ids,
+          status: "approved,live,approved_changes_pending,live_changes_pending",
+          limit: 200,
+        });
 
-const items = Array.isArray(actsFilterPageCards) ? actsFilterPageCards : [];
+        if (!alive) return;
 
+        const merged =
+          Array.isArray(enrich) && enrich.length
+            ? mergeFilterDataIntoCards(base, enrich)
+            : base;
 
-// --- GENRES helpers ------------------------------------------------------
-const NORM_GENRE = (s) =>
-  String(s || "")
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+        // If you keep a local “actsPageCards” state, set it here; otherwise push to your pipeline:
+        setFilterProducts(merged);
+      } catch (err) {
+        console.warn("search enrich failed:", err?.message || err);
+        // IMPORTANT: fall back to current cards instead of wiping to []
+        const base =
+          Array.isArray(actsFilterPageCards) && actsFilterPageCards.length
+            ? actsFilterPageCards
+            : [];
+        setFilterProducts(base);
+      }
+    })();
 
-// Pull genres from multiple places and return a deduped list
-const getActGenres = (item) => {
-  const fromAct =
-    Array.isArray(item?.genres)
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actsFilterPageCards]);
+
+  const items = Array.isArray(actsFilterPageCards) ? actsFilterPageCards : [];
+
+  // --- GENRES helpers ------------------------------------------------------
+  const NORM_GENRE = (s) =>
+    String(s || "")
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+
+  // Pull genres from multiple places and return a deduped list
+  const getActGenres = (item) => {
+    const fromAct = Array.isArray(item?.genres)
       ? item.genres
       : typeof item?.genres === "string"
-      ? [item.genres]
-      : [];
+        ? [item.genres]
+        : [];
 
-  const fromCard =
-    Array.isArray(item?.__card?.genres)
+    const fromCard = Array.isArray(item?.__card?.genres)
       ? item.__card.genres
       : typeof item?.__card?.genres === "string"
-      ? [item.__card.genres]
-      : [];
+        ? [item.__card.genres]
+        : [];
 
-  const fromTags =
-    Array.isArray(item?.genreTags)
-      ? item.genreTags
-      : [];
+    const fromTags = Array.isArray(item?.genreTags) ? item.genreTags : [];
 
-  // Some older data might store singular fields
-  const maybeSingle =
-    item?.genre ? [item.genre] :
-    item?.__card?.genre ? [item.__card.genre] : [];
+    // Some older data might store singular fields
+    const maybeSingle = item?.genre
+      ? [item.genre]
+      : item?.__card?.genre
+        ? [item.__card.genre]
+        : [];
 
-  const all = [...fromAct, ...fromCard, ...fromTags, ...maybeSingle].filter(Boolean);
-  return Array.from(new Set(all));
-};
-
+    const all = [...fromAct, ...fromCard, ...fromTags, ...maybeSingle].filter(
+      Boolean
+    );
+    return Array.from(new Set(all));
+  };
 
   const triggerSearch = () => {
     setShowSearch(true); // ✅ Open the search box
@@ -472,124 +592,144 @@ const getActGenres = (item) => {
   };
 
   const toggleGenre = (e) => {
-  const value = e.target.value;
-  const checked = e.target.checked;
-  setGenre((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsGenreSelected(after.length > 0);
-    logToggle("GENRES", { value, checked, before, after });
-    return after;
-  });
-};
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setGenre((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsGenreSelected(after.length > 0);
+      logToggle("GENRES", { value, checked, before, after });
+      return after;
+    });
+  };
 
-const toggleActSize = (e) => {
-  const value = e.target.value;
-  const checked = e.target.checked;
-  setActSize((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsActSizeSelected(after.length > 0);
-    logToggle("ACT SIZE", { value, checked, before, after });
-    return after;
-  });
-};
+  const toggleActSize = (e) => {
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setActSize((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsActSizeSelected(after.length > 0);
+      logToggle("ACT SIZE", { value, checked, before, after });
+      return after;
+    });
+  };
 
-const toggleDjServices = (e) => {
-  const value = e.target.value;
-  const checked = e.target.checked;
-  setDjServices((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsDjServicesSelected(after.length > 0);
-    logToggle("DJ SERVICES", { value, checked, before, after });
-    return after;
-  });
-};
+  const toggleDjServices = (e) => {
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setDjServices((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsDjServicesSelected(after.length > 0);
+      logToggle("DJ SERVICES", { value, checked, before, after });
+      return after;
+    });
+  };
 
-const toggleInstruments = (e) => {
-  const value = e.target.value;
-  const checked = e.target.checked;
-  setInstruments((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsInstrumentsSelected(after.length > 0);
-    logToggle("INSTRUMENTS", { value, checked, before, after });
-    return after;
-  });
-};
+  const toggleInstruments = (e) => {
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setInstruments((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsInstrumentsSelected(after.length > 0);
+      logToggle("INSTRUMENTS", { value, checked, before, after });
+      return after;
+    });
+  };
 
-const toggleWireless = (e) => {
-  const value = e.target.value;
-  const checked = e.target.checked;
-  setWireless((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsWirelessSelected(after.length > 0);
-    logToggle("WIRELESS", { value, checked, before, after });
-    return after;
-  });
-};
+  const toggleWireless = (e) => {
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setWireless((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsWirelessSelected(after.length > 0);
+      logToggle("WIRELESS", { value, checked, before, after });
+      return after;
+    });
+  };
 
-const toggleSoundLimiters = (e) => {
-  const value = e.target.value;
-  const checked = e.target.checked;
-  setSoundLimiters((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsSoundLimitersSelected(after.length > 0);
-    logToggle("SOUND LIMITERS", { value, checked, before, after });
-    return after;
-  });
-};
+  const toggleSoundLimiters = (e) => {
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setSoundLimiters((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsSoundLimitersSelected(after.length > 0);
+      logToggle("SOUND LIMITERS", { value, checked, before, after });
+      return after;
+    });
+  };
 
-const toggleSetupAndSoundcheck = (e) => {
-  const value = e.target.value;
-  const checked = e.target.checked;
-  setSetupAndSoundcheck((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsSetupAndSoundcheckSelected(after.length > 0);
-    logToggle("SETUP & SOUNDCHECK", { value, checked, before, after });
-    return after;
-  });
-};
+  const toggleSetupAndSoundcheck = (e) => {
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setSetupAndSoundcheck((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsSetupAndSoundcheckSelected(after.length > 0);
+      logToggle("SETUP & SOUNDCHECK", { value, checked, before, after });
+      return after;
+    });
+  };
 
-const togglePaAndLights = (e) => {
-  const value = e.target.value;
-  const checked = e.target.checked;
-  setPaAndLights((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsPaAndLightsSelected(after.length > 0);
-    logToggle("PA & LIGHTS", { value, checked, before, after });
-    return after;
-  });
-};
+  const togglePaAndLights = (e) => {
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setPaAndLights((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsPaAndLightsSelected(after.length > 0);
+      logToggle("PA & LIGHTS", { value, checked, before, after });
+      return after;
+    });
+  };
 
-const togglePli = (e) => {
-  const value = Number(e.target.value);
-  const checked = e.target.checked;
-  setPli((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsPliSelected(after.length > 0);
-    logToggle("PLI", { value, checked, before, after });
-    return after;
-  });
-};
+  const togglePli = (e) => {
+    const value = Number(e.target.value);
+    const checked = e.target.checked;
+    setPli((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsPliSelected(after.length > 0);
+      logToggle("PLI", { value, checked, before, after });
+      return after;
+    });
+  };
 
-const toggleExtraServices = (e) => {
-  const value = e.target.value;
-  const checked = e.target.checked;
-  setExtraServices((prev) => {
-    const before = prev;
-    const after = checked ? uniqPush(prev, value) : prev.filter((x) => x !== value);
-    setIsExtraServicesSelected(after.length > 0);
-    logToggle("EXTRA SERVICES", { value, checked, before, after });
-    return after;
-  });
-};
+  const toggleExtraServices = (e) => {
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setExtraServices((prev) => {
+      const before = prev;
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((x) => x !== value);
+      setIsExtraServicesSelected(after.length > 0);
+      logToggle("EXTRA SERVICES", { value, checked, before, after });
+      return after;
+    });
+  };
 
   const labelMap = {
     electric_drums: "Has electric drum kit",
@@ -644,10 +784,10 @@ const toggleExtraServices = (e) => {
     extra_40min_performance_per_band_member: "Extra Main Performance Sets",
     extra_60min_performance_per_band_member: "Extra Main Performance Sets",
     add_another_vocalist: "Add another vocalist",
-    sound_engineering_for_another_act_with_your_acts_PA: "Sound engineering for another act",
+    sound_engineering_for_another_act_with_your_acts_PA:
+      "Sound engineering for another act",
     israeli_dancing_20mins_per_band_member: "Israeli dancing sets",
   };
-
 
   const formatDate = (dateString) => {
     if (!dateString) return "";
@@ -665,474 +805,594 @@ const toggleExtraServices = (e) => {
     return `${day}${suffix} of ${month} ${year}`;
   };
 
-    // ----- Instruments normalisation helpers -----
-const INSTR_ALIAS = new Map([
-  ["lead female vocal", "Lead Female Vocal"],
-  ["lead male vocal", "Lead Male Vocal"],
-  ["lead vocal", "Lead Vocal"],
+  // ----- Instruments normalisation helpers -----
+  const INSTR_ALIAS = new Map([
+    ["lead female vocal", "Lead Female Vocal"],
+    ["lead male vocal", "Lead Male Vocal"],
+    ["lead vocal", "Lead Vocal"],
 
-  ["mc", "MC/Rapper"],
-  ["rapper", "MC/Rapper"],
-  ["mc/rapper", "MC/Rapper"],
+    ["mc", "MC/Rapper"],
+    ["rapper", "MC/Rapper"],
+    ["mc/rapper", "MC/Rapper"],
 
-  ["vocalist-guitarist", "Vocalist-Guitarist"],
-  ["vocalist-bassist", "Vocalist-Bassist"],
+    ["vocalist-guitarist", "Vocalist-Guitarist"],
+    ["vocalist-bassist", "Vocalist-Bassist"],
 
-  ["electric guitar", "Guitar"],
-  ["bass guitar", "Bass"],
-  ["double bass", "Bass"],
-  ["acoustic bass", "Bass"],
+    ["electric guitar", "Guitar"],
+    ["bass guitar", "Bass"],
+    ["double bass", "Bass"],
+    ["acoustic bass", "Bass"],
 
-  ["violin", "Violin / Fiddle"],
-  ["fiddle", "Violin / Fiddle"],
+    ["violin", "Violin / Fiddle"],
+    ["fiddle", "Violin / Fiddle"],
 
-  ["flute", "Flute & Clarinet"],
-  ["clarinet", "Flute & Clarinet"],
-]);
+    ["flute", "Flute & Clarinet"],
+    ["clarinet", "Flute & Clarinet"],
+  ]);
 
   // Split combos like "Trumpet/Trombone/Rapper", "Lead Male Vocal/Rapper & Guitarist"
-const splitInstrumentTokens = (s) =>
-  String(s || "")
-    .split(/[,/;&]|\\band\\b|\\bwith\\b|\\+|\\s*-\\s*/i) // / , ; & and with + hyphen separators
-    .map((t) => t.trim())
-    .filter(Boolean);
+  const splitInstrumentTokens = (s) =>
+    String(s || "")
+      .split(/[,/;&]|\\band\\b|\\bwith\\b|\\+|\\s*-\\s*/i) // / , ; & and with + hyphen separators
+      .map((t) => t.trim())
+      .filter(Boolean);
 
-// Canonicalise a single token to your filter labels
-const canonicaliseInstrument = (raw) => {
-  const key = String(raw || "").trim().toLowerCase();
-  const mapped = INSTR_ALIAS.get(key);
-  if (mapped) return mapped;
+  // Canonicalise a single token to your filter labels
+  const canonicaliseInstrument = (raw) => {
+    const key = String(raw || "")
+      .trim()
+      .toLowerCase();
+    const mapped = INSTR_ALIAS.get(key);
+    if (mapped) return mapped;
 
-  // tidy common variants
-  if (key === "guitarist") return "Guitar";
-  if (key === "sax") return "Saxophone";
-  if (key === "keys") return "Keyboard";
-  if (key === "drummer") return "Drums";
-  if (key === "trumpet/trombone/rapper") return "MC/Rapper"; // handled by splitter anyway
+    // tidy common variants
+    if (key === "guitarist") return "Guitar";
+    if (key === "sax") return "Saxophone";
+    if (key === "keys") return "Keyboard";
+    if (key === "drummer") return "Drums";
+    if (key === "trumpet/trombone/rapper") return "MC/Rapper"; // handled by splitter anyway
 
-  // leave as-is (e.g., "Trumpet", "Trombone", "Cello", etc.)
-  return String(raw).trim();
-};
+    // leave as-is (e.g., "Trumpet", "Trombone", "Cello", etc.)
+    return String(raw).trim();
+  };
   // Build a deduped list of instruments an act actually offers
-const deriveActInstruments = (act) => {
-  const fromTop = Array.isArray(act.instruments) ? act.instruments : [];
-  const fromLineups = (act.lineups || []).flatMap((l) =>
-    (Array.isArray(l.bandMembers) ? l.bandMembers : [])
-      .map((m) => m?.instrument)
-      .filter(Boolean)
+  const deriveActInstruments = (act) => {
+    const fromTop = Array.isArray(act.instruments) ? act.instruments : [];
+    const fromLineups = (act.lineups || []).flatMap((l) =>
+      (Array.isArray(l.bandMembers) ? l.bandMembers : [])
+        .map((m) => m?.instrument)
+        .filter(Boolean)
+    );
+
+    const all = [...fromTop, ...fromLineups];
+
+    // Expand combos then canonicalise and dedupe
+    const expanded = all.flatMap((name) => splitInstrumentTokens(name));
+    const canonical = expanded.map((v) => {
+      const c = canonicaliseInstrument(v);
+      // final tweak: plain "Rapper" should count under MC/Rapper
+      return c === "Rapper" ? "MC/Rapper" : c;
+    });
+
+    return Array.from(new Set(canonical));
+  };
+
+  // 🔁 Make the helper accept a list (don’t read global `acts`)
+  function getApprovedActs(list) {
+    const arr = Array.isArray(list) ? list : [];
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+    const effectiveUserRole = String(storedUser.userRole || "").toLowerCase();
+    const effectiveUserId = storedUser._id || storedUser.userId || "";
+    const effectiveUserEmail = storedUser.email || "";
+
+    const isAgent =
+      ["agent", "admin", "moderator"].includes(effectiveUserRole) ||
+      effectiveUserId === "680fb453a2de6618675ca9ed" ||
+      /@thesupremecollective\.co\.uk$/i.test(effectiveUserEmail);
+
+    const looksLikeTrue = (v) =>
+      v === true || v === "true" || v === 1 || v === "1";
+
+    const normalizeStatus = (s) =>
+      String(s || "")
+        .trim()
+        .toLowerCase();
+
+    return arr.filter((item) => {
+      const st = normalizeStatus(item.status);
+      const isApprovedLike =
+        st === "approved" ||
+        st === "live" ||
+        st === "approved_changes_pending" ||
+        st === "live_changes_pending" ||
+        st.includes("changes pending");
+
+      const isTest =
+        looksLikeTrue(item.isTest) || looksLikeTrue(item.actData?.isTest);
+
+      return isAgent ? isApprovedLike : isApprovedLike && !isTest;
+    });
+  }
+
+  // ✅ Use the Acts-page cards as the source
+  const approvedActs = useMemo(
+    () => getApprovedActs(actsFilterPageCards),
+    [actsFilterPageCards]
   );
 
-  const all = [...fromTop, ...fromLineups];
+  // Map of id → card/act (work with actId or _id safely)
+  const actMap = useMemo(
+    () =>
+      new Map(
+        (approvedActs || []).map((a) => [
+          String(a._id || a.actId || a.id || ""),
+          a,
+        ])
+      ),
+    [approvedActs]
+  );
 
-  // Expand combos then canonicalise and dedupe
-  const expanded = all.flatMap((name) => splitInstrumentTokens(name));
-  const canonical = expanded.map((v) => {
-    const c = canonicaliseInstrument(v);
-    // final tweak: plain "Rapper" should count under MC/Rapper
-    return c === "Rapper" ? "MC/Rapper" : c;
-  });
+  // 🔗 Normalised cards array for this page
+  const cards = useMemo(
+    () => (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []),
+    [actsFilterPageCards]
+  );
 
-  return Array.from(new Set(canonical));
-};
+  // Simple memo to show counts without recomputing filters
+  const approvedActsCount = useMemo(
+    () => getApprovedActs(actsFilterPageCards).length,
+    [actsFilterPageCards, userRole, userId, email]
+  );
 
-// 🔁 Make the helper accept a list (don’t read global `acts`)
-function getApprovedActs(list) {
-  const arr = Array.isArray(list) ? list : [];
-  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  async function applyFilter() {
+    const runId = ++filterRunIdRef.current;
+    GROUP(`🧪 applyFilter run #${runId}`);
+    ACTS_DBG("inputs", {
+      genre,
+      act_size,
+      djServices,
+      instruments,
+      songSearch,
+      actSearch,
+      wireless,
+      soundLimiters,
+      setupAndSoundcheck,
+      paAndLights,
+      pli,
+      extraServices,
+      selectedDate,
+      selectedAddress,
+      selectedCounty,
+      availLoading,
+      availMapKeys: Object.keys(availableMap || {}).length,
+      cardsLen: Array.isArray(cards) ? cards.length : 0,
+      actCardsLen: Array.isArray(actsFilterPageCards)
+        ? actsFilterPageCards.length
+        : 0,
+    });
 
-  const effectiveUserRole = String(storedUser.userRole || "").toLowerCase();
-  const effectiveUserId = storedUser._id || storedUser.userId || "";
-  const effectiveUserEmail = storedUser.email || "";
+    // ───────────────────────────────────────────────────────────────────────────────
+    // ✅ Normalizer + genre utilities
+    // ───────────────────────────────────────────────────────────────────────────────
+    const NORM = (s) =>
+      String(s)
+        .toLowerCase()
+        .replace(/\s*&\s*/g, " and ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-  const isAgent =
-    ["agent", "admin", "moderator"].includes(effectiveUserRole) ||
-    effectiveUserId === "680fb453a2de6618675ca9ed" ||
-    /@thesupremecollective\.co\.uk$/i.test(effectiveUserEmail);
+    const selectedGenres = Array.isArray(genre) ? genre : [];
+    const selectedNorm = selectedGenres.map(NORM);
 
-  const looksLikeTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
-  
-  const normalizeStatus = (s) => String(s || "").trim().toLowerCase();
-
-  return arr.filter((item) => {
-    const st = normalizeStatus(item.status);
-    const isApprovedLike =
-      st === "approved" ||
-      st === "live" ||
-      st === "approved_changes_pending" ||
-      st === "live_changes_pending" ||
-      st.includes("changes pending");
-
-    const isTest =
-      looksLikeTrue(item.isTest) || looksLikeTrue(item.actData?.isTest);
-
-    return isAgent ? isApprovedLike : (isApprovedLike && !isTest);
-  });
-}
-
-// ✅ Use the Acts-page cards as the source
-const approvedActs = useMemo(() => getApprovedActs(actsFilterPageCards), [actsFilterPageCards]);
-
-// Map of id → card/act (work with actId or _id safely)
-const actMap = useMemo(
-  () =>
-    new Map(
-      (approvedActs || []).map((a) => [String(a._id || a.actId || a.id || ""), a])
-    ),
-  [approvedActs]
-);
-
-// 🔗 Normalised cards array for this page
-const cards = useMemo(() => (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []), [actsFilterPageCards]);
-
-// Simple memo to show counts without recomputing filters
-const approvedActsCount = useMemo(
-  () => getApprovedActs(actsFilterPageCards).length,
-  [actsFilterPageCards, userRole, userId, email]
-);
-
-async function applyFilter() {
-  const runId = ++filterRunIdRef.current;
-  GROUP(`🧪 applyFilter run #${runId}`);
-  ACTS_DBG("inputs", {
-    genre, act_size, djServices, instruments,
-    songSearch, actSearch,
-    wireless, soundLimiters, setupAndSoundcheck, paAndLights, pli, extraServices,
-    selectedDate, selectedAddress, selectedCounty,
-    availLoading,
-    availMapKeys: Object.keys(availableMap || {}).length,
-    cardsLen: Array.isArray(cards) ? cards.length : 0,
-    actCardsLen: Array.isArray(actsFilterPageCards) ? actsFilterPageCards.length : 0,
-  });
-
-  // ───────────────────────────────────────────────────────────────────────────────
-  // ✅ Normalizer + genre utilities
-  // ───────────────────────────────────────────────────────────────────────────────
-  const NORM = (s) =>
-    String(s).toLowerCase().replace(/\s*&\s*/g, " and ").replace(/\s+/g, " ").trim();
-
-  const selectedGenres = Array.isArray(genre) ? genre : [];
-  const selectedNorm = selectedGenres.map(NORM);
-
-  const matchByGenre = (card) => {
-    const src =
-      Array.isArray(card?.genres_norm) && card.genres_norm.length
-        ? card.genres_norm
-        : (() => {
-            const rawArr =
-              Array.isArray(card?.genres)
+    const matchByGenre = (card) => {
+      const src =
+        Array.isArray(card?.genres_norm) && card.genres_norm.length
+          ? card.genres_norm
+          : (() => {
+              const rawArr = Array.isArray(card?.genres)
                 ? card.genres
                 : Array.isArray(card?.genre)
-                ? card.genre
-                : typeof card?.genre === "string"
-                ? [card.genre]
-                : Array.isArray(card?.genres_raw)
-                ? card.genres_raw
-                : Array.isArray(card?.genresNormalized)
-                ? card.genresNormalized
-                : [];
-            return flat1(rawArr);
-          })();
-    const norm = src.map(NORM);
-    // If the card has no genre, do not filter it out
-    if (!norm.length || norm.every((g) => !g)) return true;
-    // Otherwise, require exact match
-    return selectedNorm.every((sel) => norm.includes(sel));
-  };
+                  ? card.genre
+                  : typeof card?.genre === "string"
+                    ? [card.genre]
+                    : Array.isArray(card?.genres_raw)
+                      ? card.genres_raw
+                      : Array.isArray(card?.genresNormalized)
+                        ? card.genresNormalized
+                        : [];
+              return flat1(rawArr);
+            })();
+      const norm = src.map(NORM);
+      // If the card has no genre, do not filter it out
+      if (!norm.length || norm.every((g) => !g)) return true;
+      // Otherwise, require exact match
+      return selectedNorm.every((sel) => norm.includes(sel));
+    };
 
-  // ───────────────────────────────────────────────────────────────────────────────
-  // Availability gate (skip only that part if loading)
-  // ───────────────────────────────────────────────────────────────────────────────
-  const skipAvailGate = Boolean(selectedDate && availLoading);
-  if (skipAvailGate) {
-    console.log("Skipping availability gate due to loading state");
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────────
-  // Server search (feature-flagged)
-  // ───────────────────────────────────────────────────────────────────────────────
-  const filters = buildServerFilterPayload();
-  const payload = buildServerPayload(filters);
-        console.info("🔶 Server search yielded 0 ids — showing no results.");
-  const postCandidates = async (urls, body) => {
-    for (const url of urls) {
-      try {
-        const { data } = await axios.post(url, body);
-        const arr = Array.isArray(data?.cards)
-          ? data.cards
-          : Array.isArray(data?.results)
-          ? data.results
-          : Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data)
-          ? data
-          : [];
-        const ids = arr
-          .map((x) => String(x.actId ?? x._id ?? x.id ?? x.act_id ?? ""))
-          .filter(Boolean);
-        if (ids.length) return new Set(ids);
-      } catch {
-        /* try next */
-      }
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Availability gate (skip only that part if loading)
+    // ───────────────────────────────────────────────────────────────────────────────
+    const skipAvailGate = Boolean(selectedDate && availLoading);
+    if (skipAvailGate) {
+      console.log("Skipping availability gate due to loading state");
     }
-    return new Set();
-  };
 
-  let serverIds = new Set();
-  if (ENABLE_SERVER_SEARCH && hasActiveFilters(filters)) {
-    const compatPayload = {
-      ...payload,
-      status:
-        payload.includeStatuses ||
-        payload.status ||
-        ["approved", "live", "approved_changes_pending", "live_changes_pending"],
-      statuses: payload.includeStatuses || payload.status,
-      genres_norm:
-        payload.genres_norm ||
-        (payload.genres || []).map((s) =>
-          String(s).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim()
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Server search (feature-flagged)
+    // ───────────────────────────────────────────────────────────────────────────────
+    const filters = buildServerFilterPayload();
+    const payload = buildServerPayload(filters);
+    console.info("🔶 Server search yielded 0 ids — showing no results.");
+    const postCandidates = async (urls, body) => {
+      for (const url of urls) {
+        try {
+          const { data } = await axios.post(url, body);
+          const arr = Array.isArray(data?.cards)
+            ? data.cards
+            : Array.isArray(data?.results)
+              ? data.results
+              : Array.isArray(data?.data)
+                ? data.data
+                : Array.isArray(data)
+                  ? data
+                  : [];
+          const ids = arr
+            .map((x) => String(x.actId ?? x._id ?? x.id ?? x.act_id ?? ""))
+            .filter(Boolean);
+          if (ids.length) return new Set(ids);
+        } catch {
+          /* try next */
+        }
+      }
+      return new Set();
+    };
+
+    let serverIds = new Set();
+    if (ENABLE_SERVER_SEARCH && hasActiveFilters(filters)) {
+      const compatPayload = {
+        ...payload,
+        status: payload.includeStatuses ||
+          payload.status || [
+            "approved",
+            "live",
+            "approved_changes_pending",
+            "live_changes_pending",
+          ],
+        statuses: payload.includeStatuses || payload.status,
+        genres_norm:
+          payload.genres_norm ||
+          (payload.genres || []).map((s) =>
+            String(s)
+              .toLowerCase()
+              .replace(/&/g, "and")
+              .replace(/[^a-z0-9]+/g, " ")
+              .trim()
+          ),
+        genreTokens: (payload.genres || []).map((s) =>
+          String(s)
+            .toLowerCase()
+            .replace(/&/g, "and")
+            .replace(/[^a-z0-9]+/g, " ")
+            .trim()
         ),
-      genreTokens: (payload.genres || []).map((s) =>
-        String(s).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim()
-      ),
-    };
-//, api("api/act/cards/search")
-    const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search")];
-    serverIds = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
-    if (serverIds.size === 0) {
-      console.info("🔶 Server search yielded 0 ids — showing no results.");
-      setFilterProducts([]);
-      ACTS_DBG("No matching records after server search, setting filterProducts to []");
-      return;
-    }
-  } else if (DEBUG_FILTER) {
-    console.info("🔶 Server search disabled — using client-only filtering.");
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────────
-  // Build source card set
-  // ───────────────────────────────────────────────────────────────────────────────
-  const allCards = Array.isArray(cards) ? cards : [];
-  let approvedCards = serverIds.size
-    ? allCards.filter((c) => serverIds.has(String(c.actId ?? c._id ?? c.id ?? "")))
-    : allCards;
-
-  // Debug: print all IDs and names in actsFilterPageCards and approvedCards
-  console.log("actsFilterPageCards IDs:", (actsFilterPageCards || []).map(a => ({id: a.actId || a._id || a.id, name: a.tscName || a.name})));
-  console.log("approvedCards IDs:", (approvedCards || []).map(a => ({id: a.actId || a._id || a.id, name: a.tscName || a.name})));
-
-  // Ensure safe genre fields on every card
-  const withSafety = approvedCards.map((c) => {
-    // Always flatten genres, even if nested
-    let rawArr = [];
-    if (Array.isArray(c?.genres)) {
-      rawArr = flat1(c.genres);
-    } else if (Array.isArray(c?.genre)) {
-      rawArr = flat1(c.genre);
-    } else if (typeof c?.genre === "string") {
-      rawArr = [c.genre];
-    } else if (Array.isArray(c?.genres_raw)) {
-      rawArr = flat1(c.genres_raw);
-    } else if (Array.isArray(c?.genresNormalized)) {
-      rawArr = flat1(c.genresNormalized);
-    } else if (Array.isArray(c?.genres_norm)) {
-      rawArr = flat1(c.genres_norm);
+      };
+      // Ensure DJ services never affect backend search (client-side only)
+      delete compatPayload.djServices;
+      delete compatPayload.dj_services;
+      //, api("api/act/cards/search")
+      const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search")];
+      serverIds = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
+      if (serverIds.size === 0) {
+        console.info("🔶 Server search yielded 0 ids — showing no results.");
+        setFilterProducts([]);
+        ACTS_DBG(
+          "No matching records after server search, setting filterProducts to []"
+        );
+        return;
+      }
+    } else if (DEBUG_FILTER) {
+      console.info("🔶 Server search disabled — using client-only filtering.");
     }
 
-    const genresRaw = rawArr.filter(Boolean);
-    const genresNorm =
-      Array.isArray(c?.genres_norm) && c.genres_norm.length
-        ? flat1(c.genres_norm).map(NORM)
-        : genresRaw.map(NORM);
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Build source card set
+    // ───────────────────────────────────────────────────────────────────────────────
+    const allCards = Array.isArray(cards) ? cards : [];
+    let approvedCards = serverIds.size
+      ? allCards.filter((c) =>
+          serverIds.has(String(c.actId ?? c._id ?? c.id ?? ""))
+        )
+      : allCards;
 
-    return { ...c, genres_raw: genresRaw, genres_norm: genresNorm };
-  });
+    // Debug: print all IDs and names in actsFilterPageCards and approvedCards
+    console.log(
+      "actsFilterPageCards IDs:",
+      (actsFilterPageCards || []).map((a) => ({
+        id: a.actId || a._id || a.id,
+        name: a.tscName || a.name,
+      }))
+    );
+    console.log(
+      "approvedCards IDs:",
+      (approvedCards || []).map((a) => ({
+        id: a.actId || a._id || a.id,
+        name: a.tscName || a.name,
+      }))
+    );
 
-  // Debug: print all IDs and names in withSafety
-  console.log("withSafety IDs:", (withSafety || []).map(a => ({id: a.actId || a._id || a.id, name: a.tscName || a.name})));
-
-  const sourceCards = withSafety;
-  
-  ACTS_DBG("sourceCards", { len: sourceCards.length });
-  // ...existing code...
-
-  console.groupCollapsed("🧪 Pre-filter probe (withSafety) — first 30");
-  console.table(
-    (withSafety || []).slice(0, 30).map((c) => ({
-      id: String(c.actId || c._id || ""),
-      name: c.tscName || c.name || "(untitled)",
-      genres: Array.isArray(c.genres) ? c.genres.join(" | ") : String(c.genres || ""),
-      lineupSizes: Array.isArray(c.lineupSizes) ? c.lineupSizes.join(" | ") : "",
-      instruments: Array.isArray(c.instruments) ? c.instruments.join(" | ") : "",
-      pliAmount: c.pliAmount ?? "",
-      paTrue:
-        c.pa && typeof c.pa === "object"
-          ? Object.entries(c.pa)
-              .filter(([, v]) => v)
-              .map(([k]) => k)
-              .join(",")
-          : "",
-      lightTrue:
-        c.light && typeof c.light === "object"
-          ? Object.entries(c.light)
-              .filter(([, v]) => v)
-              .map(([k]) => k)
-              .join(",")
-          : "",
-      extrasKeys: c.extras ? Object.keys(c.extras).slice(0, 10).join(",") : "",
-    }))
-  );
-  console.groupEnd();
-
-  // ───────────────────────────────────────────────────────────────────────────────
-  // Prefer full Act objects; fall back to cards
-  // ───────────────────────────────────────────────────────────────────────────────
-  const pickImages = (obj = {}) =>
-    obj.images || obj.coverImages || obj.heroImages || obj.gallery || obj.hero || null;
-
-  let actsCopy = withSafety
-    .map((card) => {
-      const id = String(card.actId || card._id || card.id || "");
-      const act = actMap.get(id);
-
-      // Always ensure lineupSizes is present and is an array
-      const safeLineupSizes = Array.isArray(card.lineupSizes) ? card.lineupSizes : [];
-
-      if (act) {
-        const images =
-          act.images ||
-          pickImages(card) ||
-          pickImages(act) ||
-          imagesFromImageUrl(card?.imageUrl) ||
-          null;
-        return { ...act, __card: card, images, lineupSizes: Array.isArray(act.lineupSizes) ? act.lineupSizes : safeLineupSizes };
+    // Ensure safe genre fields on every card
+    const withSafety = approvedCards.map((c) => {
+      // Always flatten genres, even if nested
+      let rawArr = [];
+      if (Array.isArray(c?.genres)) {
+        rawArr = flat1(c.genres);
+      } else if (Array.isArray(c?.genre)) {
+        rawArr = flat1(c.genre);
+      } else if (typeof c?.genre === "string") {
+        rawArr = [c.genre];
+      } else if (Array.isArray(c?.genres_raw)) {
+        rawArr = flat1(c.genres_raw);
+      } else if (Array.isArray(c?.genresNormalized)) {
+        rawArr = flat1(c.genresNormalized);
+      } else if (Array.isArray(c?.genres_norm)) {
+        rawArr = flat1(c.genres_norm);
       }
 
-      return {
-        ...card,
-        _id: id,
-        name: card.tscName || card.name || "Untitled Act",
-        tscName: card.tscName,
-        genres: Array.isArray(card.genres) ? card.genres : [],
-        lineupSizes: safeLineupSizes,
-        instruments: Array.isArray(card.instruments) ? card.instruments : [],
-        extras: typeof card.extras === "object" ? card.extras : {},
-        pliAmount: Number(card.pliAmount) || 0,
-        paSystem:
-          card.pa && typeof card.pa === "object"
-            ? Object.entries(card.pa)
-                .filter(([, v]) => v)
-                .map(([k]) => k)
-                .join(", ")
-            : "",
-        lightingSystem:
-          card.light && typeof card.light === "object"
-            ? Object.entries(card.light)
-                .filter(([, v]) => v)
-                .map(([k]) => k)
-                .join(", ")
-            : "",
-        lineups: [],
-        images:
-          pickImages(card) ||
-          imagesFromImageUrl(card?.imageUrl) ||
-          null,
-        __card: card,
-      };
-    })
-    .filter(Boolean);
+      const genresRaw = rawArr.filter(Boolean);
+      const genresNorm =
+        Array.isArray(c?.genres_norm) && c.genres_norm.length
+          ? flat1(c.genres_norm).map(NORM)
+          : genresRaw.map(NORM);
 
-  ACTS_DBG("actsCopy built (first pass)", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
-
-  const allExtrasKeys = [
-    "sound_engineering_for_another_act_with_your_acts_PA",
-    "speedy_setup",
-    "wired_mic",
-    "wireless_mic",
-    "background_music_playlist",
-    "up_to_3_hours_manned_playlist",
-    "extra_30min_performance_per_band_member",
-    "extra_40min_performance_per_band_member",
-    "extra_60min_performance_per_band_member",
-    "late_stay_60min_per_band_member",
-    "early_arrival_60min_per_band_member",
-    "extra_song_request_per_band_member",
-    "israeli_dancing_20mins_per_band_member"
-  ];
-  actsCopy = actsCopy.map((act) => {
-    const extras = act.extras || {};
-    // Ensure all expected keys are present, default to false if missing
-    const filledExtras = { ...extras };
-    allExtrasKeys.forEach((key) => {
-      if (typeof filledExtras[key] === "undefined") filledExtras[key] = false;
+      return { ...c, genres_raw: genresRaw, genres_norm: genresNorm };
     });
-    return {
-      ...act,
-      extras: filledExtras,
-      __card:
-        cards.find((c) => String(c.actId || c._id || c.id) === String(act._id)) ||
-        act.__card ||
-        null,
-    };
-  });
 
-  ACTS_DBG("actsCopy after card reattach", { len: Array.isArray(actsCopy) ? actsCopy.length : 0 });
+    // Debug: print all IDs and names in withSafety
+    console.log(
+      "withSafety IDs:",
+      (withSafety || []).map((a) => ({
+        id: a.actId || a._id || a.id,
+        name: a.tscName || a.name,
+      }))
+    );
 
-  // ───────────────────────────────────────────────────────────────────────────────
-  // 🎚️ GENRE FILTER (single source of truth)
-  // ───────────────────────────────────────────────────────────────────────────────
-  if (selectedNorm.length) {
-    const before = actsCopy.length;
-    actsCopy = actsCopy.filter((c) => matchByGenre(c));
+    const sourceCards = withSafety;
 
-    console.log("🎚️[GENRES] selected", { selectedRaw: selectedGenres, selectedNorm });
-    console.log("🎚️[GENRES] results — kept", `${actsCopy.length} / ${before}`);
+    ACTS_DBG("sourceCards", { len: sourceCards.length });
+    // ...existing code...
 
-    if (before) {
-      console.table(
-        sourceCards.slice(0, 24).map((c, i) => {
-          const rawArr =
-            Array.isArray(c?.genres)
-              ? c.genres
-              : Array.isArray(c?.genre)
-              ? c.genre
-              : typeof c?.genre === "string"
-              ? [c.genre]
-              : Array.isArray(c?.genres_raw)
-              ? c.genres_raw
-              : Array.isArray(c?.genresNormalized)
-              ? c.genresNormalized
-              : Array.isArray(c?.genres_norm)
-              ? c.genres_norm
-              : [];
-          const raw = flat1(rawArr);
-          const norm = raw.map(NORM);
-          const keep = selectedNorm.every((sel) => norm.includes(sel));
+    console.groupCollapsed("🧪 Pre-filter probe (withSafety) — first 30");
+    console.table(
+      (withSafety || []).slice(0, 30).map((c) => ({
+        id: String(c.actId || c._id || ""),
+        name: c.tscName || c.name || "(untitled)",
+        genres: Array.isArray(c.genres)
+          ? c.genres.join(" | ")
+          : String(c.genres || ""),
+        lineupSizes: Array.isArray(c.lineupSizes)
+          ? c.lineupSizes.join(" | ")
+          : "",
+        instruments: Array.isArray(c.instruments)
+          ? c.instruments.join(" | ")
+          : "",
+        pliAmount: c.pliAmount ?? "",
+        paTrue:
+          c.pa && typeof c.pa === "object"
+            ? Object.entries(c.pa)
+                .filter(([, v]) => v)
+                .map(([k]) => k)
+                .join(",")
+            : "",
+        lightTrue:
+          c.light && typeof c.light === "object"
+            ? Object.entries(c.light)
+                .filter(([, v]) => v)
+                .map(([k]) => k)
+                .join(",")
+            : "",
+        extrasKeys: c.extras
+          ? Object.keys(c.extras).slice(0, 10).join(",")
+          : "",
+      }))
+    );
+    console.groupEnd();
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Prefer full Act objects; fall back to cards
+    // ───────────────────────────────────────────────────────────────────────────────
+    const pickImages = (obj = {}) =>
+      obj.images ||
+      obj.coverImages ||
+      obj.heroImages ||
+      obj.gallery ||
+      obj.hero ||
+      null;
+
+    let actsCopy = withSafety
+      .map((card) => {
+        const id = String(card.actId || card._id || card.id || "");
+        const act = actMap.get(id);
+
+        // Always ensure lineupSizes is present and is an array
+        const safeLineupSizes = Array.isArray(card.lineupSizes)
+          ? card.lineupSizes
+          : [];
+
+        if (act) {
+          const images =
+            act.images ||
+            pickImages(card) ||
+            pickImages(act) ||
+            imagesFromImageUrl(card?.imageUrl) ||
+            null;
           return {
-            index: i,
-            id: String(c?.actId || c?._id || ""),
-            name: c?.tscName || c?.name || "(untitled)",
-            genres_raw: raw.join(" | "),
-            genres_norm: norm.join(" | "),
-            selected: selectedNorm.join(" & "),
-            keep,
+            ...act,
+            __card: card,
+            images,
+            lineupSizes: Array.isArray(act.lineupSizes)
+              ? act.lineupSizes
+              : safeLineupSizes,
           };
-        })
-      );
-    }
-  }
+        }
 
-  // Show something straight away before async pricing completes
-  if (runId === filterRunIdRef.current && Array.isArray(actsCopy)) {
-    setFilterProducts(actsCopy);
-    ACTS_DBG("setFilterProducts (early show)", {
+        return {
+          ...card,
+          _id: id,
+          name: card.tscName || card.name || "Untitled Act",
+          tscName: card.tscName,
+          genres: Array.isArray(card.genres) ? card.genres : [],
+          lineupSizes: safeLineupSizes,
+          instruments: Array.isArray(card.instruments) ? card.instruments : [],
+          extras: typeof card.extras === "object" ? card.extras : {},
+          pliAmount: Number(card.pliAmount) || 0,
+          paSystem:
+            card.pa && typeof card.pa === "object"
+              ? Object.entries(card.pa)
+                  .filter(([, v]) => v)
+                  .map(([k]) => k)
+                  .join(", ")
+              : "",
+          lightingSystem:
+            card.light && typeof card.light === "object"
+              ? Object.entries(card.light)
+                  .filter(([, v]) => v)
+                  .map(([k]) => k)
+                  .join(", ")
+              : "",
+          lineups: [],
+          images:
+            pickImages(card) || imagesFromImageUrl(card?.imageUrl) || null,
+          __card: card,
+        };
+      })
+      .filter(Boolean);
+
+    ACTS_DBG("actsCopy built (first pass)", {
       len: Array.isArray(actsCopy) ? actsCopy.length : 0,
     });
-  }
 
-  // ───────────────────────────────────────────────────────────────────────────────
-  // Other client-side filters
-  // ───────────────────────────────────────────────────────────────────────────────
- /* if (wireless.length > 0) {
+    const allExtrasKeys = [
+      "sound_engineering_for_another_act_with_your_acts_PA",
+      "speedy_setup",
+      "wired_mic",
+      "wireless_mic",
+      "background_music_playlist",
+      "up_to_3_hours_manned_playlist",
+      "up_to_3_hours_band_member_DJ",
+      "dj_live_sax_3x30mins",
+      "dj_live_bongos_3x30mins",
+      "dj_live_bongos_and_sax_3x30mins",
+      "extra_30min_performance_per_band_member",
+      "extra_40min_performance_per_band_member",
+      "extra_60min_performance_per_band_member",
+      "late_stay_60min_per_band_member",
+      "early_arrival_60min_per_band_member",
+      "extra_song_request_per_band_member",
+      "israeli_dancing_20mins_per_band_member",
+    ];
+    
+    // ✅ Build lookup by ACT id (card.actId), not card._id
+const cardByActId = new Map(
+  (withSafety || []).map((c) => [String(c.actId || c._id || c.id || ""), c])
+);
+
+actsCopy = actsCopy.map((act) => {
+  const id = String(act?._id || act?.actId || act?.id || "");
+  const card = cardByActId.get(id) || act.__card || null;
+
+  // merge extras from act OR card
+  const extras = (act.extras && typeof act.extras === "object" ? act.extras : null)
+    ?? (card?.extras && typeof card.extras === "object" ? card.extras : {})
+    ?? {};
+
+  // Ensure all expected keys exist (default false only if missing)
+  const filledExtras = { ...extras };
+  allExtrasKeys.forEach((key) => {
+    if (typeof filledExtras[key] === "undefined") filledExtras[key] = false;
+  });
+
+  return {
+    ...act,
+    __card: card,
+    extras: filledExtras,
+
+    // convenience merges so filters can read from the act directly
+    genres: act.genres ?? card?.genres ?? act.genres_raw ?? card?.genres_raw ?? [],
+    lineupSizes: Array.isArray(act.lineupSizes) && act.lineupSizes.length
+      ? act.lineupSizes
+      : (card?.lineupSizes || []),
+    instruments: act.instruments ?? card?.instruments ?? [],
+    pliAmount: act.pliAmount ?? card?.pliAmount ?? 0,
+  };
+});
+
+
+    ACTS_DBG("actsCopy after card reattach", {
+      len: Array.isArray(actsCopy) ? actsCopy.length : 0,
+    });
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // 🎚️ GENRE FILTER (single source of truth)
+    // ───────────────────────────────────────────────────────────────────────────────
+    if (selectedNorm.length) {
+      const before = actsCopy.length;
+      actsCopy = actsCopy.filter((c) => matchByGenre(c));
+
+      console.log("🎚️[GENRES] selected", {
+        selectedRaw: selectedGenres,
+        selectedNorm,
+      });
+      console.log(
+        "🎚️[GENRES] results — kept",
+        `${actsCopy.length} / ${before}`
+      );
+
+      if (before) {
+        console.table(
+          sourceCards.slice(0, 24).map((c, i) => {
+            const rawArr = Array.isArray(c?.genres)
+              ? c.genres
+              : Array.isArray(c?.genre)
+                ? c.genre
+                : typeof c?.genre === "string"
+                  ? [c.genre]
+                  : Array.isArray(c?.genres_raw)
+                    ? c.genres_raw
+                    : Array.isArray(c?.genresNormalized)
+                      ? c.genresNormalized
+                      : Array.isArray(c?.genres_norm)
+                        ? c.genres_norm
+                        : [];
+            const raw = flat1(rawArr);
+            const norm = raw.map(NORM);
+            const keep = selectedNorm.every((sel) => norm.includes(sel));
+            return {
+              index: i,
+              id: String(c?.actId || c?._id || ""),
+              name: c?.tscName || c?.name || "(untitled)",
+              genres_raw: raw.join(" | "),
+              genres_norm: norm.join(" | "),
+              selected: selectedNorm.join(" & "),
+              keep,
+            };
+          })
+        );
+      }
+    }
+
+    // Show something straight away before async pricing completes
+    if (runId === filterRunIdRef.current && Array.isArray(actsCopy)) {
+      setFilterProducts(actsCopy);
+      ACTS_DBG("setFilterProducts (early show)", {
+        len: Array.isArray(actsCopy) ? actsCopy.length : 0,
+      });
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Other client-side filters
+    // ───────────────────────────────────────────────────────────────────────────────
+    /* if (wireless.length > 0) {
     actsCopy = actsCopy.filter((item) => {
       const wirelessInstruments = wireless;
       const hasWirelessMatch = item.lineups?.some((lineup) =>
@@ -1149,7 +1409,7 @@ async function applyFilter() {
     ACTS_DBG("after wireless filter", { remain: actsCopy.length });
   }
 */
- /* if (soundLimiters.length > 0) {
+    /* if (soundLimiters.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       // Map UI option keys to act filter card fields
       const optionMap = {
@@ -1381,18 +1641,15 @@ async function applyFilter() {
 
  if (djServices.length > 0) {
   console.log("🟦 DJ Services filter active:", djServices);
-    console.log("🟦 DJ Services filter active: actscopy", actsCopy);
-    actsCopy = actsCopy.filter((item) =>
-      djServices.some((service) => {
-        const extra = item.extras?.[service];
-        if (!extra) return false;
-        return (extra.price && extra.price > 0) || extra.complimentary === true;
-      })
-    );
-    ACTS_DBG("after djServices filter", { remain: actsCopy.length });
-  }
+  const before = actsCopy.length;
 
-  /*if (instruments.length > 0) {
+  // OR behaviour (matches your current behaviour): keep acts that have ANY selected DJ service
+  actsCopy = actsCopy.filter((act) => djServices.some((k) => hasExtra(act, k)));
+
+  ACTS_DBG("after djServices filter", { remain: actsCopy.length, before });
+}
+
+    /*if (instruments.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       const actInstruments = deriveActInstruments(act);
       return instruments.some((sel) => actInstruments.includes(sel));
@@ -1400,7 +1657,7 @@ async function applyFilter() {
     ACTS_DBG("after instruments filter", { remain: actsCopy.length });
   }*/
 
-  /*if (songSearch.length > 0) {
+    /*if (songSearch.length > 0) {
     actsCopy = actsCopy.filter((act) => {
       const songs = Array.isArray(act.selectedSongs)
         ? act.selectedSongs
@@ -1419,274 +1676,377 @@ async function applyFilter() {
     ACTS_DBG("after songSearch filter", { remain: actsCopy.length });
   }*/
 
-  if (actSearch.length > 0) {
-    actsCopy = actsCopy.filter((act) =>
-      actSearch.some((searchTerm) =>
-        act.tscName?.toLowerCase().includes(String(searchTerm).toLowerCase())
-      )
-    );
-    ACTS_DBG("after actSearch filter (tscName)", { remain: actsCopy.length });
-  }
+    if (actSearch.length > 0) {
+      actsCopy = actsCopy.filter((act) =>
+        actSearch.some((searchTerm) =>
+          act.tscName?.toLowerCase().includes(String(searchTerm).toLowerCase())
+        )
+      );
+      ACTS_DBG("after actSearch filter (tscName)", { remain: actsCopy.length });
+    }
 
-  // ───────────────────────────────────────────────────────────────────────────────
-  // Pricing
-  // ───────────────────────────────────────────────────────────────────────────────
-  const calculateActPricing = async (
-    act,
-    selectedCounty,
-    selectedAddress,
-    selectedDate,
-    selectedLineup
-  ) => {
-    ACTS_DBG("$pricing:init", {
-      actId: act?._id,
-      name: act?.tscName || act?.name,
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Pricing
+    // ───────────────────────────────────────────────────────────────────────────────
+    const calculateActPricing = async (
+      act,
       selectedCounty,
-      hasAddress: !!selectedAddress,
-      hasDate: !!selectedDate,
-    });
+      selectedAddress,
+      selectedDate,
+      selectedLineup
+    ) => {
+      ACTS_DBG("$pricing:init", {
+        actId: act?._id,
+        name: act?.tscName || act?.name,
+        selectedCounty,
+        hasAddress: !!selectedAddress,
+        hasDate: !!selectedDate,
+      });
 
-    const BASE = (import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com").replace(
-      /\/+$/,
-      ""
-    );
+      const BASE = (
+        import.meta.env.VITE_BACKEND_URL ||
+        "https://tsc-backend-v2.onrender.com"
+      ).replace(/\/+$/, "");
 
-    const fetchTravel = async (origin, destination, dateISO) => {
-      const url =
-        `${BASE}/api/v2/travel/travel-data` +
-        `?origin=${encodeURIComponent(origin)}` +
-        `&destination=${encodeURIComponent(destination)}` +
-        `&date=${encodeURIComponent(String(dateISO).slice(0, 10))}`;
+      const fetchTravel = async (origin, destination, dateISO) => {
+        const url =
+          `${BASE}/api/v2/travel/travel-data` +
+          `?origin=${encodeURIComponent(origin)}` +
+          `&destination=${encodeURIComponent(destination)}` +
+          `&date=${encodeURIComponent(String(dateISO).slice(0, 10))}`;
 
-      const res = await fetch(url, { headers: { accept: "application/json" } });
-      const text = await res.text();
+        const res = await fetch(url, {
+          headers: { accept: "application/json" },
+        });
+        const text = await res.text();
 
-      let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        data = {};
-      }
-      if (!res.ok) throw new Error(`travel http ${res.status}`);
-
-      const legacyEl = data?.rows?.[0]?.elements?.[0];
-      const outbound =
-        data?.outbound ||
-        (legacyEl?.distance && legacyEl?.duration
-          ? { distance: legacyEl.distance, duration: legacyEl.duration, fare: legacyEl.fare }
-          : undefined);
-      const returnTrip = data?.returnTrip;
-
-      return { outbound, returnTrip, raw: data };
-    };
-
-    const normalizeWord = (s) => String(s || "").trim().toLowerCase();
-    const isManagerLike = (m) => {
-      if (m?.isManager === true) return true;
-      const fields = [
-        m?.role,
-        m?.position,
-        m?.instrument,
-        m?.title,
-        ...(Array.isArray(m?.additionalRoles) ? m.additionalRoles.map((r) => r?.customRole || r?.role) : []),
-      ]
-        .filter(Boolean)
-        .map(normalizeWord);
-      return fields.some((f) => f.includes("manager"));
-    };
-
-    let travelFee = 0;
-
-    let smallestLineup = null;
-    if (selectedLineup && Array.isArray(selectedLineup.bandMembers)) {
-      smallestLineup = selectedLineup;
-    } else {
-      smallestLineup = act.lineups?.reduce((min, lineup) => {
-        if (!Array.isArray(lineup.bandMembers)) return min;
-        if (!min || lineup.bandMembers.length < min.bandMembers.length) return lineup;
-        return min;
-      }, null);
-    }
-    if (!smallestLineup || !Array.isArray(smallestLineup.bandMembers)) return null;
-
-    const northernCounties = new Set([
-      "ceredigion","cheshire","cleveland","conway","cumbria","denbighshire","derbyshire","durham",
-      "flintshire","greater manchester","gwynedd","herefordshire","lancashire","leicestershire",
-      "lincolnshire","merseyside","north humberside","north yorkshire","northumberland",
-      "nottinghamshire","rutland","shropshire","south humberside","south yorkshire","staffordshire",
-      "tyne and wear","warwickshire","west midlands","west yorkshire","worcestershire","wrexham",
-      "rhondda cynon taf","torfaen","neath port talbot","bridgend","blaenau gwent","caerphilly",
-      "cardiff","merthyr tydfil","newport","aberdeen city","aberdeenshire","angus","argyll and bute",
-      "clackmannanshire","dumfries and galloway","dundee city","east ayrshire","east dunbartonshire",
-      "east lothian","east renfrewshire","edinburgh","falkirk","fife","glasgow","highland",
-      "inverclyde","midlothian","moray","na h eileanan siar","north ayrshire","north lanarkshire",
-      "orkney islands","perth and kinross","renfrewshire","scottish borders","shetland islands",
-      "south ayrshire","south lanarkshire","stirling","west dunbartonshire","west lothian",
-    ]);
-
-    const isNorthernGig = northernCounties.has(String(selectedCounty || "").toLowerCase().trim());
-
-    const chosenMembers =
-      act.useDifferentTeamForNorthernGigs && isNorthernGig
-        ? act.northernTeam || []
-        : smallestLineup.bandMembers || [];
-
-    const performingMembers = (chosenMembers || []).filter((m) => !isManagerLike(m));
-
-    const essentialFees = smallestLineup.bandMembers.flatMap((member) => {
-      const baseFee = member.isEssential ? Number(member.fee) || 0 : 0;
-      const additionalEssentialFees = (member.additionalRoles || [])
-        .filter((role) => role.isEssential)
-        .map((role) => Number(role.additionalFee) || 0);
-      return [baseFee, ...additionalEssentialFees];
-    });
-
-    const fee = essentialFees.reduce((sum, n) => sum + n, 0);
-
-    const memberPostcodes = performingMembers.map((m) => m?.postCode).filter(Boolean);
-    const destination =
-      typeof selectedAddress === "string"
-        ? selectedAddress
-        : selectedAddress?.postcode || selectedAddress?.address || "";
-
-    if (act.useCountyTravelFee && act.countyFees) {
-      const countyKey = String(selectedCounty || "").toLowerCase();
-      const feePerMember = Number(act.countyFees[countyKey]) || 0;
-      travelFee = feePerMember * memberPostcodes.length;
-    } else if (Number(act.costPerMile) > 0) {
-      for (const postCode of memberPostcodes) {
-        if (!destination) continue;
+        let data = {};
         try {
-          const { outbound, raw } = await fetchTravel(postCode, destination, selectedDate);
-          const meters =
-            outbound?.distance?.value ?? raw?.rows?.[0]?.elements?.[0]?.distance?.value ?? 0;
-          const miles = meters / 1609.34;
-          travelFee += miles * Number(act.costPerMile) * 2; // return trip
-        } catch (e) {
-          console.warn("⚠️ travel fetch failed (per-mile):", e?.message || e);
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = {};
         }
+        if (!res.ok) throw new Error(`travel http ${res.status}`);
+
+        const legacyEl = data?.rows?.[0]?.elements?.[0];
+        const outbound =
+          data?.outbound ||
+          (legacyEl?.distance && legacyEl?.duration
+            ? {
+                distance: legacyEl.distance,
+                duration: legacyEl.duration,
+                fare: legacyEl.fare,
+              }
+            : undefined);
+        const returnTrip = data?.returnTrip;
+
+        return { outbound, returnTrip, raw: data };
+      };
+
+      const normalizeWord = (s) =>
+        String(s || "")
+          .trim()
+          .toLowerCase();
+      const isManagerLike = (m) => {
+        if (m?.isManager === true) return true;
+        const fields = [
+          m?.role,
+          m?.position,
+          m?.instrument,
+          m?.title,
+          ...(Array.isArray(m?.additionalRoles)
+            ? m.additionalRoles.map((r) => r?.customRole || r?.role)
+            : []),
+        ]
+          .filter(Boolean)
+          .map(normalizeWord);
+        return fields.some((f) => f.includes("manager"));
+      };
+
+      let travelFee = 0;
+
+      let smallestLineup = null;
+      if (selectedLineup && Array.isArray(selectedLineup.bandMembers)) {
+        smallestLineup = selectedLineup;
+      } else {
+        smallestLineup = act.lineups?.reduce((min, lineup) => {
+          if (!Array.isArray(lineup.bandMembers)) return min;
+          if (!min || lineup.bandMembers.length < min.bandMembers.length)
+            return lineup;
+          return min;
+        }, null);
       }
-    } else {
-      for (const member of performingMembers) {
-        const postCode = member?.postCode;
-        if (!postCode || !destination) continue;
+      if (!smallestLineup || !Array.isArray(smallestLineup.bandMembers))
+        return null;
 
-        try {
-          const { outbound, returnTrip } = await fetchTravel(postCode, destination, selectedDate);
-          if (!outbound || !returnTrip) continue;
+      const northernCounties = new Set([
+        "ceredigion",
+        "cheshire",
+        "cleveland",
+        "conway",
+        "cumbria",
+        "denbighshire",
+        "derbyshire",
+        "durham",
+        "flintshire",
+        "greater manchester",
+        "gwynedd",
+        "herefordshire",
+        "lancashire",
+        "leicestershire",
+        "lincolnshire",
+        "merseyside",
+        "north humberside",
+        "north yorkshire",
+        "northumberland",
+        "nottinghamshire",
+        "rutland",
+        "shropshire",
+        "south humberside",
+        "south yorkshire",
+        "staffordshire",
+        "tyne and wear",
+        "warwickshire",
+        "west midlands",
+        "west yorkshire",
+        "worcestershire",
+        "wrexham",
+        "rhondda cynon taf",
+        "torfaen",
+        "neath port talbot",
+        "bridgend",
+        "blaenau gwent",
+        "caerphilly",
+        "cardiff",
+        "merthyr tydfil",
+        "newport",
+        "aberdeen city",
+        "aberdeenshire",
+        "angus",
+        "argyll and bute",
+        "clackmannanshire",
+        "dumfries and galloway",
+        "dundee city",
+        "east ayrshire",
+        "east dunbartonshire",
+        "east lothian",
+        "east renfrewshire",
+        "edinburgh",
+        "falkirk",
+        "fife",
+        "glasgow",
+        "highland",
+        "inverclyde",
+        "midlothian",
+        "moray",
+        "na h eileanan siar",
+        "north ayrshire",
+        "north lanarkshire",
+        "orkney islands",
+        "perth and kinross",
+        "renfrewshire",
+        "scottish borders",
+        "shetland islands",
+        "south ayrshire",
+        "south lanarkshire",
+        "stirling",
+        "west dunbartonshire",
+        "west lothian",
+      ]);
 
-          const outboundDistance = outbound?.distance?.value;
-          const returnDistance = returnTrip?.distance?.value;
-          const outboundDuration = outbound?.duration?.value;
-          const returnDuration = returnTrip?.duration?.value;
+      const isNorthernGig = northernCounties.has(
+        String(selectedCounty || "")
+          .toLowerCase()
+          .trim()
+      );
 
-          if (
-            typeof outboundDistance !== "number" ||
-            typeof returnDistance !== "number" ||
-            typeof outboundDuration !== "number" ||
-            typeof returnDuration !== "number"
-          ) {
-            continue;
+      const chosenMembers =
+        act.useDifferentTeamForNorthernGigs && isNorthernGig
+          ? act.northernTeam || []
+          : smallestLineup.bandMembers || [];
+
+      const performingMembers = (chosenMembers || []).filter(
+        (m) => !isManagerLike(m)
+      );
+
+      const essentialFees = smallestLineup.bandMembers.flatMap((member) => {
+        const baseFee = member.isEssential ? Number(member.fee) || 0 : 0;
+        const additionalEssentialFees = (member.additionalRoles || [])
+          .filter((role) => role.isEssential)
+          .map((role) => Number(role.additionalFee) || 0);
+        return [baseFee, ...additionalEssentialFees];
+      });
+
+      const fee = essentialFees.reduce((sum, n) => sum + n, 0);
+
+      const memberPostcodes = performingMembers
+        .map((m) => m?.postCode)
+        .filter(Boolean);
+      const destination =
+        typeof selectedAddress === "string"
+          ? selectedAddress
+          : selectedAddress?.postcode || selectedAddress?.address || "";
+
+      if (act.useCountyTravelFee && act.countyFees) {
+        const countyKey = String(selectedCounty || "").toLowerCase();
+        const feePerMember = Number(act.countyFees[countyKey]) || 0;
+        travelFee = feePerMember * memberPostcodes.length;
+      } else if (Number(act.costPerMile) > 0) {
+        for (const postCode of memberPostcodes) {
+          if (!destination) continue;
+          try {
+            const { outbound, raw } = await fetchTravel(
+              postCode,
+              destination,
+              selectedDate
+            );
+            const meters =
+              outbound?.distance?.value ??
+              raw?.rows?.[0]?.elements?.[0]?.distance?.value ??
+              0;
+            const miles = meters / 1609.34;
+            travelFee += miles * Number(act.costPerMile) * 2; // return trip
+          } catch (e) {
+            console.warn("⚠️ travel fetch failed (per-mile):", e?.message || e);
           }
+        }
+      } else {
+        for (const member of performingMembers) {
+          const postCode = member?.postCode;
+          if (!postCode || !destination) continue;
 
-          const totalDistanceMiles = (outboundDistance + returnDistance) / 1609.34;
-          const totalDurationHours = (outboundDuration + returnDuration) / 3600;
+          try {
+            const { outbound, returnTrip } = await fetchTravel(
+              postCode,
+              destination,
+              selectedDate
+            );
+            if (!outbound || !returnTrip) continue;
 
-          const fuelFee = totalDistanceMiles * 0.56;
-          const timeFee = totalDurationHours * 13.23;
-          const lateFee = returnDuration / 3600 > 1 ? 136 : 0;
-          const tollFee = (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
+            const outboundDistance = outbound?.distance?.value;
+            const returnDistance = returnTrip?.distance?.value;
+            const outboundDuration = outbound?.duration?.value;
+            const returnDuration = returnTrip?.duration?.value;
 
-          travelFee += fuelFee + timeFee + lateFee + tollFee;
-        } catch (e) {
-          console.warn("⚠️ travel fetch failed (MU):", e?.message || e);
+            if (
+              typeof outboundDistance !== "number" ||
+              typeof returnDistance !== "number" ||
+              typeof outboundDuration !== "number" ||
+              typeof returnDuration !== "number"
+            ) {
+              continue;
+            }
+
+            const totalDistanceMiles =
+              (outboundDistance + returnDistance) / 1609.34;
+            const totalDurationHours =
+              (outboundDuration + returnDuration) / 3600;
+
+            const fuelFee = totalDistanceMiles * 0.56;
+            const timeFee = totalDurationHours * 13.23;
+            const lateFee = returnDuration / 3600 > 1 ? 136 : 0;
+            const tollFee =
+              (outbound.fare?.value || 0) + (returnTrip.fare?.value || 0);
+
+            travelFee += fuelFee + timeFee + lateFee + tollFee;
+          } catch (e) {
+            console.warn("⚠️ travel fetch failed (MU):", e?.message || e);
+          }
         }
       }
-    }
 
-    const totalPrice = Math.ceil((fee + travelFee) * 1.33); // 33% mark up
-    ACTS_DBG("$pricing:done", { actId: act?._id, totalPrice });
-    return `${totalPrice}`;
-  };
+      const totalPrice = Math.ceil((fee + travelFee) * 1.33); // 33% mark up
+      ACTS_DBG("$pricing:done", { actId: act?._id, totalPrice });
+      return `${totalPrice}`;
+    };
 
-  const updatedActs = await Promise.all(
-    actsCopy.map(async (act) => {
-      try {
-        if (!selectedDate || !selectedAddress) {
+    const updatedActs = await Promise.all(
+      actsCopy.map(async (act) => {
+        try {
+          if (!selectedDate || !selectedAddress) {
+            return { ...act, formattedPrice: null };
+          }
+          const price = await calculateActPricing(
+            act,
+            selectedCounty,
+            selectedAddress,
+            selectedDate
+          );
+          return { ...act, formattedPrice: price };
+        } catch {
           return { ...act, formattedPrice: null };
         }
-        const price = await calculateActPricing(act, selectedCounty, selectedAddress, selectedDate);
-        return { ...act, formattedPrice: price };
-      } catch {
-        return { ...act, formattedPrice: null };
+      })
+    );
+    ACTS_DBG("updatedActs (post pricing)", {
+      len: Array.isArray(updatedActs) ? updatedActs.length : 0,
+      sample: (Array.isArray(updatedActs) ? updatedActs.slice(0, 5) : []).map(
+        (a) => ({
+          id: a?._id,
+          n: a?.tscName || a?.name,
+          price: a?.formattedPrice,
+        })
+      ),
+    });
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Sort + set
+    // ───────────────────────────────────────────────────────────────────────────────
+    if (runId === filterRunIdRef.current) {
+      let finalActs = [...updatedActs];
+
+      const num = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : NaN;
+      };
+
+      if (sortType === "low-high") {
+        finalActs.sort((a, b) => {
+          const A = num(a.formattedPrice);
+          const B = num(b.formattedPrice);
+          if (Number.isNaN(A) && Number.isNaN(B)) return 0;
+          if (Number.isNaN(A)) return 1;
+          if (Number.isNaN(B)) return -1;
+          return A - B;
+        });
+      } else if (sortType === "high-low") {
+        finalActs.sort((a, b) => {
+          const A = num(a.formattedPrice);
+          const B = num(b.formattedPrice);
+          if (Number.isNaN(A) && Number.isNaN(B)) return 0;
+          if (Number.isNaN(A)) return 1;
+          if (Number.isNaN(B)) return -1;
+          return B - A;
+        });
       }
-    })
-  );
-  ACTS_DBG("updatedActs (post pricing)", {
-    len: Array.isArray(updatedActs) ? updatedActs.length : 0,
-    sample: (Array.isArray(updatedActs) ? updatedActs.slice(0, 5) : []).map((a) => ({
-      id: a?._id,
-      n: a?.tscName || a?.name,
-      price: a?.formattedPrice,
-    })),
-  });
 
-  // ───────────────────────────────────────────────────────────────────────────────
-  // Sort + set
-  // ───────────────────────────────────────────────────────────────────────────────
-  if (runId === filterRunIdRef.current) {
-    let finalActs = [...updatedActs];
-
-    const num = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : NaN;
-    };
-
-    if (sortType === "low-high") {
-      finalActs.sort((a, b) => {
-        const A = num(a.formattedPrice);
-        const B = num(b.formattedPrice);
-        if (Number.isNaN(A) && Number.isNaN(B)) return 0;
-        if (Number.isNaN(A)) return 1;
-        if (Number.isNaN(B)) return -1;
-        return A - B;
-      });
-    } else if (sortType === "high-low") {
-      finalActs.sort((a, b) => {
-        const A = num(a.formattedPrice);
-        const B = num(b.formattedPrice);
-        if (Number.isNaN(A) && Number.isNaN(B)) return 0;
-        if (Number.isNaN(A)) return 1;
-        if (Number.isNaN(B)) return -1;
-        return B - A;
-      });
+      ACTS_DBG("finalActs before set", { len: finalActs.length });
+      setFilterProducts(finalActs);
+      console.log(
+        "✅ Filtered products set:",
+        finalActs.length,
+        finalActs.map((a) => a.name || a.tscName)
+      );
+      ACTS_DBG("✅ setFilterProducts(final)", { len: finalActs.length });
+      ENDGROUP();
+    } else {
+      ACTS_DBG(`Skipping stale filter run #${runId}`);
+      ENDGROUP();
     }
-
-    ACTS_DBG("finalActs before set", { len: finalActs.length });
-    setFilterProducts(finalActs);
-    console.log("✅ Filtered products set:", finalActs.length, finalActs.map(a => a.name || a.tscName));
-    ACTS_DBG("✅ setFilterProducts(final)", { len: finalActs.length });
-    ENDGROUP();
-  } else {
-    ACTS_DBG(`Skipping stale filter run #${runId}`);
-    ENDGROUP();
   }
-}
 
-
-
-   // 1) Initial boot — keep as-is
+  // 1) Initial boot — keep as-is
   useEffect(() => {
-    const init = async () => { 
+    const init = async () => {
       setInitializing(true);
       const storedDate = sessionStorage.getItem("selectedDate");
       const storedAddress = sessionStorage.getItem("selectedAddress");
       const storedCounty = sessionStorage.getItem("selectedCounty");
-  
+
       if (storedCounty) setSelectedCounty(storedCounty);
       if (storedDate) setSelectedDate(storedDate);
       if (storedAddress) setSelectedAddress(storedAddress);
-  
+
       // warm availability from cache
       try {
         const d = (storedDate || "").slice(0, 10);
@@ -1702,30 +2062,29 @@ async function applyFilter() {
       } catch {
         // intentionally ignored
       }
-  
+
       await applyFilter();
       setInitializing(false);
     };
     init();
   }, []);
-  
+
   // 2) When acts arrive (0 → N), run filter
   useEffect(() => {
     if (!initializing) {
       // Debug: print all fields from API response for each act
-      console.groupCollapsed('actsFilterPageCards FULL API response');
-      (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []).forEach((act, i) => {
-        console.log(`#${i} actId:`, act.actId || act._id || act.id, act);
-      });
+      console.groupCollapsed("actsFilterPageCards FULL API response");
+      (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []).forEach(
+        (act, i) => {
+          console.log(`#${i} actId:`, act.actId || act._id || act.id, act);
+        }
+      );
       console.groupEnd();
       applyFilter();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [actsFilterPageCards.length]);
+  }, [actsFilterPageCards.length]);
 
-
-
-  
   // 3) When availability loading state flips, run filter again
   useEffect(() => {
     if (!initializing) {
@@ -1733,7 +2092,7 @@ async function applyFilter() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availLoading]);
-  
+
   // 4) Main “filters changed” effect
   useEffect(() => {
     const asyncApply = async () => {
@@ -1745,82 +2104,86 @@ async function applyFilter() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     // search & UI toggles
-    search, showSearch,
-    genre, act_size, djServices, instruments,
-    songSearch, actSearch,
-    soundLimiters, setupAndSoundcheck, paAndLights,
-    pli, extraServices, wireless,
-  
+    search,
+    showSearch,
+    genre,
+    act_size,
+    djServices,
+    instruments,
+    songSearch,
+    actSearch,
+    soundLimiters,
+    setupAndSoundcheck,
+    paAndLights,
+    pli,
+    extraServices,
+    wireless,
+
     // availability & date
     selectedDate,
-    availableMap,       // identity changes on setAvailableMap(map)
-    availLoading,       // re-run after it finishes
-  
+    availableMap, // identity changes on setAvailableMap(map)
+    availLoading, // re-run after it finishes
+
     // acts arriving
-    approvedActsCount
+    approvedActsCount,
   ]);
 
-
   const DURATION_KEYS = [
-  "extra_30min_performance_per_band_member",
-  "extra_40min_performance_per_band_member",
-  "extra_60min_performance_per_band_member",
-];
+    "extra_30min_performance_per_band_member",
+    "extra_40min_performance_per_band_member",
+    "extra_60min_performance_per_band_member",
+  ];
 
-const hasAnyDurationExtra = (arr) =>
-  Array.isArray(arr) && DURATION_KEYS.some(k => arr.includes(k));
+  const hasAnyDurationExtra = (arr) =>
+    Array.isArray(arr) && DURATION_KEYS.some((k) => arr.includes(k));
 
-// If you manage state directly (have setExtraServices):
-const toggleDurationExtras = () => {
-  if (hasAnyDurationExtra(extraServices)) {
-    // remove all duration extras
-    setExtraServices(prev => prev.filter(x => !DURATION_KEYS.includes(x)));
-  } else {
-    // add a sensible default (pick one); here we add 40min
-    setExtraServices(prev => [...prev, "extra_40min_performance_per_band_member"]);
-  }
-};
+  // If you manage state directly (have setExtraServices):
+  const toggleDurationExtras = () => {
+    if (hasAnyDurationExtra(extraServices)) {
+      // remove all duration extras
+      setExtraServices((prev) =>
+        prev.filter((x) => !DURATION_KEYS.includes(x))
+      );
+    } else {
+      // add a sensible default (pick one); here we add 40min
+      setExtraServices((prev) => [
+        ...prev,
+        "extra_40min_performance_per_band_member",
+      ]);
+    }
+  };
 
-  
   // ✅ Lightweight re-sort when the sort dropdown changes
   useEffect(() => {
     // do nothing for default relevance
     if (sortType === "relevant") return;
     if (!Array.isArray(filterProducts) || filterProducts.length === 0) return;
-  
+
     const toNum = (v) => {
       const n = Number(v);
       return Number.isFinite(n) ? n : NaN;
     };
-  
+
     const sorted = [...filterProducts].sort((a, b) => {
       const A = toNum(a?.formattedPrice);
       const B = toNum(b?.formattedPrice);
-  
+
       // Missing/NaN prices go to the end consistently
       const bothNaN = Number.isNaN(A) && Number.isNaN(B);
       if (bothNaN) return 0;
       if (Number.isNaN(A)) return 1;
       if (Number.isNaN(B)) return -1;
-  
+
       return sortType === "low-high" ? A - B : B - A;
     });
 
-
-
-  
     setFilterProducts(sorted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortType]);
 
-
-
   const results = Array.isArray(filterProducts) ? filterProducts : [];
 
-
-
-
-    return (
+  return (
     <div className="my-10 max-w-7xl mx-auto px-4">
       {/* Two-column layout */}
       <div className="grid grid-cols-12 gap-6">
@@ -1863,160 +2226,159 @@ const toggleDurationExtras = () => {
 
               {showGenreFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Soul & Motown"}
-                  onChange={toggleGenre}
-                  checked={genre.includes("Soul & Motown")}
-                />{" "}
-                Soul & Motown
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Funk & Disco"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Funk & Disco")}
-                />{" "}
-                Funk & Disco
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Indie & Rock"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Indie & Rock")}
-                />{" "}
-                Indie & Rock
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Alternative & Punk"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Alternative & Punk")}
-                />{" "}
-                Alternative & Punk
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Pop & Classic Pop"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Pop & Classic Pop")}
-                />{" "}
-                Pop & Classic Pop
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Dance & Electronic"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Dance & Electronic")}
-                />{" "}
-                Dance & Electronic
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Reggae & Afrobeat"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Reggae & Afrobeat")}
-                />{" "}
-                Reggae & Afrobeat
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="RnB, HipHop & Garage"
-                  onChange={toggleGenre}
-                  checked={genre.includes("RnB, HipHop & Garage")}
-                />{" "}
-                RnB, HipHop & Garage
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="90s"
-                  onChange={toggleGenre}
-                  checked={genre.includes("90s")}
-                />{" "}
-                90s
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Latin"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Latin")}
-                />{" "}
-                Latin
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Folk & Acoustic"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Folk & Acoustic")}
-                />{" "}
-                Folk & Acoustic
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Roaming"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Roaming")}
-                />{" "}
-                Roaming
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Jazz & Swing"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Jazz & Swing")}
-                />{" "}
-                Jazz & Swing
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Classical"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Classical")}
-                />{" "}
-                Classical
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value="Israeli"
-                  onChange={toggleGenre}
-                  checked={genre.includes("Israeli")}
-                />{" "}
-                Israeli
-              </label>{" "}
-            </div>
-                       </div>
+                  <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value={"Soul & Motown"}
+                        onChange={toggleGenre}
+                        checked={genre.includes("Soul & Motown")}
+                      />{" "}
+                      Soul & Motown
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Funk & Disco"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Funk & Disco")}
+                      />{" "}
+                      Funk & Disco
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Indie & Rock"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Indie & Rock")}
+                      />{" "}
+                      Indie & Rock
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Alternative & Punk"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Alternative & Punk")}
+                      />{" "}
+                      Alternative & Punk
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Pop & Classic Pop"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Pop & Classic Pop")}
+                      />{" "}
+                      Pop & Classic Pop
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Dance & Electronic"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Dance & Electronic")}
+                      />{" "}
+                      Dance & Electronic
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Reggae & Afrobeat"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Reggae & Afrobeat")}
+                      />{" "}
+                      Reggae & Afrobeat
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="RnB, HipHop & Garage"
+                        onChange={toggleGenre}
+                        checked={genre.includes("RnB, HipHop & Garage")}
+                      />{" "}
+                      RnB, HipHop & Garage
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="90s"
+                        onChange={toggleGenre}
+                        checked={genre.includes("90s")}
+                      />{" "}
+                      90s
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Latin"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Latin")}
+                      />{" "}
+                      Latin
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Folk & Acoustic"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Folk & Acoustic")}
+                      />{" "}
+                      Folk & Acoustic
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Roaming"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Roaming")}
+                      />{" "}
+                      Roaming
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Jazz & Swing"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Jazz & Swing")}
+                      />{" "}
+                      Jazz & Swing
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Classical"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Classical")}
+                      />{" "}
+                      Classical
+                    </label>
+                    <label className="flex gap-2">
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value="Israeli"
+                        onChange={toggleGenre}
+                        checked={genre.includes("Israeli")}
+                      />{" "}
+                      Israeli
+                    </label>{" "}
+                  </div>
+                </div>
               )}
 
               {/* ------- ACT SIZE ------- */}
@@ -2036,110 +2398,111 @@ const toggleDurationExtras = () => {
 
               {showActSizeFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
- {showActSizeFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Solo"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("Solo")}
-                />{" "}
-                Solo
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Duo"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("Duo")}
-                />{" "}
-                Duo
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"3-Piece"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("3-Piece")}
-                />{" "}
-                3-Piece
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"4-Piece"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("4-Piece")}
-                />{" "}
-                4-Piece
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"5-Piece"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("5-Piece")}
-                />{" "}
-                5-Piece
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"6-Piece"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("6-Piece")}
-                />{" "}
-                6-Piece
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"7-Piece"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("7-Piece")}
-                />{" "}
-                7-Piece
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"8-Piece"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("8-Piece")}
-                />{" "}
-                8-Piece
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"9-Piece"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("9-Piece")}
-                />{" "}
-                9-Piece
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"10-Piece +"}
-                  onChange={toggleActSize}
-                  checked={act_size.includes("10-Piece +")}
-                />{" "}
-                10-Piece +
-              </label>
-            </div>
-          )}                </div>
+                  {showActSizeFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Solo"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("Solo")}
+                        />{" "}
+                        Solo
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Duo"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("Duo")}
+                        />{" "}
+                        Duo
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"3-Piece"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("3-Piece")}
+                        />{" "}
+                        3-Piece
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"4-Piece"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("4-Piece")}
+                        />{" "}
+                        4-Piece
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"5-Piece"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("5-Piece")}
+                        />{" "}
+                        5-Piece
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"6-Piece"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("6-Piece")}
+                        />{" "}
+                        6-Piece
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"7-Piece"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("7-Piece")}
+                        />{" "}
+                        7-Piece
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"8-Piece"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("8-Piece")}
+                        />{" "}
+                        8-Piece
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"9-Piece"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("9-Piece")}
+                        />{" "}
+                        9-Piece
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"10-Piece +"}
+                          onChange={toggleActSize}
+                          checked={act_size.includes("10-Piece +")}
+                        />{" "}
+                        10-Piece +
+                      </label>
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- DJ SERVICES ------- */}
@@ -2159,73 +2522,82 @@ const toggleDurationExtras = () => {
 
               {showDjServicesFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-    {/*DJ Service Dropdown Options */}
-          {showDjServicesFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"background_music_playlist"}
-                  onChange={toggleDjServices}
-                  checked={djServices.includes("background_music_playlist")}
-                />{" "}
-                Background Playlist Music
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"up_to_3_hours_manned_playlist"}
-                  onChange={toggleDjServices}
-                  checked={djServices.includes("up_to_3_hours_manned_playlist")}
-                />{" "}
-                Manned Playlist
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"up_to_3_hours_band_member_DJ"}
-                  onChange={toggleDjServices}
-                  checked={djServices.includes("up_to_3_hours_band_member_DJ")}
-                />{" "}
-                Band Member DJing
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"dj_live_sax_3x30mins"}
-                  onChange={toggleDjServices}
-                  checked={djServices.includes("DJ_live_sax_3x30mins")}
-                />{" "}
-                DJ Live with Saxophone
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"dj_live_bongos_3x30mins"}
-                  onChange={toggleDjServices}
-                  checked={djServices.includes("DJ_live_bongos_3x30mins")}
-                />{" "}
-                DJ Live with Bongos
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"dj_live_bongos_and_sax_3x30mins"}
-                  onChange={toggleDjServices}
-                  checked={djServices.includes(
-                    "dj_live_bongos_and_sax_3x30mins"
-                  )}
-                />{" "}
-                DJ Live with Saxophone & Bongos
-              </p>
-            </div>
-          )}                </div>
+                  {/*DJ Service Dropdown Options */}
+                  {showDjServicesFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"background_music_playlist"}
+                          onChange={toggleDjServices}
+                          checked={djServices.includes(
+                            "background_music_playlist"
+                          )}
+                        />{" "}
+                        Background Playlist Music
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"up_to_3_hours_manned_playlist"}
+                          onChange={toggleDjServices}
+                          checked={djServices.includes(
+                            "up_to_3_hours_manned_playlist"
+                          )}
+                        />{" "}
+                        Manned Playlist
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"up_to_3_hours_band_member_DJ"}
+                          onChange={toggleDjServices}
+                          checked={djServices.includes(
+                            "up_to_3_hours_band_member_DJ"
+                          )}
+                        />{" "}
+                        Band Member DJing
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"dj_live_sax_3x30mins"}
+                          onChange={toggleDjServices}
+                          checked={djServices.includes("dj_live_sax_3x30mins")}
+                        />{" "}
+                        DJ Live with Saxophone
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"dj_live_bongos_3x30mins"}
+                          onChange={toggleDjServices}
+                          checked={djServices.includes(
+                            "dj_live_bongos_3x30mins"
+                          )}
+                        />{" "}
+                        DJ Live with Bongos
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"dj_live_bongos_and_sax_3x30mins"}
+                          onChange={toggleDjServices}
+                          checked={djServices.includes(
+                            "dj_live_bongos_and_sax_3x30mins"
+                          )}
+                        />{" "}
+                        DJ Live with Saxophone & Bongos
+                      </p>
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- INSTRUMENTS ------- */}
@@ -2245,201 +2617,202 @@ const toggleDurationExtras = () => {
 
               {showInstrumentsFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-  {/* Instruments Dropdown Options */}
-          {showInstrumentsFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Lead Female Vocal"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Lead Female Vocal")}
-                />{" "}
-                Female Vocalist
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Lead Male Vocal"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Lead Male Vocal")}
-                />{" "}
-                Male Vocalist
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Lead Vocal"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Lead Vocal")}
-                />{" "}
-                Lead Vocalist
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"MC/Rapper"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("MC/Rapper")}
-                />{" "}
-                MC/Rapper
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Vocalist-Guitarist"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Vocalist-Guitarist")}
-                />{" "}
-                Vocalist-Guitarist
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Guitar"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Guitar")}
-                />{" "}
-                Guitar
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Keyboard"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Keyboard")}
-                />{" "}
-                Keyboard
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Drums"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Drums")}
-                />{" "}
-                Drums
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Bass"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Bass")}
-                />{" "}
-                Bass
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Saxophone"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Saxophone")}
-                />{" "}
-                Saxophone
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Trumpet"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Trumpet")}
-                />{" "}
-                Trumpet
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Trombone"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Trombone")}
-                />{" "}
-                Trombone
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Violin / Fiddle"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Violin / Fiddle")}
-                />{" "}
-                Violin / Fiddle
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Banjo"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Banjo")}
-                />{" "}
-                Banjo
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Mandolin"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Mandolin")}
-                />{" "}
-                Mandolin
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Acoustic Guitar"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Acoustic Guitar")}
-                />{" "}
-                Acoustic Guitar
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Percussion"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Percussion")}
-                />{" "}
-                Percussion
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Cello"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Cello")}
-                />{" "}
-                Cello
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Flute & Clarinet"}
-                  onChange={toggleInstruments}
-                  checked={instruments.includes("Flute & Clarinet")}
-                />{" "}
-                Flute & Clarinet
-              </p>
-            </div>
-          )}                </div>
+                  {/* Instruments Dropdown Options */}
+                  {showInstrumentsFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Lead Female Vocal"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Lead Female Vocal")}
+                        />{" "}
+                        Female Vocalist
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Lead Male Vocal"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Lead Male Vocal")}
+                        />{" "}
+                        Male Vocalist
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Lead Vocal"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Lead Vocal")}
+                        />{" "}
+                        Lead Vocalist
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"MC/Rapper"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("MC/Rapper")}
+                        />{" "}
+                        MC/Rapper
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Vocalist-Guitarist"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Vocalist-Guitarist")}
+                        />{" "}
+                        Vocalist-Guitarist
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Guitar"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Guitar")}
+                        />{" "}
+                        Guitar
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Keyboard"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Keyboard")}
+                        />{" "}
+                        Keyboard
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Drums"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Drums")}
+                        />{" "}
+                        Drums
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Bass"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Bass")}
+                        />{" "}
+                        Bass
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Saxophone"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Saxophone")}
+                        />{" "}
+                        Saxophone
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Trumpet"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Trumpet")}
+                        />{" "}
+                        Trumpet
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Trombone"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Trombone")}
+                        />{" "}
+                        Trombone
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Violin / Fiddle"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Violin / Fiddle")}
+                        />{" "}
+                        Violin / Fiddle
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Banjo"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Banjo")}
+                        />{" "}
+                        Banjo
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Mandolin"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Mandolin")}
+                        />{" "}
+                        Mandolin
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Acoustic Guitar"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Acoustic Guitar")}
+                        />{" "}
+                        Acoustic Guitar
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Percussion"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Percussion")}
+                        />{" "}
+                        Percussion
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Cello"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Cello")}
+                        />{" "}
+                        Cello
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Flute & Clarinet"}
+                          onChange={toggleInstruments}
+                          checked={instruments.includes("Flute & Clarinet")}
+                        />{" "}
+                        Flute & Clarinet
+                      </p>
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- WIRELESS ------- */}
@@ -2459,71 +2832,72 @@ const toggleDurationExtras = () => {
 
               {showWirelessFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-  {/* Wireless options dropdown */}
-          {showWirelessFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Vocal"}
-                  onChange={toggleWireless}
-                  checked={wireless.includes("Vocal")}
-                />{" "}
-                Vocal
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Saxophone"}
-                  onChange={toggleWireless}
-                  checked={wireless.includes("Saxophone")}
-                />{" "}
-                Saxophone
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Guitar"}
-                  onChange={toggleWireless}
-                  checked={wireless.includes("Guitar")}
-                />{" "}
-                Guitar
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Bass"}
-                  onChange={toggleWireless}
-                  checked={wireless.includes("Bass")}
-                />{" "}
-                Bass
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Keyboard"}
-                  onChange={toggleWireless}
-                  checked={wireless.includes("Keyboard")}
-                />{" "}
-                Keyboard (/ Keytar)
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"Trumpet"}
-                  onChange={toggleWireless}
-                  checked={wireless.includes("Trumpet")}
-                />{" "}
-                Trumpet
-              </label>{" "}
-            </div>
-          )}                </div>
+                  {/* Wireless options dropdown */}
+                  {showWirelessFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Vocal"}
+                          onChange={toggleWireless}
+                          checked={wireless.includes("Vocal")}
+                        />{" "}
+                        Vocal
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Saxophone"}
+                          onChange={toggleWireless}
+                          checked={wireless.includes("Saxophone")}
+                        />{" "}
+                        Saxophone
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Guitar"}
+                          onChange={toggleWireless}
+                          checked={wireless.includes("Guitar")}
+                        />{" "}
+                        Guitar
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Bass"}
+                          onChange={toggleWireless}
+                          checked={wireless.includes("Bass")}
+                        />{" "}
+                        Bass
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Keyboard"}
+                          onChange={toggleWireless}
+                          checked={wireless.includes("Keyboard")}
+                        />{" "}
+                        Keyboard (/ Keytar)
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"Trumpet"}
+                          onChange={toggleWireless}
+                          checked={wireless.includes("Trumpet")}
+                        />{" "}
+                        Trumpet
+                      </label>{" "}
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- SONG & ARTIST SEARCH ------- */}
@@ -2543,24 +2917,25 @@ const toggleDurationExtras = () => {
 
               {showSongFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
- {/* Song & Artist Search Input */}
-          {showSongFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <input
-                type="text"
-                placeholder="Search song or artist..."
-                value={songSearch.join(", ")}
-                onChange={(e) =>
-                  setSongSearch(
-                    e.target.value
-                      .split(",")
-                      .map((searchTerm) => searchTerm.trimStart())
-                  )
-                }
-                className="border p-1 w-11/12"
-              />
-            </div>
-          )}                </div>
+                  {/* Song & Artist Search Input */}
+                  {showSongFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <input
+                        type="text"
+                        placeholder="Search song or artist..."
+                        value={songSearch.join(", ")}
+                        onChange={(e) =>
+                          setSongSearch(
+                            e.target.value
+                              .split(",")
+                              .map((searchTerm) => searchTerm.trimStart())
+                          )
+                        }
+                        className="border p-1 w-11/12"
+                      />
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- ACT NAME SEARCH ------- */}
@@ -2580,24 +2955,25 @@ const toggleDurationExtras = () => {
 
               {showActFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-     {/* Act Search Input */}
-          {showActFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <input
-                type="text"
-                placeholder="Search for act by name..."
-                value={actSearch.join(", ")}
-                onChange={(e) =>
-                  setActSearch(
-                    e.target.value
-                      .split(",")
-                      .map((searchTerm) => searchTerm.trimStart())
-                  )
-                }
-                className="border p-1 w-11/12"
-              />
-            </div>
-          )}                </div>
+                  {/* Act Search Input */}
+                  {showActFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <input
+                        type="text"
+                        placeholder="Search for act by name..."
+                        value={actSearch.join(", ")}
+                        onChange={(e) =>
+                          setActSearch(
+                            e.target.value
+                              .split(",")
+                              .map((searchTerm) => searchTerm.trimStart())
+                          )
+                        }
+                        className="border p-1 w-11/12"
+                      />
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- SOUND LIMITERS ------- */}
@@ -2619,241 +2995,244 @@ const toggleDurationExtras = () => {
 
               {showSoundLimiterFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-   {/* soundlimiter options dropdown */}
-          {showSoundLimiterFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"electric_drums"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("electric_drums")}
-                />{" "}
-                Has Electric Drum Kit
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"iems"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("iems")}
-                />{" "}
-                Uses In-ear Monitoring
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"can_you_make_act_acoustic"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("can_you_make_act_acoustic")}
-                />{" "}
-                Can Make Act Acoustic
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"remove_drums"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("remove_drums")}
-                />{" "}
-                Can Remove Drums From Lineup
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"80-89db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("80-89db")}
-                />{" "}
-                80-89db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"90db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("90db")}
-                />{" "}
-                90db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"91db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("91db")}
-                />{" "}
-                91db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"92db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("92db")}
-                />{" "}
-                92db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"93db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("93db")}
-                />{" "}
-                93db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"94db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("94db")}
-                />{" "}
-                94db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"95db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("95db")}
-                />{" "}
-                95db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"96db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("96db")}
-                />{" "}
-                96db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"97db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("97db")}
-                />{" "}
-                97db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"98db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("98db")}
-                />{" "}
-                98db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"99db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("99db")}
-                />{" "}
-                99db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"100db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("100db")}
-                />{" "}
-                100db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"101db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("101db")}
-                />{" "}
-                101db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"102db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("102db")}
-                />{" "}
-                102db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"103db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("103db")}
-                />{" "}
-                103db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"104db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("104db")}
-                />{" "}
-                104db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"105db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("105db")}
-                />{" "}
-                105db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"106db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("106db")}
-                />{" "}
-                106db
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"107db"}
-                  onChange={toggleSoundLimiters}
-                  checked={soundLimiters.includes("107db")}
-                />{" "}
-                107db +
-              </label>{" "}
-            </div>
-          )}                </div>
+                  {/* soundlimiter options dropdown */}
+                  {showSoundLimiterFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"electric_drums"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("electric_drums")}
+                        />{" "}
+                        Has Electric Drum Kit
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"iems"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("iems")}
+                        />{" "}
+                        Uses In-ear Monitoring
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"can_you_make_act_acoustic"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes(
+                            "can_you_make_act_acoustic"
+                          )}
+                        />{" "}
+                        Can Make Act Acoustic
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"remove_drums"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("remove_drums")}
+                        />{" "}
+                        Can Remove Drums From Lineup
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"80-89db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("80-89db")}
+                        />{" "}
+                        80-89db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"90db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("90db")}
+                        />{" "}
+                        90db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"91db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("91db")}
+                        />{" "}
+                        91db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"92db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("92db")}
+                        />{" "}
+                        92db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"93db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("93db")}
+                        />{" "}
+                        93db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"94db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("94db")}
+                        />{" "}
+                        94db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"95db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("95db")}
+                        />{" "}
+                        95db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"96db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("96db")}
+                        />{" "}
+                        96db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"97db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("97db")}
+                        />{" "}
+                        97db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"98db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("98db")}
+                        />{" "}
+                        98db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"99db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("99db")}
+                        />{" "}
+                        99db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"100db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("100db")}
+                        />{" "}
+                        100db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"101db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("101db")}
+                        />{" "}
+                        101db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"102db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("102db")}
+                        />{" "}
+                        102db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"103db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("103db")}
+                        />{" "}
+                        103db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"104db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("104db")}
+                        />{" "}
+                        104db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"105db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("105db")}
+                        />{" "}
+                        105db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"106db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("106db")}
+                        />{" "}
+                        106db
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"107db"}
+                          onChange={toggleSoundLimiters}
+                          checked={soundLimiters.includes("107db")}
+                        />{" "}
+                        107db +
+                      </label>{" "}
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- SETUP & SOUNDCHECK ------- */}
@@ -2875,45 +3254,46 @@ const toggleDurationExtras = () => {
 
               {showSetupAndSoundcheckFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-   {/* Setup and Soundcheck filter */}
-          {showSetupAndSoundcheckFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"setup_and_soundcheck_time_60min"}
-                  onChange={toggleSetupAndSoundcheck}
-                  checked={setupAndSoundcheck.includes(
-                    "setup_and_soundcheck_time_60min"
-                  )}
-                />{" "}
-                60min Setup & Soundcheck
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"setup_and_soundcheck_time_90min"}
-                  onChange={toggleSetupAndSoundcheck}
-                  checked={setupAndSoundcheck.includes(
-                    "setup_and_soundcheck_time_90min"
-                  )}
-                />{" "}
-                90min Setup & Soundcheck
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"speedy_setup"}
-                  onChange={toggleSetupAndSoundcheck}
-                  checked={setupAndSoundcheck.includes("speedy_setup")}
-                />{" "}
-                60min Speedy Setup & Soundcheck
-              </p>
-            </div>
-          )}                </div>
+                  {/* Setup and Soundcheck filter */}
+                  {showSetupAndSoundcheckFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"setup_and_soundcheck_time_60min"}
+                          onChange={toggleSetupAndSoundcheck}
+                          checked={setupAndSoundcheck.includes(
+                            "setup_and_soundcheck_time_60min"
+                          )}
+                        />{" "}
+                        60min Setup & Soundcheck
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"setup_and_soundcheck_time_90min"}
+                          onChange={toggleSetupAndSoundcheck}
+                          checked={setupAndSoundcheck.includes(
+                            "setup_and_soundcheck_time_90min"
+                          )}
+                        />{" "}
+                        90min Setup & Soundcheck
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"speedy_setup"}
+                          onChange={toggleSetupAndSoundcheck}
+                          checked={setupAndSoundcheck.includes("speedy_setup")}
+                        />{" "}
+                        60min Speedy Setup & Soundcheck
+                      </p>
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- PA & LIGHTS ------- */}
@@ -2933,71 +3313,72 @@ const toggleDurationExtras = () => {
 
               {showPaAndLightsFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
- {/* PA and Lights  dropdown */}
-          {showPaAndLightsFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"small_pa_size"}
-                  onChange={togglePaAndLights}
-                  checked={paAndLights.includes("small_pa_size")}
-                />{" "}
-                Small PA System
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"medium_pa_size"}
-                  onChange={togglePaAndLights}
-                  checked={paAndLights.includes("medium_pa_size")}
-                />{" "}
-                Medium PA System
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"large_pa_size"}
-                  onChange={togglePaAndLights}
-                  checked={paAndLights.includes("large_pa_size")}
-                />{" "}
-                Large PA System
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"small_light_size"}
-                  onChange={togglePaAndLights}
-                  checked={paAndLights.includes("small_light_size")}
-                />{" "}
-                Small Light System
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"medium_light_size"}
-                  onChange={togglePaAndLights}
-                  checked={paAndLights.includes("medium_light_size")}
-                />{" "}
-                Medium Light System
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"large_light_size"}
-                  onChange={togglePaAndLights}
-                  checked={paAndLights.includes("large_light_size")}
-                />{" "}
-                Large Light System
-              </p>
-            </div>
-          )}                </div>
+                  {/* PA and Lights  dropdown */}
+                  {showPaAndLightsFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"small_pa_size"}
+                          onChange={togglePaAndLights}
+                          checked={paAndLights.includes("small_pa_size")}
+                        />{" "}
+                        Small PA System
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"medium_pa_size"}
+                          onChange={togglePaAndLights}
+                          checked={paAndLights.includes("medium_pa_size")}
+                        />{" "}
+                        Medium PA System
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"large_pa_size"}
+                          onChange={togglePaAndLights}
+                          checked={paAndLights.includes("large_pa_size")}
+                        />{" "}
+                        Large PA System
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"small_light_size"}
+                          onChange={togglePaAndLights}
+                          checked={paAndLights.includes("small_light_size")}
+                        />{" "}
+                        Small Light System
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"medium_light_size"}
+                          onChange={togglePaAndLights}
+                          checked={paAndLights.includes("medium_light_size")}
+                        />{" "}
+                        Medium Light System
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"large_light_size"}
+                          onChange={togglePaAndLights}
+                          checked={paAndLights.includes("large_light_size")}
+                        />{" "}
+                        Large Light System
+                      </p>
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- PLI ------- */}
@@ -3017,89 +3398,99 @@ const toggleDurationExtras = () => {
 
               {showPliFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-  {/* pli options dropdown */}
-          {showPliFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={1}
-                  onChange={togglePli}
-checked={pli.includes(1)}
-                />{" "}
-                Up to £1m
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={2}
-                  onChange={togglePli}
-checked={pli.includes(2)}                />{" "}
-                Up to £2m
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={3}
-                  onChange={togglePli}
-checked={pli.includes(3)}                />{" "}
-                Up to £3m
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={4}
-                  onChange={togglePli}
-checked={pli.includes(4)}                />{" "}
-                Up to £4m
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={5}
-                  onChange={togglePli}
-checked={pli.includes(5)}                />{" "}
-                Up to £5m
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={10}
-                  onChange={togglePli}
-checked={pli.includes(10)}                />{" "}
-                Up to £10m
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={15}
-                  onChange={togglePli}
-checked={pli.includes(15)}                />{" "}
-                Up to £15m
-              </label>
-              <label className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={20}
-                  onChange={togglePli}
-checked={pli.includes(20)}                />{" "}
-                Up to £20m
-              </label>
-            </div>
-          )}                </div>
+                  {/* pli options dropdown */}
+                  {showPliFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={1}
+                          onChange={togglePli}
+                          checked={pli.includes(1)}
+                        />{" "}
+                        Up to £1m
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={2}
+                          onChange={togglePli}
+                          checked={pli.includes(2)}
+                        />{" "}
+                        Up to £2m
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={3}
+                          onChange={togglePli}
+                          checked={pli.includes(3)}
+                        />{" "}
+                        Up to £3m
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={4}
+                          onChange={togglePli}
+                          checked={pli.includes(4)}
+                        />{" "}
+                        Up to £4m
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={5}
+                          onChange={togglePli}
+                          checked={pli.includes(5)}
+                        />{" "}
+                        Up to £5m
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={10}
+                          onChange={togglePli}
+                          checked={pli.includes(10)}
+                        />{" "}
+                        Up to £10m
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={15}
+                          onChange={togglePli}
+                          checked={pli.includes(15)}
+                        />{" "}
+                        Up to £15m
+                      </label>
+                      <label className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={20}
+                          onChange={togglePli}
+                          checked={pli.includes(20)}
+                        />{" "}
+                        Up to £20m
+                      </label>
+                    </div>
+                  )}{" "}
+                </div>
               )}
 
               {/* ------- EXTRA SERVICES ------- */}
               <p
-                onClick={() => setShowExtraServicesFilter(!showExtraServicesFilter)}
+                onClick={() =>
+                  setShowExtraServicesFilter(!showExtraServicesFilter)
+                }
                 className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
               >
                 EXTRA SERVICES
@@ -3114,154 +3505,166 @@ checked={pli.includes(20)}                />{" "}
 
               {showExtraServicesFilter && (
                 <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-  {/*Extra services filter */}
-          {showExtraServicesFilter && (
-            <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"ceremony_solo"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("ceremony_solo")}
-                />{" "}
-                Ceremony Solo
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"duo_ceremony"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("duo_ceremony")}
-                />{" "}
-                Ceremony Duo
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"trio_ceremony"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("trio_ceremony")}
-                />{" "}
-                Ceremony Trio
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"four_piece_ceremony"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("four_piece_ceremony")}
-                />{" "}
-                Ceremony 4-piece
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"afternoon_solo"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("afternoon_solo")}
-                />{" "}
-                Afternoon Reception Solo
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"afternoon_duo"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("afternoon_duo")}
-                />{" "}
-                Afternoon Reception Duo
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"afternoon_trio"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("afternoon_trio")}
-                />{" "}
-                Afternoon Reception Trio
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"afternoon_4piece"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("afternoon_4piece")}
-                />{" "}
-                Afternoon Reception 4-piece
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"early_arrival_60min_per_band_member"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("early_arrival_60min_per_band_member")}
-                />{" "}
-                Early Arrival
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"late_stay_60min_per_band_member"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("late_stay_60min_per_band_member")}
-                />{" "}
-                Late Stay
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"extra_song_request_per_band_member"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("extra_song_request_per_band_member")}
-                />{" "}
-                Extra Song Requests
-              </p>
-              <p className="flex gap-2 items-center">
-  <input
-    className="w-3"
-    type="checkbox"
-    onChange={toggleDurationExtras}
-    checked={hasAnyDurationExtra(extraServices)}
-  />
-  {" "}
-  Extra Main Performance Sets
-</p>
-           
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"sound_engineering_for_another_act_with_your_acts_PA"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes(
-                    "sound_engineering_for_another_act_with_your_acts_PA"
-                  )}
-                />{" "}
-                Sound Engineering for Another Act
-              </p>
-              <p className="flex gap-2">
-                <input
-                  className="w-3"
-                  type="checkbox"
-                  value={"israeli_dancing_20mins_per_band_member"}
-                  onChange={toggleExtraServices}
-                  checked={extraServices.includes("israeli_dancing_20mins_per_band_member")}
-                />{" "}
-                Israeli Dancing Sets
-              </p>
-            </div>
-          )}                </div>
+                  {/*Extra services filter */}
+                  {showExtraServicesFilter && (
+                    <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"ceremony_solo"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes("ceremony_solo")}
+                        />{" "}
+                        Ceremony Solo
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"duo_ceremony"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes("duo_ceremony")}
+                        />{" "}
+                        Ceremony Duo
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"trio_ceremony"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes("trio_ceremony")}
+                        />{" "}
+                        Ceremony Trio
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"four_piece_ceremony"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes(
+                            "four_piece_ceremony"
+                          )}
+                        />{" "}
+                        Ceremony 4-piece
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"afternoon_solo"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes("afternoon_solo")}
+                        />{" "}
+                        Afternoon Reception Solo
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"afternoon_duo"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes("afternoon_duo")}
+                        />{" "}
+                        Afternoon Reception Duo
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"afternoon_trio"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes("afternoon_trio")}
+                        />{" "}
+                        Afternoon Reception Trio
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"afternoon_4piece"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes("afternoon_4piece")}
+                        />{" "}
+                        Afternoon Reception 4-piece
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"early_arrival_60min_per_band_member"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes(
+                            "early_arrival_60min_per_band_member"
+                          )}
+                        />{" "}
+                        Early Arrival
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"late_stay_60min_per_band_member"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes(
+                            "late_stay_60min_per_band_member"
+                          )}
+                        />{" "}
+                        Late Stay
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"extra_song_request_per_band_member"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes(
+                            "extra_song_request_per_band_member"
+                          )}
+                        />{" "}
+                        Extra Song Requests
+                      </p>
+                      <p className="flex gap-2 items-center">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          onChange={toggleDurationExtras}
+                          checked={hasAnyDurationExtra(extraServices)}
+                        />{" "}
+                        Extra Main Performance Sets
+                      </p>
+
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={
+                            "sound_engineering_for_another_act_with_your_acts_PA"
+                          }
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes(
+                            "sound_engineering_for_another_act_with_your_acts_PA"
+                          )}
+                        />{" "}
+                        Sound Engineering for Another Act
+                      </p>
+                      <p className="flex gap-2">
+                        <input
+                          className="w-3"
+                          type="checkbox"
+                          value={"israeli_dancing_20mins_per_band_member"}
+                          onChange={toggleExtraServices}
+                          checked={extraServices.includes(
+                            "israeli_dancing_20mins_per_band_member"
+                          )}
+                        />{" "}
+                        Israeli Dancing Sets
+                      </p>
+                    </div>
+                  )}{" "}
+                </div>
               )}
             </div>
           </div>
@@ -3439,7 +3842,13 @@ checked={pli.includes(20)}                />{" "}
               results.map((item) => (
                 <CardFilterItem
                   key={item.actId || item._id}
-                  actData={{ ...item, images: item?.images ?? item?.__card?.images ?? item?.__card?.coverImages }}
+                  actData={{
+                    ...item,
+                    images:
+                      item?.images ??
+                      item?.__card?.images ??
+                      item?.__card?.coverImages,
+                  }}
                   variant="listing"
                 />
               ))
