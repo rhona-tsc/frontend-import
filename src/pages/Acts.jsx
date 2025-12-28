@@ -1081,6 +1081,7 @@ const hasExtra = (act, key) => {
       delete compatPayload.djServices;
       delete compatPayload.dj_services;
       //, api("api/act/cards/search")
+console.log("📤 sending search payload:", payload, JSON.stringify(payload));
       const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search")];
       serverIds = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
       if (serverIds.size === 0) {
