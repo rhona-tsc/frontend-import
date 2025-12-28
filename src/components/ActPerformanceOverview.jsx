@@ -218,7 +218,7 @@ const ActPerformanceOverview = ({ actData }) => {
         )}
 
         {/* VAT */}
-        <div className="flex items-start gap-3 min-w-0">
+        <div className="flex items-start gap-3 min-w-0 hidden">
           <img
             src={assets.vat}
             alt="VAT icon"

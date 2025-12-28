@@ -599,9 +599,9 @@ const toggleExtraServices = (e) => {
 
     // DJ Serrvices
     up_to_3_hours_band_member_DJ: "Band member DJ",
-    DJ_live_sax_3x30mins: "DJ Live with saxophone",
-    DJ_live_bongos_3x30mins: "DJ Live with bongos",
-    DJ_live_bongos_and_sax_3x30mins: "DJ Live with saxophone and bongos",
+    dj_live_sax_3x30mins: "DJ Live with saxophone",
+    dj_live_bongos_3x30mins: "DJ Live with bongos",
+    dj_live_bongos_and_sax_3x30mins: "DJ Live with saxophone and bongos",
     background_music_playlist: "Background music playlist",
     up_to_3_hours_manned_playlist: "Manned playlist",
 
@@ -2196,7 +2196,7 @@ const toggleDurationExtras = () => {
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"DJ_live_sax_3x30mins"}
+                  value={"dj_live_sax_3x30mins"}
                   onChange={toggleDjServices}
                   checked={djServices.includes("DJ_live_sax_3x30mins")}
                 />{" "}
@@ -2206,7 +2206,7 @@ const toggleDurationExtras = () => {
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"DJ_live_bongos_3x30mins"}
+                  value={"dj_live_bongos_3x30mins"}
                   onChange={toggleDjServices}
                   checked={djServices.includes("DJ_live_bongos_3x30mins")}
                 />{" "}
@@ -2216,10 +2216,10 @@ const toggleDurationExtras = () => {
                 <input
                   className="w-3"
                   type="checkbox"
-                  value={"DJ_live_bongos_and_sax_3x30mins"}
+                  value={"dj_live_bongos_and_sax_3x30mins"}
                   onChange={toggleDjServices}
                   checked={djServices.includes(
-                    "DJ_live_bongos_and_sax_3x30mins"
+                    "dj_live_bongos_and_sax_3x30mins"
                   )}
                 />{" "}
                 DJ Live with Saxophone & Bongos
