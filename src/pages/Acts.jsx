@@ -2694,11 +2694,11 @@ actsCopy = actsCopy.map((act) => {
                         <input
                           className="w-3"
                           type="checkbox"
-                          value={"Guitar"}
+                          value={"Electric Guitar"}
                           onChange={toggleInstruments}
-                          checked={instruments.includes("Guitar")}
+                          checked={instruments.includes("Electric Guitar")}
                         />{" "}
-                        Guitar
+                        Electric Guitar
                       </p>
                       <p className="flex gap-2">
                         <input
