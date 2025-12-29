@@ -69,7 +69,7 @@ const BookingSuccess = () => {
 
     // ✅ Replace CONVERSION_LABEL with the label Google gives you for this conversion action.
     window.gtag?.("event", "conversion", {
-      send_to: "AW-17648722186",
+      send_to: 'AW-17648722186/-9gFCJKSq9gbEIrCyN9B',
       value,
       currency,
       transaction_id: String(purchaseKey),
@@ -77,6 +77,9 @@ const BookingSuccess = () => {
 
     sessionStorage.setItem(guardKey, "1");
   }, [stripeSessionId, booking]);
+
+
+
 
  
 
