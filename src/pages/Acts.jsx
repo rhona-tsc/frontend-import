@@ -1307,9 +1307,9 @@ const hasExtra = (act, key) => {
       "background_music_playlist",
       "up_to_3_hours_manned_playlist",
       "up_to_3_hours_band_member_DJ",
-      "dj_live_sax_3x30mins",
-      "dj_live_bongos_3x30mins",
-      "dj_live_bongos_and_sax_3x30mins",
+      "DJ_live_sax_3x30mins",
+      "DJ_live_bongos_3x30mins",
+      "DJ_live_bongos_and_sax_3x30mins",
       "extra_30min_performance_per_band_member",
       "extra_40min_performance_per_band_member",
       "extra_60min_performance_per_band_member",
@@ -2585,9 +2585,9 @@ actsCopy = actsCopy.map((act) => {
                         <input
                           className="w-3"
                           type="checkbox"
-                          value={"dj_live_sax_3x30mins"}
+                          value={"DJ_live_sax_3x30mins"}
                           onChange={toggleDjServices}
-                          checked={djServices.includes("dj_live_sax_3x30mins")}
+                          checked={djServices.includes("DJ_live_sax_3x30mins")}
                         />{" "}
                         DJ Live with Saxophone
                       </p>
@@ -2595,10 +2595,10 @@ actsCopy = actsCopy.map((act) => {
                         <input
                           className="w-3"
                           type="checkbox"
-                          value={"dj_live_bongos_3x30mins"}
+                          value={"DJ_live_bongos_3x30mins"}
                           onChange={toggleDjServices}
                           checked={djServices.includes(
-                            "dj_live_bongos_3x30mins"
+                            "DJ_live_bongos_3x30mins"
                           )}
                         />{" "}
                         DJ Live with Bongos
@@ -2607,10 +2607,10 @@ actsCopy = actsCopy.map((act) => {
                         <input
                           className="w-3"
                           type="checkbox"
-                          value={"dj_live_bongos_and_sax_3x30mins"}
+                          value={"DJ_live_bongos_and_sax_3x30mins"}
                           onChange={toggleDjServices}
                           checked={djServices.includes(
-                            "dj_live_bongos_and_sax_3x30mins"
+                            "DJ_live_bongos_and_sax_3x30mins"
                           )}
                         />{" "}
                         DJ Live with Saxophone & Bongos
