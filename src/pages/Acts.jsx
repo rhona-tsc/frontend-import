@@ -1666,15 +1666,8 @@ actsCopy = actsCopy.map((act) => {
     ACTS_DBG("after act_size filter", { remain: actsCopy.length });
   } */
 
- if (djServices.length > 0) {
-  console.log("🟦 DJ Services filter active:", djServices);
-  const before = actsCopy.length;
+// cards returned from POST /api/v2/act-cards/search (via ShopContext)
 
-  // OR behaviour (matches your current behaviour): keep acts that have ANY selected DJ service
-  actsCopy = actsCopy.filter((act) => djServices.some((k) => hasExtra(act, k)));
-
-  ACTS_DBG("after djServices filter", { remain: actsCopy.length, before });
-}
 
     /*if (instruments.length > 0) {
     actsCopy = actsCopy.filter((act) => {
