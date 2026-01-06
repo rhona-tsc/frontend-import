@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { SitemapStream, streamToPromise } from "sitemap";
 
-const SITE_URL = "https://www.thesupremecollective.co.uk";
+const SITE_URL = "https://thesupremecollective.co.uk";
 const API_URL =
   process.env.VITE_BACKEND_URL ||
   process.env.SITEMAP_API_URL ||
