@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/generate-sitemap.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -29,6 +30,7 @@
     "react-signature-canvas": "^1.0.3",
     "react-slick": "^0.30.3",
     "react-toastify": "^11.0.3",
+    "sitemap": "^9.0.0",
     "slick-carousel": "^1.8.1",
     "twilio": "^5.5.2"
   },
