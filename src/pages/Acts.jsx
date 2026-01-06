@@ -2173,35 +2173,66 @@ actsCopy = actsCopy.map((act) => {
     }
   };
 
-  // ✅ Lightweight re-sort when the sort dropdown changes
-  useEffect(() => {
-    // do nothing for default relevance
-    if (sortType === "relevant") return;
-    if (!Array.isArray(filterProducts) || filterProducts.length === 0) return;
+// ✅ Sorted results (no state mutation)
+const parsePrice = (v) => {
+  if (v === null || typeof v === "undefined") return NaN;
+  if (typeof v === "number") return Number.isFinite(v) ? v : NaN;
 
-    const toNum = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : NaN;
-    };
+  const s = String(v).trim();
+  if (!s) return NaN;
 
-    const sorted = [...filterProducts].sort((a, b) => {
-      const A = toNum(a?.formattedPrice);
-      const B = toNum(b?.formattedPrice);
+  // remove currency symbols/spaces and thousands separators
+  const cleaned = s.replace(/,/g, "").replace(/[^0-9.]/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : NaN;
+};
 
-      // Missing/NaN prices go to the end consistently
-      const bothNaN = Number.isNaN(A) && Number.isNaN(B);
-      if (bothNaN) return 0;
-      if (Number.isNaN(A)) return 1;
-      if (Number.isNaN(B)) return -1;
+const getSortPrice = (act) => {
+  // If pricing has been calculated (address+date), use it
+  const priced = parsePrice(act?.formattedPrice);
+  if (!Number.isNaN(priced)) return priced;
 
-      return sortType === "low-high" ? A - B : B - A;
-    });
+  // Otherwise fall back to the card's minimum "from" price
+  const candidates = [
+    act?.minDisplayPrice,
+    act?.minPrice,
+    act?.min_price,
+    act?.__card?.minDisplayPrice,
+    act?.__card?.min_display_price,
+    act?.__card?.minPrice,
+    act?.__card?.min_price,
+    act?.__card?.basePrice,
+    act?.basePrice,
+  ];
 
-    setFilterProducts(sorted);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortType]);
+  for (const c of candidates) {
+    const n = parsePrice(c);
+    if (!Number.isNaN(n)) return n;
+  }
 
-  const results = Array.isArray(filterProducts) ? filterProducts : [];
+  return NaN;
+};
+
+const results = useMemo(() => {
+  const arr = Array.isArray(filterProducts) ? filterProducts : [];
+  if (sortType === "relevant") return arr;
+
+  const dir = sortType === "low-high" ? 1 : -1;
+
+  return [...arr].sort((a, b) => {
+    const A = getSortPrice(a);
+    const B = getSortPrice(b);
+
+    // Missing/NaN prices go to the end consistently
+    const bothNaN = Number.isNaN(A) && Number.isNaN(B);
+    if (bothNaN) return 0;
+    if (Number.isNaN(A)) return 1;
+    if (Number.isNaN(B)) return -1;
+
+    return dir * (A - B);
+  });
+}, [filterProducts, sortType]);
+
 
   return (
     <div className="my-10 max-w-7xl mx-auto px-4">
