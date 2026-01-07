@@ -1,2 +1,9 @@
+# ✅ Old URLs → new URLs (must be ABOVE the SPA catch-all)
+ /bandsforhire        /acts            301!
+ /bandsforhire/*      /acts/:splat     301!
+
+# ✅ API proxy
 /api/*  https://tsc-backend-v2.onrender.com/api/:splat  200
-/*      /index.html                                   200
+
+# ✅ SPA fallback (keep LAST)
+ /*      /index.html  200
