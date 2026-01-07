@@ -2546,6 +2546,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
   vocalist={actData.vocalist || ""}
   leadRole={leadRole || ""}
   currentActId={actData._id}
+  currentActSlug={actData.slug || actData.tscSlug || actData.routeSlug || ""}
 />
           </VisibleOnScroll>
         </Suspense>

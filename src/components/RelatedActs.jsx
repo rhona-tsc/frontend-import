@@ -35,6 +35,7 @@ const RelatedActs = ({
   vocalist = "",
   leadRole = "",
   currentActId,
+  currentActSlug,
 }) => {
   const { actCards } = useContext(ShopContext);
   const deferredCards = useDeferredValue(actCards);
@@ -43,6 +44,17 @@ const RelatedActs = ({
   // 🔎 DEBUG (toggle off when done)
   const DEBUG_RELATED_ACTS = true;
   const lastDebugSigRef = useRef("");
+
+  const getSlug = (a) =>
+  String(
+    a?.slug ||
+    a?.tscSlug ||
+    a?.routeSlug ||
+    a?.key || // if you store it
+    ""
+  )
+    .trim()
+    .toLowerCase();
 
   const memo = useMemo(() => {
     const list = Array.isArray(deferredCards) ? deferredCards : [];
@@ -230,8 +242,15 @@ const RelatedActs = ({
       };
     }
 
-    const afterId = list.filter((a) => String(a?.actId || a?._id) !== String(currentActId));
-    const afterStatus = afterId.filter((a) => !a?.status || isVisibleStatus(a.status));
+const currentKey =
+  (currentActSlug ? String(currentActSlug).trim().toLowerCase() : "") ||
+  String(currentActId || "").trim();
+
+const afterCurrent = list.filter((a) => {
+  const cardKey = getSlug(a) || String(a?.actId || a?._id || "").trim();
+  return cardKey !== currentKey;
+});
+const afterStatus = afterCurrent.filter((a) => !a?.status || isVisibleStatus(a.status));
 
     const scored = afterStatus.map((a) => {
       const b = scoreBreakdown(a);
@@ -285,7 +304,7 @@ const RelatedActs = ({
 
     const debug = {
       listCount: list.length,
-      afterIdCount: afterId.length,
+      afterIdCount: afterCurrent.length,
       afterStatusCount: afterStatus.length,
       scoredCount: scored.length,
       positiveCount: positive.length,
@@ -298,8 +317,7 @@ const RelatedActs = ({
     };
 
     return { items, debug };
-  }, [deferredCards, genres, instruments, vocalist, leadRole, currentActId, maxToShow]);
-
+}, [deferredCards, genres, instruments, vocalist, leadRole, currentActId, currentActSlug, maxToShow]);
   const related = memo.items;
   const dbg = memo.debug;
 
@@ -416,7 +434,7 @@ const RelatedActs = ({
             const { _score, _scoreBreakdown, ...clean } = item || {};
             return (
               <div
-                key={String(clean.actId || clean._id)}
+key={getSlug(clean) || String(clean.actId || clean._id)}
                 style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
               >
                 <ActItem actData={clean} />
