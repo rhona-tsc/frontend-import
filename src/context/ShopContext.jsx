@@ -2575,83 +2575,103 @@ const shortlistAct = async (uid, actId) => {
     setCartItems(updated);
   };
 
+const ADS_ADD_TO_CART_SEND_TO = "AW-17648722186/zqrJCOKgtd4bEIrCyN9B";
+
+const trackAdsAddToCart = ({ value, currency = "GBP" } = {}) => {
+  if (typeof window === "undefined") return;
+  if (typeof window.gtag !== "function") return;
+
+  // If you selected "Don't use a value" in Google Ads, you can omit value entirely.
+  const payload = { send_to: ADS_ADD_TO_CART_SEND_TO, currency };
+
+  // Only include value if it's a valid number
+  const n = Number(value);
+  if (Number.isFinite(n) && n > 0) payload.value = n;
+
+  window.gtag("event", "conversion", payload);
+};
+
   // Accepts: actId, lineupId, selectedExtras, selectedAfternoonSets, songSuggestions
-  const addToCart = async (
-    actId,
-    lineupId,
-    selectedExtras = [],
-    selectedAfternoonSets = [],
-    songSuggestions = []
-  ) => {
-    if (!actId) return;
+const addToCart = async (
+  actId,
+  lineupId,
+  selectedExtras = [],
+  selectedAfternoonSets = [],
+  songSuggestions = []
+) => {
+  if (!actId) return;
 
-    const actKey = String(actId);
-    const providedLineupKey = lineupId ? String(lineupId) : "";
+  const actKey = String(actId);
+  const providedLineupKey = lineupId ? String(lineupId) : "";
 
-    let actFull = null;
+  let actFull = null;
 
-    // 1) try cache you already have (seen in your localStorage screenshot)
+  // 1) cache
+  try {
+    const cached = localStorage.getItem(`act:${actKey}:v2`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      actFull = parsed?.act || parsed;
+    }
+  } catch {}
+
+  // 2) fetch if missing lineups
+  if (!Array.isArray(actFull?.lineups) || actFull.lineups.length === 0) {
     try {
-      const cached = localStorage.getItem(`act:${actKey}:v2`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        actFull = parsed?.act || parsed;
-      }
-    } catch {}
-
-    // 2) fetch if cache missing or doesn’t include lineups
-    if (!Array.isArray(actFull?.lineups) || actFull.lineups.length === 0) {
-      try {
-        const res = await axios.get(`${backendUrl}/api/act/${actKey}`); // <-- MUST be your real "full act" route
-        actFull = res.data?.act || res.data;
-      } catch (e) {
-        console.warn("🛒 addToCart: could not fetch full act", actKey, e);
-      }
+      const res = await axios.get(`${backendUrl}/api/act/${actKey}`);
+      actFull = res.data?.act || res.data;
+    } catch (e) {
+      console.warn("🛒 addToCart: could not fetch full act", actKey, e);
     }
+  }
 
-    const available = (actFull?.lineups || []).map((l) =>
-      String(l?._id || l?.lineupId)
-    );
-    const lineupKey = available.includes(providedLineupKey)
-      ? providedLineupKey
-      : available[0] || providedLineupKey;
+  const available = (actFull?.lineups || []).map((l) => String(l?._id || l?.lineupId));
+  const lineupKey = available.includes(providedLineupKey)
+    ? providedLineupKey
+    : available[0] || providedLineupKey;
 
-    if (available.length && lineupKey !== providedLineupKey) {
-      console.warn("🛒 addToCart lineup mismatch → repaired", {
-        actKey,
-        providedLineupKey,
-        lineupKey,
-        available,
-      });
-    }
+  let shouldFire = false;
 
-    setCartItems((prev) => {
-      const next = structuredClone(prev || {});
-      next[actKey] = {
-        [lineupKey]: {
-          quantity: 1,
-          selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
-          selectedAfternoonSets: Array.isArray(selectedAfternoonSets)
-            ? selectedAfternoonSets
-            : [],
-          songSuggestions: Array.isArray(songSuggestions)
-            ? songSuggestions
-            : [],
-          dismissedExtras: [],
-          performance: {
-            arrivalTime: "",
-            setupAndSoundcheckedBy: "",
-            startTime: "",
-            finishTime: "",
-            finishDayOffset: 0,
-            paLightsFinishTime: "",
-            paLightsFinishDayOffset: 0,
-          },
+  setCartItems((prev) => {
+    const prevForAct = prev?.[actKey];
+    const alreadyHadAct = !!(prevForAct && Object.keys(prevForAct).length > 0);
+    shouldFire = !alreadyHadAct; // ✅ true only for a real first add
+
+    const next = structuredClone(prev || {});
+    next[actKey] = {
+      [lineupKey]: {
+        quantity: 1,
+        selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
+        selectedAfternoonSets: Array.isArray(selectedAfternoonSets) ? selectedAfternoonSets : [],
+        songSuggestions: Array.isArray(songSuggestions) ? songSuggestions : [],
+        dismissedExtras: [],
+        performance: {
+          arrivalTime: "",
+          setupAndSoundcheckedBy: "",
+          startTime: "",
+          finishTime: "",
+          finishDayOffset: 0,
+          paLightsFinishTime: "",
+          paLightsFinishDayOffset: 0,
         },
-      };
-      return next;
-    });
-  };
+      },
+    };
+    return next;
+  });
+
+  if (shouldFire) {
+    const baseVal =
+      Number(actFull?.formattedPrice?.total) ||
+      Number(actFull?.minDisplayPrice) ||
+      0;
+
+    const extrasVal = Array.isArray(selectedExtras)
+      ? selectedExtras.reduce((sum, x) => sum + (Number(x?.price) || 0), 0)
+      : 0;
+
+    trackAdsAddToCart({ value: baseVal + extrasVal, currency: "GBP" });
+  }
+};
 
   const getCartCount = () => {
     return Object.values(cartItems).reduce((total, act) => {
