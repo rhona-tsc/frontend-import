@@ -195,14 +195,13 @@ const calculateActPricing = async (
       try {
         toast(
           <CustomToast
-            type="warning"
-            message="Please ensure you include a postcode in your venue address for an accurate quote."
+            message="Add an address with a postcode in the search bar for an accurate quote."
           />,
           { position: "top-right" }
         );
       } catch {
         toast.warn(
-          "Please ensure you include a postcode in your venue address for an accurate quote.",
+          "Add an address with a postcode in the search bar for an accurate quote.",
           { position: "top-right" }
         );
       }
