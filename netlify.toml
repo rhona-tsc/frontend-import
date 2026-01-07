@@ -13,7 +13,7 @@
 # ✅ SEO 301: old act URLs → new act URLs
 [[redirects]]
 from = "/bandsforhire/*"
-to = "/acts/:splat"
+to = "/act/:splat"
 status = 301
 force = true
 
