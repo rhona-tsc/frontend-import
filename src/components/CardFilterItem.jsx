@@ -24,7 +24,22 @@ const getLove = (src, shortlistCount) => {
   const n = src?.loveCount ?? src?.numberOfShortlistsIn ?? shortlistCount ?? src?.shortlistCount ?? src?.metrics?.shortlists ?? 0;
   return Math.max(0, Number(n) || 0);
 };
+const getSlug = (src) => {
+  const s =
+    src?.slug ||
+    src?.tscSlug ||
+    src?.routeSlug ||
+    src?.key || // if you store it like this anywhere
+    "";
 
+  return typeof s === "string" ? s.trim() : "";
+};
+
+const getActUrl = (src) => {
+  const slug = getSlug(src);
+  const id = getActId(src);
+  return slug ? `/act/${encodeURIComponent(slug)}` : (id ? `/act/${id}` : "/");
+};
 // ——— helpers for fallback base calculation ———
 const num = (v) => (v == null ? 0 : Number(String(v).replace(/[^0-9.+-]/g, '')) || 0);
 const essentialRolesFee = (member) => {
@@ -196,7 +211,7 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false }) => {
     if (!userId) {
       const fromActsListing = String(location.pathname || '').startsWith('/acts');
       const listUrl = `${location.pathname || ''}${location.search || ''}${location.hash || ''}` || '/acts';
-      const actUrl = getActId(actData) ? `/act/${getActId(actData)}` : '/';
+      const actUrl = getActUrl(actData);
       const fallback = fromActsListing ? listUrl : actUrl;
       sessionStorage.setItem('postLoginNext', fallback);
       navigate('/login', { state: { from: fallback } });
@@ -225,7 +240,7 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false }) => {
 
   return (
     <div className="relative group">
-      <Link to={`/act/${getActId(actData)}`} onClick={() => window.scrollTo(0, 0)} className="block text-gray-700">
+      <Link to={getActUrl(actData)} onClick={() => window.scrollTo(0, 0)} className="block text-gray-700">
         <div className="overflow-hidden h-full w-full">
           <img className="h-full w-full object-cover hover:scale-110 transition ease-in-out" src={resolvedImage} alt={getTitle(actData)} />
         </div>

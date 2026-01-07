@@ -72,6 +72,15 @@ const getMinDisplayPrice = (src) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
+
+const getSlug = (src) => String(src?.slug || "").trim();
+
+const getActUrl = (src) => {
+  const slug = getSlug(src);
+  const id = getActId(src);
+  return slug ? `/act/${slug}` : (id ? `/act/${id}` : "/");
+};
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Travel model normalizers (ActCards may store these under travelModel)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -478,10 +487,10 @@ const ActItem = ({ actData, shortlistCount }) => {
   return (
     <div className="relative group">
       <Link
-        to={`/act/${getActId(actData)}`}
-        onClick={() => window.scrollTo(0, 0)}
-        className="block text-gray-700"
-      >
+  to={getActUrl(actData)}
+  onClick={() => window.scrollTo(0, 0)}
+  className="block text-gray-700"
+>
         <div className="overflow-hidden h-full w-full">
           <img
             className="h-full w-full object-cover hover:scale-110 transition ease-in-out"

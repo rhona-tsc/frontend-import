@@ -34,18 +34,60 @@ import {
 import useRenderTracker from "../hooks/useRenderTracker";
 import { logBadges } from "../utils/logger";
 import { readCachedAct, writeCachedAct } from "../utils/actCache";
+import axios from "axios";
 
 const Act = () => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const location = useLocation();
+const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+const params = useParams();
 
-  // Extract YouTube video ID from a full URL or return as-is if already an ID
-  const extractVideoId = (url) => {
-    if (!url) return "";
-    const match = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-    return match ? match[1] : url;
+// supports /act/:actId OR /act/:slug OR /act/:key OR /act/:id
+const key = params.actId || params.slug || params.key || params.id;
+
+const isObjectId = /^[0-9a-fA-F]{24}$/.test(String(key || ""));
+
+const [actData, setActData] = useState(null);
+const [loadingAct, setLoadingAct] = useState(true);
+const [actError, setActError] = useState("");
+
+const actFetchUrl = React.useMemo(() => {
+  if (!key) return "";
+  return `${backendUrl}/api/act/${encodeURIComponent(key)}`;
+}, [backendUrl, key]);
+
+useEffect(() => {
+  if (!actFetchUrl) return;
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      setLoadingAct(true);
+      setActError("");
+
+      console.log("🧪 fetching act:", { params, key, actFetchUrl });
+
+      const { data } = await axios.get(actFetchUrl);
+      if (!data?.success || !data?.act) throw new Error("Bad payload");
+
+      if (!cancelled) setActData(data.act);
+    } catch (e) {
+      console.error("❌ fetchAct failed:", e?.response?.data || e);
+      if (!cancelled) {
+        setActData(null);
+        setActError(e?.response?.data?.message || "Failed to load act");
+      }
+    } finally {
+      if (!cancelled) setLoadingAct(false);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
   };
-  const { actId } = useParams();
+}, [actFetchUrl]);
+
+
+
   const {
     acts,
     getActById,
@@ -63,7 +105,12 @@ const Act = () => {
     handleDateOrAddressChange,
     selectedCounty,
   } = useContext(ShopContext);
-  const [actData, setActData] = useState(null);
+
+  // ✅ Effective act id used everywhere else
+const actId = React.useMemo(() => {
+  return isObjectId ? key : actData?._id;
+}, [isObjectId, key, actData?._id]);
+
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
   const [selectedLineup, setSelectedLineup] = useState("");
   const [video, setVideo] = useState("");
@@ -205,7 +252,7 @@ const leadRole = React.useMemo(() => {
     badgeKeys: Object.keys(actData?.availabilityBadges || {}).length,
   });
 
-  const id = extractVideoId(video);
+
 
   const cld = (
     url,
@@ -238,15 +285,11 @@ const leadRole = React.useMemo(() => {
   const heroSizes =
     "(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1280px";
 
-  // 🔺 Pre-compute hero URL for high-priority preload/render
-  const heroUrlHigh = React.useMemo(() => {
-    try {
-      const u = actData?.images?.[0]?.url || "";
-      return u ? cld(u, 1600) : "";
-    } catch {
-      return "";
-    }
-  }, [actData?.images]);
+// ✅ Pre-compute hero URL for high-priority preload/render (MUST match heroUrl/srcSet base)
+const heroUrlHigh = React.useMemo(() => {
+  if (!rawHero) return "";
+  return cld(rawHero, { w: 900, ar: "3:1", fill: true });
+}, [rawHero]);
 
   // Gallery Carousel logic
   const galleryRef = useRef(null);
@@ -647,85 +690,29 @@ const leadRole = React.useMemo(() => {
     };
   }, []);
 
-  // act loader
-  useEffect(() => {
-    if (!actId) return;
-    let cancelled = false;
 
-    // paint from acts[] if present
-    let found = Array.isArray(acts)
-      ? acts.find((a) => String(a._id) === String(actId))
-      : null;
-    if (found) {
-      const avg = calculateAverageRating(found.reviews || []);
-      setActData({ ...found, averageRating: avg });
-      setSelectedLineup(found.lineups?.[0] || null);
-      setVideo(found.videos?.[0]?.url || "");
+const findActInList = React.useCallback(
+  (k) => {
+    if (!Array.isArray(acts) || !k) return null;
+
+    // If it's an ObjectId, match by _id
+    if (/^[0-9a-fA-F]{24}$/.test(k)) {
+      return acts.find((a) => String(a?._id) === String(k)) || null;
     }
 
-    // paint from cache if present
-    const cached = readCachedAct(actId);
-    if (cached) {
-      const avg = calculateAverageRating(cached.reviews || []);
-      setActData((prev) => {
-        const better =
-          (cached?.lineups?.length || 0) >= (prev?.lineups?.length || 0)
-            ? cached
-            : prev;
-        return better
-          ? {
-              ...better,
-              averageRating: calculateAverageRating(better.reviews || []),
-            }
-          : prev;
-      });
-      setSelectedLineup(cached.lineups?.[0] || null);
-      setVideo(cached.videos?.[0]?.url || "");
-    }
+    // Otherwise try common slug fields (adjust if yours is different)
+    const kk = String(k).trim().toLowerCase();
+    return (
+      acts.find((a) => String(a?.slug || "").toLowerCase() === kk) ||
+      acts.find((a) => String(a?.tscSlug || "").toLowerCase() === kk) ||
+      acts.find((a) => String(a?.routeSlug || "").toLowerCase() === kk) ||
+      null
+    );
+  },
+  [acts]
+);
 
-    // fetch fresh — accept both response shapes
-    (async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/act/${actId}`,
-          {
-            headers: { accept: "application/json" },
-          }
-        );
-        const text = await res.text();
-        if (cancelled) return;
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const json = text ? JSON.parse(text) : null;
-
-        // ✅ tolerate: { success, act }  OR  { ...actFields }
-        const act =
-          json && json.act ? json.act : json && json._id ? json : null;
-
-        if (!act) {
-          console.warn("[Act] Unexpected payload for /api/act/:id", json);
-          return;
-        }
-
-        writeCachedAct(actId, act);
-        const avg = calculateAverageRating(act.reviews || []);
-        setActData({ ...act, averageRating: avg });
-
-        const firstLineup = Array.isArray(act.lineups) ? act.lineups[0] : null;
-        setSelectedLineup(firstLineup || null);
-
-        // prefer videos[], fall back to tscVideos[]
-        const v = act.videos?.[0]?.url || act.tscVideos?.[0]?.url || "";
-        setVideo(v);
-      } catch (e) {
-        console.error("[Act] fetch failed", e);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [actId, acts]);
 
   const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
@@ -991,6 +978,44 @@ const leadRole = React.useMemo(() => {
       ? shortlistedActs.includes(actData._id)
       : false;
 
+// ✅ Prefer tscVideos (your DB field), fall back to videos for older docs
+const videos = React.useMemo(() => {
+  const raw = actData?.tscVideos ?? [];
+  const arr = Array.isArray(raw) ? raw : [raw];
+
+  return arr
+    .map((v) => {
+      if (typeof v === "string") return { url: v, title: "" };
+      if (v && typeof v === "object") return { url: v.url || "", title: v.title || "" };
+      return { url: "", title: "" };
+    })
+    .filter((v) => typeof v.url === "string" && v.url.trim().length);
+}, [actData?.tscVideos]);
+
+// ✅ Ensure we always have a correct selected video for THIS act
+useEffect(() => {
+  if (!videos.length) {
+    setVideo("");
+    setPlaying(false);
+    return;
+  }
+
+  setPlaying(false);
+
+  setVideo((prev) => {
+    const prevClean = String(prev || "").trim();
+
+    // keep previous ONLY if it exists in this act's videos list
+    const stillValid = prevClean && videos.some((v) => v.url === prevClean);
+    return stillValid ? prevClean : videos[0].url;
+  });
+}, [key, videos]); // 👈 key changes when route changes (slug/id)
+
+const avgRating = React.useMemo(() => {
+  return calculateAverageRating(reviews);
+}, [reviews]);
+
+
   // ✅ new: render as soon as actData exists; handle "no lineup" gracefully
   if (!actData) {
     return <div className="p-4 text-gray-500">Loading act details...</div>;
@@ -1003,7 +1028,26 @@ const leadRole = React.useMemo(() => {
     songs: selectedSongs.length,
   });
 
-  
+
+// ✅ Better YouTube ID extractor (supports youtu.be, watch?v=, embed, shorts)
+const extractVideoId = (input) => {
+  if (!input) return "";
+  const s = String(input).trim();
+
+  // already an id?
+  if (/^[0-9A-Za-z_-]{11}$/.test(s)) return s;
+
+  const m = s.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([0-9A-Za-z_-]{11})/
+  );
+  return m ? m[1] : "";
+};
+
+const selectedVideoUrl = video || videos?.[0]?.url || "";
+const selectedVideoId = extractVideoId(selectedVideoUrl);
+
+
+
 
   return (
     <div className="p-4">
@@ -1092,64 +1136,63 @@ const leadRole = React.useMemo(() => {
                   text2="VIDEOS"
                 />
               </div>
-              {(() => {
-                const selectedVideoId = extractVideoId(video);
-                return (
-                  <div className="relative aspect-video rounded overflow-hidden">
-                    {!playing ? (
-                      <button
-                        type="button"
-                        className="group w-full h-full relative"
-                        onClick={() => setPlaying(true)}
-                        aria-label="Play video"
-                      >
-                        <img
-                          src={`https://img.youtube.com/vi/${selectedVideoId}/hqdefault.jpg`}
-                          alt="Video thumbnail"
-                          className="w-full h-full object-cover"
-                        />
-                        <span className="absolute inset-0 grid place-items-center">
-                          <span className="rounded-full p-4 bg-black/50 group-hover:bg-black/70 transition">
-                            {/* play triangle */}
-                            <svg
-                              width="36"
-                              height="36"
-                              viewBox="0 0 24 24"
-                              fill="#fff"
-                            >
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </span>
-                        </span>
-                      </button>
-                    ) : (
-                      <iframe
-                        className="w-full h-full"
-                        src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1&modestbranding=1&rel=0&controls=1`}
-                        title="YouTube player"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    )}
-                  </div>
-                );
-              })()}
+            {!videos.length ? (
+  <p className="text-sm text-gray-400">No videos available.</p>
+) : !selectedVideoId ? (
+  <p className="text-sm text-gray-400">Video link is invalid.</p>
+) : (
+  <div className="relative aspect-video rounded overflow-hidden">
+    {!playing ? (
+      <button
+        type="button"
+        className="group w-full h-full relative"
+        onClick={() => setPlaying(true)}
+        aria-label="Play video"
+      >
+        <img
+          src={`https://img.youtube.com/vi/${selectedVideoId}/hqdefault.jpg`}
+          alt="Video thumbnail"
+          className="w-full h-full object-cover"
+        />
+        <span className="absolute inset-0 grid place-items-center">
+          <span className="rounded-full p-4 bg-black/50 group-hover:bg-black/70 transition">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="#fff">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </span>
+        </span>
+      </button>
+    ) : (
+      <iframe
+        key={selectedVideoId}
+        className="w-full h-full"
+        src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1&modestbranding=1&rel=0&controls=1`}
+        title="YouTube player"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    )}
+  </div>
+)}
             </div>
             {/* Video thumbnails */}
-            <div className="flex gap-2 overflow-x-auto pb-2 mt-2">
-              {actData.videos?.map((videoObj, index) => {
-                const videoId = extractVideoId(videoObj.url);
-                return (
-                  <img
-                    key={index}
-                    onClick={() => setVideo(videoObj.url)}
-                    className="w-[80px] h-[56px] object-cover rounded cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded"
-                    src={`https://img.youtube.com/vi/${videoId}/0.jpg`}
-                    alt={videoObj.title || `Video ${index + 1}`}
-                  />
-                );
-              })}
-            </div>
+           <div className="flex gap-2 overflow-x-auto pb-2 mt-2">
+  {videos.map((v, index) => {
+    const vid = extractVideoId(v.url);
+    return (
+      <img
+        key={`${vid}-${index}`}
+        onClick={() => {
+          setVideo(v.url);
+          setPlaying(false); // ✅ show thumb first; click play to autoplay
+        }}
+        className="w-[80px] h-[56px] object-cover cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded"
+        src={`https://img.youtube.com/vi/${vid}/0.jpg`}
+        alt={v.title || `Video ${index + 1}`}
+      />
+    );
+  })}
+</div>
 
             {/* Inclusions (mobile only) */}
             <div className="block sm:hidden">
@@ -1159,23 +1202,23 @@ const leadRole = React.useMemo(() => {
                   text2="INCLUSIONS"
                 />
               </div>
-              <div className="flex items-center gap-1 mt-2 pl-3">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <img
-                    key={i}
-                    className="w-3.5"
-                    src={
-                      actData.averageRating >= i
-                        ? assets.star_icon
-                        : actData.averageRating >= i - 0.5
-                          ? assets.star_half_icon
-                          : assets.star_dull_icon
-                    }
-                    alt={`Star ${i}`}
-                  />
-                ))}
-                <p className="pl-2">({actData.reviews?.length || 0})</p>
-              </div>
+           <div className="flex items-center gap-1 mt-2 pl-3">
+  {[1, 2, 3, 4, 5].map((i) => (
+    <img
+      key={i}
+      className="w-3.5"
+      src={
+        avgRating >= i
+          ? assets.star_icon
+          : avgRating >= i - 0.5
+          ? assets.star_half_icon
+          : assets.star_dull_icon
+      }
+      alt={`Star ${i}`}
+    />
+  ))}
+  <p className="pl-2">({reviews?.length || 0})</p>
+</div>
               {/* ✅ Sticky bar only on mobile */}
               {actData && (
                 <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3 z-[9999]">
@@ -1625,23 +1668,23 @@ const leadRole = React.useMemo(() => {
               />
             </div>
             {/* Star rating with full, half, and empty stars */}
-            <div className="flex items-center gap-1 mt-2 pl-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <img
-                  key={i}
-                  className="w-3.5"
-                  src={
-                    actData.averageRating >= i
-                      ? assets.star_icon
-                      : actData.averageRating >= i - 0.5
-                        ? assets.star_half_icon
-                        : assets.star_dull_icon
-                  }
-                  alt={`Star ${i}`}
-                />
-              ))}
-              <p className="pl-2">({actData?.reviews?.length || 0})</p>
-            </div>
+           <div className="flex items-center gap-1 mt-2 pl-3">
+  {[1, 2, 3, 4, 5].map((i) => (
+    <img
+      key={i}
+      className="w-3.5"
+      src={
+        avgRating >= i
+          ? assets.star_icon
+          : avgRating >= i - 0.5
+          ? assets.star_half_icon
+          : assets.star_dull_icon
+      }
+      alt={`Star ${i}`}
+    />
+  ))}
+  <p className="pl-2">({reviews?.length || 0})</p>
+</div>
 
             <p className="mt-5 text-3xl font-medium p-3">
               {(() => {

@@ -9,10 +9,10 @@ const API_URL =
   "https://tsc-backend-v2.onrender.com";
 const CORE_PAGES = ["/", "/acts", "/about", "/contact"]; // edit to match your site
 
-async function fetchActIds() {
+async function fetchActSlugs() {
   // Backend endpoint you’ll add below
-  const res = await fetch(`${API_URL}/api/sitemap/act-ids`);
-  if (!res.ok) throw new Error(`Failed to fetch act ids: ${res.status}`);
+  const res = await fetch(`${API_URL}/api/sitemap/act-slugs`);
+  if (!res.ok) throw new Error(`Failed to fetch act slugs: ${res.status}`);
   return res.json(); // expects: ["6803...", "6804...", ...]
 }
 
@@ -24,10 +24,10 @@ async function run() {
     sm.write({ url: p, changefreq: "weekly", priority: 0.8 });
   }
 
-  // Act pages: /act/:id
-  const ids = await fetchActIds();
-  for (const id of ids) {
-    sm.write({ url: `/act/${id}`, changefreq: "weekly", priority: 0.7 });
+  // Act pages: /act/:slugs
+  const slugs = await fetchActSlugs();
+  for (const slug of slugs) {
+    sm.write({ url: `/act/${slug}`, changefreq: "weekly", priority: 0.7 });
   }
 
   sm.end();
@@ -35,7 +35,7 @@ async function run() {
 
   const outPath = path.join(process.cwd(), "public", "sitemap.xml");
   fs.writeFileSync(outPath, xml, "utf8");
-  console.log(`✅ Wrote ${outPath} (${ids.length} act URLs)`);
+  console.log(`✅ Wrote ${outPath} (${slugs.length} act URLs)`);
 }
 
 run().catch((e) => {

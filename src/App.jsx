@@ -123,7 +123,7 @@
                   userId={userId}
                   />} />
               <Route path="/about" element={<About />} />
-              <Route path="/act/:actId" element={<Act />} />
+              <Route path="/act/:key" element={<Act />} />
               <Route path="/bookings" element={<Bookings />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/client-dashboard" element={<Client_Dashboard />} />

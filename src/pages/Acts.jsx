@@ -180,6 +180,8 @@ const Acts = ({ userRole, email }) => {
       .replace(/[^a-z0-9]+/g, " ")
       .trim();
 
+      
+
   function buildServerPayload(filters) {
     const raw = filters.genres ?? filters.genre ?? [];
     const expanded = [...new Set(raw.flatMap(aliasGenre))];
