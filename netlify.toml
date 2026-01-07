@@ -10,6 +10,13 @@
   framework = "vite"
   autoLaunch = false
 
+# ✅ SEO 301: old act URLs → new act URLs
+[[redirects]]
+from = "/bandsforhire/*"
+to = "/acts/:splat"
+status = 301
+force = true
+
 # 🔒 Redirect any accidental ngrok traffic to your live backend
 [[redirects]]
 from = "/*"
@@ -20,15 +27,15 @@ conditions = { Host = ["*.ngrok-free.app", "*.ngrok.io"] }
 # ✅ Proper API routing for dev & prod
 [[redirects]]
 from = "/api/*"
-to   = "https://tsc-backend-v2.onrender.com/:splat"
+to = "https://tsc-backend-v2.onrender.com/:splat"
 status = 200
 force = true
 
 # 🧠 Helpful debug header
 [[headers]]
 for = "/*"
-[headers.values]
-X-Backend-Policy = "Redirected from ngrok → Render backend only"
+  [headers.values]
+  X-Backend-Policy = "Redirected from ngrok → Render backend only"
 
 [build.environment]
-SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
