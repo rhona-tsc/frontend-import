@@ -115,7 +115,7 @@ const SearchBar = () => {
         </div>
 
         {/* Row 2: Controls */}
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-wrap items-start gap-4">
           {/* Date */}
           <div className="flex-1 min-w-[220px]">
             <label
@@ -152,29 +152,24 @@ const SearchBar = () => {
               id="qs-venue"
             />
 
-            {/* helper text (reserve height so layout doesn't jump) */}
-<div className="mt-1 min-h-[16px]">
-  {!postcodeOk && localAddress?.trim() ? (
-    <p className="text-xs text-[#ff6667]">
-      Please select a result that includes a UK postcode.
-    </p>
-  ) : (
-    <p className="text-xs text-gray-400">
-      Tip: choose a dropdown result (not free-typed) so we can confirm the postcode.
-    </p>
-  )}
-</div>
+            {/* ✅ helper text */}
+            {!postcodeOk && localAddress?.trim() ? (
+              <p className="mt-1 text-xs text-[#ff6667]">
+                Please select a result that includes a UK postcode.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-gray-400">
+                Tip: choose a dropdown result (not free-typed) so we can confirm the postcode.
+              </p>
+            )}
 
-{/* Optional: show captured postcode (also reserve height to avoid jump) */}
-<div className="mt-1 min-h-[16px]">
-  {postcodeOk ? (
-    <p className="text-xs text-green-400">
-      Postcode detected: {normaliseUKPostcode(postcode)}
-    </p>
-  ) : (
-    <span className="block text-xs opacity-0 select-none">placeholder</span>
-  )}
-</div>
+            {/* Optional: show captured postcode */}
+            {postcodeOk ? (
+              <p className="mt-1 text-xs text-green-400">
+                Postcode detected: {normaliseUKPostcode(postcode)}
+              </p>
+            ) : null}
+          </div>
 
           {/* Search button */}
           <div className="w-full sm:w-auto">
