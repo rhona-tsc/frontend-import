@@ -172,7 +172,7 @@ const SearchBar = () => {
           </div>
 
           {/* Search button */}
-          <div className="w-full sm:w-auto">
+          <div className="w-full sm:w-auto flex flex-wrap items-start gap-4">
             <button
               type="button"
               onClick={handleSearch}
