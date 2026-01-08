@@ -27,7 +27,6 @@ const SearchBox = () => {
     setSelectedAddress,
     selectedDate,
     setSelectedDate,
-    // ✅ if you have these in context already (like SearchBar), use them:
     setSelectedPostcode,
     setSelectedCounty,
   } = useContext(ShopContext);
@@ -35,17 +34,15 @@ const SearchBox = () => {
   const [localAddress, setLocalAddress] = useState("");
   const [localDate, setLocalDate] = useState("");
   const [county, setCounty] = useState("");
-  const [postcode, setPostcode] = useState(""); // ✅ NEW
+  const [postcode, setPostcode] = useState("");
   const [animate, setAnimate] = useState(false);
 
   const postcodeOk = useMemo(() => isValidUKPostcode(postcode), [postcode]);
 
-  // ✅ Sync local state with stored address & date on mount
   useEffect(() => {
     setLocalAddress(selectedAddress || "");
     setLocalDate(selectedDate || "");
 
-    // (optional) restore postcode/county if you store them
     const ssPc = sessionStorage.getItem("selectedPostcode") || "";
     const ssCounty = sessionStorage.getItem("selectedCounty") || "";
     if (!postcode && ssPc) setPostcode(ssPc);
@@ -70,22 +67,13 @@ const SearchBox = () => {
   };
 
   const handleSearch = () => {
-    if (!localAddress.trim()) {
-      alert("Please enter a venue address.");
-      return;
-    }
+    if (!localAddress.trim()) return alert("Please enter a venue address.");
+    if (!localDate.trim()) return alert("Please select a date.");
 
-    if (!localDate.trim()) {
-      alert("Please select a date.");
-      return;
-    }
-
-    // ✅ require postcode from selected Google place
     if (!postcodeOk) {
-      alert(
+      return alert(
         "Please select a venue that includes a valid UK postcode (choose an option from the dropdown)."
       );
-      return;
     }
 
     const pc = normaliseUKPostcode(postcode);
@@ -93,7 +81,6 @@ const SearchBox = () => {
     setSelectedAddress(localAddress);
     setSelectedDate(localDate);
 
-    // ✅ if these exist in context, keep them in sync
     if (typeof setSelectedPostcode === "function") setSelectedPostcode(pc);
     if (typeof setSelectedCounty === "function") setSelectedCounty(county);
 
@@ -115,37 +102,40 @@ const SearchBox = () => {
         animate ? "opacity-100 scale-100" : "opacity-0 scale-95"
       }`}
     >
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-5">
-        {/* Date Picker */}
-        <div className="flex items-center gap-2">
-          <p className="font-medium text-sm text-gray-700">DATE</p>
+      {/* ⬇️ Key change: align blocks from the top, and make each control its own “column” */}
+      <div className="flex flex-col sm:flex-row items-start justify-center gap-4 px-5">
+        {/* Date column */}
+        <div className="w-full sm:w-auto flex flex-col text-left">
+          <p className="font-medium text-sm text-gray-700 mb-1">DATE</p>
           <input
             type="date"
-            className="border-2 border-gray-300 p-2 text-gray-500"
+            className="border-2 border-gray-300 p-2 text-gray-500 bg-white"
             value={localDate}
             onChange={(e) => setLocalDate(e.target.value)}
             min={new Date().toISOString().split("T")[0]}
             required
           />
+          {/* reserve the same “helper space” as venue so alignment never shifts */}
+          <div className="min-h-[16px] mt-1" aria-hidden="true" />
+          <div className="min-h-[16px] mt-1" aria-hidden="true" />
         </div>
 
-        {/* Google Autocomplete */}
-        <div className="flex flex-col items-start">
-          <div className="flex items-center gap-2">
-            <p className="font-medium text-sm text-gray-700">VENUE</p>
-            <GoogleAutocomplete
-              setAddress={setLocalAddress}
-              setCounty={setCounty}
-              setPostcode={setPostcode} // ✅ NEW (must be supported in component)
-              initialValue={localAddress}
-              className="text-base px-3 py-2 w-72 border-2 border-gray-300"
-              placeholder="Start typing your venue..."
-              required
-            />
-          </div>
+        {/* Venue column */}
+        <div className="w-full sm:w-[420px] flex flex-col text-left">
+          <p className="font-medium text-sm text-gray-700 mb-1">VENUE</p>
 
-          {/* helper line (reserve height so row doesn't jump) */}
-          <div className="min-h-[16px] mt-1 ml-[52px]">
+          <GoogleAutocomplete
+            setAddress={setLocalAddress}
+            setCounty={setCounty}
+            setPostcode={setPostcode}
+            initialValue={localAddress}
+            className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
+            placeholder="Start typing your venue..."
+            required
+          />
+
+          {/* helper line (reserved height) */}
+          <div className="min-h-[16px] mt-1">
             {!postcodeOk && localAddress.trim() ? (
               <p className="text-xs text-[#ff6667]">
                 Please select a result that includes a UK postcode.
@@ -157,8 +147,8 @@ const SearchBox = () => {
             )}
           </div>
 
-          {/* optional: show captured postcode */}
-          <div className="min-h-[16px] mt-1 ml-[52px]">
+          {/* postcode line (reserved height) */}
+          <div className="min-h-[16px] mt-1">
             {postcodeOk ? (
               <p className="text-xs text-green-600">
                 Postcode detected: {normaliseUKPostcode(postcode)}
@@ -169,26 +159,36 @@ const SearchBox = () => {
           </div>
         </div>
 
-        {/* Search Button */}
-        <button
-          className={`px-6 py-2 text-white transition duration-300 ${
-            searchDisabled
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-[#ff6667] hover:bg-[#ff3333]"
-          }`}
-          onClick={handleSearch}
-          disabled={searchDisabled}
-        >
-          SEARCH
-        </button>
+        {/* Search button column */}
+        <div className="w-full sm:w-auto flex flex-col text-left">
+          {/* label spacer to match the DATE/VENUE label height */}
+          <div className="h-[20px] mb-1" aria-hidden="true" />
+          <button
+            className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 rounded ${
+              searchDisabled
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-[#ff6667] hover:bg-[#ff3333]"
+            }`}
+            onClick={handleSearch}
+            disabled={searchDisabled}
+          >
+            SEARCH
+          </button>
 
-        {/* Close Button */}
-        <img
-          onClick={handleClose}
-          className="w-4 cursor-pointer"
-          src={assets.cross_icon}
-          alt="Close"
-        />
+          {/* keep column height consistent with other columns */}
+          <div className="min-h-[16px] mt-1" aria-hidden="true" />
+          <div className="min-h-[16px] mt-1" aria-hidden="true" />
+        </div>
+
+        {/* Close */}
+        <div className="pt-[22px] sm:pt-[22px]">
+          <img
+            onClick={handleClose}
+            className="w-4 cursor-pointer"
+            src={assets.cross_icon}
+            alt="Close"
+          />
+        </div>
       </div>
     </div>
   ) : null;

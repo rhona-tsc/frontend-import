@@ -174,7 +174,7 @@ const SearchBar = () => {
          {/* Search button */}
 <div className="w-full sm:w-auto flex flex-col">
   {/* spacer to match the label height above inputs */}
-  <div className="h-[19px] mb-1" aria-hidden="true" />
+  <div className="h-[18px] mb-1" aria-hidden="true" />
   <button
     type="button"
     onClick={handleSearch}
