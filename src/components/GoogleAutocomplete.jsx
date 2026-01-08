@@ -45,51 +45,7 @@ function ensureMapsPlacesScript() {
   });
 }
 
-import React, { useEffect, useRef, useState } from "react";
 
-/**
- * Google Places Autocomplete input
- * - Lazily injects the Maps JS script in dev if it's not present
- * - Restricts results to GB
- * - Emits formatted address + best-effort county + POSTCODE
- * - Clears county/postcode when user types (forces selecting a dropdown result)
- */
-const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API; // ensure this exists in `.env.local`
-
-function ensureMapsPlacesScript() {
-  if (typeof window === "undefined") return Promise.reject(new Error("no-window"));
-  if (window.google?.maps?.places) return Promise.resolve(true);
-
-  // prevent duplicate inserts
-  const existing = document.querySelector('script[data-tsc="gmaps-places"]');
-  if (existing) {
-    return new Promise((resolve) => {
-      existing.addEventListener("load", () => resolve(true));
-      if (window.google?.maps?.places) resolve(true);
-    });
-  }
-
-  if (!API_KEY) {
-    console.warn(
-      "⚠️ GoogleAutocomplete: VITE_GOOGLE_MAPS_API not set. Autocomplete will not initialise."
-    );
-    return Promise.resolve(false);
-  }
-
-  const s = document.createElement("script");
-  s.async = true;
-  s.defer = true;
-  s.dataset.tsc = "gmaps-places";
-  s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-    API_KEY
-  )}&libraries=places&v=weekly`;
-  document.head.appendChild(s);
-
-  return new Promise((resolve) => {
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-  });
-}
 
 const GoogleAutocomplete = ({ setAddress, setCounty, setPostcode, ...props }) => {
   const inputRef = useRef(null);
