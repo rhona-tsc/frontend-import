@@ -172,18 +172,20 @@ const SearchBar = () => {
           </div>
 
           {/* Search button */}
-          <div className="w-full sm:w-auto flex flex-wrap items-start gap-4">
-            <button
-              type="button"
-              onClick={handleSearch}
-              disabled={searchDisabled}
-              className={`w-full sm:w-auto px-6 py-3 font-medium rounded transition
-                ${searchDisabled ? "bg-gray-600 cursor-not-allowed opacity-60" : "bg-[#ff6667] hover:opacity-90 text-white"}
-              `}
-            >
-              SEARCH
-            </button>
-          </div>
+<div className="w-full sm:w-auto pt-[22px]">
+  <button
+    type="button"
+    onClick={handleSearch}
+    disabled={searchDisabled}
+    className={`w-full sm:w-auto px-6 py-3 font-medium rounded transition
+      ${searchDisabled
+        ? "bg-gray-600 cursor-not-allowed opacity-60"
+        : "bg-[#ff6667] hover:opacity-90 text-white"}
+    `}
+  >
+    SEARCH
+  </button>
+</div>
         </div>
       </div>
     </section>
