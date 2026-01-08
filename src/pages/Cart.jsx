@@ -83,6 +83,7 @@ const getLeadIdForDate = (actData, selectedDate, badgesOverride = null) => {
 const toArray = (val) => (Array.isArray(val) ? val : val ? [val] : []);
 
 
+
 const Cart = () => {
   const {
     acts,
@@ -358,6 +359,42 @@ useEffect(() => {
 
 
 
+// ✅ basic UK postcode detector (good enough for gating)
+const hasUkPostcode = (value = "") => {
+  const s = String(value).toUpperCase().trim();
+  // special case
+  if (/\bGIR\s*0AA\b/.test(s)) return true;
+  // common UK formats (allows optional space)
+  return /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/.test(s);
+};
+
+const canProceedToBooking = Boolean(
+  selectedDate &&
+  selectedAddress &&
+  hasUkPostcode(selectedAddress)
+);
+
+const handleProceedToBooking = () => {
+  if (!selectedDate || !selectedAddress) {
+    toast(<CustomToast type="error" message="Please select a date and venue address." />);
+    triggerSearch();
+    return;
+  }
+
+  if (!hasUkPostcode(selectedAddress)) {
+    toast(
+      <CustomToast
+        type="error"
+        message="Please select a venue address that includes a postcode (e.g. SW1A 1AA)."
+      />
+    );
+    triggerSearch(); // sends them back to add/fix address
+    return;
+  }
+
+  commitStandardTimesIfMissing();
+  navigate("/place-booking");
+};
 
 
 
@@ -1944,7 +1981,7 @@ useEffect(() => {
                                            onClick={() => {
   if (selectedDate && selectedAddress) {
     commitStandardTimesIfMissing();
-    navigate("/place-booking");
+    handleProceedToBooking();
   }
 }}
                                           >
@@ -2557,29 +2594,26 @@ useEffect(() => {
   <p className="text-gray-500">Your cart is empty.</p>
 )}
           <div className="w-full text-end">
-           <button
- onClick={() => {
-  if (!selectedDate || !selectedAddress) return;
-  commitStandardTimesIfMissing();
-  navigate("/place-booking");
-}}
+         <button
+  onClick={handleProceedToBooking}
   className={`hidden sm:inline-block bg-black text-white text-sm my-8 px-8 py-3 rounded transition-colors duration-300 ${
-    selectedDate && selectedAddress
-      ? "hover:bg-[#ff6667] cursor-pointer"
-      : "opacity-50 cursor-not-allowed"
+    canProceedToBooking ? "hover:bg-[#ff6667] cursor-pointer" : "opacity-50 cursor-not-allowed"
   }`}
-  disabled={!selectedDate || !selectedAddress}
+  disabled={!canProceedToBooking}
 >
   PROCEED TO BOOK
 </button>
             {/* Mobile sticky footer */}
 <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-inner md:hidden z-50">
-  <button
-    onClick={() => navigate("/place-booking")}
-    className="w-full bg-black text-white font-semibold py-3 rounded shadow hover:bg-black transition"
-  >
-    PROCEED TO BOOK
-  </button>
+ <button
+  onClick={handleProceedToBooking}
+  disabled={!canProceedToBooking}
+  className={`w-full bg-black text-white font-semibold py-3 rounded shadow transition ${
+    canProceedToBooking ? "hover:bg-black" : "opacity-50 cursor-not-allowed"
+  }`}
+>
+  PROCEED TO BOOK
+</button>
 </div>
           </div>
         </div>
