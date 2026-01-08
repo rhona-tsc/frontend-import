@@ -40,6 +40,8 @@ const Act = () => {
 const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 const params = useParams();
 
+const location = useLocation();
+
 // supports /act/:actId OR /act/:slug OR /act/:key OR /act/:id
 const key = params.actId || params.slug || params.key || params.id;
 
@@ -53,6 +55,7 @@ const actFetchUrl = React.useMemo(() => {
   if (!key) return "";
   return `${backendUrl}/api/act/${encodeURIComponent(key)}`;
 }, [backendUrl, key]);
+
 
 useEffect(() => {
   if (!actFetchUrl) return;
@@ -1129,7 +1132,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
           {/* Left: Video & Bio stacked together */}
           <div className="w-full sm:w-[60%] ">
             {/* Video section */}
-            <div className="aspect-video">
+            <div className="aspect-video" id="videos">
               <div className="text-2xl mt-6">
                 <Title
                   text1={getPossessiveTitleCase(actData?.tscName)}
@@ -1195,8 +1198,8 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
 </div>
 
             {/* Inclusions (mobile only) */}
-            <div className="block sm:hidden">
-              <div className="text-2xl mt-6" id="lineup-selector-mobile">
+            <div className="block sm:hidden" id="included">
+              <div className="text-2xl mt-6" id="lineup-selector">
                 <Title
                   text1={getPossessiveTitleCase(actData?.tscName)}
                   text2="INCLUSIONS"
@@ -2229,7 +2232,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
         </div>
 
         {/* Left Column (60%) */}
-        <div className="flex flex-col sm:flex-row gap-12 mt-10">
+        <div className="flex flex-col sm:flex-row gap-12 mt-10" id="repertoire">
           <div className="w-full">
             <Suspense fallback={null}>
               <VisibleOnScroll>
@@ -2243,7 +2246,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
           </div>
         </div>
         {/* Reviews horizontal scroll gallery */}
-        <div className="relative mt-12">
+        <div className="relative mt-12" id="reviews">
           <div className="text-2xl mb-2">
             <Title
               text1={getPossessiveTitleCase(actData?.tscName)}
@@ -2351,7 +2354,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
               </div>
             </div>
           </div>
-          <div className="w-full lg:w-1/2">
+          <div className="w-full lg:w-1/2" id="extras">
             <div className="text-2xl mb-2">
               <Title
                 text1={getPossessiveTitleCase(actData?.tscName)}
@@ -2522,7 +2525,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
             </div>
           </div>
         </div>
-        <div className="w-full sm:w-full mt-10">
+        <div className="w-full sm:w-full mt-10" id="faq">
           <div className="text-2xl mb-2">
             <Title
               text1={getPossessiveTitleCase(actData?.tscName)}

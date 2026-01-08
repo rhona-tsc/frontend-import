@@ -83,28 +83,15 @@ const Contact = () => {
   <br /> 
   Email: hello@thesupremecollective.co.uk</p>
           <p className=' font-semibold text-xl text-gray-600'>Join The Supreme Collective</p>
-          <p className=' text-gray-500'>Think you've got what it takes to join our roster? Submit a pre-screening here and we'll be in touch if you've got the stuff!</p>
+          <p className=' text-gray-500'>Think you've got what it takes to join our roster as a musician or an act? Submit a pre-screening and we'll be in touch if you've got the stuff!</p>
           <a
-            href="https://docs.google.com/forms/d/e/1FAIpQLSexd29rLAi1tCajAPLwGgyZlBUllDoeRz9Yctcwhu4Becu3IQ/viewform?usp=sf_link"
+            href="https://admin.thesupremecollective.co.uk"
             target="_blank"
             rel="noopener noreferrer"
             className="border border-black px-8 py-4 text-sm hover:bg-black hover:text-white transition-all duration-500 inline-block"
           >
-            Submit Myself as a Musician
+            Join Our Roster
           </a>
-
-          <a 
-  href="https://docs.google.com/forms/d/e/1FAIpQLScRfAehCuEBRq6OmfXtTCj2EfmpYHQkTDwGf0-clUp3PlsmIQ/viewform?usp=dialog"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="border border-black px-8 py-4 text-sm hover:bg-black hover:text-white transition-all duration-500 inline-block text-center"
->
-  Submit My Act
-</a>
-
-        {showActForm && (
-  <ActSubmissionForm onSuccess={() => setShowActForm(false)} className="mt-4" />
-)}
 
         </div>
       </div>
