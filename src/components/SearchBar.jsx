@@ -171,16 +171,20 @@ const SearchBar = () => {
             ) : null}
           </div>
 
-          {/* Search button */}
-<div className="w-full sm:w-auto pt-[22px]">
+         {/* Search button */}
+<div className="w-full sm:w-auto flex flex-col">
+  {/* spacer to match the label height above inputs */}
+  <div className="h-[20px] mb-1" aria-hidden="true" />
   <button
     type="button"
     onClick={handleSearch}
     disabled={searchDisabled}
     className={`w-full sm:w-auto px-6 py-3 font-medium rounded transition
-      ${searchDisabled
-        ? "bg-gray-600 cursor-not-allowed opacity-60"
-        : "bg-[#ff6667] hover:opacity-90 text-white"}
+      ${
+        searchDisabled
+          ? "bg-gray-600 cursor-not-allowed opacity-60"
+          : "bg-[#ff6667] hover:opacity-90 text-white"
+      }
     `}
   >
     SEARCH
