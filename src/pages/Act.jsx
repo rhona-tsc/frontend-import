@@ -16,7 +16,7 @@ import ActHero from "../components/ActHero";
 import ReviewCard from "../components/ReviewCard";
 import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
-
+import { gtagEvent } from "../utils/gtag";
 import { priceCache, makePriceKey } from "./utils/priceCache";
 import {
   FeaturedVocalistBadge,
@@ -1149,7 +1149,17 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
       <button
         type="button"
         className="group w-full h-full relative"
-        onClick={() => setPlaying(true)}
+        onClick={() => {
+  gtagEvent("video_play", {
+    event_category: "Act",
+    event_label: actData?.tscName || actData?.name || "",
+    act_id: actData?._id || "",
+    video_id: selectedVideoId || "",
+    video_url: selectedVideoUrl || "",
+  });
+
+  setPlaying(true);
+}}
         aria-label="Play video"
       >
         <img
@@ -1186,9 +1196,19 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
       <img
         key={`${vid}-${index}`}
         onClick={() => {
-          setVideo(v.url);
-          setPlaying(false); // ✅ show thumb first; click play to autoplay
-        }}
+  const vid = extractVideoId(v.url);
+
+  gtagEvent("video_thumbnail_click", {
+    event_category: "Act",
+    event_label: actData?.tscName || actData?.name || "",
+    act_id: actData?._id || "",
+    video_id: vid || "",
+    video_index: index,
+  });
+
+  setVideo(v.url);
+  setPlaying(false);
+}}
         className="w-[80px] h-[56px] object-cover cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded"
         src={`https://img.youtube.com/vi/${vid}/0.jpg`}
         alt={v.title || `Video ${index + 1}`}
@@ -1450,7 +1470,17 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                     return (
                       <button
                         key={index}
-                        onClick={() => handleLineupChange(item)}
+                        onClick={() => {
+  gtagEvent("lineup_select", {
+    event_category: "Act",
+    event_label: actData?.tscName || actData?.name || "",
+    act_id: actData?._id || "",
+    lineup_id: item?._id || item?.lineupId || "",
+    lineup_size: item?.actSize || "",
+  });
+
+  handleLineupChange(item);
+}}
                         className={`border py-2 px-4 rounded text-sm transition-colors duration-200 ${
                           isSelected
                             ? "bg-black text-white border-black"

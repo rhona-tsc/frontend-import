@@ -3,7 +3,7 @@ import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import { useLocation } from "react-router-dom";
 import GoogleAutocomplete from "./GoogleAutocomplete";
-
+import { gtagEvent } from "../utils/gtag";
 // UK postcode validator (accepts with/without space, normalises later)
 const isValidUKPostcode = (value = "") => {
   const pc = String(value || "").trim().toUpperCase();
@@ -36,7 +36,7 @@ const SearchBox = () => {
   const [county, setCounty] = useState("");
   const [postcode, setPostcode] = useState("");
   const [animate, setAnimate] = useState(false);
-
+const openedAtRef = React.useRef(null);
   const postcodeOk = useMemo(() => isValidUKPostcode(postcode), [postcode]);
 
   useEffect(() => {
@@ -66,31 +66,53 @@ const SearchBox = () => {
     setTimeout(() => setShowSearch(false), 500);
   };
 
-  const handleSearch = () => {
-    if (!localAddress.trim()) return alert("Please enter a venue address.");
-    if (!localDate.trim()) return alert("Please select a date.");
+const handleSearch = () => {
+  gtagEvent("searchbox_submit_attempt", {
+    has_date: !!localDate.trim(),
+    has_address: !!localAddress.trim(),
+    has_county: !!county.trim(),
+    postcode_valid: postcodeOk,
+  });
 
-    if (!postcodeOk) {
-      return alert(
-        "Please select a venue that includes a valid UK postcode (choose an option from the dropdown)."
-      );
-    }
+  if (!localAddress.trim()) {
+    gtagEvent("searchbox_submit_error", { reason: "missing_address" });
+    return alert("Please enter a venue address.");
+  }
 
-    const pc = normaliseUKPostcode(postcode);
+  if (!localDate.trim()) {
+    gtagEvent("searchbox_submit_error", { reason: "missing_date" });
+    return alert("Please select a date.");
+  }
 
-    setSelectedAddress(localAddress);
-    setSelectedDate(localDate);
+  if (!postcodeOk) {
+    gtagEvent("searchbox_submit_error", { reason: "invalid_or_missing_postcode" });
+    return alert(
+      "Please select a venue that includes a valid UK postcode (choose an option from the dropdown)."
+    );
+  }
 
-    if (typeof setSelectedPostcode === "function") setSelectedPostcode(pc);
-    if (typeof setSelectedCounty === "function") setSelectedCounty(county);
+  const pc = normaliseUKPostcode(postcode);
 
-    sessionStorage.setItem("selectedAddress", localAddress);
-    sessionStorage.setItem("selectedDate", localDate);
-    sessionStorage.setItem("selectedCounty", county);
-    sessionStorage.setItem("selectedPostcode", pc);
+  setSelectedAddress(localAddress);
+  setSelectedDate(localDate);
 
-    handleClose();
-  };
+  if (typeof setSelectedPostcode === "function") setSelectedPostcode(pc);
+  if (typeof setSelectedCounty === "function") setSelectedCounty(county);
+
+  sessionStorage.setItem("selectedAddress", localAddress);
+  sessionStorage.setItem("selectedDate", localDate);
+  sessionStorage.setItem("selectedCounty", county);
+  sessionStorage.setItem("selectedPostcode", pc);
+
+  const ms = openedAtRef.current ? Date.now() - openedAtRef.current : null;
+
+  gtagEvent("searchbox_submit_success", {
+    county,
+    duration_ms: ms,
+  });
+
+  handleClose("submit_success");
+};
 
   const searchDisabled =
     !localAddress.trim() || !localDate.trim() || !county.trim() || !postcodeOk;
