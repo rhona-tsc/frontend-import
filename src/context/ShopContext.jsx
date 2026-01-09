@@ -2365,6 +2365,32 @@ vocalist: c.vocalist || "",
     await shortlistAct(u, String(itemId));
   };
 
+
+  const reportShortlistConversion = ({ actId, value = 1.0, currency = "GBP" } = {}) => {
+  try {
+    // prevent double-firing for the same act in the same session
+    if (actId) {
+      const k = `conv_shortlist_${String(actId)}`;
+      if (sessionStorage.getItem(k) === "1") return;
+      sessionStorage.setItem(k, "1");
+    }
+
+    if (typeof window === "undefined") return;
+    if (typeof window.gtag !== "function") return;
+
+    window.gtag("event", "conversion", {
+      send_to: "AW-17648722186/0VAvCMrt1t8bEIrCyN9B",
+      value,
+      currency,
+      // event_callback is optional in SPA; keep it lightweight
+      event_callback: () => {},
+    });
+  } catch (e) {
+    // never block UX if tracking fails
+    console.warn("⚠️ conversion tracking failed", e);
+  }
+};
+
 // ✅ Toggle shortlist via PATCH routes with optimistic UI
 const shortlistAct = async (uid, actId) => {
   if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
@@ -2476,6 +2502,9 @@ const shortlistAct = async (uid, actId) => {
         res?.data?.count;
 
       syncLoveCountFromServer(loveCountFromServer);
+
+      // ✅ Google Ads conversion: only fire on successful ADD
+      reportShortlistConversion({ actId: idStr, value: 1.0, currency: "GBP" });
 
       // 🩵 Only sync date/address (and any downstream availability) when BOTH are present
       if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {

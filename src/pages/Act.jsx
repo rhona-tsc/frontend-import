@@ -1663,7 +1663,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
             </div>
           </div>
           {/* Right Column: Act Info */}
-          <div className="hidden sm:block sm:w-[40%]">
+          <div className="hidden sm:block sm:w-[40%]" id="included">
             <div className="text-2xl mt-6" id="lineup-selector">
               <Title
                 text1={getPossessiveTitleCase(actData?.tscName)}
