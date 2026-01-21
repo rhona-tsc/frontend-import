@@ -1726,8 +1726,14 @@ useEffect(() => {
 >
 {(() => {
   const isHttp = (u) => typeof u === "string" && u.startsWith("http");
-  const isYes  = (d) => d?.state === "yes" || d?.reply === "yes" || d?.available === true;
+const norm = (v) => String(v || "").trim().toLowerCase();
 
+const isYes = (d) => {
+  const s = norm(d?.state || d?.reply);
+  return s === "yes";
+};
+
+const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
   // Availability badge chooser — per-item, using per-act badges map
   const allBadges = (availabilityBadgesByAct?.[item.actId]) || (item.actData?.availabilityBadges) || {};
   const cleanDate = (selectedDate || "").slice(0, 10);
@@ -1781,18 +1787,20 @@ useEffect(() => {
   };
 
   // Include LEADS with positive replies
-  slots.forEach((slot) => {
-    if (isYes(slot) && isHttp(slot?.photoUrl)) {
-      pushUnique(slot, { isDeputy: false });
+ slots.forEach((slot) => {
+  // ✅ only include leads who explicitly said YES (and are not unavailable)
+  if (!isUnavailable(slot) && isYes(slot) && isHttp(slot?.photoUrl)) {
+    pushUnique(slot, { isDeputy: false });
+  }
+
+  // ✅ only include deputies who explicitly said YES
+  const deps = Array.isArray(slot?.deputies) ? slot.deputies : [];
+  deps.forEach((dep) => {
+    if (!isUnavailable(dep) && isYes(dep) && isHttp(dep?.photoUrl)) {
+      pushUnique(dep, { isDeputy: true });
     }
-    // Include any deputies with positive replies for this slot
-    const deps = Array.isArray(slot?.deputies) ? slot.deputies : [];
-    deps.forEach((dep) => {
-      if (isYes(dep) && isHttp(dep?.photoUrl)) {
-        pushUnique(dep, { isDeputy: true });
-      }
-    });
   });
+});
 
   console.log('[selection]', selection.map(p => ({ id: p.musicianId, type: p.isDeputy ? 'deputy' : 'lead' })));
 
