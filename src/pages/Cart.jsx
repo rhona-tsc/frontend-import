@@ -1849,69 +1849,80 @@ const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
   }
 
   console.groupEnd();
-  return (
-    <>
-    <h3 className="text-base font-semibold text-gray-600 mb-1 mt-2 leading-tight">
-  <span className="block">Choose your {titlePlural}</span>
-  {requiredVocalCount > 1 && (
-    <span className="block mt-0.5 text-gray-500 font-normal">
-      ({Math.min(chosenCount, requiredVocalCount)}/{requiredVocalCount} selected)
-    </span>
-  )}
-</h3>
+ return (
+  <div className="mt-2">
+    {/* Header */}
+    <div className="flex flex-col gap-0.5">
+      <h3 className="text-base font-semibold text-gray-700 leading-tight">
+        Choose your {titlePlural}
+      </h3>
 
-{requiredVocalCount > 1 && selection.length < requiredVocalCount && (
-  <p className="mt-1 text-sm text-gray-600 max-w-prose">
-    Can’t see all {requiredVocalCount} vocalists right now? You’re welcome to book
-    with {Math.min(chosenCount || 1, requiredVocalCount)} selected — we’ll allocate
-    the other lead vocalist if they’re available, or a like-for-like deputy.
-  </p>
-)}
+      {requiredVocalCount > 1 && (
+        <p className="text-sm text-gray-500">
+          ({Math.min(chosenCount, requiredVocalCount)}/{requiredVocalCount} selected)
+        </p>
+      )}
+    </div>
 
-      <div className="flex flex-wrap gap-4 items-left ml-4">
-        {selection.slice(0, 8).map((person, idx) => {
-          const isLeadLocked = person.musicianId === leadIdForDate;
-          const isSelected = isLeadLocked ? true : actSel.includes(person.musicianId);
-          const keyId = `${(selectedDate || "").slice(0,10)}_${person.musicianId || idx}`;
-          return (
-            <div
-              key={keyId}
-              role="button"
-              tabIndex={0}
-              aria-pressed={isSelected}
-              className="inline-block focus:outline-none"
-              onClick={(e) => {
+    {/* Badges */}
+    <div className="mt-3 flex flex-wrap gap-4">
+      {selection.slice(0, 8).map((person, idx) => {
+        const isLeadLocked = person.musicianId === leadIdForDate;
+        const isSelected = isLeadLocked ? true : actSel.includes(person.musicianId);
+        const keyId = `${(selectedDate || "").slice(0, 10)}_${person.musicianId || idx}`;
+
+        return (
+          <div
+            key={keyId}
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSelected}
+            className="inline-block focus:outline-none"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!isLeadLocked) handlePick(person, isSelected, isLeadLocked);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 e.stopPropagation();
                 if (!isLeadLocked) handlePick(person, isSelected, isLeadLocked);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (!isLeadLocked) handlePick(person, isSelected, isLeadLocked);
-                }
-              }}
-              style={{ cursor: isLeadLocked ? 'not-allowed' : 'pointer' }}
-            >
-              <FeaturedVocalistBadgeForCart
-                pictureSource={person}
-                imageUrl={person.photoUrl}
-                size={120}
-                variant={person.isDeputy ? 'deputy' : 'lead'}
-                musicianId={person.musicianId}
-                cacheBuster={person.setAt}
-                isSelected={isSelected}
-                disabled={false}
-                actContext={item.actName}
-                dateContext={selectedDate}
-              />
-            </div>
-          );
-        })}
+              }
+            }}
+            style={{ cursor: isLeadLocked ? "not-allowed" : "pointer" }}
+          >
+            <FeaturedVocalistBadgeForCart
+              pictureSource={person}
+              imageUrl={person.photoUrl}
+              size={120}
+              variant={person.isDeputy ? "deputy" : "lead"}
+              musicianId={person.musicianId}
+              cacheBuster={person.setAt}
+              isSelected={isSelected}
+              disabled={false}
+              actContext={item.actName}
+              dateContext={selectedDate}
+            />
+          </div>
+        );
+      })}
+    </div>
+
+    {/* Helper note (under badges) */}
+    {requiredVocalCount > 1 && selection.length < requiredVocalCount && (
+      <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+        <p className="text-sm text-gray-600 leading-relaxed">
+          Can’t see all {requiredVocalCount} vocalists right now? You’re welcome to book with{" "}
+          <span className="font-semibold text-gray-700">
+            {Math.min(chosenCount || 1, requiredVocalCount)} selected
+          </span>{" "}
+          — we’ll allocate the other lead vocalist if they’re available, or a like-for-like deputy.
+        </p>
       </div>
-    </>
-  );
+    )}
+  </div>
+);
 })()}
 </div>
 
