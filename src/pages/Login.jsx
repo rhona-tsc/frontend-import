@@ -109,66 +109,98 @@ const Login = () => {
     }
   };
 
-  const onSubmitHandler = async (event) => {
-    event.preventDefault();
-    try {
-      if (currentState === "Sign Up") {
-        const response = await axios.post(`${backendUrl}/api/user/register`, {
-          firstName,
-          lastName,
-          email,
-          password,
-          phone
-        });
-        if (response.data.success) {
-          setToken(response.data.token);
-          localStorage.setItem("token", response.data.token);
+const onSubmitHandler = async (event) => {
+  event.preventDefault();
+
+  // ✅ Only count this “lead” when signup happened because they were gating through shortlist
+  // (i.e. they tried to shortlist while logged out)
+  const pendingActId = sessionStorage.getItem("pendingShortlistActId");
+  const pendingActName = sessionStorage.getItem("pendingShortlistActName");
+
+  try {
+    if (currentState === "Sign Up") {
+      const response = await axios.post(`${backendUrl}/api/user/register`, {
+        firstName,
+        lastName,
+        email,
+        password,
+        phone,
+      });
+
+      if (response.data.success) {
+        setToken(response.data.token);
+        localStorage.setItem("token", response.data.token);
 
         const user = {
-  _id: response.data.userId,
-  email: response.data.email,
-};
-setUser(user); // 🆕 keeps context + localStorage in sync
-          localStorage.setItem("user", JSON.stringify(user));
-          localStorage.removeItem("shortlistItems");
+          _id: response.data.userId,
+          email: response.data.email,
+        };
 
-          await handleAutoShortlist(user._id); // 🆕 auto-shortlist if pending
-          redirectAfterAuth();
-        } else {
-          toast(<CustomToast type="error" message={response.data.message} />);
-        }
+        setUser(user); // 🆕 keeps context + localStorage in sync
+        localStorage.setItem("user", JSON.stringify(user));
+        localStorage.removeItem("shortlistItems");
+
+       // ✅ Google Ads conversion: Lead – Shortlist Signup
+try {
+  if (typeof window !== "undefined" && typeof window.gtag === "function") {
+    const leadKey = `lead_shortlist_signup_${String(response.data.userId || email).toLowerCase()}`;
+    if (sessionStorage.getItem(leadKey) !== "1") {
+      sessionStorage.setItem(leadKey, "1");
+
+      window.gtag("event", "conversion", {
+        send_to: "AW-17648722186/HfomCNTEi_IbEIrCyN9B",
+        value: 1.0,
+        currency: "GBP",
+        event_callback: () => {},
+      });
+    }
+  }
+} catch (e) {
+  console.warn("⚠️ Lead conversion tracking failed", e);
+}
+
+        await handleAutoShortlist(user._id); // 🆕 auto-shortlist if pending
+        redirectAfterAuth();
       } else {
-        const response = await axios.post(
-          `${backendUrl}/api/user/login`,
-          { email, password },
-          { withCredentials: false }
-        );
-        if (response.data.success) {
-          setToken(response.data.token);
-          localStorage.setItem("token", response.data.token);
-
-       const user = {
-  _id: response.data.userId,
-  email: response.data.email,
-};
-setUser(user); // 🆕 keeps context + localStorage in sync
-          localStorage.setItem("user", JSON.stringify(user));
-
-          await handleAutoShortlist(user._id); // 🆕 auto-shortlist if pending
-          redirectAfterAuth();
-        } else {
-          toast(<CustomToast type="error" message={response.data.message} />);
-        }
+        toast(<CustomToast type="error" message={response.data.message} />);
       }
-    } catch (error) {
-      console.log(error);
-      if (error?.response?.data?.message) {
-        toast(<CustomToast type="error" message={error.response.data.message} />);
+    } else {
+      const response = await axios.post(
+        `${backendUrl}/api/user/login`,
+        { email, password },
+        { withCredentials: false }
+      );
+
+      if (response.data.success) {
+        setToken(response.data.token);
+        localStorage.setItem("token", response.data.token);
+
+        const user = {
+          _id: response.data.userId,
+          email: response.data.email,
+        };
+
+        setUser(user); // 🆕 keeps context + localStorage in sync
+        localStorage.setItem("user", JSON.stringify(user));
+
+        // (Optional) If you ALSO want to count “login from shortlist gate” as a lead signal, add it here.
+        // I would usually NOT count logins as leads unless this flow is rare and high-intent.
+
+        await handleAutoShortlist(user._id); // 🆕 auto-shortlist if pending
+        redirectAfterAuth();
       } else {
-        toast(<CustomToast type="error" message="Something went wrong. Please try again." />);
+        toast(<CustomToast type="error" message={response.data.message} />);
       }
     }
-  };
+  } catch (error) {
+    console.log(error);
+    if (error?.response?.data?.message) {
+      toast(<CustomToast type="error" message={error.response.data.message} />);
+    } else {
+      toast(<CustomToast type="error" message="Something went wrong. Please try again." />);
+    }
+  }
+};
 
   const handleForgotPassword = async () => {
     const trimmed = String(email || "").trim();
