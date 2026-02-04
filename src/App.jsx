@@ -13,7 +13,8 @@
   import Cart from "./pages/Cart";
   import Client_Dashboard from "./pages/Client_Dashboard";
   import Contact from "./pages/Contact";
-  import Login from "./pages/Login";
+import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
   import Musician_Login from "./pages/Musician_Login";
   import Musician from "./pages/Musician";
   import PlaceBooking from "./pages/PlaceBooking";
@@ -133,6 +134,7 @@
               <Route path="/privacy" element={<Privacy />} />
 
               <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/musician/:musicianId" element={<Musician />} />
             
               <Route path="/booking-success" element={<BookingSuccess />} />
