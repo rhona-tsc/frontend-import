@@ -716,11 +716,11 @@ const basePrice = subtotalWithMargin; // already gross
 
 
   const handleLineupChange = async (actId, oldLineupId, newLineupId) => {
+    const actIdStr = String(actId || "");
     const oldIdStr = String(oldLineupId || "");
     const newIdStr = String(newLineupId || "");
 
-    if (!newIdStr || oldIdStr === newIdStr) {
-    
+    if (!actIdStr || !newIdStr || oldIdStr === newIdStr) {
       return;
     }
 
@@ -729,10 +729,12 @@ const basePrice = subtotalWithMargin; // already gross
     }
 
     changingLineupRef.current = true;
-setIsChangingLineup(true);
+    setIsChangingLineup(true);
 
     try {
-const act = acts.find((a) => String(a?._id) === String(actId));      if (!act) {
+      // ✅ Always resolve the FULL act so lineups exist
+      const act = await resolveActForCart(actIdStr);
+      if (!act) {
         return;
       }
 
@@ -751,18 +753,19 @@ const act = acts.find((a) => String(a?._id) === String(actId));      if (!act) {
         selectedDate,
         lineup
       );
-const net = Number(total) || 0;
-const priceWithMargin = Math.ceil(net * 1.33); // <-- this is your x1.33
-const basePrice = priceWithMargin;
+
+      const net = Number(total) || 0;
+      const priceWithMargin = Math.ceil(net * 1.33);
+      const basePrice = priceWithMargin;
 
       // 1) Move the node in cartItems (old key -> new key) FIRST so effects rebuild cartDetails reliably
       setCartItems((prev) => {
         const updated = structuredClone(prev || {});
-        const existing = updated?.[actId]?.[oldIdStr];
-        if (!updated[actId]) updated[actId] = {};
+        const existing = updated?.[actIdStr]?.[oldIdStr];
+        if (!updated[actIdStr]) updated[actIdStr] = {};
         if (existing) {
-          delete updated[actId][oldIdStr];
-          updated[actId][newIdStr] = existing;
+          delete updated[actIdStr][oldIdStr];
+          updated[actIdStr][newIdStr] = existing;
         }
         return updated;
       });
@@ -770,15 +773,17 @@ const basePrice = priceWithMargin;
       // 2) Optimistically update the rendered details so the dropdown reflects immediately
       setCartDetails((prev) =>
         prev.map((ci) => {
-          if (ci.actId !== actId || String(ci.lineupId) !== oldIdStr) return ci;
+          if (String(ci.actId) !== actIdStr || String(ci.lineupId) !== oldIdStr) return ci;
           const extrasTotal = (ci.selectedExtras || []).reduce(
-            (s, e) => s + (e.price || 0),
+            (s, e) => s + (Number(e?.price) || 0),
             0
           );
           return {
             ...ci,
             lineupId: newIdStr,
             lineup,
+            actData: act,
+            allLineups: Array.isArray(act?.lineups) ? act.lineups : ci.allLineups,
             basePrice,
             adjustedTotal: priceWithMargin,
             subtotalWithMargin: priceWithMargin,
@@ -795,7 +800,6 @@ const basePrice = priceWithMargin;
       // Log unexpected errors for diagnostics while satisfying lint rules
       console.debug(err);
     } finally {
-     
       changingLineupRef.current = false;
       setIsChangingLineup(false);
     }
@@ -1668,7 +1672,7 @@ useEffect(() => {
 
           return (
             <div
-              key={item.actId}
+              key={`${item.actId}:${item.lineupId}`}
               className="relative flex flex-col sm:flex-row bg-white shadow rounded-lg p-4"
             >
               {/* Mobile: show remove button above the thumbnail, not absolute */}
@@ -2035,12 +2039,12 @@ const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
     <div className="w-full">
       <select
         className="w-flex border rounded px-2 py-1 ml-2 text-sm text-gray-700"
-        value={normLineupId(item.lineup)}
+        value={String(item.lineupId || "")}
         onChange={(e) =>
           handleLineupChange(
             item.actId,
-            normLineupId(item.lineup),
-            idToString(e.target.value)
+            String(item.lineupId || ""),
+            String(e.target.value || "")
           )
         }
       >
