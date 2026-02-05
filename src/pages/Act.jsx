@@ -2222,24 +2222,28 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                     className="w-6 h-6 md:w-8 md:h-8"
                   />
                 </button>
-                <div
-                  ref={galleryRef}
-                  className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory"
-                  style={{ scrollBehavior: "smooth" }}
-                >
-                  {(actData.images || []).map((imgObj, index) => (
-                    <img
-                      key={index}
-                      src={cld(imgObj?.url, 900)}
-                      loading="lazy"
-                      decoding="async"
-                      width={900}
-                      height={600}
-                      className="w-[600px] h-[400px] object-cover rounded shadow-sm flex-shrink-0 snap-start"
-                      alt={`Gallery image ${index + 1}`}
-                    />
-                  ))}
-                </div>
+               <div
+  ref={galleryRef}
+  className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory"
+  style={{ scrollBehavior: "smooth" }}
+>
+  {(actData.images || []).map((imgObj, index) => (
+    <div
+      key={index}
+      className="w-[600px] h-[400px] bg-gray-100 rounded shadow-sm flex-shrink-0 snap-start overflow-hidden flex items-center justify-center"
+    >
+      <img
+        src={cld(imgObj?.url, 900)}
+        loading="lazy"
+        decoding="async"
+        width={900}
+        height={600}
+        className="w-full h-full object-contain"
+        alt={`Gallery image ${index + 1}`}
+      />
+    </div>
+  ))}
+</div>
                 <button
                   onClick={() => scrollGallery("right")}
                   className="absolute -right-6 top-1/2 transform -translate-y-1/2 z-10 text-3xl text-gray-800 hover:text-black transition-colors"
