@@ -43,12 +43,26 @@ const isEssentialMember = (m = {}) =>
   m?.required === true ||
   (Array.isArray(m.additionalRoles) && m.additionalRoles.some(r => r?.isEssential));
 
-  const hasUsableLineupIds = (act) =>
-  Array.isArray(act?.lineups) &&
-  act.lineups.length > 0 &&
-  act.lineups.every((l) => Boolean(l?._id || l?.lineupId));
+// ✅ “Full act” for Cart = has populated lineups with populated bandMembers
+const isFullActForCart = (act) => {
+  if (!act) return false;
+  if (!Array.isArray(act.lineups) || act.lineups.length === 0) return false;
 
-// How many vocalists are required in the selected lineup
+  // require lineup objects (not just IDs)
+  const first = act.lineups[0];
+  const hasLineupObj = first && typeof first === "object";
+
+  // require bandMembers array exists on at least one lineup (populated)
+  const hasBandMembers = act.lineups.some(
+    (l) => l && typeof l === "object" && Array.isArray(l.bandMembers)
+  );
+
+  // require each lineup has an id (_id or lineupId) so your cart keying works
+  const hasIds = act.lineups.every((l) => Boolean(l?._id || l?.lineupId));
+
+  return hasLineupObj && hasBandMembers && hasIds;
+};
+
 // How many vocalists are required for the selected lineup
 const getRequiredVocalCount = (actData, lineupOverride = null) => {
   const lineup =
@@ -113,6 +127,44 @@ useEffect(() => {
 
   const changingLineupRef = useRef(false);
 
+  // --- DEBUG: lineup change tracing ---
+  const prevCartLineupKeysRef = useRef({});
+
+  const summariseLineups = (lineups = []) =>
+    (Array.isArray(lineups) ? lineups : []).map((l, i) => {
+      const id = String(l?._id || l?.lineupId || l || "");
+      const bmLen = Array.isArray(l?.bandMembers) ? l.bandMembers.length : undefined;
+      return {
+        i,
+        id,
+        actSize: l?.actSize,
+        bandMembers: bmLen,
+        setupTime: l?.setupTime,
+        soundcheckTime: l?.soundcheckTime,
+      };
+    });
+
+  const getCartLineupKeys = (ci) => {
+    const out = {};
+    try {
+      Object.keys(ci || {}).forEach((actId) => {
+        out[String(actId)] = Object.keys(ci?.[actId] || {}).map(String).sort();
+      });
+    } catch {}
+    return out;
+  };
+
+  const diffKeys = (prev = {}, next = {}) => {
+    const changes = [];
+    const allActs = new Set([...Object.keys(prev || {}), ...Object.keys(next || {})]);
+    allActs.forEach((actId) => {
+      const a = (prev?.[actId] || []).join("|");
+      const b = (next?.[actId] || []).join("|");
+      if (a !== b) changes.push({ actId, from: prev?.[actId] || [], to: next?.[actId] || [] });
+    });
+    return changes;
+  };
+
   const [cartDetails, setCartDetails] = useState([]);
   const [actData, setActData] = useState(null);
   const [availabilityBadgesByAct, setAvailabilityBadgesByAct] = useState({});
@@ -127,19 +179,18 @@ const [isChangingLineup, setIsChangingLineup] = useState(false);
 
   const navigate = useNavigate();
 
-  // ✅ FULL ACT CACHE (so we don’t refetch repeatedly)
+// ✅ FULL ACT CACHE (so we don’t refetch repeatedly)
 const [fullActsById, setFullActsById] = useState({});
 
-// ✅ Read the full act from localStorage cache you already have
+// ✅ Read cached full act from localStorage (only accept if truly "full" for cart)
 const readCachedFullAct = useCallback((actId) => {
   const key = `act:${String(actId)}:v2`;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    const act = parsed?.act || parsed; // supports either shape
-    if (act && Array.isArray(act?.lineups) && act.lineups.length) return act;
-    return null;
+    const act = parsed?.act || parsed;
+    return isFullActForCart(act) ? act : null;
   } catch {
     return null;
   }
@@ -150,10 +201,10 @@ const fetchFullActById = useCallback(async (actId) => {
   const id = String(actId);
 
   const candidates = [
-    `${BACKEND_URL}/api/act/${id}`,
-    `${BACKEND_URL}/api/act/get/${id}`,
-    `${BACKEND_URL}/api/act/one/${id}`,
-    `${BACKEND_URL}/api/act/single/${id}`,
+    `${BACKEND_URL}/api/act/${encodeURIComponent(id)}`,
+    `${BACKEND_URL}/api/act/get/${encodeURIComponent(id)}`,
+    `${BACKEND_URL}/api/act/one/${encodeURIComponent(id)}`,
+    `${BACKEND_URL}/api/act/single/${encodeURIComponent(id)}`,
   ];
 
   for (const url of candidates) {
@@ -164,7 +215,7 @@ const fetchFullActById = useCallback(async (actId) => {
       const json = await res.json();
       const act = json?.act || json;
 
-      if (act && Array.isArray(act?.lineups) && act.lineups.length) {
+      if (isFullActForCart(act)) {
         return act;
       }
     } catch {
@@ -175,38 +226,34 @@ const fetchFullActById = useCallback(async (actId) => {
   return null;
 }, []);
 
-// ✅ Resolve act for cart: cards list → fullActsById → localStorage cache → backend fetch
-const resolveActForCart = useCallback(
-  async (actId) => {
-    const id = String(actId);
+const resolveActForCart = useCallback(async (actId) => {
+  const id = String(actId);
 
-    // 1) cards list (fast)
- const fromCards = (acts || []).find((a) => String(a?._id) === id);
-if (hasUsableLineupIds(fromCards)) return fromCards;
+  // 1) cards list (fast) — BUT only accept if it's truly “full”
+  const fromCards = (acts || []).find((a) => String(a?._id) === id);
+  if (isFullActForCart(fromCards)) return fromCards;
 
-    // 2) in-memory cache
- const fromState = fullActsById[id];
-if (hasUsableLineupIds(fromState)) return fromState;
+  // 2) in-memory cache
+  const fromState = fullActsById[id];
+  if (isFullActForCart(fromState)) return fromState;
 
-    // 3) localStorage cache (your Act page saves this)
+  // 3) localStorage cache
   const fromCache = readCachedFullAct(id);
-if (hasUsableLineupIds(fromCache)) {
-  setFullActsById((prev) => (prev[id] ? prev : { ...prev, [id]: fromCache }));
-  return fromCache;
-}
+  if (isFullActForCart(fromCache)) {
+    setFullActsById((prev) => ({ ...prev, [id]: fromCache }));
+    return fromCache;
+  }
 
-    // 4) backend fetch
-const fetched = await fetchFullActById(id);
-if (hasUsableLineupIds(fetched)) {
-  setFullActsById((prev) => (prev[id] ? prev : { ...prev, [id]: fetched }));
-  return fetched;
-}
+  // 4) backend fetch
+  const fetched = await fetchFullActById(id);
+  if (isFullActForCart(fetched)) {
+    setFullActsById((prev) => ({ ...prev, [id]: fetched }));
+    return fetched;
+  }
 
-    // return whatever we found (even if lineups missing) to avoid hard-fails
-    return fromCards || fromState || fromCache || null;
-  },
-  [acts, fullActsById, readCachedFullAct, fetchFullActById]
-);
+  // fallback
+  return fromCards || fromState || fromCache || fetched || null;
+}, [acts, fullActsById, readCachedFullAct, fetchFullActById]);
 
 // ✅ Find lineup safely, and optionally “self-heal” the cart lineupId if stale
 const resolveLineupForCart = useCallback((act, lineupId) => {
@@ -725,11 +772,24 @@ const basePrice = subtotalWithMargin; // already gross
     const oldIdStr = String(oldLineupId || "");
     const newIdStr = String(newLineupId || "");
 
+    // --- DEBUG ---
+    console.groupCollapsed(
+      `%c[LINEUP CHANGE]%c act=${actIdStr} ${oldIdStr} → ${newIdStr}`,
+      "color:#f97316;font-weight:700",
+      "color:inherit"
+    );
+    console.log("[event]", { actIdStr, oldIdStr, newIdStr, at: new Date().toISOString() });
+    console.log("[before cartItems keys]", getCartLineupKeys(cartItems));
+
     if (!actIdStr || !newIdStr || oldIdStr === newIdStr) {
+      console.warn("[LINEUP CHANGE] aborted: invalid ids", { actIdStr, oldIdStr, newIdStr });
+      console.groupEnd();
       return;
     }
 
     if (changingLineupRef.current) {
+      console.warn("[LINEUP CHANGE] ignored: change already in progress");
+      console.groupEnd();
       return; // Exit early if a lineup change is already in progress
     }
 
@@ -740,14 +800,36 @@ const basePrice = subtotalWithMargin; // already gross
       // ✅ Always resolve the FULL act so lineups exist
       const act = await resolveActForCart(actIdStr);
       if (!act) {
+        console.warn("[LINEUP CHANGE] could not resolve act", actIdStr);
+        console.groupEnd();
         return;
       }
+
+      console.log("[resolved act]", {
+        id: String(act?._id),
+        name: act?.tscName || act?.name,
+        lineupsCount: Array.isArray(act?.lineups) ? act.lineups.length : 0,
+      });
+      console.table(summariseLineups(act?.lineups));
 
       // Resolve the target lineup using normalized id comparison
       const lineup = findLineupById(act, newIdStr);
       if (!lineup) {
+        console.warn("[LINEUP CHANGE] could not find lineup", {
+          actIdStr,
+          newIdStr,
+          available: summariseLineups(act?.lineups).map((x) => x.id),
+        });
+        console.groupEnd();
         return;
       }
+
+      console.log("[target lineup]", {
+        newIdStr,
+        matchedId: String(lineup?._id || lineup?.lineupId),
+        actSize: lineup?.actSize,
+        bandMembers: Array.isArray(lineup?.bandMembers) ? lineup.bandMembers.length : undefined,
+      });
 
       const selectedCounty =
         selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
@@ -759,19 +841,34 @@ const basePrice = subtotalWithMargin; // already gross
         lineup
       );
 
+      console.log("[pricing]", {
+        netTotal: Number(total) || 0,
+        gross133: Math.ceil((Number(total) || 0) * 1.33),
+        selectedCounty,
+        selectedAddress,
+        selectedDate,
+      });
+
       const net = Number(total) || 0;
       const priceWithMargin = Math.ceil(net * 1.33);
       const basePrice = priceWithMargin;
 
       // 1) Move the node in cartItems (old key -> new key) FIRST so effects rebuild cartDetails reliably
       setCartItems((prev) => {
+        const before = getCartLineupKeys(prev);
         const updated = structuredClone(prev || {});
         const existing = updated?.[actIdStr]?.[oldIdStr];
         if (!updated[actIdStr]) updated[actIdStr] = {};
+
+        console.log("[setCartItems] existing block?", !!existing);
+
         if (existing) {
           delete updated[actIdStr][oldIdStr];
           updated[actIdStr][newIdStr] = existing;
         }
+
+        const after = getCartLineupKeys(updated);
+        console.log("[setCartItems] keys diff", diffKeys(before, after));
         return updated;
       });
 
@@ -797,13 +894,16 @@ const basePrice = subtotalWithMargin; // already gross
         })
       );
 
+      console.log("[done] updated cartDetails + cartItems move queued");
+      console.groupEnd();
+
       toast(<CustomToast type="success" message="Lineup updated in cart!" />, {
         position: "top-right",
         autoClose: 2000,
       });
     } catch (err) {
-      // Log unexpected errors for diagnostics while satisfying lint rules
-      console.debug(err);
+      console.error("[LINEUP CHANGE] failed", err);
+      try { console.groupEnd(); } catch {}
     } finally {
       changingLineupRef.current = false;
       setIsChangingLineup(false);
@@ -1249,6 +1349,25 @@ const useCommitStandardTimesIfMissing = ({
   ]);
 };
 
+// DEBUG: log whenever the cart's lineup keys change (this confirms the move oldId -> newId actually happened)
+  useEffect(() => {
+    const nextKeys = getCartLineupKeys(cartItems);
+    const prevKeys = prevCartLineupKeysRef.current || {};
+    const changes = diffKeys(prevKeys, nextKeys);
+
+    if (changes.length) {
+      console.groupCollapsed(
+        "%c[CART] lineup keys changed",
+        "color:#22c55e;font-weight:700"
+      );
+      console.log("changes", changes);
+      console.log("full", nextKeys);
+      console.groupEnd();
+    }
+
+    prevCartLineupKeysRef.current = nextKeys;
+  }, [cartItems]);
+
   useEffect(() => {
     if (!Array.isArray(cartDetails) || cartDetails.length === 0) return;
     if (!acts || acts.length === 0) return;
@@ -1638,9 +1757,12 @@ useEffect(() => {
   <div className="flex flex-col gap-6 text-lg">
     {displayCartDetails.map((item, index) => {
  
-          const availableLineups = Array.isArray(item.allLineups)
-  ? item.allLineups.filter((l) => Boolean(normLineupId(l)))
-  : [];
+          const availableLineupsRaw =
+  (Array.isArray(item?.actData?.lineups) && item.actData.lineups) ||
+  (Array.isArray(item?.allLineups) && item.allLineups) ||
+  [];
+
+const availableLineups = availableLineupsRaw.filter((l) => Boolean(normLineupId(l)));
 
           const autoManagedKeys = new Set([
             "late_stay_60min_per_band_member",
@@ -2055,14 +2177,15 @@ const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
       <select
         className="w-flex border rounded px-2 py-1 ml-2 text-sm text-gray-700"
         value={String(item.lineupId || "")}
-        onChange={(e) =>
-          handleLineupChange(
-            item.actId,
-            String(item.lineupId || ""),
-            String(e.target.value || "")
-          )
-        }
-       
+        onChange={(e) => {
+          const nextVal = String(e.target.value || "");
+          console.log("[UI] lineup dropdown changed", {
+            actId: String(item.actId),
+            from: String(item.lineupId || ""),
+            to: nextVal,
+          });
+          handleLineupChange(item.actId, String(item.lineupId || ""), nextVal);
+        }}
       >
          {availableLineups.length === 0 && (
   <option value="" disabled>
@@ -2730,3 +2853,5 @@ function useMergedUpdateExtras(cartItems, setCartItems) {
 }
 
 export default Cart;
+
+  
