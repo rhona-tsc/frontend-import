@@ -43,6 +43,11 @@ const isEssentialMember = (m = {}) =>
   m?.required === true ||
   (Array.isArray(m.additionalRoles) && m.additionalRoles.some(r => r?.isEssential));
 
+  const hasUsableLineupIds = (act) =>
+  Array.isArray(act?.lineups) &&
+  act.lineups.length > 0 &&
+  act.lineups.every((l) => Boolean(l?._id || l?.lineupId));
+
 // How many vocalists are required in the selected lineup
 // How many vocalists are required for the selected lineup
 const getRequiredVocalCount = (actData, lineupOverride = null) => {
@@ -176,26 +181,26 @@ const resolveActForCart = useCallback(
     const id = String(actId);
 
     // 1) cards list (fast)
-    const fromCards = (acts || []).find((a) => String(a?._id) === id);
-    if (fromCards?.lineups?.length) return fromCards;
+ const fromCards = (acts || []).find((a) => String(a?._id) === id);
+if (hasUsableLineupIds(fromCards)) return fromCards;
 
     // 2) in-memory cache
-    const fromState = fullActsById[id];
-    if (fromState?.lineups?.length) return fromState;
+ const fromState = fullActsById[id];
+if (hasUsableLineupIds(fromState)) return fromState;
 
     // 3) localStorage cache (your Act page saves this)
-    const fromCache = readCachedFullAct(id);
-    if (fromCache?.lineups?.length) {
-      setFullActsById((prev) => (prev[id] ? prev : { ...prev, [id]: fromCache }));
-      return fromCache;
-    }
+  const fromCache = readCachedFullAct(id);
+if (hasUsableLineupIds(fromCache)) {
+  setFullActsById((prev) => (prev[id] ? prev : { ...prev, [id]: fromCache }));
+  return fromCache;
+}
 
     // 4) backend fetch
-    const fetched = await fetchFullActById(id);
-    if (fetched?.lineups?.length) {
-      setFullActsById((prev) => (prev[id] ? prev : { ...prev, [id]: fetched }));
-      return fetched;
-    }
+const fetched = await fetchFullActById(id);
+if (hasUsableLineupIds(fetched)) {
+  setFullActsById((prev) => (prev[id] ? prev : { ...prev, [id]: fetched }));
+  return fetched;
+}
 
     // return whatever we found (even if lineups missing) to avoid hard-fails
     return fromCards || fromState || fromCache || null;
@@ -1549,6 +1554,8 @@ useEffect(() => {
   commitStandardTimesIfMissing();
 }, [selectedDate, selectedAddress, displayCartDetails, commitStandardTimesIfMissing]);
 
+
+
   return (
     <div className="border-t pt-14">
       <div className="text-2xl mb-3">
@@ -1632,8 +1639,8 @@ useEffect(() => {
     {displayCartDetails.map((item, index) => {
  
           const availableLineups = Array.isArray(item.allLineups)
-            ? item.allLineups
-            : [];
+  ? item.allLineups.filter((l) => Boolean(normLineupId(l)))
+  : [];
 
           const autoManagedKeys = new Set([
             "late_stay_60min_per_band_member",
@@ -2037,6 +2044,14 @@ const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
       Lineup:
     </label>
     <div className="w-full">
+   {(() => {
+  console.log("🧩 lineup dropdown", {
+    act: item.actId,
+    current: item.lineupId,
+    options: availableLineups.map((l) => normLineupId(l)),
+  });
+  return null;
+})()}
       <select
         className="w-flex border rounded px-2 py-1 ml-2 text-sm text-gray-700"
         value={String(item.lineupId || "")}
@@ -2047,18 +2062,25 @@ const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
             String(e.target.value || "")
           )
         }
+       
       >
-        {availableLineups.map((l) => {
-          const val = normLineupId(l);
-          return (
-            <option key={val} value={val}>
-              {l.actSize ||
-                (Array.isArray(l.bandMembers)
-                  ? `${l.bandMembers.length}-Piece`
-                  : "Lineup")}
-            </option>
-          );
-        })}
+         {availableLineups.length === 0 && (
+  <option value="" disabled>
+    Loading lineups…
+  </option>
+)}
+       {availableLineups.map((l) => {
+  const val = normLineupId(l);
+  if (!val) return null;
+  return (
+    <option key={val} value={val}>
+      {l.actSize ||
+        (Array.isArray(l.bandMembers)
+          ? `${l.bandMembers.length}-Piece`
+          : "Lineup")}
+    </option>
+  );
+})}
       </select>
     </div>
   </div>
