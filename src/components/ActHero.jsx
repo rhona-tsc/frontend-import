@@ -103,19 +103,26 @@ const ActHero = ({
 
   return (
     <>
-      {/* ✅ Preload THIS page’s hero at the correct size */}
-      <Helmet prioritizeSeoTags>
-        <link rel="preconnect" href={heroOrigin} crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href={heroOrigin} />
-        <link
-          rel="preload"
-          as="image"
-          href={src}
-          imagesrcset={srcSet}
-          imagesizes={sizes}
-          crossOrigin="anonymous"
-        />
-      </Helmet>
+  {/* ✅ Preload THIS page’s hero at the correct responsive size */}
+<Helmet prioritizeSeoTags>
+  {/* optional but nice: warm up the CDN origin */}
+  {heroOrigin ? (
+    <>
+      <link rel="preconnect" href={heroOrigin} crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href={heroOrigin} />
+    </>
+  ) : null}
+
+  <link
+    rel="preload"
+    as="image"
+    href={src}                 // same as your <img src>
+    imageSrcSet={srcSet}       // same as your <img srcSet>
+    imageSizes={sizes}         // same as your <img sizes>
+    fetchPriority="high"       // tells browser “this is the LCP image”
+    crossOrigin="anonymous"    // only needed if your CDN requires CORS (harmless otherwise)
+  />
+</Helmet>
 
       <div className="relative w-full max-w-full">
         {/* Image layer */}

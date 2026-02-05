@@ -101,7 +101,7 @@ const getLeadIdForDate = (actData, selectedDate, badgesOverride = null) => {
 // Normalise selection shape (string or array) -> array
 const toArray = (val) => (Array.isArray(val) ? val : val ? [val] : []);
 
-
+const isValid24 = (s) => typeof s === "string" && /^[0-9a-f]{24}$/i.test(s);
 
 const Cart = () => {
   const {
@@ -124,6 +124,8 @@ useEffect(() => {
   console.log("🛒 cartItems(storage):", localStorage.getItem("cartItems"));
   console.log("🎭 acts count:", acts?.length, "first ids:", (acts||[]).slice(0,5).map(a=>String(a?._id)));
 }, [cartItems, acts]);
+
+
 
   const changingLineupRef = useRef(false);
 
@@ -768,19 +770,23 @@ const basePrice = subtotalWithMargin; // already gross
 
 
   const handleLineupChange = async (actId, oldLineupId, newLineupId) => {
-    const actIdStr = String(actId || "");
-    const oldIdStr = String(oldLineupId || "");
-    const newIdStr = String(newLineupId || "");
+     const actIdStr = String(actId || "");
+  const oldIdStr = String(oldLineupId || "");
+  const newIdStr = String(newLineupId || "");
 
-    // --- DEBUG ---
-    console.groupCollapsed(
-      `%c[LINEUP CHANGE]%c act=${actIdStr} ${oldIdStr} → ${newIdStr}`,
-      "color:#f97316;font-weight:700",
-      "color:inherit"
-    );
-    console.log("[event]", { actIdStr, oldIdStr, newIdStr, at: new Date().toISOString() });
-    console.log("[before cartItems keys]", getCartLineupKeys(cartItems));
-
+  console.log("[LINEUP CHANGE] validate", {
+    actIdStr,
+    oldIdStr,
+    newIdStr,
+    isValidAct: isValid24(actIdStr),
+    isValidOld: isValid24(oldIdStr),
+    isValidNew: isValid24(newIdStr),
+    types: {
+      actIdStr: typeof actIdStr,
+      oldIdStr: typeof oldIdStr,
+      newIdStr: typeof newIdStr,
+    },
+  });
     if (!actIdStr || !newIdStr || oldIdStr === newIdStr) {
       console.warn("[LINEUP CHANGE] aborted: invalid ids", { actIdStr, oldIdStr, newIdStr });
       console.groupEnd();
