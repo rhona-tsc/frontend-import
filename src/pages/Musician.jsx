@@ -1023,46 +1023,58 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
                     ))}
                   </div>
 
-                  {/* Carousel */}
-                  <div className="relative px-1 py-3">
-                    {images.length > 0 ? (
-                      <div className="relative">
-                        <button
-                          onClick={() => scrollGallery("left")}
-                          className="absolute -left-6 top-1/2 -translate-y-1/2 z-10"
-                          aria-label="Scroll left"
-                          type="button"
-                        >
-                          <img src={assets.scroll_left_icon} alt="Scroll left" className="w-8 h-8" />
-                        </button>
+               {/* Carousel */}
+<div className="relative px-1 py-3">
+  {images.length > 0 ? (
+    <div className="relative">
+      <button
+        onClick={() => scrollGallery("left")}
+        className="absolute -left-6 top-1/2 -translate-y-1/2 z-10"
+        aria-label="Scroll left"
+        type="button"
+      >
+        <img
+          src={assets.scroll_left_icon}
+          alt="Scroll left"
+          className="w-8 h-8"
+        />
+      </button>
 
-                        <div
-                          ref={galleryRef}
-                          className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
-                          style={{ scrollBehavior: "smooth" }}
-                        >
-                          {images.map((url, index) => (
-                            <img
-                              key={`${activeGroup.id}-${index}`}
-                              src={url}
-                              alt={`${activeGroup.label} image ${index + 1}`}
-                              className="w-[600px] h-[400px] object-cover rounded shadow-sm flex-shrink-0 snap-start"
-                              loading="lazy"
-                            />
-                          ))}
-                        </div>
+      <div
+        ref={galleryRef}
+        className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
+        style={{ scrollBehavior: "smooth" }}
+      >
+        {images.map((url, index) => (
+          <div
+            key={`${activeGroup.id}-${index}`}
+            className="w-[600px] h-[400px] bg-gray-100 rounded shadow-sm flex-shrink-0 snap-start overflow-hidden flex items-center justify-center"
+          >
+            <img
+              src={url}
+              alt={`${activeGroup.label} image ${index + 1}`}
+              className="w-full h-full object-contain"
+              loading="lazy"
+            />
+          </div>
+        ))}
+      </div>
 
-                        <button
-                          onClick={() => scrollGallery("right")}
-                          className="absolute -right-6 top-1/2 -translate-y-1/2 z-10"
-                          aria-label="Scroll right"
-                          type="button"
-                        >
-                          <img src={assets.scroll_right_icon} alt="Scroll right" className="w-8 h-8" />
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
+      <button
+        onClick={() => scrollGallery("right")}
+        className="absolute -right-6 top-1/2 -translate-y-1/2 z-10"
+        aria-label="Scroll right"
+        type="button"
+      >
+        <img
+          src={assets.scroll_right_icon}
+          alt="Scroll right"
+          className="w-8 h-8"
+        />
+      </button>
+    </div>
+  ) : null}
+</div>
                 </>
               );
             })()}
