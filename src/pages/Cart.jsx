@@ -6,6 +6,8 @@ import {
   useRef,
   useMemo,
 } from "react";
+import axios from "axios";
+
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import CustomToast from "../components/CustomToast";
@@ -61,6 +63,15 @@ const isFullActForCart = (act) => {
   const hasIds = act.lineups.every((l) => Boolean(l?._id || l?.lineupId));
 
   return hasLineupObj && hasBandMembers && hasIds;
+};
+
+const getStoredUser = () => {
+  try {
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 };
 
 // How many vocalists are required for the selected lineup
@@ -180,6 +191,10 @@ const [isChangingLineup, setIsChangingLineup] = useState(false);
 
 
   const navigate = useNavigate();
+
+  // Used for availability ensure-vocalists payload (avoid ReferenceError)
+const user = useMemo(() => getStoredUser(), []);
+const cartEnquiryId = null;
 
 // ✅ FULL ACT CACHE (so we don’t refetch repeatedly)
 const [fullActsById, setFullActsById] = useState({});
@@ -769,8 +784,9 @@ const basePrice = subtotalWithMargin; // already gross
   );
 
 
-  const handleLineupChange = async (actId, oldLineupId, newLineupId) => {
-     const actIdStr = String(actId || "");
+ const handleLineupChange = async (actId, oldLineupId, newLineupId) => {
+  console.groupCollapsed("[LINEUP CHANGE]");
+  const actIdStr = String(actId || "");
   const oldIdStr = String(oldLineupId || "");
   const newIdStr = String(newLineupId || "");
 
@@ -787,134 +803,195 @@ const basePrice = subtotalWithMargin; // already gross
       newIdStr: typeof newIdStr,
     },
   });
-    if (!actIdStr || !newIdStr || oldIdStr === newIdStr) {
-      console.warn("[LINEUP CHANGE] aborted: invalid ids", { actIdStr, oldIdStr, newIdStr });
+
+  if (!actIdStr || !newIdStr || oldIdStr === newIdStr) {
+    console.warn("[LINEUP CHANGE] aborted: invalid ids", {
+      actIdStr,
+      oldIdStr,
+      newIdStr,
+    });
+    console.groupEnd();
+    return;
+  }
+
+  if (changingLineupRef.current) {
+    console.warn("[LINEUP CHANGE] ignored: change already in progress");
+    console.groupEnd();
+    return;
+  }
+
+  changingLineupRef.current = true;
+  setIsChangingLineup(true);
+
+  try {
+    // ✅ Always resolve the FULL act so lineups exist
+    const act = await resolveActForCart(actIdStr);
+    if (!act) {
+      console.warn("[LINEUP CHANGE] could not resolve act", actIdStr);
       console.groupEnd();
       return;
     }
 
-    if (changingLineupRef.current) {
-      console.warn("[LINEUP CHANGE] ignored: change already in progress");
-      console.groupEnd();
-      return; // Exit early if a lineup change is already in progress
-    }
+    console.log("[resolved act]", {
+      id: String(act?._id),
+      name: act?.tscName || act?.name,
+      lineupsCount: Array.isArray(act?.lineups) ? act.lineups.length : 0,
+    });
+    console.table(summariseLineups(act?.lineups));
 
-    changingLineupRef.current = true;
-    setIsChangingLineup(true);
-
-    try {
-      // ✅ Always resolve the FULL act so lineups exist
-      const act = await resolveActForCart(actIdStr);
-      if (!act) {
-        console.warn("[LINEUP CHANGE] could not resolve act", actIdStr);
-        console.groupEnd();
-        return;
-      }
-
-      console.log("[resolved act]", {
-        id: String(act?._id),
-        name: act?.tscName || act?.name,
-        lineupsCount: Array.isArray(act?.lineups) ? act.lineups.length : 0,
-      });
-      console.table(summariseLineups(act?.lineups));
-
-      // Resolve the target lineup using normalized id comparison
-      const lineup = findLineupById(act, newIdStr);
-      if (!lineup) {
-        console.warn("[LINEUP CHANGE] could not find lineup", {
-          actIdStr,
-          newIdStr,
-          available: summariseLineups(act?.lineups).map((x) => x.id),
-        });
-        console.groupEnd();
-        return;
-      }
-
-      console.log("[target lineup]", {
+    // Resolve the target lineup using normalized id comparison
+    const lineup = findLineupById(act, newIdStr);
+    if (!lineup) {
+      console.warn("[LINEUP CHANGE] could not find lineup", {
+        actIdStr,
         newIdStr,
-        matchedId: String(lineup?._id || lineup?.lineupId),
-        actSize: lineup?.actSize,
-        bandMembers: Array.isArray(lineup?.bandMembers) ? lineup.bandMembers.length : undefined,
+        available: summariseLineups(act?.lineups).map((x) => x.id),
       });
-
-      const selectedCounty =
-        selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
-      const { total } = await calculateActPricing(
-        act,
-        selectedCounty,
-        selectedAddress,
-        selectedDate,
-        lineup
-      );
-
-      console.log("[pricing]", {
-        netTotal: Number(total) || 0,
-        gross133: Math.ceil((Number(total) || 0) * 1.33),
-        selectedCounty,
-        selectedAddress,
-        selectedDate,
-      });
-
-      const net = Number(total) || 0;
-      const priceWithMargin = Math.ceil(net * 1.33);
-      const basePrice = priceWithMargin;
-
-      // 1) Move the node in cartItems (old key -> new key) FIRST so effects rebuild cartDetails reliably
-      setCartItems((prev) => {
-        const before = getCartLineupKeys(prev);
-        const updated = structuredClone(prev || {});
-        const existing = updated?.[actIdStr]?.[oldIdStr];
-        if (!updated[actIdStr]) updated[actIdStr] = {};
-
-        console.log("[setCartItems] existing block?", !!existing);
-
-        if (existing) {
-          delete updated[actIdStr][oldIdStr];
-          updated[actIdStr][newIdStr] = existing;
-        }
-
-        const after = getCartLineupKeys(updated);
-        console.log("[setCartItems] keys diff", diffKeys(before, after));
-        return updated;
-      });
-
-      // 2) Optimistically update the rendered details so the dropdown reflects immediately
-      setCartDetails((prev) =>
-        prev.map((ci) => {
-          if (String(ci.actId) !== actIdStr || String(ci.lineupId) !== oldIdStr) return ci;
-          const extrasTotal = (ci.selectedExtras || []).reduce(
-            (s, e) => s + (Number(e?.price) || 0),
-            0
-          );
-          return {
-            ...ci,
-            lineupId: newIdStr,
-            lineup,
-            actData: act,
-            allLineups: Array.isArray(act?.lineups) ? act.lineups : ci.allLineups,
-            basePrice,
-            adjustedTotal: priceWithMargin,
-            subtotalWithMargin: priceWithMargin,
-            total: (priceWithMargin + extrasTotal) * (ci.quantity || 1),
-          };
-        })
-      );
-
-      console.log("[done] updated cartDetails + cartItems move queued");
       console.groupEnd();
-
-      toast(<CustomToast type="success" message="Lineup updated in cart!" />, {
-        position: "top-right",
-        autoClose: 2000,
-      });
-    } catch (err) {
-      console.error("[LINEUP CHANGE] failed", err);
-      try { console.groupEnd(); } catch {}
-    } finally {
-      changingLineupRef.current = false;
-      setIsChangingLineup(false);
+      return;
     }
-  };
+
+    console.log("[target lineup]", {
+      newIdStr,
+      matchedId: String(lineup?._id || lineup?.lineupId),
+      actSize: lineup?.actSize,
+      bandMembers: Array.isArray(lineup?.bandMembers)
+        ? lineup.bandMembers.length
+        : undefined,
+    });
+
+    const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
+    const { total } = await calculateActPricing(
+      act,
+      selectedCounty,
+      selectedAddress,
+      selectedDate,
+      lineup
+    );
+
+    console.log("[pricing]", {
+      netTotal: Number(total) || 0,
+      gross133: Math.ceil((Number(total) || 0) * 1.33),
+      selectedCounty,
+      selectedAddress,
+      selectedDate,
+    });
+
+    const net = Number(total) || 0;
+    const priceWithMargin = Math.ceil(net * 1.33);
+    const basePrice = priceWithMargin;
+
+    // 1) Move the node in cartItems (old key -> new key) FIRST so effects rebuild cartDetails reliably
+    setCartItems((prev) => {
+      const before = getCartLineupKeys(prev);
+      const updated = structuredClone(prev || {});
+      const existing = updated?.[actIdStr]?.[oldIdStr];
+      if (!updated[actIdStr]) updated[actIdStr] = {};
+
+      console.log("[setCartItems] existing block?", !!existing);
+
+      if (existing) {
+        delete updated[actIdStr][oldIdStr];
+        updated[actIdStr][newIdStr] = existing;
+      }
+
+      const after = getCartLineupKeys(updated);
+      console.log("[setCartItems] keys diff", diffKeys(before, after));
+      return updated;
+    });
+
+    
+
+    // 2) Optimistically update the rendered details so the dropdown reflects immediately
+    setCartDetails((prev) =>
+      prev.map((ci) => {
+        if (
+          String(ci.actId) !== actIdStr ||
+          String(ci.lineupId) !== oldIdStr
+        )
+          return ci;
+
+        const extrasTotal = (ci.selectedExtras || []).reduce(
+          (s, e) => s + (Number(e?.price) || 0),
+          0
+        );
+
+        return {
+          ...ci,
+          lineupId: newIdStr,
+          lineup,
+          actData: act,
+          allLineups: Array.isArray(act?.lineups) ? act.lineups : ci.allLineups,
+          basePrice,
+          adjustedTotal: priceWithMargin,
+          subtotalWithMargin: priceWithMargin,
+          total: (priceWithMargin + extrasTotal) * (ci.quantity || 1),
+        };
+      })
+    );
+
+      // ✅ 3) Ensure vocalist availability (non-blocking; no duplicate WhatsApps)
+  try {
+    const hasDate = !!selectedDate;
+    const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
+
+    if (hasDate && hasAddress && actIdStr && newIdStr) {
+      const dateISO =
+        typeof selectedDate === "string"
+          ? String(selectedDate).slice(0, 10)
+          : new Date(selectedDate).toISOString().slice(0, 10);
+
+      const formattedAddress = String(selectedAddress).trim();
+
+      console.log("[ensure-vocalists] calling", {
+        actId: actIdStr,
+        lineupId: newIdStr,
+        dateISO,
+        formattedAddress,
+      });
+
+      if (!BACKEND_URL) {
+        console.warn("BACKEND_URL missing — skipping ensure-vocalists");
+      } else {
+        await axios.post(`${BACKEND_URL}/api/availability/ensure-vocalists`, {
+          actId: actIdStr,
+          lineupId: newIdStr,
+          dateISO,
+          formattedAddress,
+          // if you have a cart enquiry id, pass it; otherwise it will still dedupe fine
+          enquiryId: cartEnquiryId || null,
+          clientUserId: user?._id || null,
+          clientName: user?.firstName
+            ? `${user.firstName} ${user.surname || ""}`.trim()
+            : "",
+          clientEmail: user?.email || "",
+          skipDuplicateCheck: false,
+        });
+      }
+    } else {
+      console.log("[ensure-vocalists] skipped (need date + address)");
+    }
+  } catch (e) {
+    console.warn("⚠️ [ensure-vocalists] failed (non-blocking):", e?.message || e);
+  }
+
+    console.log("[done] updated cartDetails + cartItems move queued");
+    console.groupEnd();
+
+    toast(<CustomToast type="success" message="Lineup updated in cart!" />, {
+      position: "top-right",
+      autoClose: 2000,
+    });
+  } catch (err) {
+    console.error("[LINEUP CHANGE] failed", err);
+    try {
+      console.groupEnd();
+    } catch {}
+  } finally {
+    changingLineupRef.current = false;
+    setIsChangingLineup(false);
+  }
+};
 
   // Build a friendly lineup description from a lineup object, including roles tail
   const generateDescription = (lineup = {}) => {

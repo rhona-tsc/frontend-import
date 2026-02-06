@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-
+import axios from "axios";
 import { assets } from "../assets/assets";
 import { toast } from "react-toastify";
 import calculateActPricing from "../pages/utils/pricing";
@@ -16,9 +16,13 @@ const ShortlistPreviewPanel = ({ hoveredAct, removeFromCart }) => {
   const actData = hoveredAct?.actData;
   const [localActData, setLocalActData] = useState(null);
   const [video, setVideo] = useState("");
-  const [selectedLineup, setSelectedLineup] = useState("");
+const [selectedLineup, setSelectedLineup] = useState(null);
   const [price, setPrice] = useState(null);
 const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
+const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+
+const storedUserRaw = localStorage.getItem("user");
+const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
 
   const {
     actId,
@@ -50,13 +54,6 @@ const normalisePricing = (res) => {
   };
 };
 
-  useEffect(() => {
-  if (!selectedDate || !actData) return;
-  const hasBadgeForDate = actData.availabilityBadges?.[selectedDate];
-  if (!hasBadgeForDate) {
-    actData.availabilityBadge = null; // clear stale badge display
-  }
-}, [selectedDate, actData]);
 
 const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
 
@@ -99,7 +96,7 @@ const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
 
   useEffect(() => {
     // Dev-only: compute pricing for all lineups to verify calculations
-    if (process.env.NODE_ENV === 'production') return;
+if (import.meta.env.PROD) return;
     (async () => {
       try {
         const act = actData || localActData;
@@ -455,7 +452,7 @@ const handleLineupChange = async (lineup) => {
 
     // If this act is already in the cart, immediately migrate the lineup key
     if (actData?._id) {
-      migrateCartLineup(actData._id, lineup._id);
+      migrateCartLineup(actData._id, lineup?._id);
     }
 
     // Always use the central pricing util for accuracy
@@ -467,6 +464,45 @@ const handleLineupChange = async (lineup) => {
       lineup
     );
     setPrice(normalisePricing(res));
+
+    // ✅ Ensure vocalist availability for this lineup (non-blocking)
+    try {
+      const hasDate = !!selectedDate;
+      const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
+      const actIdOk = !!actData?._id;
+      const lineupIdOk = !!lineup?._id;
+
+      if (hasDate && hasAddress && actIdOk && lineupIdOk) {
+        const dateISO =
+          typeof selectedDate === "string"
+            ? String(selectedDate).slice(0, 10)
+            : new Date(selectedDate).toISOString().slice(0, 10);
+
+        const storedUserRaw = localStorage.getItem("user");
+        const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+
+        await axios.post(`${BACKEND_BASE}/api/availability/ensure-vocalists`, {
+          actId: String(actData._id),
+          lineupId: String(lineup._id),
+          dateISO,
+          formattedAddress: String(selectedAddress).trim(),
+
+          enquiryId: null, // ← you had shortlistEnquiryId here but it isn't defined
+          clientUserId: storedUser?._id || userId || null,
+          clientName: storedUser?.firstName
+            ? `${storedUser.firstName} ${storedUser.surname || ""}`.trim()
+            : "",
+          clientEmail: storedUser?.email || "",
+
+          skipDuplicateCheck: false,
+        });
+      }
+    } catch (e) {
+      console.warn(
+        "⚠️ [ensure-vocalists] failed (non-blocking):",
+        e?.message || e
+      );
+    }
   } catch (e) {
     console.error("❌ handleLineupChange pricing error:", e);
   }
