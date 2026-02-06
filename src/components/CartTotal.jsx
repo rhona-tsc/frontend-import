@@ -22,6 +22,15 @@ const CartTotal = () => {
   // Match pricing used elsewhere in the app (your “gross” multiplier)
   const MARGIN_MULTIPLIER = 1.33;
 
+  const isTestActName = (name = "") => {
+    const n = String(name || "").toLowerCase();
+    return (
+      n.includes("test dancefloor magic") ||
+      n.includes("test soul allegiance") ||
+      n.includes("test motown magic")
+    );
+  };
+
   // --- helpers ----------------------------------------------------
   const daysUntilEvent = useMemo(() => {
     if (!selectedDate) return null;
@@ -82,8 +91,8 @@ const CartTotal = () => {
             actCacheRef.current.set(String(id), maybeAct);
             return maybeAct;
           }
-        } catch (e) {
-          // try next
+        } catch {
+          // try next candidate
         }
       }
 
@@ -94,21 +103,10 @@ const CartTotal = () => {
       if (!cartItems || Object.keys(cartItems).length === 0) {
         setSummaryItems([]);
         setTotalAmount(0);
-
-        try {
-          localStorage.setItem("cartUiTotalAmount", "0");
-          localStorage.setItem("cartUiDepositAmount", "0");
-        } catch (e) {}
-
+        localStorage.setItem("cartUiTotalAmount", "0");
+        localStorage.setItem("cartUiDepositAmount", "0");
         return;
       }
-
-      console.log("🧾 [CartTotal] loadTotal", {
-        actsCount: acts?.length,
-        cartActIds: Object.keys(cartItems || {}),
-        selectedDate,
-        selectedAddress,
-      });
 
       const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
       let grand = 0;
@@ -116,10 +114,8 @@ const CartTotal = () => {
 
       for (const actId of Object.keys(cartItems)) {
         const actCartBlock = cartItems?.[actId];
-        if (!actCartBlock || typeof actCartBlock !== "object") {
-          console.warn("⚠️ [CartTotal] cartItems[actId] not an object", { actId, actCartBlock });
-          continue;
-        }
+
+        if (!actCartBlock || typeof actCartBlock !== "object") continue;
 
         let act = (acts || []).find((a) => String(a?._id || a?.id) === String(actId));
 
@@ -128,32 +124,10 @@ const CartTotal = () => {
           act = await fetchActById(actId);
         }
 
-        if (!act) {
-          console.warn("⚠️ [CartTotal] Act not found for cart actId (even after fetch)", {
-            actId,
-            actsCount: acts?.length,
-          });
-          continue;
-        }
-
-        console.log("🔎 [CartTotal] act shape", {
-          actId,
-          foundInActsList: !!(acts || []).find((a) => String(a?._id) === String(actId)),
-          hasLineups: Array.isArray(act?.lineups),
-          lineupsLen: act?.lineups?.length,
-          cartLineupIds: Object.keys(cartItems?.[actId] || {}),
-        });
-
-        if (!Array.isArray(act?.lineups) || act.lineups.length === 0) {
-          console.warn("⚠️ [CartTotal] Act has no lineups even after fetch", {
-            actId,
-            tscName: act?.tscName,
-          });
-          continue;
-        }
+        if (!act || !Array.isArray(act?.lineups) || act.lineups.length === 0) continue;
 
         for (const lineupId of Object.keys(actCartBlock)) {
-          const cartNode = cartItems[actId][lineupId] || {};
+          const cartNode = cartItems?.[actId]?.[lineupId] || {};
           const quantity = Number(cartNode.quantity || 1);
 
           const selectedExtras = Array.isArray(cartNode.selectedExtras)
@@ -169,17 +143,7 @@ const CartTotal = () => {
           const lineup = (act.lineups || []).find(
             (l) => String(l._id || l.lineupId) === String(lineupId)
           );
-
-          if (!lineup) {
-            console.warn("⚠️ [CartTotal] Lineup not found for lineupId in cart", {
-              actId,
-              lineupId,
-              available: (act.lineups || [])
-                .map((l) => String(l?._id || l?.lineupId))
-                .slice(0, 12),
-            });
-            continue;
-          }
+          if (!lineup) continue;
 
           // Try calculateActPricing first
           let calc = null;
@@ -191,8 +155,8 @@ const CartTotal = () => {
               selectedDate,
               lineup
             );
-          } catch (err) {
-            // swallow; fallback below
+          } catch {
+            // ignore
           }
 
           const calcTotal = Number(calc?.total);
@@ -214,20 +178,21 @@ const CartTotal = () => {
 
           const subtotalWithMargin = calcGross > 0 ? calcGross : fallbackGross;
 
-          const extrasTotal =
-            selectedExtras.reduce((sum, ex) => sum + (Number(ex?.price) || 0), 0) || 0;
+          const extrasTotal = (selectedExtras || []).reduce(
+            (sum, ex) => sum + (Number(ex?.price) || 0),
+            0
+          );
 
-          const afternoonExtrasTotal =
-            afternoonExtras.reduce((sum, set) => sum + (Number(set?.price) || 0), 0) || 0;
+          const afternoonExtrasTotal = (afternoonExtras || []).reduce(
+            (sum, set) => sum + (Number(set?.price) || 0),
+            0
+          );
 
           const combinedExtrasTotal = extrasTotal + afternoonExtrasTotal;
           const lineTotal = (subtotalWithMargin + combinedExtrasTotal) * quantity;
 
           const actNameLower = (act.tscName || act.name || "").toLowerCase();
-          const isTestAct =
-            actNameLower.includes("test dancefloor magic") ||
-            actNameLower.includes("test soul allegiance") ||
-            actNameLower.includes("test motown magic");
+          const isTestAct = isTestActName(actNameLower);
 
           const finalLineTotal = isTestAct ? 0.5 * quantity : lineTotal;
           const summaryBasePrice = isTestAct ? 0.5 : subtotalWithMargin;
@@ -255,53 +220,29 @@ const CartTotal = () => {
         }
       }
 
-      console.log("✅ [CartTotal] computed", {
-        summaryCount: summary.length,
-        grand,
-        preview: summary.slice(0, 3),
-      });
-
-      // ✅ compute test booking and deposit USING local summary+grand (not state)
-      const isTestBookingLocal = summary.some((item) => {
-        const name = (item.tscName || item.actName || "").toLowerCase();
-        return (
-          name.includes("test dancefloor magic") ||
-          name.includes("test soul allegiance") ||
-          name.includes("test motown magic")
-        );
-      });
-
-      const depositLocal = isTestBookingLocal ? Math.max(grand, 0.5) : grand * 0.33;
-
-      // ✅ persist cart UI totals for checkout (scope-safe)
-      try {
-        localStorage.setItem("cartUiTotalAmount", String(grand));
-        localStorage.setItem("cartUiDepositAmount", String(depositLocal));
-      } catch (e) {}
-
       setSummaryItems(summary);
       setTotalAmount(grand);
+
+      // ✅ Persist values for PlaceBooking checkout
+      const isTestBooking = summary.some((item) =>
+        isTestActName(item?.tscName || item?.actName)
+      );
+      const deposit = isTestBooking ? Math.max(grand, 0.5) : grand * 0.33;
+
+      localStorage.setItem("cartUiTotalAmount", String(grand));
+      localStorage.setItem("cartUiDepositAmount", String(deposit));
     };
 
     loadTotal();
-  }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate, backendUrl]);
+  }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate, backendUrl, effectiveBackendUrl]);
 
-  // UI display helpers (safe: use state only)
-  const isTestBooking = summaryItems.some((item) => {
-    const name = (item.tscName || item.actName || "").toLowerCase();
-    return (
-      name.includes("test dancefloor magic") ||
-      name.includes("test soul allegiance") ||
-      name.includes("test motown magic")
-    );
-  });
+  const isTestBooking = useMemo(() => {
+    return summaryItems.some((item) => isTestActName(item?.tscName || item?.actName));
+  }, [summaryItems]);
 
-  let deposit;
-  if (isTestBooking) {
-    deposit = Math.max(totalAmount, 0.5);
-  } else {
-    deposit = totalAmount * 0.33;
-  }
+  const deposit = useMemo(() => {
+    return isTestBooking ? Math.max(totalAmount, 0.5) : totalAmount * 0.33;
+  }, [isTestBooking, totalAmount]);
 
   return (
     <div className="w-full">
@@ -317,11 +258,11 @@ const CartTotal = () => {
             </p>
             <p>
               {currency}
-              {item.basePrice.toFixed(2)}
+              {Number(item.basePrice || 0).toFixed(2)}
             </p>
           </div>
 
-          {item.extras?.length > 0 && (
+          {Array.isArray(item.extras) && item.extras.length > 0 && (
             <div className="mt-1">
               <p className="text-gray-600 text-xs">Extras:</p>
               <ul className="list-disc list-inside">
@@ -341,15 +282,11 @@ const CartTotal = () => {
       ))}
 
       <div className="mt-10 text-sm border-t pt-4">
-        <div
-          className={`flex justify-between ${
-            requiresFullPayment ? "font-extrabold text-gray-900" : ""
-          }`}
-        >
+        <div className={`flex justify-between ${requiresFullPayment ? "font-extrabold text-gray-900" : ""}`}>
           <p>Total</p>
           <p>
             {currency}
-            {totalAmount.toFixed(2)}
+            {Number(totalAmount || 0).toFixed(2)}
           </p>
         </div>
 
@@ -364,7 +301,7 @@ const CartTotal = () => {
               <p>Deposit</p>
               <p>
                 {currency}
-                {deposit.toFixed(2)}
+                {Number(deposit || 0).toFixed(2)}
               </p>
             </div>
           </>

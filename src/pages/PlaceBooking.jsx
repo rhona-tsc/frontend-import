@@ -420,42 +420,38 @@ const handleSubmit = async () => {
     }
 
     // ----------------------------
-    // ✅ Single-item Stripe total (source of truth)
-    // ----------------------------
-    // Prefer the exact Cart UI total saved by <CartTotal /> (already includes margin + extras + qty).
-    // Fallback to a recompute from actsSummary if localStorage is missing.
-    const cartUiTotalStored = Number(localStorage.getItem("cartUiTotalAmount") || 0);
+   // ✅ Single-item Stripe total (source of truth)
+// Prefer CartTotal’s saved value; fallback to a recompute if missing.
 
-    // Match your Cart UI rounding rule: round UP to the nearest £1
-    const cartTotal = roundUpToPound(
-      cartUiTotalStored > 0 ? cartUiTotalStored : fullAmountRaw
-    );
+const fullAmountRaw = roundToPennies(
+  actsSummary.reduce((sum, item) => {
+    const perUnit =
+      Number(item?.prices?.adjustedTotal || 0) +
+      (item.selectedExtras || []).reduce((s, ex) => s + (Number(ex.price) || 0), 0);
+    return sum + perUnit * (item.quantity || 1);
+  }, 0)
+);
 
-    if (!Number.isFinite(cartTotal) || cartTotal <= 0) {
-      alert(
-        "We couldn't calculate your total at checkout.\n\n" +
-          "Please refresh the page and try again."
-      );
-      return;
-    }
+const cartUiTotalStored = Number(localStorage.getItem("cartUiTotalAmount") || 0);
 
-    const cartDetailsSingle = [
-      {
-        name: `Booking Deposit (${cartTotal.toFixed(2)} total)`,
-        price: cartTotal,
-        quantity: 1,
-      },
-    ];
+// round UP to nearest £1 (match your backend + cart UI rule)
+const cartTotal = roundUpToPound(cartUiTotalStored > 0 ? cartUiTotalStored : fullAmountRaw);
 
-    console.log("💷 fullAmountRaw:", fullAmountRaw);
-    console.log("💷 cartUiTotalStored:", cartUiTotalStored);
-    console.log("💷 cartTotal (rounded up):", cartTotal);
-    console.log("🧾 cartDetailsSingle:", cartDetailsSingle);
+if (!Number.isFinite(cartTotal) || cartTotal <= 0) {
+  alert("We couldn't calculate your total at checkout.\n\nPlease refresh the page and try again.");
+  return;
+}
 
-    // Deposit shown to user (backend will calculate again)
-    const depositRate = 0.33;
-    const depositAmount = roundToPennies(cartTotal * depositRate);
+const cartDetailsSingle = [
+  {
+    name: `Booking Deposit (${cartTotal.toFixed(2)} total)`,
+    price: cartTotal,
+    quantity: 1,
+  },
+];
 
+const depositRate = 0.33;
+const depositAmount = roundToPennies(cartTotal * depositRate);
     const signatureImage = signaturePad.getTrimmedCanvas().toDataURL("image/png");
     const endpoint = `${backendUrl}/api/booking/create-checkout-session`;
     const performanceTimesTop = actsSummary[0]?.performance
