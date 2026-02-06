@@ -1,24 +1,18 @@
-import React, { useContext, useEffect, useState, useMemo, useRef } from 'react';
-import axios from 'axios';
-import Title from './Title';
-import { ShopContext } from '../context/ShopContext';
-import calculateActPricing from '../pages/utils/pricing';
+import React, { useContext, useEffect, useState, useMemo, useRef } from "react";
+import axios from "axios";
+import Title from "./Title";
+import { ShopContext } from "../context/ShopContext";
+import calculateActPricing from "../pages/utils/pricing";
 
 const CartTotal = () => {
-  const {
-    acts,
-    cartItems,
-    selectedAddress,
-    selectedDate,
-    currency,
-    backendUrl,
-  } = useContext(ShopContext);
+  const { acts, cartItems, selectedAddress, selectedDate, currency, backendUrl } =
+    useContext(ShopContext);
 
   const effectiveBackendUrl =
-  backendUrl ||
-  import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
-  import.meta.env.BACKEND_URL?.replace(/\/$/, "") ||
-  "";
+    backendUrl ||
+    import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
+    import.meta.env.BACKEND_URL?.replace(/\/$/, "") ||
+    "";
 
   const [totalAmount, setTotalAmount] = useState(0);
   const [summaryItems, setSummaryItems] = useState([]);
@@ -45,13 +39,11 @@ const CartTotal = () => {
   }, [daysUntilEvent]);
 
   const getSafeBaseFee = (lineup) => {
-    // try to match by actSize
     const bySize =
       lineup?.base_fee?.find(
         (fee) => fee?.act_size === lineup?.actSize || fee?.act_size === lineup?.act_size
       )?.total_fee;
 
-    // fall back to first entry if any
     const first = lineup?.base_fee?.[0]?.total_fee;
 
     return Number(bySize ?? first ?? 0) || 0;
@@ -60,7 +52,7 @@ const CartTotal = () => {
   const getEssentialRolesTotal = (lineup) => {
     const roles = (lineup?.bandMembers || []).flatMap((m) =>
       (m?.additionalRoles || []).filter(
-        (r) => r?.isEssential && typeof r?.additionalFee === 'number'
+        (r) => r?.isEssential && typeof r?.additionalFee === "number"
       )
     );
     return roles.reduce((sum, r) => sum + (r?.additionalFee || 0), 0);
@@ -72,7 +64,6 @@ const CartTotal = () => {
     const fetchActById = async (id) => {
       if (!effectiveBackendUrl || !id) return null;
 
-      // Cache first
       const cached = actCacheRef.current.get(String(id));
       if (cached) return cached;
 
@@ -92,7 +83,7 @@ const CartTotal = () => {
             return maybeAct;
           }
         } catch (e) {
-          // try next candidate
+          // try next
         }
       }
 
@@ -100,11 +91,18 @@ const CartTotal = () => {
     };
 
     const loadTotal = async () => {
-     if (!cartItems || Object.keys(cartItems).length === 0) {
-  setSummaryItems([]);
-  setTotalAmount(0);
-  return;
-}
+      if (!cartItems || Object.keys(cartItems).length === 0) {
+        setSummaryItems([]);
+        setTotalAmount(0);
+
+        try {
+          localStorage.setItem("cartUiTotalAmount", "0");
+          localStorage.setItem("cartUiDepositAmount", "0");
+        } catch (e) {}
+
+        return;
+      }
+
       console.log("🧾 [CartTotal] loadTotal", {
         actsCount: acts?.length,
         cartActIds: Object.keys(cartItems || {}),
@@ -118,62 +116,52 @@ const CartTotal = () => {
 
       for (const actId of Object.keys(cartItems)) {
         const actCartBlock = cartItems?.[actId];
- if (!actCartBlock || typeof actCartBlock !== "object") {
-    console.warn("⚠️ [CartTotal] cartItems[actId] not an object", { actId, actCartBlock });
-    continue;
-  }
+        if (!actCartBlock || typeof actCartBlock !== "object") {
+          console.warn("⚠️ [CartTotal] cartItems[actId] not an object", { actId, actCartBlock });
+          continue;
+        }
 
-  let act = (acts || []).find((a) => String(a?._id || a?.id) === String(actId));
+        let act = (acts || []).find((a) => String(a?._id || a?.id) === String(actId));
 
-        // If the cart references an act that isn’t in the preloaded cards list (e.g. test/draft/private act),
-        // fetch the full act document by ID so totals can still compute.
-       const needsFullAct = !act || !Array.isArray(act?.lineups) || act.lineups.length === 0;
- if (needsFullAct) {
-   act = await fetchActById(actId);
- }
+        const needsFullAct = !act || !Array.isArray(act?.lineups) || act.lineups.length === 0;
+        if (needsFullAct) {
+          act = await fetchActById(actId);
+        }
 
+        if (!act) {
+          console.warn("⚠️ [CartTotal] Act not found for cart actId (even after fetch)", {
+            actId,
+            actsCount: acts?.length,
+          });
+          continue;
+        }
 
- if (!act) {
-    console.warn("⚠️ [CartTotal] Act not found for cart actId (even after fetch)", {
-      actId,
-      actsCount: acts?.length,
-      sampleActIds: (acts || []).slice(0, 8).map((a) => ({
-        _id: a?._id,
-        id: a?.id,
-        tscName: a?.tscName,
-        name: a?.name,
-      })),
-    });
-    continue;
-  }
+        console.log("🔎 [CartTotal] act shape", {
+          actId,
+          foundInActsList: !!(acts || []).find((a) => String(a?._id) === String(actId)),
+          hasLineups: Array.isArray(act?.lineups),
+          lineupsLen: act?.lineups?.length,
+          cartLineupIds: Object.keys(cartItems?.[actId] || {}),
+        });
 
-  // 🔎 Debug: confirm whether we have a full act (lineups) and what lineup keys the cart is using
-  console.log("🔎 [CartTotal] act shape", {
-    actId,
-    foundInActsList: !!(acts || []).find((a) => String(a?._id) === String(actId)),
-    hasLineups: Array.isArray(act?.lineups),
-    lineupsLen: act?.lineups?.length,
-    cartLineupIds: Object.keys(cartItems?.[actId] || {}),
-  });
-
- if (!Array.isArray(act?.lineups) || act.lineups.length === 0) {
-   console.warn("⚠️ [CartTotal] Act has no lineups even after fetch", {
-     actId,
-          tscName: act?.tscName,
-     hasLineups: !!act?.lineups,
-     lineupsLen: act?.lineups?.length,
-   });
-      continue;
- }
+        if (!Array.isArray(act?.lineups) || act.lineups.length === 0) {
+          console.warn("⚠️ [CartTotal] Act has no lineups even after fetch", {
+            actId,
+            tscName: act?.tscName,
+          });
+          continue;
+        }
 
         for (const lineupId of Object.keys(actCartBlock)) {
           const cartNode = cartItems[actId][lineupId] || {};
           const quantity = Number(cartNode.quantity || 1);
+
           const selectedExtras = Array.isArray(cartNode.selectedExtras)
             ? cartNode.selectedExtras
             : cartNode.selectedExtras
               ? [cartNode.selectedExtras]
               : [];
+
           const afternoonExtras = Array.isArray(cartNode.selectedAfternoonSets)
             ? cartNode.selectedAfternoonSets
             : [];
@@ -181,20 +169,19 @@ const CartTotal = () => {
           const lineup = (act.lineups || []).find(
             (l) => String(l._id || l.lineupId) === String(lineupId)
           );
-          if (!lineup) {
-     console.warn("⚠️ [CartTotal] Lineup not found for lineupId in cart", {
-       actId,
-       lineupId,
-       available: (act.lineups || []).map(l => String(l?._id || l?.lineupId)).slice(0, 12),
-     });
-     // Optional fallback so totals still show:
-     // const fallback = act.lineups?.[0];
-     // if (!fallback) continue;
-     // lineup = fallback;
-     continue;
-   }
 
-          // Try calculateActPricing first (this includes travel + margin in your util)
+          if (!lineup) {
+            console.warn("⚠️ [CartTotal] Lineup not found for lineupId in cart", {
+              actId,
+              lineupId,
+              available: (act.lineups || [])
+                .map((l) => String(l?._id || l?.lineupId))
+                .slice(0, 12),
+            });
+            continue;
+          }
+
+          // Try calculateActPricing first
           let calc = null;
           try {
             calc = await calculateActPricing(
@@ -205,6 +192,7 @@ const CartTotal = () => {
               lineup
             );
           } catch (err) {
+            // swallow; fallback below
           }
 
           const calcTotal = Number(calc?.total);
@@ -212,12 +200,8 @@ const CartTotal = () => {
           const essentialRoles = getEssentialRolesTotal(lineup);
           const rawBase = baseFee + essentialRoles;
 
-          // Fallback must include your margin multiplier (otherwise Cart total looks "net")
           const fallbackGross = rawBase > 0 ? Math.ceil(rawBase * MARGIN_MULTIPLIER) : 0;
 
-          // Prefer calculateActPricing() when available.
-          // NOTE: if your pricing util already returns a gross/margin-included total, set one of these flags there:
-          //   { marginApplied: true } or { isGross: true } or { includesMargin: true }
           const calcAlreadyGross =
             calc?.marginApplied === true ||
             calc?.isGross === true ||
@@ -228,40 +212,28 @@ const CartTotal = () => {
               ? Math.ceil(calcAlreadyGross ? calcTotal : calcTotal * MARGIN_MULTIPLIER)
               : 0;
 
-          // If calcGross is valid and > 0, use it. Otherwise fallback.
           const subtotalWithMargin = calcGross > 0 ? calcGross : fallbackGross;
 
-          // Sum extras (defensively treat missing/strings)
           const extrasTotal =
-            selectedExtras.reduce(
-              (sum, ex) => sum + (Number(ex?.price) || 0),
-              0
-            ) || 0;
+            selectedExtras.reduce((sum, ex) => sum + (Number(ex?.price) || 0), 0) || 0;
+
           const afternoonExtrasTotal =
-            afternoonExtras.reduce(
-              (sum, set) => sum + (Number(set?.price) || 0),
-              0
-            ) || 0;
+            afternoonExtras.reduce((sum, set) => sum + (Number(set?.price) || 0), 0) || 0;
 
           const combinedExtrasTotal = extrasTotal + afternoonExtrasTotal;
           const lineTotal = (subtotalWithMargin + combinedExtrasTotal) * quantity;
 
-          // ✅ TEST ACT OVERRIDE — safe version (no const reassignment)
           const actNameLower = (act.tscName || act.name || "").toLowerCase();
           const isTestAct =
             actNameLower.includes("test dancefloor magic") ||
             actNameLower.includes("test soul allegiance") ||
             actNameLower.includes("test motown magic");
 
-          // If test act → override totals WITHOUT mutating const
-          // (Keep quantity accounted for)
           const finalLineTotal = isTestAct ? 0.5 * quantity : lineTotal;
           const summaryBasePrice = isTestAct ? 0.5 : subtotalWithMargin;
 
-          // ✅ GRAND TOTAL MUST INCLUDE BASE + EXTRAS
           grand += finalLineTotal;
 
-          // Include afternoon sets as "extras" for the summary list
           const combinedExtrasForSummary = [
             ...(selectedExtras || []),
             ...((afternoonExtras || []).map((s) => ({
@@ -282,56 +254,84 @@ const CartTotal = () => {
           });
         }
       }
+
       console.log("✅ [CartTotal] computed", {
         summaryCount: summary.length,
         grand,
         preview: summary.slice(0, 3),
       });
+
+      // ✅ compute test booking and deposit USING local summary+grand (not state)
+      const isTestBookingLocal = summary.some((item) => {
+        const name = (item.tscName || item.actName || "").toLowerCase();
+        return (
+          name.includes("test dancefloor magic") ||
+          name.includes("test soul allegiance") ||
+          name.includes("test motown magic")
+        );
+      });
+
+      const depositLocal = isTestBookingLocal ? Math.max(grand, 0.5) : grand * 0.33;
+
+      // ✅ persist cart UI totals for checkout (scope-safe)
+      try {
+        localStorage.setItem("cartUiTotalAmount", String(grand));
+        localStorage.setItem("cartUiDepositAmount", String(depositLocal));
+      } catch (e) {}
+
       setSummaryItems(summary);
       setTotalAmount(grand);
     };
 
     loadTotal();
   }, [JSON.stringify(cartItems), acts, selectedAddress, selectedDate, backendUrl]);
-const isTestBooking = summaryItems.some(
-  (item) => {
+
+  // UI display helpers (safe: use state only)
+  const isTestBooking = summaryItems.some((item) => {
     const name = (item.tscName || item.actName || "").toLowerCase();
     return (
       name.includes("test dancefloor magic") ||
       name.includes("test soul allegiance") ||
       name.includes("test motown magic")
     );
-  }
-);
+  });
 
-// Force minimum £0.50 for test acts
-let deposit;
-if (isTestBooking) {
-  deposit = Math.max(totalAmount, 0.50);
-} else {
-  deposit = totalAmount * 0.33;
-}
+  let deposit;
+  if (isTestBooking) {
+    deposit = Math.max(totalAmount, 0.5);
+  } else {
+    deposit = totalAmount * 0.33;
+  }
 
   return (
-    <div className='w-full'>
-      <div className='text-2xl mb-4'>
-        <Title text1={'CART'} text2={'TOTAL'} />
+    <div className="w-full">
+      <div className="text-2xl mb-4">
+        <Title text1={"CART"} text2={"TOTAL"} />
       </div>
 
       {summaryItems.map((item, index) => (
-        <div key={index} className='mb-4 text-sm border p-3 rounded bg-gray-50'>
-          <div className='flex justify-between'>
-            <p className='font-semibold'>{item.tscName} – {item.lineupName}</p>
-            <p>{currency}{item.basePrice.toFixed(2)}</p>
+        <div key={index} className="mb-4 text-sm border p-3 rounded bg-gray-50">
+          <div className="flex justify-between">
+            <p className="font-semibold">
+              {item.tscName} – {item.lineupName}
+            </p>
+            <p>
+              {currency}
+              {item.basePrice.toFixed(2)}
+            </p>
           </div>
-          {item.extras.length > 0 && (
-            <div className='mt-1'>
-              <p className='text-gray-600 text-xs'>Extras:</p>
-              <ul className='list-disc list-inside'>
+
+          {item.extras?.length > 0 && (
+            <div className="mt-1">
+              <p className="text-gray-600 text-xs">Extras:</p>
+              <ul className="list-disc list-inside">
                 {item.extras.map((extra, i) => (
-                  <li key={i} className='flex justify-between'>
+                  <li key={i} className="flex justify-between">
                     <span>{extra.name}</span>
-                    <span>{currency}{Number(extra.price || 0).toFixed(2)}</span>
+                    <span>
+                      {currency}
+                      {Number(extra.price || 0).toFixed(2)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -340,22 +340,32 @@ if (isTestBooking) {
         </div>
       ))}
 
-      <div className='mt-10 text-sm border-t pt-4'>
-        <div className={`flex justify-between ${requiresFullPayment ? 'font-extrabold text-gray-900' : ''}`}>
+      <div className="mt-10 text-sm border-t pt-4">
+        <div
+          className={`flex justify-between ${
+            requiresFullPayment ? "font-extrabold text-gray-900" : ""
+          }`}
+        >
           <p>Total</p>
-          <p>{currency}{totalAmount.toFixed(2)}</p>
+          <p>
+            {currency}
+            {totalAmount.toFixed(2)}
+          </p>
         </div>
 
         {requiresFullPayment ? (
-          <p className='mt-2 text-xs text-grey-700'>
+          <p className="mt-2 text-xs text-grey-700">
             Full payment required as your event is 28 days or less away.
           </p>
         ) : (
           <>
-            <hr className='my-2' />
-            <div className='flex justify-between font-bold'>
+            <hr className="my-2" />
+            <div className="flex justify-between font-bold">
               <p>Deposit</p>
-              <p>{currency}{deposit.toFixed(2)}</p>
+              <p>
+                {currency}
+                {deposit.toFixed(2)}
+              </p>
             </div>
           </>
         )}

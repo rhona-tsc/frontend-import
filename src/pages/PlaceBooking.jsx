@@ -433,8 +433,7 @@ const handleSubmit = async () => {
       }, 0)
     );
 
-    // Match backend rule: total rounded UP to whole pounds before deposit
-    const cartTotal = roundUpToPound(fullAmountRaw);
+ 
 
     if (!Number.isFinite(cartTotal) || cartTotal <= 0) {
       alert(
@@ -463,9 +462,11 @@ const handleSubmit = async () => {
     const signatureImage = signaturePad.getTrimmedCanvas().toDataURL("image/png");
     const endpoint = `${backendUrl}/api/booking/create-checkout-session`;
     const performanceTimesTop = actsSummary[0]?.performance ? { ...actsSummary[0].performance } : null;
+const cartUiTotal = Number(localStorage.getItem("cartUiTotalAmount") || 0);
+const cartTotal = Math.ceil(cartUiTotal); // match your rounding rule
 
     const stripeResponse = await axios.post(endpoint, {
-      cartDetails: cartDetailsSingle, // ✅ IMPORTANT: single item only
+  cartDetails: [{ name: "Cart Total", price: cartTotal, quantity: 1 }],
       actsSummary,
 
       performanceTimes: performanceTimesTop || undefined,
