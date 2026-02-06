@@ -207,8 +207,17 @@ const applyPresetLocation = (key) => {
 
   // optional: wipe date so it behaves like “browse this region”
   // (pricing won't calculate until date is chosen)
-  setSelectedDate("");
+const storedDate =
+  sessionStorage.getItem("selectedDate") ||
+  localStorage.getItem("selectedDate") ||
+  "";
 
+if (storedDate) {
+  setSelectedDate(storedDate);
+} else {
+  // leave empty if you truly want “browse”
+  setSelectedDate("");
+}
   // store for persistence
   sessionStorage.setItem("selectedCounty", p.county);
   sessionStorage.setItem("selectedAddress", p.address);
