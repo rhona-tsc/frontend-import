@@ -508,6 +508,18 @@ bandMembers: lineupSnapshot.bandMembers,
 
     const performanceTimesTop = actsSummary[0]?.performance ? { ...actsSummary[0].performance } : null;
 
+    const payloadSum = validItems.reduce((s, it) => s + (it.price * (it.quantity || 1)), 0);
+console.log("💷 CART UI total (whatever you're displaying):", /* your displayed total var */);
+console.log("💷 Stripe payload sum:", payloadSum);
+console.log("🧾 validItems:", validItems);
+console.log("🧾 actsSummary prices:", actsSummary.map(a => ({
+  act: a.tscName,
+  base: a.prices?.base,
+  travel: a.prices?.travel,
+  adjustedTotal: a.prices?.adjustedTotal,
+  extras: (a.selectedExtras||[]).map(e => ({name: e.name, price: e.price}))
+})));
+
     const stripeResponse = await axios.post(endpoint, {
       cartDetails: validItems,
       actsSummary,
