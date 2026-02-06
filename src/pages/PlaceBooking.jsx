@@ -77,10 +77,9 @@ const PlaceBooking = () => {
 
   // ---- Submit (create Stripe session + persist booking) ----
 const handleSubmit = async () => {
-  // helper: days until event (date-only, avoids TZ off-by-one)
-
-
-  // keep your original version (correct)
+  // ----------------------------
+  // Helpers
+  // ----------------------------
   const daysUntilCorrect = (dateStr) => {
     if (!dateStr) return null;
     const now = new Date();
@@ -101,6 +100,12 @@ const handleSubmit = async () => {
     return Number.isFinite(n) ? n : 0;
   };
 
+  const roundToPennies = (n) => Math.round(Number(n || 0) * 100) / 100;
+  const roundUpToPound = (n) => Math.ceil(Number(n || 0));
+
+  // ----------------------------
+  // Gatekeeping
+  // ----------------------------
   const dte = daysUntilCorrect(selectedDate);
   const clientWantsFull = dte != null && dte <= 28;
 
@@ -113,7 +118,7 @@ const handleSubmit = async () => {
     return;
   }
 
-  // ✅ freshest cart snapshot
+  // ✅ freshest cart snapshot (state > localStorage)
   const cartItemsFresh = (() => {
     const fromState = cartItems && typeof cartItems === "object" ? cartItems : null;
     if (fromState && Object.keys(fromState).length) return fromState;
@@ -122,13 +127,12 @@ const handleSubmit = async () => {
       const raw = localStorage.getItem("cartItems");
       const parsed = raw ? JSON.parse(raw) : {};
       return parsed && typeof parsed === "object" ? parsed : {};
-    } catch (e) {
+    } catch {
       return {};
     }
   })();
 
   const actsSummary = [];
-  const items = [];
 
   try {
     if (!cartItemsFresh || Object.keys(cartItemsFresh).length === 0) {
@@ -138,7 +142,9 @@ const handleSubmit = async () => {
 
     const actsArr = Array.isArray(acts) ? acts : [];
 
-    // ✅ fetch full act when lineups are missing
+    // ----------------------------
+    // Resolve full act + lineup
+    // ----------------------------
     const fetchFullAct = async (id) => {
       if (!backendUrl || !id) return null;
 
@@ -155,7 +161,7 @@ const handleSubmit = async () => {
           const payload = res?.data;
           const act = payload?.act || payload?.data || payload;
           if (act && (act?._id || act?.id)) return act;
-        } catch (e) {
+        } catch {
           // try next
         }
       }
@@ -163,10 +169,8 @@ const handleSubmit = async () => {
     };
 
     const resolveActFromCart = async (cartActKey) => {
-      // 1) direct id match from loaded list
       const direct = actsArr.find((a) => String(a?._id ?? a?.id) === String(cartActKey));
       if (direct) {
-        // if lineups missing, fetch full
         const hasLineups = Array.isArray(direct?.lineups) && direct.lineups.length > 0;
         if (hasLineups) return direct;
 
@@ -174,11 +178,9 @@ const handleSubmit = async () => {
         return full || direct;
       }
 
-      // 2) try fetch by the cart key as an id
       const fullByKey = await fetchFullAct(cartActKey);
       if (fullByKey) return fullByKey;
 
-      // 3) fallback: match act by lineup ids stored under this cart key (if actsArr has lineups)
       const lineupIdsObj =
         cartItemsFresh &&
         cartItemsFresh[cartActKey] &&
@@ -213,6 +215,9 @@ const handleSubmit = async () => {
     console.log("🛒 cartItemsFresh keys:", Object.keys(cartItemsFresh));
     console.log("🎭 acts loaded:", actsArr.length);
 
+    // ----------------------------
+    // Build actsSummary (still used for contracts / booking creation)
+    // ----------------------------
     for (const actId in cartItemsFresh) {
       let act = await resolveActFromCart(actId);
       const chosenVocalists = selectedVocalists?.[actId] || [];
@@ -222,13 +227,7 @@ const handleSubmit = async () => {
         continue;
       }
 
-      // 🔥 IMPORTANT: if act has no lineups, this is exactly your bug
       if (!Array.isArray(act?.lineups) || act.lineups.length === 0) {
-        console.warn("❌ Act has no lineups on PlaceBooking submit. Fetching full act…", {
-          actId,
-          resolved: act?.tscName || act?.name,
-        });
-
         const full = await fetchFullAct(act?._id || act?.id || actId);
         if (full && Array.isArray(full?.lineups) && full.lineups.length) {
           act = full;
@@ -251,35 +250,23 @@ const handleSubmit = async () => {
           formattedPrice,
         } = cartLine;
 
-        // try find lineup
         let lineup =
           (act.lineups || []).find(
-            (l) =>
-              String(l._id) === String(lineupId) ||
-              String(l.lineupId) === String(lineupId)
+            (l) => String(l._id) === String(lineupId) || String(l.lineupId) === String(lineupId)
           ) || null;
 
-        // if still missing, try one more full fetch (in case act came from cards)
         if (!lineup) {
           const full = await fetchFullAct(act?._id || act?.id || actId);
           if (full && Array.isArray(full?.lineups)) {
             act = full;
             lineup =
               (act.lineups || []).find(
-                (l) =>
-                  String(l._id) === String(lineupId) ||
-                  String(l.lineupId) === String(lineupId)
+                (l) => String(l._id) === String(lineupId) || String(l.lineupId) === String(lineupId)
               ) || null;
           }
         }
 
         if (!lineup) {
-          console.warn("❌ Lineup not found even after full fetch", {
-            act: act?.tscName || act?.name,
-            lineupId,
-            actLineups: (act?.lineups || []).map((l) => String(l?._id ?? l?.lineupId)).slice(0, 12),
-          });
-
           alert(
             "Your selected lineup could not be found (it may be out of date).\n\n" +
               "Please go back to the cart, re-select the lineup for this act, then try again."
@@ -287,10 +274,9 @@ const handleSubmit = async () => {
           return;
         }
 
-        // 💰 pricing snapshot
+        // Pricing snapshot for summary (NOT for Stripe anymore)
         let fee = 0,
           travel = 0,
-          total = 0,
           travelCalculated = false;
 
         try {
@@ -303,44 +289,16 @@ const handleSubmit = async () => {
           );
           fee = toNumberPrice(res?.fee || 0);
           travel = toNumberPrice(res?.travel || 0);
-          total = toNumberPrice(res?.total ?? res?.price ?? 0);
-
-          if (!Number.isFinite(total) || total <= 0) {
-            const ft = toNumberPrice(fee) + toNumberPrice(travel);
-            if (Number.isFinite(ft) && ft > 0) total = ft;
-          }
-
           travelCalculated = !!res?.travelCalculated;
-        } catch (e) {
-          total = toNumberPrice(formattedPrice || 0);
-          fee = Math.round(total * 1.33);
-          travel = Math.max(0, total - fee);
+        } catch {
+          // fallback: use formattedPrice as total snapshot if needed
+          const totalFallback = toNumberPrice(formattedPrice || 0);
+          fee = totalFallback;
+          travel = 0;
           travelCalculated = false;
         }
 
-        // base line
-        if (Number.isFinite(total) && total > 0) {
-          items.push({
-            name: `Booking: ${act.tscName} - ${lineup.actSize || "Lineup"}`,
-            price: total,
-            quantity: Number(quantity) || 1,
-          });
-        }
-
-        // extras → Stripe items (positive only)
-        (selectedExtras || []).forEach((ex) => {
-          const exPrice = toNumberPrice(ex?.price || 0);
-          const exQty = Number(ex?.quantity || 1);
-          if (exQty > 0 && exPrice > 0) {
-            items.push({
-              name: `${ex.name}${exQty > 1 ? ` x ${exQty}` : ""}`,
-              price: exPrice,
-              quantity: 1,
-            });
-          }
-        });
-
-        // performance block (your existing logic)
+        // performance block (kept)
         const perfSource = cartLine.performance || {};
         const cartPerf = {
           ...perfSource,
@@ -382,7 +340,6 @@ const handleSubmit = async () => {
           paLightsFinishDayOffset: toInt(cartPerf.paLightsFinishDayOffset, 0),
         };
 
-        // lineup snapshot
         const lineupSnapshot = {
           lineupId: String(lineup._id || lineup.lineupId || lineupId),
           actSize:
@@ -403,25 +360,7 @@ const handleSubmit = async () => {
               }))
             : [],
         };
-console.log("🧾 [PlaceBooking] lineup snapshot", {
-  act: act?.tscName || act?.name,
-  actId: act?._id,
-  lineupId,
-  lineupActSize: lineup?.actSize,
-  lineupBandMembersLen: Array.isArray(lineup?.bandMembers) ? lineup.bandMembers.length : 0,
-  snapshotBandMembersLen: Array.isArray(lineupSnapshot?.bandMembers) ? lineupSnapshot.bandMembers.length : 0,
-  snapshotEssentialLen: Array.isArray(lineupSnapshot?.bandMembers)
-    ? lineupSnapshot.bandMembers.filter(m => m?.isEssential).length
-    : 0,
-  snapshotFirst3: Array.isArray(lineupSnapshot?.bandMembers)
-    ? lineupSnapshot.bandMembers.slice(0, 3).map(m => ({
-        firstName: m.firstName,
-        instrument: m.instrument,
-        isEssential: m.isEssential,
-        roles: (m.additionalRoles || []).filter(r => r.isEssential).map(r => r.role),
-      }))
-    : [],
-});
+
         actsSummary.push({
           cartActKey: String(actId),
           actId: String(act?._id ?? actId),
@@ -429,7 +368,8 @@ console.log("🧾 [PlaceBooking] lineup snapshot", {
           tscName: act.tscName,
           actSlug: act.slug || null,
           image: act?.profileImage?.[0] || act?.images?.[0] || null,
-bandMembers: lineupSnapshot.bandMembers,
+
+          bandMembers: lineupSnapshot.bandMembers,
           chosenVocalists: (chosenVocalists || []).map((id) => ({ musicianId: id })),
 
           lineupId: String(lineupId),
@@ -474,75 +414,77 @@ bandMembers: lineupSnapshot.bandMembers,
 
     setActsSummaryState([...actsSummary]);
 
-    const validItems = items.filter(
-      (i) =>
-        typeof i.price === "number" &&
-        Number.isFinite(i.price) &&
-        i.price > 0 &&
-        (i.quantity || 1) > 0
+    if (!actsSummary.length) {
+      alert("We couldn't build your booking summary. Please refresh and try again.");
+      return;
+    }
+
+    // ----------------------------
+    // ✅ Single-item Stripe total (source of truth)
+    // ----------------------------
+    // Use actsSummary + extras to compute the total you display in the cart.
+    // IMPORTANT: if your cart UI uses a different value, swap this to that exact value.
+    const fullAmountRaw = roundToPennies(
+      actsSummary.reduce((sum, item) => {
+        const perUnit =
+          Number(item?.prices?.adjustedTotal || 0) +
+          (item.selectedExtras || []).reduce((s, ex) => s + (Number(ex.price) || 0), 0);
+        return sum + perUnit * (item.quantity || 1);
+      }, 0)
     );
 
-    console.log("🧾 items BEFORE filter:", items);
-    console.log("✅ validItems:", validItems);
+    // Match backend rule: total rounded UP to whole pounds before deposit
+    const cartTotal = roundUpToPound(fullAmountRaw);
 
-    if (validItems.length === 0) {
+    if (!Number.isFinite(cartTotal) || cartTotal <= 0) {
       alert(
-        "We couldn't create your checkout because no paid items were found.\n\n" +
-          "Please check:\n• You’ve selected a lineup\n• Your date and venue are set (so pricing can calculate)\n• The act shows a price on the previous page"
+        "We couldn't calculate your total at checkout.\n\n" +
+          "Please refresh the page and try again."
       );
       return;
     }
 
-    const fullAmount = actsSummary.reduce((sum, item) => {
-      const perUnit =
-        Number(item?.prices?.adjustedTotal || 0) +
-        (item.selectedExtras || []).reduce((s, ex) => s + (Number(ex.price) || 0), 0);
-      return sum + perUnit * (item.quantity || 1);
-    }, 0);
+    const cartDetailsSingle = [
+      {
+        name: "Booking: Cart Total",
+        price: cartTotal,
+        quantity: 1,
+      },
+    ];
 
-    const depositAmount = clientWantsFull ? fullAmount : fullAmount * 0.33;
+    console.log("💷 fullAmountRaw:", fullAmountRaw);
+    console.log("💷 cartTotal (rounded up):", cartTotal);
+    console.log("🧾 cartDetailsSingle:", cartDetailsSingle);
+
+    // Deposit shown to user (backend will calculate again, but this is handy for UI/debug)
+    const depositRate = 0.33;
+    const depositAmount = roundToPennies(cartTotal * depositRate);
 
     const signatureImage = signaturePad.getTrimmedCanvas().toDataURL("image/png");
-
     const endpoint = `${backendUrl}/api/booking/create-checkout-session`;
-
     const performanceTimesTop = actsSummary[0]?.performance ? { ...actsSummary[0].performance } : null;
 
-    const payloadSum = validItems.reduce((s, it) => s + (it.price * (it.quantity || 1)), 0);
-console.log("💷 CART UI total (whatever you're displaying):", /* your displayed total var */);
-console.log("💷 Stripe payload sum:", payloadSum);
-console.log("🧾 validItems:", validItems);
-console.log("🧾 actsSummary prices:", actsSummary.map(a => ({
-  act: a.tscName,
-  base: a.prices?.base,
-  travel: a.prices?.travel,
-  adjustedTotal: a.prices?.adjustedTotal,
-  extras: (a.selectedExtras||[]).map(e => ({name: e.name, price: e.price}))
-})));
-
     const stripeResponse = await axios.post(endpoint, {
-      cartDetails: validItems,
+      cartDetails: cartDetailsSingle, // ✅ IMPORTANT: single item only
       actsSummary,
-
-      lineupId: actsSummary[0]?.lineupId,
-      lineupIds: actsSummary.map((a) => a.lineupId),
-      actId: actsSummary[0]?.actId,
-      actIds: actsSummary.map((a) => a.actId),
 
       performanceTimes: performanceTimesTop || undefined,
       selectedVocalists,
+
       eventType,
       date: selectedDate,
       venueAddress: selectedAddress,
       venue: selectedAddress,
-pricesIncludeMargin: true,
+
+      pricesIncludeMargin: true, // ✅ prevents backend markup
+
       customer: userAddress,
       signature: signatureImage,
 
       paymentMode: clientWantsFull ? "full" : "deposit",
 
       totals: {
-        fullAmount,
+        fullAmount: cartTotal,
         depositAmount,
         isLessThanFourWeeks: clientWantsFull,
         currency: "GBP",
