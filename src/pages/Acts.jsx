@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect, useRef, useMemo } from "react";
 import { ShopContext } from "../context/ShopContext.jsx";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 import Title from "../components/Title";
@@ -168,6 +168,71 @@ const Acts = ({ userRole, email }) => {
 
   // near the top
   const FILTER_DATA_ENDPOINTS = [api("api/v2/act-cards/search")];
+
+
+  const PRESET_LOCATIONS = {
+  london: {
+    county: "greater london",
+    postcode: "SW1A 1AA",
+    address: "London SW1A 1AA, UK",
+    placeLabel: "London",
+  },
+  essex: {
+    county: "essex",
+    postcode: "CM1 1AA",
+    address: "Chelmsford CM1 1AA, UK",
+    placeLabel: "Essex",
+  },
+  kent: {
+    county: "kent",
+    postcode: "ME14 1AA",
+    address: "Maidstone ME14 1AA, UK",
+    placeLabel: "Kent",
+  },
+};
+
+
+const { preset } = useParams();
+
+
+const applyPresetLocation = (key) => {
+  const p = PRESET_LOCATIONS[String(key || "").toLowerCase()];
+  if (!p) return;
+
+  // update local state used by pricing
+  setSelectedCounty(p.county);
+
+  // update context (you already have these in Acts)
+  setSelectedAddress(p.address);
+
+  // optional: wipe date so it behaves like “browse this region”
+  // (pricing won't calculate until date is chosen)
+  setSelectedDate("");
+
+  // store for persistence
+  sessionStorage.setItem("selectedCounty", p.county);
+  sessionStorage.setItem("selectedAddress", p.address);
+  sessionStorage.setItem("selectedPostcode", p.postcode);
+  sessionStorage.setItem("selectedPlace", p.placeLabel);
+
+  // if you also store these in context elsewhere, this keeps it consistent
+  // (only do this if these setters exist in your ShopContext)
+  // setSelectedPostcode?.(p.postcode);
+  // setSelectedCounty?.(p.county);
+
+  // hide the search box if open
+  setShowSearch(false);
+
+  // ensure we're on /acts (optional)
+  // navigate("/acts"); // only if you don't want the preset param in URL
+};
+
+
+useEffect(() => {
+  if (!preset) return;
+  applyPresetLocation(preset);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [preset]);
 
   const aliasGenre = (g) => {
     const raw = String(g || "");

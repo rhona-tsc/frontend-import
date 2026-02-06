@@ -125,6 +125,7 @@ import ResetPassword from "./pages/ResetPassword";
                   />} />
               <Route path="/about" element={<About />} />
               <Route path="/act/:key" element={<Act />} />
+              <Route path="/acts/:preset" element={<Acts />} />
               <Route path="/bookings" element={<Bookings />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/client-dashboard" element={<Client_Dashboard />} />
