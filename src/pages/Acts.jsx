@@ -813,9 +813,9 @@ const hasExtra = (act, key) => {
 
     // DJ Serrvices
     up_to_3_hours_band_member_DJ: "Band member DJ",
-    dj_live_sax_3x30mins: "DJ Live with saxophone",
-    dj_live_bongos_3x30mins: "DJ Live with bongos",
-    dj_live_bongos_and_sax_3x30mins: "DJ Live with saxophone and bongos",
+    DJ_live_sax_3x30mins: "DJ Live with saxophone",
+    DJ_live_bongos_3x30mins: "DJ Live with bongos",
+    DJ_live_bongos_and_sax_3x30mins: "DJ Live with saxophone and bongos",
     background_music_playlist: "Background music playlist",
     up_to_3_hours_manned_playlist: "Manned playlist",
 
