@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect, useRef, useMemo } from "react";
 import { ShopContext } from "../context/ShopContext.jsx";
-import { useParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 import Title from "../components/Title";
@@ -19,6 +19,9 @@ const ENDGROUP = () => {
     console.groupEnd();
   } catch (_) {}
 };
+
+
+
 
 // Keep this ABOVE any usage
 const DEBUG_FILTER = true;
@@ -99,6 +102,46 @@ const imagesFromImageUrl = (imageUrl) => {
   return null;
 };
 
+const toYMD = (d) => {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+
+const addMonthsClamped = (date, months) => {
+  const d = new Date(date);
+  const day = d.getDate();
+
+  const target = new Date(d);
+  target.setDate(1);
+  target.setMonth(target.getMonth() + months);
+
+  // last day of target month
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(day, lastDay));
+
+  return target;
+};
+
+const PRESETS = {
+  "dj-options": {
+    djServices: [
+      "up_to_3_hours_band_member_DJ",
+      "DJ_live_sax_3x30mins",
+      "DJ_live_bongos_3x30mins",
+      "DJ_live_bongos_and_sax_3x30mins",
+    ],
+  },
+
+  "motown-soul": {
+    genres: ["Soul & Motown"],
+  },
+
+  pop: {
+    genres: ["Pop & Classic Pop"],
+  },
+};
+
 const Acts = ({ userRole, email }) => {
   const {
     actsFilterPageCards,
@@ -115,6 +158,8 @@ const Acts = ({ userRole, email }) => {
     shortlistAct,
     searchActCards,
   } = useContext(ShopContext);
+  const [searchParams] = useSearchParams();
+  const appliedOnceRef = useRef(false);
 
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
@@ -194,6 +239,41 @@ const Acts = ({ userRole, email }) => {
 
 const { preset } = useParams();
 
+
+useEffect(() => {
+  if (appliedOnceRef.current) return;
+  appliedOnceRef.current = true;
+
+  const presetKey = searchParams.get("preset");
+  const preset = presetKey ? PRESETS[presetKey] : null;
+
+  // 1) Apply preset filters
+  if (preset?.genres?.length) {
+    // Your state is `genre` (array), so setter is very likely `setGenre`
+    setGenre(preset.genres);
+  }
+
+  if (preset?.djServices?.length) {
+    // Your state is `djServices` (array), so setter is very likely `setDjServices`
+    setDjServices(preset.djServices);
+  }
+
+  // 2) Apply "date=6m"
+  const dateParam = searchParams.get("date");
+  if (dateParam === "6m") {
+    const d = addMonthsClamped(new Date(), 6);
+    const ymd = toYMD(d);
+
+    // ✅ Use whichever date setter you actually have:
+    // Examples:
+    // setSelectedDate(ymd)
+    // setDate(ymd)
+    // setEventDate(ymd)
+    // setSearchDate(ymd)
+
+    setSelectedDate(ymd); // <-- CHANGE THIS LINE to your real date setter
+  }
+}, [searchParams]);
 
 const applyPresetLocation = (key) => {
   const p = PRESET_LOCATIONS[String(key || "").toLowerCase()];
