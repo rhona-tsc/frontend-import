@@ -422,18 +422,14 @@ const handleSubmit = async () => {
     // ----------------------------
     // ✅ Single-item Stripe total (source of truth)
     // ----------------------------
-    // Use actsSummary + extras to compute the total you display in the cart.
-    // IMPORTANT: if your cart UI uses a different value, swap this to that exact value.
-    const fullAmountRaw = roundToPennies(
-      actsSummary.reduce((sum, item) => {
-        const perUnit =
-          Number(item?.prices?.adjustedTotal || 0) +
-          (item.selectedExtras || []).reduce((s, ex) => s + (Number(ex.price) || 0), 0);
-        return sum + perUnit * (item.quantity || 1);
-      }, 0)
-    );
+    // Prefer the exact Cart UI total saved by <CartTotal /> (already includes margin + extras + qty).
+    // Fallback to a recompute from actsSummary if localStorage is missing.
+    const cartUiTotalStored = Number(localStorage.getItem("cartUiTotalAmount") || 0);
 
- 
+    // Match your Cart UI rounding rule: round UP to the nearest £1
+    const cartTotal = roundUpToPound(
+      cartUiTotalStored > 0 ? cartUiTotalStored : fullAmountRaw
+    );
 
     if (!Number.isFinite(cartTotal) || cartTotal <= 0) {
       alert(
@@ -445,28 +441,29 @@ const handleSubmit = async () => {
 
     const cartDetailsSingle = [
       {
-        name: "Booking: Cart Total",
+        name: `Booking Deposit (${cartTotal.toFixed(2)} total)`,
         price: cartTotal,
         quantity: 1,
       },
     ];
 
     console.log("💷 fullAmountRaw:", fullAmountRaw);
+    console.log("💷 cartUiTotalStored:", cartUiTotalStored);
     console.log("💷 cartTotal (rounded up):", cartTotal);
     console.log("🧾 cartDetailsSingle:", cartDetailsSingle);
 
-    // Deposit shown to user (backend will calculate again, but this is handy for UI/debug)
+    // Deposit shown to user (backend will calculate again)
     const depositRate = 0.33;
     const depositAmount = roundToPennies(cartTotal * depositRate);
 
     const signatureImage = signaturePad.getTrimmedCanvas().toDataURL("image/png");
     const endpoint = `${backendUrl}/api/booking/create-checkout-session`;
-    const performanceTimesTop = actsSummary[0]?.performance ? { ...actsSummary[0].performance } : null;
-const cartUiTotal = Number(localStorage.getItem("cartUiTotalAmount") || 0);
-const cartTotal = Math.ceil(cartUiTotal); // match your rounding rule
+    const performanceTimesTop = actsSummary[0]?.performance
+      ? { ...actsSummary[0].performance }
+      : null;
 
     const stripeResponse = await axios.post(endpoint, {
-  cartDetails: [{ name: "Cart Total", price: cartTotal, quantity: 1 }],
+      cartDetails: cartDetailsSingle,
       actsSummary,
 
       performanceTimes: performanceTimesTop || undefined,
