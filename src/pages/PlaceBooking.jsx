@@ -78,15 +78,7 @@ const PlaceBooking = () => {
   // ---- Submit (create Stripe session + persist booking) ----
 const handleSubmit = async () => {
   // helper: days until event (date-only, avoids TZ off-by-one)
-  const daysUntil = (dateStr) => {
-    if (!dateStr) return null;
-    const now = new Date();
-    const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const ev = new Date(dateStr);
-    const d1 = new Date(ev.getFullYear(), ev.getMonth(), ev.getMonth(), ev.getDate());
-    // ^ NOTE: if you ever see odd results, revert to your original (month, date) ctor
-    return Math.ceil((d1 - d0) / (1000 * 60 * 60 * 24));
-  };
+
 
   // keep your original version (correct)
   const daysUntilCorrect = (dateStr) => {
@@ -531,7 +523,7 @@ bandMembers: lineupSnapshot.bandMembers,
       date: selectedDate,
       venueAddress: selectedAddress,
       venue: selectedAddress,
-
+pricesIncludeMargin: true,
       customer: userAddress,
       signature: signatureImage,
 
