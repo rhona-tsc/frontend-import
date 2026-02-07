@@ -1904,7 +1904,66 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                   return out;
                 };
 
-                // OPTIONAL: if you want "lead-first across all slots", use sortedSlots instead of slots below
+                const resolveSlotCandidates = (slot) => {
+                  const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
+
+                  // Lead first (if yes + photo)
+                  const leadIsAvailable = slot?.state === "yes";
+                  const leadHasPhoto = isHttp(slot?.photoUrl);
+
+                  const leadItem =
+                    leadIsAvailable && leadHasPhoto && slot?.musicianId
+                      ? {
+                          isDeputy: false,
+                          musicianId: slot.musicianId,
+                          photoUrl: slot.photoUrl,
+                          profileUrl: slot.profileUrl,
+                          setAt: slot.setAt,
+                          vocalistName: slot.vocalistName || "",
+                        }
+                      : null;
+
+                  // Primary deputy (server-picked) if present
+                  const primaryDep =
+                    slot?.primary &&
+                    slot.primary.isDeputy &&
+                    isHttp(slot.primary.photoUrl) &&
+                    slot.primary.musicianId
+                      ? (() => {
+                          const match = deps.find(
+                            (d) => String(d.musicianId) === String(slot.primary.musicianId)
+                          );
+                          return {
+                            ...slot.primary,
+                            isDeputy: true,
+                            vocalistName: match?.vocalistName || match?.name || "",
+                          };
+                        })()
+                      : null;
+
+                  // YES deputies
+                  const yesDeps = deps
+                    .filter((d) => isYes(d) && isHttp(d?.photoUrl) && d?.musicianId)
+                    .sort(
+                      (a, b) =>
+                        new Date(b.repliedAt || b.setAt || 0) -
+                        new Date(a.repliedAt || a.setAt || 0)
+                    )
+                    .map((d) => ({ ...d, isDeputy: true }));
+
+                  // Combine (lead first) and de-dupe within slot
+                  const combined = [
+                    ...(leadItem ? [leadItem] : []),
+                    ...(primaryDep ? [primaryDep] : []),
+                    ...yesDeps.filter(
+                      (d) =>
+                        !primaryDep || String(d.musicianId) !== String(primaryDep.musicianId)
+                    ),
+                  ];
+
+                  return uniqBy(combined, (d) => String(d.musicianId));
+                };
+
                 const sortedSlots = [...slots].sort((a, b) => {
                   const aLead =
                     a?.state === "yes" && isHttp(a?.photoUrl) ? 1 : 0;
@@ -1913,165 +1972,80 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                   return bLead - aLead; // any slot with a lead-YES comes first
                 });
 
-                return (
-                  <div className="flex items-center gap-3 mt-2 flex-wrap">
-                    {sortedSlots /* or slots */
-                      .map((slot) => {
-                        // 🏷 Cart badge name formatting: First + Last initial
+// 🏷 Short-name helper (no dot after the initial)
+const shortName = (full = "") => {
+  const cleaned = String(full)
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!cleaned) return "";
+  const parts = cleaned.split(" ");
+  if (parts.length === 1) return parts[0];
+  const first = parts[0];
+  const last = parts[parts.length - 1].replace(/[^A-Za-zÀ-ÿ'-]/g, "");
+  const initial = last ? last[0].toUpperCase() : "";
+  return initial ? `${first} ${initial}` : first;
+};
 
-                        // 🏷 Short-name helper (no dot after the initial)
-                        const shortName = (full = "") => {
-                          const cleaned = String(full)
-                            .trim()
-                            .replace(/\s+/g, " ");
-                          if (!cleaned) return "";
-                          const parts = cleaned.split(" ");
-                          if (parts.length === 1) return parts[0];
-                          const first = parts[0];
-                          const last = parts[parts.length - 1].replace(
-                            /[^A-Za-zÀ-ÿ'-]/g,
-                            ""
-                          );
-                          const initial = last ? last[0].toUpperCase() : "";
-                          return initial ? `${first} ${initial}` : first;
-                        };
+const seen = new Set();
+const flat = [];
 
-                        const deps = Array.isArray(slot.deputies)
-                          ? slot.deputies
-                          : [];
+for (const slot of sortedSlots) {
+  const candidates = resolveSlotCandidates(slot);
 
-                        // 1) lead (featured) item IF available and has photo – always prepend
-                        const leadIsAvailable = slot?.state === "yes";
-                        const leadHasPhoto = isHttp(slot?.photoUrl);
-                        const leadItem =
-                          leadIsAvailable && leadHasPhoto
-                            ? {
-                                isDeputy: false,
-                                musicianId: slot.musicianId,
-                                photoUrl: slot.photoUrl,
-                                profileUrl: slot.profileUrl,
-                                setAt: slot.setAt,
-                                vocalistName: slot.vocalistName || "", // ← carry name for lead
-                              }
-                            : null;
+  for (const item of candidates) {
+    const id = String(item?.musicianId || "");
+    if (!id || seen.has(id)) continue;     // ✅ THIS removes duplicate across slots
+    seen.add(id);
+    flat.push({ ...item, _slot: slot });   // keep slot ref for cacheBuster fallback
+  }
+}
 
-                        // 2) server primary only if it's a deputy (but lead still goes first)
-                        const primaryDep =
-                          slot?.primary &&
-                          slot.primary.isDeputy &&
-                          isHttp(slot.primary.photoUrl)
-                            ? (() => {
-                                const match = deps.find(
-                                  (d) =>
-                                    String(d.musicianId) ===
-                                    String(slot.primary.musicianId)
-                                );
-                                return {
-                                  ...slot.primary,
-                                  vocalistName:
-                                    match?.vocalistName || match?.name || "",
-                                }; // ← attach name
-                              })()
-                            : null;
+// show up to 9 unique badges total (adjust if you want more)
+const finalList = flat.slice(0, 9);
 
-                        // 3) YES deputies (newest first)
-                        const yesDeps = deps
-                          .filter((d) => isYes(d) && isHttp(d?.photoUrl))
-                          .sort(
-                            (a, b) =>
-                              new Date(b.repliedAt || b.setAt || 0) -
-                              new Date(a.repliedAt || a.setAt || 0)
-                          );
+if (!finalList.length) return null;
 
-                        // Build render list & de-dupe
-                        const combined = [
-                          ...(leadItem ? [leadItem] : []),
-                          ...(primaryDep ? [primaryDep] : []),
-                          ...yesDeps.filter(
-                            (d) =>
-                              !primaryDep ||
-                              String(d.musicianId) !==
-                                String(primaryDep.musicianId)
-                          ),
-                        ];
+return (
+  <div className="flex items-center gap-3 mt-2 flex-wrap">
+    {finalList.map((item, idx) => {
+      const slot = item._slot || {};
+      const cache =
+        item.setAt || slot.setAt || badgeForDate.setAt || "";
 
-                        let renderList = uniqBy(combined, (d) =>
-                          String(d.musicianId)
-                        ).slice(0, 3);
+      const prof =
+        item.profileUrl ||
+        (item.musicianId
+          ? `${window.location.origin}/musician/${item.musicianId}`
+          : "");
 
-                        // fallback: any deputy with a photo
-                        if (!renderList.length) {
-                          const firstWithPhoto = deps.find((d) =>
-                            isHttp(d?.photoUrl)
-                          );
-                          if (firstWithPhoto)
-                            renderList = [
-                              { ...firstWithPhoto, isDeputy: true },
-                            ];
-                        }
+      // your existing name resolution → shortName(...)
+      const label =
+        item.displayName ||
+        item.vocalistName ||
+        item.preferredName ||
+        item.depName ||
+        item.deputyName ||
+        item.musicianName ||
+        (!item.isDeputy ? (slot.vocalistName || "") : "");
 
-                        if (!renderList.length) return null;
+      const displayName = shortName(label || "");
 
-                        return (
-                          <div
-                            key={`${badgeKey}_slotwrap_${slot.slotIndex}`}
-                            className="flex items-center gap-3 flex-wrap"
-                          >
-                            {renderList.map((item, idx) => {
-                              const cache =
-                                item.setAt ||
-                                slot.setAt ||
-                                badgeForDate.setAt ||
-                                "";
-                              const prof =
-                                item.profileUrl ||
-                                (item.musicianId
-                                  ? `${window.location.origin}/musician/${item.musicianId}`
-                                  : "");
-
-                              // 🔤 Name resolution: **deputy-first** to avoid inheriting the lead name
-                              const slotVocalistName = slot.vocalistName || "";
-                              const deputy = item.isDeputy ? item : null;
-
-                              // Prefer the deputy's own fields; only fall back to the lead name if this item is the lead
-                              const deputyFirstLabel = [
-                                item.displayName,
-                                item.vocalistName,
-                                item.preferredName,
-                                item.depName,
-                                item.deputyName,
-                                item.musicianName,
-                                deputy?.displayName,
-                                deputy?.vocalistName,
-                                deputy?.preferredName,
-                                deputy?.depName,
-                                deputy?.deputyName,
-                              ].find((v) => typeof v === "string" && v.trim());
-
-                              const label =
-                                deputyFirstLabel ||
-                                (!item.isDeputy ? slotVocalistName : "");
-                              const displayName = shortName(label || "");
-
-                              return (
-                                <FeaturedVocalistBadge
-                                  key={`${badgeKey}_slot_${slot.slotIndex}_${String(item.musicianId || idx)}`}
-                                  imageUrl={item.photoUrl}
-                                  size={140}
-                                  cacheBuster={cache}
-                                  className="mt-2"
-                                  musicianId={String(item.musicianId || "")}
-                                  profileUrl={prof}
-                                  variant={item.isDeputy ? "deputy" : "lead"}
-                                  displayName={displayName}
-                                />
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                  </div>
-                );
+      return (
+        <FeaturedVocalistBadge
+          key={`${badgeKey}_flat_${String(item.musicianId || idx)}`}
+          imageUrl={item.photoUrl}
+          size={140}
+          cacheBuster={cache}
+          className="mt-2"
+          musicianId={String(item.musicianId || "")}
+          profileUrl={prof}
+          variant={item.isDeputy ? "deputy" : "lead"}
+          displayName={displayName}
+        />
+      );
+    })}
+  </div>
+);
               })()}
             </div>
 
@@ -2498,7 +2472,6 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                       );
 
                       // Normalize both map keys and input key for reliable matching
-                      const normalizedKey = normalizeKey(key);
                       const label =
                         Object.entries(normalizedLabelsMap).find(([mapKey]) =>
                           normalizeKey(key).startsWith(mapKey)
