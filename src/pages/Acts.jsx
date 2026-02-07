@@ -202,7 +202,8 @@ const Acts = ({ userRole, email }) => {
   const [availableMap, setAvailableMap] = useState({});
   const [availLoading, setAvailLoading] = useState(false);
   const [filterProducts, setFilterProducts] = useState([]);
-
+const [enrichedCards, setEnrichedCards] = useState([]);
+const [filterProducts, setFilterProducts] = useState([]);
   const [showActSizeFilter, setShowActSizeFilter] = useState(false);
   const [showWirelessFilter, setShowWirelessFilter] = useState(false);
   const navigate = useNavigate();
@@ -240,38 +241,23 @@ const Acts = ({ userRole, email }) => {
 const { preset } = useParams();
 
 
+const lastPresetKeyRef = useRef("");
+
 useEffect(() => {
-  if (appliedOnceRef.current) return;
-  appliedOnceRef.current = true;
+  const key = searchParams.toString();
+  if (key === lastPresetKeyRef.current) return;
+  lastPresetKeyRef.current = key;
 
   const presetKey = searchParams.get("preset");
-  const preset = presetKey ? PRESETS[presetKey] : null;
+  const presetObj = presetKey ? PRESETS[presetKey] : null;
 
-  // 1) Apply preset filters
-  if (preset?.genres?.length) {
-    // Your state is `genre` (array), so setter is very likely `setGenre`
-    setGenre(preset.genres);
-  }
+  if (presetObj?.genres?.length) setGenre(presetObj.genres);
+  if (presetObj?.djServices?.length) setDjServices(presetObj.djServices);
 
-  if (preset?.djServices?.length) {
-    // Your state is `djServices` (array), so setter is very likely `setDjServices`
-    setDjServices(preset.djServices);
-  }
-
-  // 2) Apply "date=6m"
   const dateParam = searchParams.get("date");
   if (dateParam === "6m") {
     const d = addMonthsClamped(new Date(), 6);
-    const ymd = toYMD(d);
-
-    // ✅ Use whichever date setter you actually have:
-    // Examples:
-    // setSelectedDate(ymd)
-    // setDate(ymd)
-    // setEventDate(ymd)
-    // setSearchDate(ymd)
-
-    setSelectedDate(ymd); // <-- CHANGE THIS LINE to your real date setter
+    setSelectedDate(toYMD(d));
   }
 }, [searchParams]);
 
@@ -664,7 +650,7 @@ const hasExtra = (act, key) => {
 
         if (!ids.length) {
           // nothing to enrich — keep current cards
-          setFilterProducts(base);
+          setEnrichedCards(base);
           return;
         }
 
@@ -682,7 +668,7 @@ const hasExtra = (act, key) => {
             : base;
 
         // If you keep a local “actsPageCards” state, set it here; otherwise push to your pipeline:
-        setFilterProducts(merged);
+        setEnrichedCards(merged);
       } catch (err) {
         console.warn("search enrich failed:", err?.message || err);
         // IMPORTANT: fall back to current cards instead of wiping to []
@@ -690,7 +676,7 @@ const hasExtra = (act, key) => {
           Array.isArray(actsFilterPageCards) && actsFilterPageCards.length
             ? actsFilterPageCards
             : [];
-        setFilterProducts(base);
+        setEnrichedCards(base);
       }
     })();
 
@@ -1088,10 +1074,10 @@ const hasExtra = (act, key) => {
   );
 
   // 🔗 Normalised cards array for this page
-  const cards = useMemo(
-    () => (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []),
-    [actsFilterPageCards]
-  );
+ const cards = useMemo(() => {
+  if (Array.isArray(enrichedCards) && enrichedCards.length) return enrichedCards;
+  return Array.isArray(actsFilterPageCards) ? actsFilterPageCards : [];
+}, [enrichedCards, actsFilterPageCards]);
 
   // Simple memo to show counts without recomputing filters
   const approvedActsCount = useMemo(
