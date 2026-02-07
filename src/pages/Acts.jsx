@@ -203,7 +203,6 @@ const Acts = ({ userRole, email }) => {
   const [availLoading, setAvailLoading] = useState(false);
   const [filterProducts, setFilterProducts] = useState([]);
 const [enrichedCards, setEnrichedCards] = useState([]);
-const [filterProducts, setFilterProducts] = useState([]);
   const [showActSizeFilter, setShowActSizeFilter] = useState(false);
   const [showWirelessFilter, setShowWirelessFilter] = useState(false);
   const navigate = useNavigate();
