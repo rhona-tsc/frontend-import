@@ -1046,6 +1046,24 @@ const extractVideoId = (input) => {
   return m ? m[1] : "";
 };
 
+// 🖼️ Cloudinary helper for gallery images: NEVER crop (preserve full image)
+// Uses c_limit so the full image is shown, regardless of landscape/portrait.
+const cldGallery = (url, w = 1200) => {
+  const u = String(url || "").trim();
+  if (!u) return "";
+
+  // If this isn't a Cloudinary delivery URL, return as-is
+  if (!u.includes("/image/upload/")) return u;
+
+  // Insert transformations right after /upload/
+  // c_limit preserves aspect ratio and avoids center-cropping
+  const transform = `c_limit,w_${Math.round(w)},q_auto,f_auto`;
+
+  // If URL already has transformations after /upload/, we still prefer our safe ones.
+  // Strategy: always insert ours immediately after /upload/.
+  return u.replace("/image/upload/", `/image/upload/${transform}/`);
+};
+
 const selectedVideoUrl = video || videos?.[0]?.url || "";
 const selectedVideoId = extractVideoId(selectedVideoUrl);
 
@@ -2207,7 +2225,7 @@ return (
       className="w-[600px] h-[400px] bg-gray-100 rounded shadow-sm flex-shrink-0 snap-start overflow-hidden flex items-center justify-center"
     >
       <img
-        src={cld(imgObj?.url, 900)}
+        src={cldGallery(imgObj?.url, 1200)}
         loading="lazy"
         decoding="async"
         width={900}
