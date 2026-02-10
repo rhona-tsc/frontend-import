@@ -157,18 +157,7 @@ const handleSearch = () => {
             required
           />
 
-          {/* helper line (reserved height) */}
-          <div className="min-h-[16px] mt-1">
-            {!postcodeOk && (localAddress.trim() || postcode.trim()) ? (
-              <p className="text-xs text-[#ff6667]">
-                Enter a valid UK postcode below so we can calculate travel.
-              </p>
-            ) : (
-              <p className="text-xs text-gray-500">
-                Start typing your venue name or paste a full UK postcode.
-              </p>
-            )}
-          </div>
+       
 
           {/* postcode line (reserved height) */}
           <div className="min-h-[16px] mt-1">

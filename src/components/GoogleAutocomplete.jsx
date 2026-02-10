@@ -15,7 +15,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  *  - className / placeholder
  */
 
-const normaliseSpaces = (s = "") => String(s || "").replace(/\s+/g, " ").trim();
+const normaliseSpaces = (s = "") =>
+  String(s || "").replace(/\s+/g, " ").trim();
 
 const GoogleAutocomplete = ({
   setAddress,
@@ -28,6 +29,10 @@ const GoogleAutocomplete = ({
   ...props
 }) => {
   const inputRef = useRef(null);
+
+  // Track whether postcode/county were set via selecting a suggestion
+  const selectedRef = useRef(false);
+  const lastSelectedAddressRef = useRef("");
 
   // controlled/uncontrolled
   const isControlled = typeof value !== "undefined";
@@ -58,10 +63,6 @@ const GoogleAutocomplete = ({
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    // Clear derived fields while typing
-    setPostcode?.("");
-    setCounty?.("");
-
     if (!term || term.length < 3) {
       setSuggestions([]);
       setOpen(false);
@@ -83,7 +84,7 @@ const GoogleAutocomplete = ({
 
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          console.warn("[getAddress lookup] non-200:", data);
+          console.warn("[getAddress autocomplete] non-200:", data);
           setSuggestions([]);
           setOpen(false);
           return;
@@ -133,6 +134,8 @@ const GoogleAutocomplete = ({
         console.warn("[getAddress get] non-200:", data);
         // fall back to just the suggestion text
         setValue(s.address);
+        lastSelectedAddressRef.current = s.address;
+        selectedRef.current = true;
         return;
       }
 
@@ -149,9 +152,15 @@ const GoogleAutocomplete = ({
         .filter(Boolean)
         .join(", ");
 
-      setValue(formatted || s.address);
+      const finalAddress = formatted || s.address;
+
+      setValue(finalAddress);
       if (postcodeVal) setPostcode?.(postcodeVal);
       if (countyVal) setCounty?.(countyVal);
+
+      // mark that postcode/county came from selection
+      lastSelectedAddressRef.current = finalAddress;
+      selectedRef.current = true;
     } finally {
       setLoading(false);
     }
@@ -166,7 +175,23 @@ const GoogleAutocomplete = ({
         placeholder={placeholder || "Type your venue or postcode..."}
         className={className || "border rounded p-2 w-full"}
         onChange={(e) => {
-          setValue(e.target.value);
+          const next = e.target.value;
+
+          const norm = (x) =>
+            String(x || "").replace(/\s+/g, " ").trim().toLowerCase();
+
+          // Only clear derived fields if the user edits AFTER selecting an address
+          if (
+            selectedRef.current &&
+            norm(next) !== norm(lastSelectedAddressRef.current)
+          ) {
+            selectedRef.current = false;
+            lastSelectedAddressRef.current = "";
+            setPostcode?.("");
+            setCounty?.("");
+          }
+
+          setValue(next);
         }}
         onFocus={() => {
           if (suggestions.length > 0) setOpen(true);
