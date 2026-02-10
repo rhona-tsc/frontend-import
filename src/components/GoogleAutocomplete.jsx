@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * getAddress.io autocomplete (NO Google Places)
+ * getAddress.io autocomplete (direct, no proxy)
  *
- * Backend proxy routes:
- *  - GET /api/google/address/autocomplete?term=...
- *  - GET /api/google/address/get?id=...
+ * Requires a DOMAIN TOKEN in your Vite env:
+ *   VITE_GETADDRESS_API=dtoken_...
  *
  * Props:
  *  - setAddress(addressString)
@@ -15,8 +14,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  *  - className / placeholder
  */
 
-const normaliseSpaces = (s = "") =>
-  String(s || "").replace(/\s+/g, " ").trim();
+const normaliseSpaces = (s = "") => String(s || "").replace(/\s+/g, " ").trim();
+
+const GETADDRESS_TOKEN = import.meta.env.VITE_GETADDRESS_API;
+const GA_BASE = "https://api.getAddress.io";
 
 const GoogleAutocomplete = ({
   setAddress,
@@ -59,11 +60,17 @@ const GoogleAutocomplete = ({
 
   const term = useMemo(() => normaliseSpaces(inputValue), [inputValue]);
 
-  // Prefer relative /api calls (Netlify proxy) — but allow override if you want
-  const API_BASE = import.meta.env.VITE_BACKEND_URL || "";
-
+  // Fetch autocomplete as user types
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
+
+    if (!GETADDRESS_TOKEN) {
+      console.warn("[getAddress] Missing VITE_GETADDRESS_API (domain token)");
+      setSuggestions([]);
+      setOpen(false);
+      setLoading(false);
+      return;
+    }
 
     if (!term || term.length < 3) {
       setSuggestions([]);
@@ -79,11 +86,13 @@ const GoogleAutocomplete = ({
 
         setLoading(true);
 
-        // ✅ FIX: use autocomplete (free-text typing)
+        // autocomplete
         const res = await fetch(
-          `${API_BASE}/api/google/address/autocomplete?term=${encodeURIComponent(
+          `${GA_BASE}/autocomplete/${encodeURIComponent(
             term
-          )}`,
+          )}?api-key=${encodeURIComponent(
+            GETADDRESS_TOKEN
+          )}&top=6&all=true&show-postcode=true`,
           { signal: abortRef.current.signal }
         );
 
@@ -97,6 +106,7 @@ const GoogleAutocomplete = ({
 
         const raw = Array.isArray(data?.suggestions) ? data.suggestions : [];
 
+        // getAddress autocomplete typically returns: { id, address } (sometimes different keys)
         const mapped = raw
           .map((s) => ({
             id: s?.id || s?.Id || s?.slug || s?.value || "",
@@ -120,7 +130,7 @@ const GoogleAutocomplete = ({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [term, API_BASE]);
+  }, [term]);
 
   const pickSuggestion = async (s) => {
     try {
@@ -128,13 +138,16 @@ const GoogleAutocomplete = ({
       setSuggestions([]);
       setLoading(true);
 
-      // ✅ FIX: also use API_BASE here for consistency
-      const res = await fetch(
-        `${API_BASE}/api/google/address/get?id=${encodeURIComponent(s.id)}`
+      // get full address on select
+      const res2 = await fetch(
+        `${GA_BASE}/get/${encodeURIComponent(
+          s.id
+        )}?api-key=${encodeURIComponent(GETADDRESS_TOKEN)}`
       );
-      const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
+      const data = await res2.json().catch(() => ({}));
+
+      if (!res2.ok) {
         console.warn("[getAddress get] non-200:", data);
         setValue(s.address);
         lastSelectedAddressRef.current = s.address;
@@ -142,6 +155,7 @@ const GoogleAutocomplete = ({
         return;
       }
 
+      // getAddress "get" returns structured fields; build something user-friendly
       const line1 = data?.line_1 || data?.line1 || data?.Line1 || "";
       const line2 = data?.line_2 || data?.line2 || data?.Line2 || "";
       const town =
