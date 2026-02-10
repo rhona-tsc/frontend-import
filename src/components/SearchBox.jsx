@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import { useLocation } from "react-router-dom";
-import GoogleAutocomplete from "./GoogleAutocomplete";
+import RoyalMailAddressNow from "./RoyalMailAddressNow";
 import { gtagEvent } from "../utils/gtag";
 // UK postcode validator (accepts with/without space, normalises later)
 const isValidUKPostcode = (value = "") => {
@@ -147,7 +147,7 @@ const handleSearch = () => {
         <div className="w-full sm:w-[420px] flex flex-col text-left">
           <p className="font-medium text-sm text-gray-700 mb-1">VENUE POSTCODE</p>
 
-          <GoogleAutocomplete
+          <RoyalMailAddressNow
             setAddress={setLocalAddress}
             setCounty={setCounty}
             setPostcode={setPostcode}
