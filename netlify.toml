@@ -24,12 +24,6 @@ to = "https://tsc-backend-v2.onrender.com/:splat"
 status = 301
 conditions = { Host = ["*.ngrok-free.app", "*.ngrok.io"] }
 
-# ✅ Proper API routing for dev & prod
-[[redirects]]
-from = "/api/*"
-to = "https://tsc-backend-v2.onrender.com/:splat"
-status = 200
-force = true
 
 # 🧠 Helpful debug header
 [[headers]]
