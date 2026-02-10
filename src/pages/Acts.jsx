@@ -704,7 +704,6 @@ const hasStoredLocation = () => {
 
   const triggerSearch = () => {
     setShowSearch(true); // ✅ Open the search box
-    navigate("/acts");
     window.scrollTo(0, 0); // ✅ Ensure it stays on the acts page
   };
 
