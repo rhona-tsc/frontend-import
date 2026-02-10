@@ -110,11 +110,10 @@ import AuthGateModal from "./components/AuthGateModal";
           
         />
 
-        <SearchBox />
-        <AuthGateModal />
-
         <div className="px-4 sm:px-[5vw] md:px-[7vw] lg:px-[4vw]">
           <Navbar />
+          <SearchBox />
+          <AuthGateModal />
           <div className="mt-16">
             <Routes>
               <Route path="/" element={<Home />} />
