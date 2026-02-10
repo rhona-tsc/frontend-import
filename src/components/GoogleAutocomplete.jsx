@@ -81,11 +81,11 @@ const GoogleAutocomplete = ({
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
 
 const res = await fetch(
-  `${API_BASE}/api/google/address/autocomplete?term=${encodeURIComponent(term)}`
+  `${API_BASE}/api/google/address/lookup?term=${encodeURIComponent(term)}`
 );
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          console.warn("[getAddress autocomplete] non-200:", data);
+          console.warn("[getAddress lookup] non-200:", data);
           setSuggestions([]);
           setOpen(false);
           return;
