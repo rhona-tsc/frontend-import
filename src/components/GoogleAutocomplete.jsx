@@ -16,7 +16,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const normaliseSpaces = (s = "") => String(s || "").replace(/\s+/g, " ").trim();
 
-const GETADDRESS_TOKEN = import.meta.env.VITE_GETADDRESS_API;
+const GETADDRESS_TOKEN = import.meta.env.VITE_GETADDRESS_API_KEY;
 const GA_BASE = "https://api.getAddress.io";
 
 const GoogleAutocomplete = ({
