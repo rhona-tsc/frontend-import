@@ -7,6 +7,12 @@ const looksLikePostcode = (s = "") => {
   return /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/.test(t);
 };
 
+const normalisePostcode = (s = "") =>
+  String(s || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+
 export default function VenueAddressBox({ value, onChange, onSelectAddress }) {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -17,35 +23,39 @@ export default function VenueAddressBox({ value, onChange, onSelectAddress }) {
   useEffect(() => {
     const v = String(value || "");
 
-    // debounce
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       const trimmed = v.trim();
+      const pc = normalisePostcode(trimmed);
 
-      if (!trimmed || !looksLikePostcode(trimmed)) {
+      // Only trigger address list lookup when the user has typed a postcode
+      if (!trimmed || !looksLikePostcode(pc)) {
         setSuggestions([]);
         setOpen(false);
         return;
       }
 
-      // cancel previous
+      // cancel previous in-flight request
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
 
       try {
         setLoading(true);
-        const res = await axios.get(
-          `/api/google/address/lookup`,
-          {
-            params: { postcode: trimmed },
-            signal: abortRef.current.signal,
-          }
-        );
 
-        const addresses = (res.data?.addresses || []).map((a) => String(a));
+        // ✅ NOTE: hit your getAddress proxy (mounted under /api/booking)
+        const res = await axios.get(`/api/booking/address/lookup`, {
+          params: { postcode: pc },
+          signal: abortRef.current.signal,
+        });
+
+        const addresses = (res.data?.addresses || []).map((a) => String(a)).filter(Boolean);
         setSuggestions(addresses);
         setOpen(true);
       } catch (e) {
+        // ignore abort/cancel errors
+        if (e?.name !== "CanceledError" && e?.code !== "ERR_CANCELED") {
+          console.warn("[VenueAddressBox] address lookup failed", e);
+        }
         setSuggestions([]);
         setOpen(false);
       } finally {
@@ -60,11 +70,14 @@ export default function VenueAddressBox({ value, onChange, onSelectAddress }) {
     <div className="relative">
       <input
         value={value || ""}
-        onChange={(e) => {
-          onChange?.(e.target.value);
+        onChange={(e) => onChange?.(e.target.value)}
+        onBlur={() => {
+          // small delay so clicking a suggestion still works
+          setTimeout(() => setOpen(false), 150);
         }}
         placeholder="Type venue address or postcode…"
         className="border rounded p-2 w-full"
+        autoComplete="off"
       />
 
       {loading && (
@@ -80,9 +93,10 @@ export default function VenueAddressBox({ value, onChange, onSelectAddress }) {
               key={`${addr}-${idx}`}
               type="button"
               className="block w-full text-left px-3 py-2 hover:bg-gray-100"
+              onMouseDown={(e) => e.preventDefault()} // prevents blur before click
               onClick={() => {
-                // addr is usually "line1, line2, town, county"
-                onSelectAddress?.(addr);
+                onChange?.(addr);          // ✅ keep it in the input
+                onSelectAddress?.(addr);   // ✅ pass it up
                 setOpen(false);
               }}
             >
