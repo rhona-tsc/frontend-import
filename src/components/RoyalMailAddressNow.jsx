@@ -1,23 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-
-/**
- * Royal Mail AddressNow Capture (client-side)
- *
- * Requires in index.html <head> (HTTPS!):
- *  <link rel="stylesheet" href="https://api.addressnow.co.uk/css/addressnow-2.30.min.css?key=YOURKEY" />
- *  <script src="https://api.addressnow.co.uk/js/addressnow-2.30.min.js?key=YOURKEY"></script>
- *
- * Props (matches your SearchBox usage):
- *  - setAddress(addressString)
- *  - setPostcode(postcodeString)
- *  - setCounty(countyString)
- *  - initialValue
- *  - value (optional controlled)
- *  - className / placeholder
- */
+import React, { useEffect, useRef, useState } from "react";
 
 const normaliseSpaces = (s = "") => String(s || "").replace(/\s+/g, " ").trim();
 
+// Important: NOT display:none (AddressNow needs to detect these)
 const offscreenStyle = {
   position: "absolute",
   left: "-9999px",
@@ -41,7 +26,17 @@ const RoyalMailAddressNow = ({
 }) => {
   const inputRef = useRef(null);
 
-  // controlled/uncontrolled
+  // Fields AddressNow will populate
+  const formattedRef = useRef(null);
+  const postcodeRef = useRef(null);
+  const countyRef = useRef(null);
+
+  // Optional extras if you ever want them
+  const line1Ref = useRef(null);
+  const line2Ref = useRef(null);
+  const townRef = useRef(null);
+
+  // controlled/uncontrolled input
   const isControlled = typeof value !== "undefined";
   const [internalValue, setInternalValue] = useState(String(initialValue || ""));
   const inputValue = isControlled ? String(value || "") : internalValue;
@@ -57,122 +52,62 @@ const RoyalMailAddressNow = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValue]);
 
-  // refs to the fields AddressNow will populate
-  const line1Ref = useRef(null);
-  const line2Ref = useRef(null);
-  const townRef = useRef(null);
-  const countyRef = useRef(null);
-  const postcodeRef = useRef(null);
-  const formattedRef = useRef(null);
-
-  // Keep parent state in sync even if AddressNow sets values programmatically (no onChange event)
+  // Keep React state synced with AddressNow populated values
   useEffect(() => {
-    let last = {
-      postcode: "",
-      county: "",
-      formatted: "",
-    };
+    let lastPostcode = "";
+    let lastCounty = "";
+    let lastFormatted = "";
 
     const read = () => {
-      const postcodeVal = normaliseSpaces(postcodeRef.current?.value || "");
-      const countyVal = normaliseSpaces(countyRef.current?.value || "");
-      const formattedVal = normaliseSpaces(formattedRef.current?.value || "");
+      const pc = normaliseSpaces(postcodeRef.current?.value || "");
+      const cty = normaliseSpaces(countyRef.current?.value || "");
+      const fmt = normaliseSpaces(formattedRef.current?.value || "");
 
-      if (postcodeVal && postcodeVal !== last.postcode) {
-        last.postcode = postcodeVal;
-        setPostcode?.(postcodeVal);
+      if (pc && pc !== lastPostcode) {
+        lastPostcode = pc;
+        setPostcode?.(pc);
       }
-
-      if (countyVal && countyVal !== last.county) {
-        last.county = countyVal;
-        setCounty?.(countyVal);
+      if (cty && cty !== lastCounty) {
+        lastCounty = cty;
+        setCounty?.(cty);
       }
-
-      if (formattedVal && formattedVal !== last.formatted) {
-        last.formatted = formattedVal;
-        setValue(formattedVal);
+      if (fmt && fmt !== lastFormatted) {
+        lastFormatted = fmt;
+        setValue(fmt);
       }
     };
 
-    const interval = setInterval(read, 250);
-    return () => clearInterval(interval);
+    const t = setInterval(read, 200);
+    return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setPostcode, setCounty, setAddress]);
 
-  // Optional: nudge AddressNow to (re)scan after React mounts
-  useEffect(() => {
-    const maxWaitMs = 8000;
-    const start = Date.now();
-
-    const tick = () => {
-      const g =
-        window.pca ||
-        window.addressnow ||
-        window.AddressNow ||
-        window.addressNow;
-
-      if (g) {
-        try {
-          if (typeof g.load === "function") g.load();
-          if (typeof g.init === "function") g.init();
-          if (typeof g.setup === "function") g.setup();
-        } catch (e) {
-          // It's fine if these don't exist; many installs auto-init.
-        }
-        return;
-      }
-
-      if (Date.now() - start < maxWaitMs) setTimeout(tick, 100);
-    };
-
-    tick();
-  }, []);
-
   return (
     <div className="w-full relative">
-      {/* This is the Search Input you map in the AddressNow UI */}
+      {/* This is the box the user types into.
+          AddressNow will attach suggestions UI to this. */}
       <input
         ref={inputRef}
         id="addressnow_search"
         name="addressnow_search"
         type="text"
         value={inputValue}
-        placeholder={placeholder || "Start typing an address or postcode..."}
+        placeholder={placeholder || "Start typing venue name or postcode..."}
         className={className || "border rounded p-2 w-full"}
         autoComplete="off"
         onChange={(e) => setValue(e.target.value)}
-        aria-label="Address search"
         {...props}
       />
 
-      {/* IMPORTANT: DO NOT use display:none / Tailwind `hidden` for these.
-          AddressNow needs to detect them for mapping. Off-screen is perfect. */}
+      {/* Fields for AddressNow to populate (off-screen, not hidden) */}
       <div style={offscreenStyle} aria-hidden="true">
-        <input ref={line1Ref} id="address_line1" name="address_line1" type="text" />
-        <input ref={line2Ref} id="address_line2" name="address_line2" type="text" />
-        <input ref={townRef} id="address_town" name="address_town" type="text" />
+        <input ref={formattedRef} id="address_formatted" name="address_formatted" />
+        <input ref={postcodeRef} id="address_postcode" name="address_postcode" />
+        <input ref={countyRef} id="address_county" name="address_county" />
 
-        <input
-          ref={countyRef}
-          id="address_county"
-          name="address_county"
-          type="text"
-        />
-
-        <input
-          ref={postcodeRef}
-          id="address_postcode"
-          name="address_postcode"
-          type="text"
-        />
-
-        {/* This is handy to map to "Formatted Address" */}
-        <input
-          ref={formattedRef}
-          id="address_formatted"
-          name="address_formatted"
-          type="text"
-        />
+        <input ref={line1Ref} id="address_line1" name="address_line1" />
+        <input ref={line2Ref} id="address_line2" name="address_line2" />
+        <input ref={townRef} id="address_town" name="address_town" />
       </div>
     </div>
   );
