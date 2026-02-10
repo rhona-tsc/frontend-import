@@ -77,11 +77,12 @@ const GoogleAutocomplete = ({
 
         setLoading(true);
 
-        const res = await fetch(
-          `/api/google/address/autocomplete?term=${encodeURIComponent(term)}`,
-          { signal: abortRef.current.signal }
-        );
+       const API_BASE =
+  import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
 
+const res = await fetch(
+  `${API_BASE}/api/google/address/autocomplete?term=${encodeURIComponent(term)}`
+);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           console.warn("[getAddress autocomplete] non-200:", data);
