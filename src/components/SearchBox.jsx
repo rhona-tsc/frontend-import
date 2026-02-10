@@ -67,40 +67,42 @@ const openedAtRef = React.useRef(null);
   };
 
 const handleSearch = () => {
+  // Allow postcode to be typed/pasted into the venue box too
+  const extractPostcode = (text = "") => {
+    const m = String(text || "")
+      .toUpperCase()
+      .match(/([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})/);
+    return m ? m[1] : "";
+  };
+
+  const rawPc = postcode || extractPostcode(localAddress);
+  const pcOk = isValidUKPostcode(rawPc);
+
   gtagEvent("searchbox_submit_attempt", {
     has_date: !!localDate.trim(),
     has_address: !!localAddress.trim(),
     has_county: !!county.trim(),
-    postcode_valid: postcodeOk,
+    postcode_valid: postcodeOk || isValidUKPostcode(extractPostcode(localAddress)),
   });
 
-  if (!localAddress.trim()) {
-    gtagEvent("searchbox_submit_error", { reason: "missing_address" });
-    return alert("Please enter a venue address.");
-  }
-
-  if (!localDate.trim()) {
-    gtagEvent("searchbox_submit_error", { reason: "missing_date" });
-    return alert("Please select a date.");
-  }
-
-  if (!postcodeOk) {
+  if (!pcOk) {
     gtagEvent("searchbox_submit_error", { reason: "invalid_or_missing_postcode" });
-    return alert(
-      "Please select a venue that includes a valid UK postcode (choose an option from the dropdown)."
-    );
+    return alert("Please type a full UK postcode (or select an address) so we can calculate travel.");
   }
 
-  const pc = normaliseUKPostcode(postcode);
+  const pc = normaliseUKPostcode(rawPc);
 
-  setSelectedAddress(localAddress);
-  setSelectedDate(localDate);
+  // keep state in sync if postcode came from the venue input
+  if (!postcode && pc) setPostcode(pc);
+
+  setSelectedAddress(localAddress || "");
+  setSelectedDate(localDate || "");
 
   if (typeof setSelectedPostcode === "function") setSelectedPostcode(pc);
   if (typeof setSelectedCounty === "function") setSelectedCounty(county);
 
-  sessionStorage.setItem("selectedAddress", localAddress);
-  sessionStorage.setItem("selectedDate", localDate);
+  sessionStorage.setItem("selectedAddress", localAddress || "");
+  sessionStorage.setItem("selectedDate", localDate || "");
   sessionStorage.setItem("selectedCounty", county);
   sessionStorage.setItem("selectedPostcode", pc);
 
@@ -114,8 +116,7 @@ const handleSearch = () => {
   handleClose("submit_success");
 };
 
-  const searchDisabled =
-    !localAddress.trim() || !localDate.trim() || !county.trim() || !postcodeOk;
+  const searchDisabled = !postcodeOk;
 
   return showSearch || animate ? (
     <div
@@ -144,7 +145,7 @@ const handleSearch = () => {
 
         {/* Venue column */}
         <div className="w-full sm:w-[420px] flex flex-col text-left">
-          <p className="font-medium text-sm text-gray-700 mb-1">VENUE</p>
+          <p className="font-medium text-sm text-gray-700 mb-1">VENUE POSTCODE</p>
 
           <GoogleAutocomplete
             setAddress={setLocalAddress}
@@ -152,19 +153,19 @@ const handleSearch = () => {
             setPostcode={setPostcode}
             initialValue={localAddress}
             className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
-            placeholder="Start typing your venue..."
+            placeholder="Type your venue or postcode..."
             required
           />
 
           {/* helper line (reserved height) */}
           <div className="min-h-[16px] mt-1">
-            {!postcodeOk && localAddress.trim() ? (
+            {!postcodeOk && (localAddress.trim() || postcode.trim()) ? (
               <p className="text-xs text-[#ff6667]">
-                Please select a result that includes a UK postcode.
+                Enter a valid UK postcode below so we can calculate travel.
               </p>
             ) : (
               <p className="text-xs text-gray-500">
-                Tip: choose a dropdown result so we can confirm the postcode.
+                Start typing your venue name or paste a full UK postcode.
               </p>
             )}
           </div>

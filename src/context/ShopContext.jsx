@@ -109,6 +109,26 @@ const ShopProvider = (props) => {
   const [actsFilterPageCards, setActsFilterPageCards] = useState([]);
   const [actsFilterCards, setActsFilterCards] = useState([]);
 
+
+  const GUEST_SHORTLIST_KEY = "guestShortlistItems";
+
+const readGuestShortlist = () => {
+  try {
+    const raw = localStorage.getItem(GUEST_SHORTLIST_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeGuestShortlist = (ids = []) => {
+  try {
+    const clean = Array.isArray(ids) ? ids.map(String) : [];
+    localStorage.setItem(GUEST_SHORTLIST_KEY, JSON.stringify(clean));
+  } catch {}
+};
+
   // 🔍 Debug: log Home-page act filter cards
   useEffect(() => {
     const snap = (arr) =>
@@ -1813,26 +1833,38 @@ vocalist: c.vocalist || "",
     }
   };
 
-  // ✅ Hydrate logged-in user + shortlist once
-  useEffect(() => {
-    (async () => {
-      try {
-        const storedUserRaw = localStorage.getItem("user");
-        const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+useEffect(() => {
+  (async () => {
+    try {
+      const storedUserRaw = localStorage.getItem("user");
+      const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
 
-        if (storedUser?._id) {
-          setUserId(storedUser._id);
-          const res = await axios.get(
-            `${backendUrl}/api/availability/user/${storedUser._id}/shortlisted`
-          );
-          const ids = (res.data?.acts || []).map((a) => String(a._id));
-          setShortlistedActs(ids);
-          setShortlistItems(ids);
+      if (storedUser?._id) {
+        setUserId(storedUser._id);
+        const res = await axios.get(
+          `${backendUrl}/api/availability/user/${storedUser._id}/shortlisted`
+        );
+        const ids = (res.data?.acts || []).map((a) => String(a._id));
+        setShortlistedActs(ids);
+        setShortlistItems(ids);
+        try {
           localStorage.setItem("shortlistItems", JSON.stringify(ids));
-        }
-      } catch (err) {}
-    })();
-  }, [backendUrl]);
+        } catch {}
+        return;
+      }
+
+      // 👤 Guest mode
+      const guestIds = readGuestShortlist();
+      if (guestIds.length) {
+        setShortlistedActs(guestIds);
+        setShortlistItems(guestIds);
+        try {
+          localStorage.setItem("shortlistItems", JSON.stringify(guestIds));
+        } catch {}
+      }
+    } catch (err) {}
+  })();
+}, [backendUrl]);
 
   // 🧷 Persist shortlist locally whenever it changes (mirrors the cart pattern)
   useEffect(() => {
@@ -2330,40 +2362,44 @@ vocalist: c.vocalist || "",
     } catch (err) {}
   };
 
-  // Small helper: nudge user to log in and remember where they were
-  const promptLogin = (
-    msg = "Please log in to save acts to your shortlist.",
-    actId = null,
-    actName = null
-  ) => {
-    try {
-      toast(<CustomToast type="info" message={msg} />);
-    } catch {}
+// Small helper: open an enquiry-style auth gate (no hard redirect)
+const openAuthGate = ({
+  actId = null,
+  actName = null,
+  intent = "shortlist",
+} = {}) => {
+  try {
+    toast(<CustomToast type="info" message={msg} />);
+  } catch {}
 
-    const next = `${location.pathname}${location.search || ""}`;
-    sessionStorage.setItem("postLoginNext", next);
+  const next = `${location.pathname}${location.search || ""}`;
+  sessionStorage.setItem("postLoginNext", next);
 
-    // 🪄 Store act info so we can auto-add and show act name in toast after login
-    if (actId) {
-      sessionStorage.setItem("pendingShortlistActId", actId);
-      if (actName) sessionStorage.setItem("pendingShortlistActName", actName);
-    }
+  if (actId) {
+    sessionStorage.setItem("pendingShortlistActId", String(actId));
+    if (actName) sessionStorage.setItem("pendingShortlistActName", String(actName));
+  }
 
-    navigate("/login");
-  };
+  // App-wide event your UI can listen for to show a modal
+  try {
+    window.dispatchEvent(
+      new CustomEvent("tsc:auth_gate", {
+        detail: { open: true, intent, msg, actId, actName, next },
+      })
+    );
+  } catch {}
+};
+
+
 
   // Add to shortlist (uses toggle route + triggers availability if date/address present)
-  const addToShortlist = async (itemId, selectedLineup) => {
-    // keep signature for callers, but route through shortlistAct (toggle)
-    const storedUserRaw = localStorage.getItem("user");
-    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-    const u = storedUser?._id || userId;
-    if (!u) {
-      promptLogin("Please log in to save acts to your shortlist.");
-      return;
-    }
-    await shortlistAct(u, String(itemId));
-  };
+const addToShortlist = async (itemId, selectedLineup) => {
+  const storedUserRaw = localStorage.getItem("user");
+  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+  const u = storedUser?._id || userId;
+
+  await shortlistAct(u || null, String(itemId));
+};
 
 
   const reportShortlistConversion = ({ actId, value = 1.0, currency = "GBP" } = {}) => {
@@ -2393,7 +2429,6 @@ vocalist: c.vocalist || "",
 
 // ✅ Toggle shortlist via PATCH routes with optimistic UI
 const shortlistAct = async (uid, actId) => {
-  if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
 
   const storedUserRaw = localStorage.getItem("user");
   const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
@@ -2422,10 +2457,39 @@ const shortlistAct = async (uid, actId) => {
     clientPayload.selectedAddress = selectedAddressFinal;
   }
 
-  if (!userId) {
-    promptLogin("Please log in to manage your shortlist.");
-    return;
-  }
+// ✅ If not logged in, still allow shortlisting locally (guest mode)
+if (!userId) {
+  const current =
+    Array.isArray(shortlistedActs) && shortlistedActs.length
+      ? shortlistedActs.map(String)
+      : readGuestShortlist();
+
+  const idStr = String(actId);
+  const isShortlistedNow = current.includes(idStr);
+
+  const next = isShortlistedNow
+    ? current.filter((id) => id !== idStr)
+    : [...new Set([...current, idStr])];
+
+  setShortlistedActs(next);
+  setShortlistItems(next);
+
+  writeGuestShortlist(next);
+
+  // keep legacy key too because parts of your UI already read it
+  try {
+    localStorage.setItem("shortlistItems", JSON.stringify(next));
+  } catch {}
+
+  openAuthGate({
+    msg: "Saved to your shortlist. Enter your details to save it permanently and check availability.",
+    actId: idStr,
+    actName: null,
+    intent: "shortlist",
+  });
+
+  return; // 🚪 stop here — no server calls in guest mode
+}
 
   const idStr = String(actId);
   const isShortlistedNow =

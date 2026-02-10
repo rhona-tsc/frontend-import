@@ -438,35 +438,26 @@ const ActItem = ({ actData, shortlistCount }) => {
 
   const displayTotal = rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
 
-  const handleHeartClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+const handleHeartClick = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
 
-    // 🔒 Require login before shortlisting
-    if (!userId) {
-      const fromActsListing = String(location.pathname || '').startsWith('/acts');
-      const listUrl = `${location.pathname || ''}${location.search || ''}${location.hash || ''}` || '/acts';
-      const actUrl = getActId(actData) ? `/act/${getActId(actData)}` : '/';
-      const fallback = fromActsListing ? listUrl : actUrl;
-      sessionStorage.setItem('postLoginNext', fallback);
-      dlog('redirecting to login for shortlist', { fallback });
-      navigate('/login', { state: { from: fallback } });
-      return;
-    }
+  setIsAnimating(true);
 
-    setIsAnimating(true);
+  const actId = String(getActId(actData));
+  const isShortlistedNow = Array.isArray(shortlistedActs) && shortlistedActs.includes(actId);
 
-    // ✅ Optimistic local count change layered on top of DB value
-    const isShortlistedNow = shortlistedActs?.includes(String(getActId(actData)));
-    setLoveCount((prev) => {
-      const safe = Number(prev) || 0;
-      return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
-    });
+  // ✅ Optimistic local count change layered on top of DB value
+  setLoveCount((prev) => {
+    const safe = Number(prev) || 0;
+    return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
+  });
 
-    shortlistAct(userId, getActId(actData));
+  // ✅ Let ShopContext handle guest mode + auth gate + server calls
+  shortlistAct(userId || null, actId);
 
-    setTimeout(() => setIsAnimating(false), 300);
-  };
+  setTimeout(() => setIsAnimating(false), 300);
+};
 
   const formatLoveCount = (count) => {
     if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}K`;
@@ -488,7 +479,7 @@ const ActItem = ({ actData, shortlistCount }) => {
     <div className="relative group">
       <Link
   to={getActUrl(actData)}
-  onClick={() => window.scrollTo(0, 0)}
+onClick={() => { if (typeof window !== "undefined") window.scrollTo(0, 0); }}
   className="block text-gray-700"
 >
         <div className="overflow-hidden h-full w-full">

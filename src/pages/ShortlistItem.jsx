@@ -2,9 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { assets } from '../assets/assets';
 import { ShopContext } from '../context/ShopContext';
-import axios from 'axios';
 import calculateActPricing from '../pages/utils/pricing';
-import PropTypes from 'prop-types';
 import useOnScreen from '../hooks/useOnScreen';
 import { priceCache, makePriceKey } from './utils/priceCache';
 
@@ -32,15 +30,42 @@ const ShortlistItem = ({
   const [price, setPrice] = useState(null);
 
   const [loveCount, setLoveCount] = useState(shortlistCount || 0);
-  const { shortlistAct, shortlistedActs, selectedCounty, selectedAddress, selectedDate } = useContext(ShopContext);
+  const { shortlistAct, shortlistedActs, selectedCounty, selectedAddress, selectedDate, triggerSearch } = useContext(ShopContext);
+
+  // ✅ One source of truth for the act id (some parents pass `id`, others rely on `actData._id`)
+  const actId =
+    id ||
+    _id ||
+    actData?._id ||
+    actData?.id ||
+    actData?.actId ||
+    null;
+
+  // ✅ One source of truth for whether this card is shortlisted
+  const heartOn =
+    typeof isShortlisted === "boolean"
+      ? isShortlisted
+      : !!(actId && shortlistedActs?.includes(String(actId)));
   
+  const parseMoney = (v) => {
+    if (v == null) return null;
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    const n = Number(String(v).replace(/[^0-9.+-]/g, ""));
+    return Number.isFinite(n) ? n : null;
+  };
+
   const getBasePrice = (act) => {
     const lineup = act?.lineups?.[0] || null;
+
+    // Prefer the marketing "from" price computed/stored on the act
     const base =
-      act?.formattedPrice?.total ??
-      lineup?.base_fee?.[0]?.total_fee ??
+      parseMoney(act?.minDisplayPrice) ??
+      parseMoney(act?.formattedPrice?.total) ??
+      parseMoney(act?.formattedPrice?.from) ??
+      parseMoney(lineup?.base_fee?.[0]?.total_fee) ??
       null;
-    return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
+
+    return base;
   };
 
 useEffect(() => {
@@ -69,7 +94,7 @@ useEffect(() => {
     Object.keys(actData.countyFees).length > 0;
 
   const key = makePriceKey({
-    actId: actData._id,
+    actId: actId || actData?._id,
     lineupId: lineup?._id || lineup?.lineupId,
     dateISO: selectedDate,
     address: selectedAddress || '',
@@ -127,21 +152,20 @@ useEffect(() => {
   isOnScreen,
 ]);
 
-  const handleHeartClick = async (e) => {
+  const handleHeartClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
+    const resolved = actId || actData?._id;
+    if (!resolved) {
+      console.warn("⚠️ No actId available for shortlist toggle", { id, _id, actData });
+      return;
+    }
 
-  e.preventDefault();
-  e.stopPropagation();
-  setIsAnimating(true);
-onShortlistToggle();
-setTimeout(() => setIsAnimating(false), 300);
-
-return;
-
-
-
-};
-
+    setIsAnimating(true);
+    onShortlistToggle?.(resolved);
+    setTimeout(() => setIsAnimating(false), 300);
+  };
 
   const formatLoveCount = (count) => {
     if (count >= 1000) {
@@ -168,6 +192,8 @@ return;
     setIsPlaying(false);
   };
 
+
+
   // Helper to extract YouTube video ID from URL or ID
   const extractVideoId = (url) => {
     if (!url) return "";
@@ -176,12 +202,26 @@ return;
   };
 
   // Debug logging for actId and isShortlisted
-  console.log("❤️ actId in ShortlistItem:", id, "Shortlisted?", isShortlisted);
+  console.log("❤️ actId in ShortlistItem:", actId, "Shortlisted?", heartOn);
+
+  // Prefer slug URLs (SEO-friendly). Fall back safely.
+  const slugify = (s = "") =>
+    String(s || "")
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+  const actSlug = actData?.slug || actData?.tscSlug || actData?.urlSlug || slugify(actData?.tscName);
+  const actPath = `/act/${encodeURIComponent(actSlug || actData?._id || "")}`;
+
 return (
 <div ref={cardRef} className={`relative group m-4 shrink-0 w-full max-w-[380px] sm:w-[320px] ${className ? className : ''}`}
  onMouseEnter={onMouseEnter}
  >
-        <Link to={`/act/${actData?._id}`} onClick={() => window.scrollTo(0, 0)} className="block text-gray-700">
+        <Link
+  to={actPath} onClick={() => window.scrollTo(0, 0)} className="block text-gray-700">
         {/* --- Video carousel replaces image block --- */}
         <div className="relative w-full rounded overflow-hidden">
           {/* 16:9 aspect wrapper for consistent sizing on small screens */}
@@ -284,21 +324,33 @@ return (
         {/* --- End video carousel --- */}
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
-            <p className="text-sm">{actData.tscName}</p>
+            <p className="text-md text-bold">{actData.tscName}</p>
 <p className="text-sm font-medium">
-    {price 
-  ? price.travelCalculated 
-    ? `£${price.total}` 
-    : `from £${price.total}` 
-  : "Price loading"}
-</p>         </div>
+  {price ? (
+    price.travelCalculated
+      ? `£${Number(price.total || 0).toLocaleString()}`
+      : `from £${Number(price.total || 0).toLocaleString()}`
+  ) : (
+    <button
+      type="button"
+      className="font-normal text-blue-600 underline mt-2 text-sm"
+      onClick={(e) => {
+        e.preventDefault();   // stop the <Link> navigation
+        e.stopPropagation();  // stop bubbling to the <Link>
+        triggerSearch?.();    // ✅ open the search bar / modal (your context function)
+      }}
+    >
+      Add a venue postcode &amp; date for pricing
+    </button>
+  )}
+</p>       </div>
           <div className="flex flex-col items-end justify-between min-h-[40px]">
             <button
               onClick={handleHeartClick}
               disabled={isAnimating}
               className="p-1 transition-transform duration-150 ease-in-out"
             >
-             {shortlistedActs?.includes(actData._id) ? (
+             {heartOn ? (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="-1 -1 34 32"

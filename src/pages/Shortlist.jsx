@@ -1,10 +1,10 @@
-import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { ShopContext } from '../context/ShopContext';
+import { useNavigate } from 'react-router-dom';
 import ShortlistItem from './ShortlistItem';
-import axios from 'axios';
 import ShortlistPreviewPanel from './ShortlistPreviewPanel';
 import Title from '../components/Title';
-import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 // ✅ Race-safe list fetch hook for an array of IDs
 function useStableFetchList(ids, fetchById, options = {}) {
@@ -14,8 +14,9 @@ function useStableFetchList(ids, fetchById, options = {}) {
   useEffect(() => {
     let cancelled = false;
 
-    // No ids → clear data immediately
-    if (!ids || ids.length === 0) {
+    const stableIds = [...new Set((ids || []).filter(Boolean).map(String))].sort();
+
+    if (stableIds.length === 0) {
       setData([]);
       onEmpty();
       return;
@@ -23,11 +24,16 @@ function useStableFetchList(ids, fetchById, options = {}) {
 
     (async () => {
       try {
-        const results = await Promise.all(ids.map((id) => fetchById(id)));
+        const settled = await Promise.allSettled(stableIds.map((id) => fetchById(id)));
+        const results = settled
+          .filter((r) => r.status === "fulfilled")
+          .map((r) => r.value)
+          .filter(Boolean);
+
         if (!cancelled) setData(results);
       } catch (err) {
         if (!cancelled) {
-          console.error('❌ Error fetching list:', err);
+          console.error("❌ Error fetching list:", err);
           setData([]);
         }
       }
@@ -36,7 +42,7 @@ function useStableFetchList(ids, fetchById, options = {}) {
     return () => {
       cancelled = true;
     };
-  }, [JSON.stringify(Array.from(new Set(ids)))]); // stringify for stable dependency with deduplication
+  }, [JSON.stringify([...new Set((ids || []).filter(Boolean).map(String))].sort())]);
 
   return [data, setData];
 }
@@ -55,37 +61,23 @@ const Shortlist = () => {
   } = useContext(ShopContext);
 
   // Always prefer the canonical list if present; fall back otherwise
-const shortlistIds = React.useMemo(() => {
-  const canonical = Array.isArray(shortlistedActs) ? shortlistedActs : null;
-  const fallback  = Array.isArray(shortlistItems) ? shortlistItems : [];
+  const shortlistIds = React.useMemo(() => {
+    const canonical = Array.isArray(shortlistedActs) ? shortlistedActs : null;
+    const fallback  = Array.isArray(shortlistItems) ? shortlistItems : [];
 
-  const raw = (canonical && canonical.length > 0) ? canonical : fallback;
+    const raw = (canonical && canonical.length > 0) ? canonical : fallback;
 
-  // handle cases where canonical is objects, or IDs, etc.
-  return [...new Set(raw.map((x) => String(x?._id || x?.actId || x)))];
-}, [shortlistedActs, shortlistItems]);
+    // handle cases where canonical is objects, or IDs, etc.
+    return [...new Set(raw.map((x) => String(x?._id || x?.actId || x)))];
+  }, [shortlistedActs, shortlistItems]);
 
   const navigate = useNavigate();
 
-  // Always start at the top when navigating to Shortlist
-  useLayoutEffect(() => {
-    // temporarily override browser scroll restoration for this view
-    let prevRestoration;
-    if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
-      prevRestoration = window.history.scrollRestoration;
-      window.history.scrollRestoration = 'manual';
-    }
+
 
     // Jump to the top synchronously before paint
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 
-    return () => {
-      // restore previous behavior on unmount
-      if (typeof window !== 'undefined' && 'scrollRestoration' in window.history && prevRestoration) {
-        window.history.scrollRestoration = prevRestoration;
-      }
-    };
-  }, []);
 
   const [hoveredAct, setHoveredAct] = useState(null);
   // Track items currently animating out so we can keep them in the DOM until the fade completes
@@ -106,9 +98,26 @@ const shortlistIds = React.useMemo(() => {
 
   const [actsData, setActsData] = useStableFetchList(
     shortlistIds,
-   (id) => axios.get(`/api/act/${id}`).then((res) => res.data),
+    (id) =>
+      axios.get(`/api/act/${id}`).then((res) => {
+        const act = res.data?.act ?? res.data;
+        console.log("ACT PAYLOAD", act?._id, Object.keys(act));
+        console.log("REVIEWS?", act?.reviews, "avg?", act?.averageRating);
+        return act;
+      }),
     { onEmpty: () => setHoveredAct(null) }
   );
+
+  useEffect(() => {
+    if (!actsData?.length) return;
+    const a = actsData[0];
+    console.log('🧪 shortlist first act reviews?', {
+      actId: a?._id,
+      hasReviewsField: Array.isArray(a?.reviews),
+      reviewsLen: Array.isArray(a?.reviews) ? a.reviews.length : null,
+      keys: a ? Object.keys(a).slice(0, 30) : [],
+    });
+  }, [actsData]);
 
   // 🔍 Hide acts that are explicitly unavailable for the currently selected date
   const visibleShortlist = React.useMemo(() => {
@@ -185,104 +194,105 @@ const shortlistIds = React.useMemo(() => {
 
       <div className="flex">
         {/* Left: shortlist items */}
-<div className="w-full lg:w-[50%] p-6">
-  <div className="flex flex-wrap gap-4">
-    {/* Availability status bar while we load the map for the selected date */}
-    {selectedDate && availLoading && (
-      <div className="p-4 text-center text-gray-600">Checking availability…</div>
-    )}
+        <div className="w-full lg:w-[50%] p-6">
+          <div className="flex flex-wrap gap-4">
+            {/* Availability status bar while we load the map for the selected date */}
+            {selectedDate && availLoading && (
+              <div className="p-4 text-center text-gray-600">Checking availability…</div>
+            )}
 
-    {visibleShortlist.length > 0 ? (
-      visibleShortlist.map((item, index) =>
-        item && item.lineups && item.lineups.length > 0 ? (
-          <div
-            key={item._id || index}
-            className={
-              'transition-all duration-300 ease-out ' +
-              (removingIds.has(item._id)
-                ? 'opacity-0 scale-95 translate-y-1 pointer-events-none'
-                : 'opacity-100 scale-100')
-            }
-          >
-            <ShortlistItem
-              actData={item}
-              _id={item._id}
-              actId={item._id}
-              userId={userId}
-              shortlistCount={item.timesShortlisted || 0}
-              isShortlisted={isShortlisted(item._id)}
-              onShortlistToggle={async () => {
-                if (removingIds.has(item._id)) return; // prevent duplicate timers
-                // Start fade-out immediately
-                setRemovingIds((prev) => new Set([...prev, item._id]));
+            {visibleShortlist.length > 0 ? (
+              visibleShortlist.map((item, index) =>
+                item && item.lineups && item.lineups.length > 0 ? (
+                  <div
+                    key={item._id || index}
+                    className={
+                      'transition-all duration-300 ease-out ' +
+                      (removingIds.has(item._id)
+                        ? 'opacity-0 scale-95 translate-y-1 pointer-events-none'
+                        : 'opacity-100 scale-100')
+                    }
+                  >
+                    <ShortlistItem
+                      actData={item}
+                      _id={item._id}
+                      actId={item._id}
+                      userId={userId}
+                      shortlistCount={item.timesShortlisted || 0}
+                      isShortlisted={isShortlisted(item._id)}
+                      onShortlistToggle={async () => {
+                        if (removingIds.has(item._id)) return; // prevent duplicate timers
+                        // Start fade-out immediately
+                        setRemovingIds((prev) => new Set([...prev, item._id]));
 
-                // Perform the toggle in context/backend right away
-                await shortlistAct(userId, item._id);
+                        // Perform the toggle in context/backend right away
+                        await shortlistAct(userId, item._id);
 
-                // After the animation, remove from local list and cleanup
-                setTimeout(() => {
-                  setActsData((prev) => {
-                    // If the context still says it is shortlisted, keep it (server echo), otherwise drop it
-                    const stillShortlisted = shortlistIds.includes(item._id);
-                    return stillShortlisted ? prev : prev.filter((a) => a._id !== item._id);
-                  });
-                  setHoveredAct((prev) => (prev?.actId === item._id ? null : prev));
-                  setRemovingIds((prev) => {
-                    const next = new Set(prev);
-                    next.delete(item._id);
-                    return next;
-                  });
-                }, 300);
-              }}
-              price={item.formattedPrice}
-              onMouseEnter={() => {
-                setHoveredAct((prev) => {
-                  if (prev?.actId === item._id) return prev;
-                  return {
-                    actData: item,
-                    actId: item._id,
-                    tscBio: item.bio,
-                    isInCart: cart?.[item._id] ?? false,
-                    cartItems: cart,
-                    setSelectedLineup: (lineup) =>
-                      setHoveredAct((prevState) => ({ ...prevState, selectedLineup: lineup })),
-                    setFormattedPrice: (price) =>
-                      setHoveredAct((prevState) => ({ ...prevState, formattedPrice: price })),
-                    finalTravelPrice: item.finalTravelPrice || null,
-                    paMap,
-                    lightMap,
-                  };
-                });
-              }}
-            />
+                        // After the animation, remove from local list and cleanup
+                        setTimeout(() => {
+                          setActsData((prev) => {
+                            // If the context still says it is shortlisted, keep it (server echo), otherwise drop it
+                            const stillShortlisted = shortlistIds.includes(item._id);
+                            return stillShortlisted ? prev : prev.filter((a) => a._id !== item._id);
+                          });
+                          setHoveredAct((prev) => (prev?.actId === item._id ? null : prev));
+                          setRemovingIds((prev) => {
+                            const next = new Set(prev);
+                            next.delete(item._id);
+                            return next;
+                          });
+                        }, 300);
+                      }}
+                      price={item.formattedPrice}
+                      onMouseEnter={() => {
+                        setHoveredAct((prev) => {
+                          if (prev?.actId === item._id) return prev;
+                          return {
+                            actData: item,
+                            actId: item._id,
+                            actSlug: item?.slug || item?.tscSlug || item?.tscNameSlug || null,
+                            tscBio: item.bio,
+                            isInCart: cart?.[item._id] ?? false,
+                            cartItems: cart,
+                            setSelectedLineup: (lineup) =>
+                              setHoveredAct((prevState) => ({ ...prevState, selectedLineup: lineup })),
+                            setFormattedPrice: (price) =>
+                              setHoveredAct((prevState) => ({ ...prevState, formattedPrice: price })),
+                            finalTravelPrice: item.finalTravelPrice || null,
+                            paMap,
+                            lightMap,
+                          };
+                        });
+                      }}
+                    />
+                  </div>
+                ) : null
+              )
+            ) : (
+              <div className="p-6 text-center text-gray-600">
+                {selectedDate
+                  ? 'No shortlisted acts are available for your date.'
+                  : 'Your shortlist is empty. Start adding your favorite acts!'}
+              </div>
+            )}
           </div>
-        ) : null
-      )
-    ) : (
-      <div className="p-6 text-center text-gray-600">
-        {selectedDate
-          ? 'No shortlisted acts are available for your date.'
-          : 'Your shortlist is empty. Start adding your favorite acts!'}
-      </div>
-    )}
-  </div>
-</div>
+        </div>
 
         {/* Right: preview panel */}
-       <div
-  className={`
-    hidden lg:block              /* ← hide on < lg */
-    lg:w-[50%] p-4 border-l min-h-screen
-    transition-all duration-300 ease-in-out
-    ${hoveredAct ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-50 pointer-events-none'}
-  `}
->
-  {hoveredAct ? (
-    <ShortlistPreviewPanel hoveredAct={hoveredAct} />
-  ) : (
-    <p className="text-gray-500 text-center mt-20">Hover over a shortlist item to preview details</p>
-  )}
-</div>
+        <div
+          className={`
+            hidden lg:block              /* ← hide on < lg */
+            lg:w-[50%] p-4 border-l min-h-screen
+            transition-all duration-300 ease-in-out
+            ${hoveredAct ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-50 pointer-events-none'}
+          `}
+        >
+          {hoveredAct ? (
+            <ShortlistPreviewPanel hoveredAct={hoveredAct} />
+          ) : (
+            <p className="text-gray-500 text-center mt-20">Hover over a shortlist item to preview details</p>
+          )}
+        </div>
       </div>
     </div>
   );

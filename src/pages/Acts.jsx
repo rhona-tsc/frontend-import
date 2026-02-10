@@ -428,39 +428,17 @@ const normalizeExtraKey = (s) =>
     .replace(/_+/g, "_")
     .replace(/^_+|_+$/g, "");
 
-const hasExtra = (act, key) => {
-  const extras = act?.extras || act?.__card?.extras || {};
-  if (!extras || typeof extras !== "object") return false;
+const getStored = (key) =>
+  sessionStorage.getItem(key) ||
+  localStorage.getItem(key) ||
+  "";
 
-  const rawKey = String(key || "");
-  const nk = normalizeExtraKey(rawKey);
-
-  // direct key
-  const direct = extras[rawKey];
-  if (direct === true) return true;
-  if (direct && direct !== false) return true;
-
-  // normalized lookup
-  for (const [k, v] of Object.entries(extras)) {
-    if (normalizeExtraKey(k) !== nk) continue;
-
-    if (v === true) return true;
-    if (v === false) return false;
-
-    if (typeof v === "number") return v > 0;
-
-    if (typeof v === "object" && v) {
-      const price = Number(v.price ?? v.amount ?? 0);
-      const complimentary = v.complimentary === true;
-      const enabled = v.enabled === true || v.active === true;
-      return price > 0 || complimentary || enabled;
-    }
-
-    if (typeof v === "string") return v.toLowerCase() === "true";
-    return Boolean(v);
-  }
-
-  return false;
+const hasStoredLocation = () => {
+  const addr = getStored("selectedAddress");
+  const county = getStored("selectedCounty");
+  const place = getStored("selectedPlace");
+  // choose your rule: address is the main one
+  return Boolean(addr || county || place);
 };
 
   function mergeFilterDataIntoCards(cards = [], enrich = []) {
@@ -2197,38 +2175,53 @@ actsCopy = actsCopy.map((act) => {
   }
 
   // 1) Initial boot — keep as-is
-  useEffect(() => {
-    const init = async () => {
-      setInitializing(true);
-      const storedDate = sessionStorage.getItem("selectedDate");
-      const storedAddress = sessionStorage.getItem("selectedAddress");
-      const storedCounty = sessionStorage.getItem("selectedCounty");
+useEffect(() => {
+  const init = async () => {
+    setInitializing(true);
 
-      if (storedCounty) setSelectedCounty(storedCounty);
-      if (storedDate) setSelectedDate(storedDate);
-      if (storedAddress) setSelectedAddress(storedAddress);
+    const storedDate = getStored("selectedDate");
+    const storedAddress = getStored("selectedAddress");
+    const storedCounty = getStored("selectedCounty");
 
-      // warm availability from cache
-      try {
-        const d = (storedDate || "").slice(0, 10);
-        if (d) {
-          const cached = sessionStorage.getItem(`availMap:${d}`);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (parsed && typeof parsed === "object") {
-              setAvailableMap(parsed);
-            }
+    if (storedCounty) setSelectedCounty(storedCounty);
+    if (storedDate) setSelectedDate(storedDate);
+    if (storedAddress) setSelectedAddress(storedAddress);
+
+    // ✅ Auto-open search ONCE if there’s no location saved
+    // - don’t do this if we’re coming via /acts/:preset
+    // - don’t reopen repeatedly if user closes it
+    const noLocation =
+      !storedAddress && !storedCounty && !getStored("selectedPlace");
+
+    const isPresetRoute = Boolean(preset); // you already have useParams()
+
+    if (!isPresetRoute && noLocation && !appliedOnceRef.current) {
+      appliedOnceRef.current = true;
+      setShowSearch(true);
+      window.scrollTo(0, 0);
+    }
+
+    // warm availability from cache (keep your existing logic)
+    try {
+      const d = (storedDate || "").slice(0, 10);
+      if (d) {
+        const cached = sessionStorage.getItem(`availMap:${d}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === "object") {
+            setAvailableMap(parsed);
           }
         }
-      } catch {
-        // intentionally ignored
       }
+    } catch {}
 
-      await applyFilter();
-      setInitializing(false);
-    };
-    init();
-  }, []);
+    await applyFilter();
+    setInitializing(false);
+  };
+
+  init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   // 2) When acts arrive (0 → N), run filter
   useEffect(() => {

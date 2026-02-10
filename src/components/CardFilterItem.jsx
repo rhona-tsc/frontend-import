@@ -208,23 +208,22 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false }) => {
     e.preventDefault();
     e.stopPropagation();
     if (standalone) return;
-    if (!userId) {
-      const fromActsListing = String(location.pathname || '').startsWith('/acts');
-      const listUrl = `${location.pathname || ''}${location.search || ''}${location.hash || ''}` || '/acts';
-      const actUrl = getActUrl(actData);
-      const fallback = fromActsListing ? listUrl : actUrl;
-      sessionStorage.setItem('postLoginNext', fallback);
-      navigate('/login', { state: { from: fallback } });
-      return;
-    }
 
     setIsAnimating(true);
-    const isShortlistedNow = (shortlistedActs || []).includes(String(getActId(actData)));
+
+    const actId = String(getActId(actData));
+    const isShortlistedNow = (shortlistedActs || []).includes(actId);
+
+    // ✅ Optimistic local count change layered on top of DB value
     setLoveCount((prev) => {
       const safe = Number(prev) || 0;
       return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
     });
-    shortlistAct?.(userId, getActId(actData));
+
+    // ✅ Let ShopContext handle guest mode + auth gate + server calls
+    // (Do NOT redirect to /login here)
+    shortlistAct?.(userId || null, actId);
+
     setTimeout(() => setIsAnimating(false), 300);
   };
 
@@ -240,7 +239,7 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false }) => {
 
   return (
     <div className="relative group">
-      <Link to={getActUrl(actData)} onClick={() => window.scrollTo(0, 0)} className="block text-gray-700">
+      <Link to={getActUrl(actData)} onClick={() => { if (typeof window !== "undefined") window.scrollTo(0, 0); }} className="block text-gray-700">
         <div className="overflow-hidden h-full w-full">
           <img className="h-full w-full object-cover hover:scale-110 transition ease-in-out" src={resolvedImage} alt={getTitle(actData)} />
         </div>
@@ -261,6 +260,7 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false }) => {
 
           <div className="flex flex-col items-center lg:items-end justify-between min-h-[40px]">
             <button
+              type="button"
               onClick={handleHeartClick}
               disabled={isAnimating || standalone}
               className="p-1 transition-transform duration-150 ease-in-out"

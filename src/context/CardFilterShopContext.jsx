@@ -1340,7 +1340,7 @@ const isActAllowed = (actId) => {
       if (actName) sessionStorage.setItem("pendingShortlistActName", actName);
     }
 
-    navigate("/login");
+    window.dispatchEvent(new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } }));
   };
 
   // Add to shortlist (uses toggle route + triggers availability if date/address present)
@@ -1358,7 +1358,6 @@ const isActAllowed = (actId) => {
 
   // ✅ Toggle shortlist via PATCH routes with optimistic UI
  const shortlistAct = async (uid, actId) => {
-    if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
 
     const storedUserRaw = localStorage.getItem("user");
     const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;

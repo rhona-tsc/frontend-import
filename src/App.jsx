@@ -25,6 +25,7 @@ import ResetPassword from "./pages/ResetPassword";
   import Terms from "./pages/Terms";
   import Privacy from "./pages/Privacy";
   import { useState, useEffect   } from "react";
+import AuthGateModal from "./components/AuthGateModal";
 
   // 👇 helper to decode token once
   function parseToken(t) {
@@ -38,7 +39,7 @@ import ResetPassword from "./pages/ResetPassword";
         phone: d?.phone || "",
         userId: d?.userId || d?.id || "",
         userRole: d?.role || "",
-        password: d?.password || "",
+        
       };
       // hardcoded override
       if (d?.id === "68123dcda79759339808b578") {
@@ -112,6 +113,7 @@ import ResetPassword from "./pages/ResetPassword";
         <div className="px-4 sm:px-[5vw] md:px-[7vw] lg:px-[4vw]">
           <Navbar />
           <SearchBox />
+          <AuthGateModal />
           <div className="mt-16">
             <Routes>
               <Route path="/" element={<Home />} />

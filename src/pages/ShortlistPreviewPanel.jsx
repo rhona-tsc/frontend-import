@@ -13,8 +13,9 @@ import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adju
 import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 
 const ShortlistPreviewPanel = ({ hoveredAct, removeFromCart }) => {
-  const actData = hoveredAct?.actData;
+
   const [localActData, setLocalActData] = useState(null);
+  const [fullAct, setFullAct] = useState(null);
   const [video, setVideo] = useState("");
 const [selectedLineup, setSelectedLineup] = useState(null);
   const [price, setPrice] = useState(null);
@@ -27,6 +28,7 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
   const {
     actId,
     acts,
+    actCards,
     setActData,
     selectedCounty,
     selectedAddress,
@@ -36,9 +38,72 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
     setCartItems,
     userId,               // 🔹 needed for availability trigger enrichment
   } = useContext(ShopContext);
+  const actData = React.useMemo(() => {
+    const fromHover = hoveredAct?.actData;
+    if (fromHover && (fromHover._id || fromHover.actId)) return fromHover;
+
+    const targetId = String(hoveredAct?.actId || "");
+    const list = Array.isArray(acts)
+      ? acts
+      : Array.isArray(actCards)
+        ? actCards
+        : [];
+
+    return list.find((a) => String(a?._id || a?.actId) === targetId) || null;
+  }, [hoveredAct, acts, actCards]);
   // Helper to migrate the lineup in the cart when user selects a different lineup
 
   const [badgeMusicianId, setBadgeMusicianId] = useState("");
+
+
+const baseAct = fullAct || localActData || actData;
+
+  // Hoisted helper (so it's safe to use below)
+  function calcAvgRatingFromReviews(reviews) {
+    const arr = Array.isArray(reviews) ? reviews : [];
+    if (!arr.length) return 0;
+    const sum = arr.reduce((acc, r) => acc + (Number(r?.rating) || 0), 0);
+    return Math.round((sum / arr.length) * 10) / 10; // 1 decimal
+  }
+
+  // 🔎 Prefer reviews, fall back to tscReviews/testimonials (same as Act.jsx)
+  const reviews = React.useMemo(() => {
+    if (Array.isArray(baseAct?.reviews) && baseAct.reviews.length) return baseAct.reviews;
+    if (Array.isArray(baseAct?.tscReviews) && baseAct.tscReviews.length) return baseAct.tscReviews;
+    if (Array.isArray(baseAct?.testimonials) && baseAct.testimonials.length) return baseAct.testimonials;
+    return [];
+  }, [baseAct?._id, baseAct?.reviews, baseAct?.tscReviews, baseAct?.testimonials]);
+
+  const avgRating = React.useMemo(() => {
+    const explicit = Number(baseAct?.averageRating);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    return calcAvgRatingFromReviews(reviews);
+  }, [baseAct?._id, baseAct?.averageRating, reviews]);
+
+  // --- Base / "from" price fallback (when no date/address selected) ---
+  const parseMoney = (v) => {
+    if (v == null) return null;
+    const n = Number(String(v).replace(/[^0-9.+-]/g, ""));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const getFromPrice = (act) => {
+    if (!act) return null;
+    const lineup0 = Array.isArray(act?.lineups) ? act.lineups[0] : null;
+
+    // Prefer marketing "from" price, then any preformatted totals, then lineup base fee
+    const candidate =
+      act?.minDisplayPrice ??
+      act?.formattedPrice?.from ??
+      act?.formattedPrice?.total ??
+      act?.formattedPrice?.min ??
+      lineup0?.base_fee?.[0]?.total_fee ??
+      null;
+
+    return parseMoney(candidate);
+  };
+
+
 
   // Normalise calculateActPricing output so UI logic is stable
 const normalisePricing = (res) => {
@@ -55,7 +120,6 @@ const normalisePricing = (res) => {
 };
 
 
-const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
 
   const migrateCartLineup = (actIdParam, newLineupId) => {
     try {
@@ -99,7 +163,7 @@ const badgeForDate = actData?.availabilityBadges?.[selectedDate] || null;
 if (import.meta.env.PROD) return;
     (async () => {
       try {
-        const act = actData || localActData;
+const act = baseAct;
         if (!act || !Array.isArray(act.lineups) || act.lineups.length === 0) return;
         for (const lu of act.lineups) {
           try {
@@ -164,67 +228,45 @@ if (import.meta.env.PROD) return;
     return words[num] || num;
   };
 
-  // Calculate average rating from reviews, rounded to nearest 0.5
-  const calculateAverageRating = (reviews) => {
-    console.log("🌟 actData.averageRating:", hoveredAct?.actData.averageRating);
-    if (!reviews || reviews.length === 0) return 0;
-    const sum = reviews.reduce(
-      (total, review) => total + (review.rating || 0),
-      0
-    );
-    return Math.round((sum / reviews.length) * 2) / 2; // round to nearest 0.5
-  };
 
-  useEffect(() => {
-    if (Array.isArray(acts) && acts.length > 0 && hoveredAct?.actId) {
-      console.log("🔍 Looking for hoveredAct.actId:", hoveredAct.actId);
 
-      const foundAct = acts.find((item) => {
-        console.log("➡️ Checking act:", item._id, "vs", hoveredAct.actId);
-        return item._id === hoveredAct.actId;
-      });
-
-      if (!foundAct) {
-        console.warn("⚠️ No act found for:", hoveredAct.actId);
-        return;
-      }
-
-      console.log("✅ Found act:", foundAct);
-      console.log("📝 Reviews on foundAct:", foundAct.reviews);
-
-      const avgRating = calculateAverageRating(foundAct.reviews);
-      console.log("⭐ Calculated avgRating:", avgRating);
-
-      setLocalActData({
-        ...foundAct,
-        averageRating: avgRating,
-      });
-
-      setVideo(foundAct.videos?.[0]?.url || "");
-      if (foundAct.lineups.length > 0) {
-        setSelectedLineup(foundAct.lineups[0]);
-      }
-    }
-  }, [hoveredAct, acts]);
 
   useEffect(() => {
     const calculateAndSetPrice = async () => {
-      if (!actData || !actData.lineups || !actData.lineups.length) return;
+      const act = baseAct;
+      if (!act || !Array.isArray(act.lineups) || !act.lineups.length) return;
+
+      // ✅ If we don't have BOTH date + address, show the marketing "from" price and bail
+      const hasInputs = !!(selectedDate && selectedAddress && String(selectedAddress).trim());
+      if (!hasInputs) {
+        const base = getFromPrice(act);
+        if (base != null) {
+          setPrice({ total: base, travelFeeTotal: 0, travelCalculated: false });
+        } else {
+          setPrice(null);
+        }
+        return;
+      }
+
       try {
         const result = await calculateActPricing(
-          actData,
+          act,
           selectedCounty,
           selectedAddress,
           selectedDate,
-          selectedLineup || actData.lineups[0]
+          selectedLineup || act.lineups[0]
         );
-setPrice(normalisePricing(result));      } catch (err) {
+        setPrice(normalisePricing(result));
+      } catch (err) {
         console.error("❌ Failed to calculate price:", err);
+        // Fallback to base if pricing fails
+        const base = getFromPrice(act);
+        if (base != null) setPrice({ total: base, travelFeeTotal: 0, travelCalculated: false });
       }
     };
-    calculateAndSetPrice();
-  }, [actData, selectedCounty, selectedAddress, selectedDate, selectedLineup]);
 
+    calculateAndSetPrice();
+}, [baseAct, selectedCounty, selectedAddress, selectedDate, selectedLineup]);
   // verify latest reply on this act+date (use backend base + proper query params)
   useEffect(() => {
     let abort = false;
@@ -446,6 +488,7 @@ setPrice(normalisePricing(result));      } catch (err) {
     return `${count}: ${instrumentsStr}${rolesStr}`;
   };
 
+  
 const handleLineupChange = async (lineup) => {
   try {
     setSelectedLineup(lineup);
@@ -559,7 +602,68 @@ const handleLineupChange = async (lineup) => {
   };
 
   
-  
+// Option A: fetch the full act document (including reviews) on hover.
+useEffect(() => {
+  if (!hoveredAct?.actId) {
+    setFullAct(null);
+    return;
+  }
+
+  let cancelled = false;
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      // If we already have a full act with reviews for this id, don’t refetch.
+      const same =
+        String(fullAct?._id || fullAct?.actId || "") === String(hoveredAct.actId);
+
+      const alreadyHasReviews =
+        (Array.isArray(fullAct?.reviews) && fullAct.reviews.length) ||
+        (Array.isArray(fullAct?.tscReviews) && fullAct.tscReviews.length) ||
+        (Array.isArray(fullAct?.testimonials) && fullAct.testimonials.length);
+
+      if (same && alreadyHasReviews) return;
+
+      const url = `${BACKEND_BASE}/api/act/${encodeURIComponent(hoveredAct.actId)}`;
+      const { data } = await axios.get(url, { signal: controller.signal });
+      const act = data?.act || data; // supports both { act: ... } and direct doc responses
+
+      if (cancelled) return;
+
+      if (act && (act._id || act.id || act.actId)) {
+        setFullAct(act);
+      } else {
+        setFullAct(null);
+      }
+    } catch (e) {
+      if (cancelled) return;
+      if (e?.name === "CanceledError" || e?.code === "ERR_CANCELED") return;
+      console.warn("⚠️ [ShortlistPreviewPanel] full act fetch failed", e?.response?.data || e);
+      setFullAct(null);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+    controller.abort();
+  };
+}, [hoveredAct?.actId, BACKEND_BASE, fullAct?._id]);
+
+useEffect(() => {
+  if (!hoveredAct?.actId) return;
+  console.log("🧪 [ShortlistPreviewPanel] resolved reviews/rating", {
+    hoveredActId: hoveredAct?.actId,
+    baseActId: baseAct?._id,
+    baseKeys: baseAct ? Object.keys(baseAct) : [],
+    hasReviewsField: Array.isArray(baseAct?.reviews),
+    reviewsLen: reviews.length,
+    averageRating: baseAct?.averageRating,
+    reviewCount: baseAct?.reviewCount,
+    avgRating,
+  });
+}, [hoveredAct?.actId, baseAct?._id, reviews.length, avgRating]);
+
 
   return (
     <div className="w-full p-2  min-h-screen transition-all duration-300 ease-in-out">
@@ -567,49 +671,46 @@ const handleLineupChange = async (lineup) => {
         <div>
           <div className="w-full mb-2">
             <ActHero
-              hideHeart={true}
-              actId={hoveredAct.actId}
-              acts={[localActData || actData]}
-            />{" "}
+  hideHeart={true}
+  actId={hoveredAct.actId}
+  acts={[baseAct]}
+/>{" "}
           </div>
 
           {/* ⭐ Star Rating */}
-          {localActData && (
-            <div className="flex justify-between items-center mt-2 pl-3">
-              {/* 💷 Price on the left */}
-              <p className="text-3xl font-medium pb-4">
-                {price
-                  ? price.travelCalculated
-                    ? `£${price.total}`
-                    : `from £${price.total}`
-                  : "Loading price..."}
-              </p>
+          {baseAct && (
+           <div className="flex justify-between items-center mt-2 pl-3">
+  {/* 💷 Price on the left */}
+  <p className="text-3xl font-medium pb-4">
+    {price ? (() => {
+      const n = Number(price.total || 0);
+      const formatted = Number.isFinite(n)
+        ? n.toLocaleString("en-GB", { maximumFractionDigits: 0 })
+        : String(price.total);
 
-              {/* ⭐ Stars on the right */}
-              <div className="flex items-center gap-1 mt-2 pl-3">
-                {console.log(
-                  "🎨 Rendering stars for rating:",
-                  localActData.averageRating
-                )}
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <img
-                    key={i}
-                    className="w-4"
-                    src={
-                      localActData.averageRating >= i
-                        ? assets.star_icon
-                        : localActData.averageRating >= i - 0.5
-                          ? assets.star_half_icon
-                          : assets.star_dull_icon
-                    }
-                    alt={`Star ${i}`}
-                  />
-                ))}
-                <p className="pl-2 text-sm">
-                  ({localActData.reviews?.length || 0})
-                </p>
-              </div>
-            </div>
+      return price.travelCalculated ? `£${formatted}` : `from £${formatted}`;
+    })() : "Loading price..."}
+  </p>
+
+  {/* ⭐ Stars on the right */}
+  <div className="flex items-center gap-1 mt-2 pl-3">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <img
+        key={i}
+        className="w-4"
+        src={
+          avgRating >= i
+            ? assets.star_icon
+            : avgRating >= i - 0.5
+              ? assets.star_half_icon
+              : assets.star_dull_icon
+        }
+        alt={`Star ${i}`}
+      />
+    ))}
+<p className="pl-2 text-sm">({Number(baseAct?.reviewCount) || reviews.length || 0})</p>
+  </div>
+</div>
           )}
 
           {/* 🎭 Lineup Selection */}

@@ -147,12 +147,14 @@ try {
     if (sessionStorage.getItem(leadKey) !== "1") {
       sessionStorage.setItem(leadKey, "1");
 
-      window.gtag("event", "conversion", {
-        send_to: "AW-17648722186/HfomCNTEi_IbEIrCyN9B",
-        value: 1.0,
-        currency: "GBP",
-        event_callback: () => {},
-      });
+    const tx = `lead_${String(response.data.userId || email).toLowerCase()}`;
+
+window.gtag("event", "conversion", {
+  send_to: "AW-17648722186/HfomCNTEi_IbEIrCyN9B",
+  value: 1.0,
+  currency: "GBP",
+  transaction_id: tx,
+});
     }
   }
 } catch (e) {

@@ -492,7 +492,7 @@ const heroUrlHigh = React.useMemo(() => {
     // 🆕 Store act ID so we can auto-add after login
     if (actId) sessionStorage.setItem("pendingShortlistActId", actId);
 
-    navigate("/login");
+    window.dispatchEvent(new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } }));
   };
 
   // Derive what you actually render
