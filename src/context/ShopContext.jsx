@@ -22,6 +22,29 @@ const ALLOWED_ACT_NAMES = new Set(["Motown Magic", "Dancefloor Magic"]);
 const ShopProvider = (props) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const providerInstanceIdRef = useRef(
+    `shopctx_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
+  );
+
+  useEffect(() => {
+    console.log("🧩[ShopContext] provider mounted", {
+      id: providerInstanceIdRef.current,
+      initialPathname: String(location?.pathname || ""),
+    });
+
+    try {
+      // Helpful to detect multiple providers in the app
+      window.__SHOP_CTX_PROVIDER_IDS__ = window.__SHOP_CTX_PROVIDER_IDS__ || [];
+      window.__SHOP_CTX_PROVIDER_IDS__.push(providerInstanceIdRef.current);
+    } catch {}
+
+    return () => {
+      console.log("🧩[ShopContext] provider unmounted", {
+        id: providerInstanceIdRef.current,
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [cartTotal, setCartTotal] = useState(0);
   const [cartTotalLoading, setCartTotalLoading] = useState(false);
   const currency = "£";
@@ -91,6 +114,42 @@ const ShopProvider = (props) => {
   // --- Core UI / data ---
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+
+  // ✅ Keep search UI in sync with route
+  // Show the search box automatically on /acts (and subroutes), hide elsewhere.
+  useEffect(() => {
+    const pathname = String(location?.pathname || "");
+    const onActsPage = pathname.startsWith("/acts");
+
+    console.log("🔎[ShopContext] route->showSearch sync", {
+      pathname,
+      onActsPage,
+      prevShowSearch: showSearch,
+      prevSearch: search,
+    });
+
+    setShowSearch((prev) => {
+      if (prev !== onActsPage) {
+        console.log("🔎[ShopContext] setShowSearch", { from: prev, to: onActsPage });
+      }
+      return onActsPage;
+    });
+
+    // Optional: clear search when leaving the acts page so you don't carry filters around
+    if (!onActsPage) {
+      console.log("🔎[ShopContext] leaving /acts -> clearing search", { from: search });
+      setSearch("");
+    }
+  }, [location?.pathname]);
+
+  // 🔍 Debug: confirm when showSearch/search actually changes
+  useEffect(() => {
+    console.log("🔎[ShopContext] showSearch changed", {
+      pathname: String(location?.pathname || ""),
+      showSearch,
+      search,
+    });
+  }, [showSearch]);
   const [acts, setActs] = useState([]);
   // Lightweight listing cards from /api/act/cards
   const [actCards, setActCards] = useState([]);

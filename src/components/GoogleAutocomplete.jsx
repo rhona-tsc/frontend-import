@@ -1,246 +1,204 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * Google Places Autocomplete input
- * - Lazily injects the Maps JS script in dev if it's not present
- * - Restricts results to GB
- * - Emits both full formatted address and best-effort county
- * - Adds verbose console logs to help debug on localhost
+ * getAddress.io autocomplete (NO Google Places)
+ *
+ * Uses your backend proxy routes:
+ *  - GET /api/google/address/autocomplete?term=...
+ *  - GET /api/google/address/get?id=...
+ *
+ * Props:
+ *  - setAddress(addressString)
+ *  - setPostcode(postcodeString)
+ *  - setCounty(countyString) (optional)
+ *  - initialValue / value (controlled or uncontrolled)
+ *  - className / placeholder
  */
-const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API; // <-- ensure this exists in `.env.local`
 
+const normaliseSpaces = (s = "") => String(s || "").replace(/\s+/g, " ").trim();
 
-
-function ensureMapsPlacesScript() {
-  if (typeof window === "undefined") return Promise.reject(new Error("no-window"));
-  if (window.google?.maps?.places) return Promise.resolve(true);
-
-  // prevent duplicate inserts
-  const existing = document.querySelector('script[data-tsc="gmaps-places"]');
-  if (existing) {
-    return new Promise((resolve) => {
-      existing.addEventListener("load", () => resolve(true));
-      // if it's already loaded, resolve immediately
-      if (window.google?.maps?.places) resolve(true);
-    });
-  }
-
-  if (!API_KEY) {
-    console.warn("⚠️ GoogleAutocomplete: VITE_GOOGLE_MAPS_API not set. Autocomplete will not initialise.");
-    return Promise.resolve(false);
-  }
-
-  const s = document.createElement("script");
-  s.async = true;
-  s.defer = true;
-  s.dataset.tsc = "gmaps-places";
-  s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-    API_KEY
-  )}&libraries=places&v=weekly`;
-  document.head.appendChild(s);
-
-  return new Promise((resolve) => {
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-  });
-}
-
-
-
-const GoogleAutocomplete = ({ setAddress, setCounty, setPostcode, ...props }) => {
+const GoogleAutocomplete = ({
+  setAddress,
+  setCounty,
+  setPostcode,
+  initialValue,
+  value,
+  className,
+  placeholder,
+  ...props
+}) => {
   const inputRef = useRef(null);
-  const autocompleteRef = useRef(null);
-  const geocoderRef = useRef(null);
-  const boundsTimerRef = useRef(null);
 
-  const [ready, setReady] = useState(
-    !!(typeof window !== "undefined" && window.google?.maps?.places)
-  );
-  const [helperText, setHelperText] = useState("");
+  // controlled/uncontrolled
+  const isControlled = typeof value !== "undefined";
+  const [internalValue, setInternalValue] = useState(String(initialValue || ""));
+  const inputValue = isControlled ? String(value || "") : internalValue;
 
-  const normalisePostcode = (s = "") => String(s || "").trim().toUpperCase();
-
-  // Rough UK postcode match (good enough for UI behaviour)
-  const isLikelyUkPostcode = (s = "") => {
-    const v = normalisePostcode(s);
-    return /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/.test(v);
-  };
-
-  // Partial typing match (outcode or half-entered postcode)
-  const isPossiblyUkPostcode = (s = "") => {
-    const v = normalisePostcode(s);
-    if (!v) return false;
-    // e.g. CM19, SW1A, M1, EC1A etc. (optionally with a trailing space)
-    return /^[A-Z]{1,2}\d[A-Z\d]?(\s*)?$/.test(v) || /^[A-Z]{1,2}\d[A-Z\d]?\s+\d[A-Z]{0,2}$/.test(v);
-  };
-
-  const biasPredictionsToPostcode = (value) => {
-    // Debounce to avoid hammering the geocoder while typing
-    if (boundsTimerRef.current) clearTimeout(boundsTimerRef.current);
-
-    const v = normalisePostcode(value);
-    const ac = autocompleteRef.current;
-
-    if (!ac) return;
-
-    // If it's not a postcode-ish input, remove strict bounds and exit
-    if (!isPossiblyUkPostcode(v)) {
-      try {
-        ac.setOptions({ strictBounds: false });
-      } catch (_) {}
-      return;
-    }
-
-    boundsTimerRef.current = setTimeout(() => {
-      const geocoder = geocoderRef.current;
-      if (!geocoder) return;
-
-      geocoder.geocode({ address: v, componentRestrictions: { country: "GB" } }, (results, status) => {
-        if (status !== "OK" || !results || !results[0] || !results[0].geometry) return;
-
-        const geom = results[0].geometry;
-        // Prefer the returned viewport; fallback to a small box around the location
-        if (geom.viewport) {
-          ac.setBounds(geom.viewport);
-        } else if (geom.location) {
-          const lat = geom.location.lat();
-          const lng = geom.location.lng();
-          const delta = 0.02; // ~2km-ish box
-          const sw = new window.google.maps.LatLng(lat - delta, lng - delta);
-          const ne = new window.google.maps.LatLng(lat + delta, lng + delta);
-          const b = new window.google.maps.LatLngBounds(sw, ne);
-          ac.setBounds(b);
-        }
-
-        // Tighten predictions to the area once we have a postcode
-        ac.setOptions({ strictBounds: true });
-      });
-    }, 250);
+  const setValue = (v) => {
+    const next = String(v || "");
+    if (!isControlled) setInternalValue(next);
+    setAddress?.(next);
   };
 
   useEffect(() => {
-    let autocomplete = null;
+    if (!isControlled) setInternalValue(String(initialValue || ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValue]);
 
-    const findType = (components = [], t) =>
-      components.find((c) => (c.types || []).includes(t));
+  // suggestions state
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]); // [{id, address}]
+  const abortRef = useRef(null);
+  const timerRef = useRef(null);
 
-    const pickCounty = (components = []) => {
-      // Prefer county/UA (level_2), then level_1 (England/Scotland etc.), else postal_town
-      const c2 = findType(components, "administrative_area_level_2");
-      const c1 = findType(components, "administrative_area_level_1");
-      const town = findType(components, "postal_town");
-      return c2?.long_name || c1?.long_name || town?.long_name || "";
-    };
+  const term = useMemo(() => normaliseSpaces(inputValue), [inputValue]);
 
-    const pickPostcode = (components = []) => {
-      const pc = findType(components, "postal_code");
-      return pc?.long_name || "";
-    };
+  // Fetch autocomplete as user types
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
 
-    function init() {
-      if (
-        !window.google ||
-        !window.google.maps ||
-        !window.google.maps.places ||
-        !inputRef.current
-      ) {
-        return false;
-      }
+    // Clear derived fields while typing
+    setPostcode?.("");
+    setCounty?.("");
 
-      try {
-        autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-          // "address" gives more premise-level suggestions than "geocode" in many cases
-          types: ["address"],
-          componentRestrictions: { country: ["gb"] },
-          fields: ["formatted_address", "address_components", "geometry"],
-        });
-
-        // Keep refs so we can bias predictions when a user types a postcode
-        autocompleteRef.current = autocomplete;
-        if (!geocoderRef.current) geocoderRef.current = new window.google.maps.Geocoder();
-
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          if (!place || !place.formatted_address) return;
-
-          const address = place.formatted_address;
-          const components = place.address_components || [];
-          const county = pickCounty(components);
-          const postcode = pickPostcode(components);
-
-          // ✅ Write everything back to parent
-          setAddress?.(address);
-          setCounty?.(county);
-          setPostcode?.(postcode);
-
-          setHelperText("");
-          try {
-            autocomplete?.setOptions?.({ strictBounds: false });
-          } catch (_) {}
-        });
-
-        return true;
-      } catch (e) {
-        console.warn("❌ [GA] Autocomplete init failed:", e);
-        return false;
-      }
+    if (!term || term.length < 3) {
+      setSuggestions([]);
+      setOpen(false);
+      setLoading(false);
+      return;
     }
 
-    (async () => {
-      if (!window.google?.maps?.places) {
-        const ok = await ensureMapsPlacesScript();
-        setReady(ok);
-        if (!ok) return;
-      } else {
-        setReady(true);
-      }
+    timerRef.current = setTimeout(async () => {
+      try {
+        if (abortRef.current) abortRef.current.abort();
+        abortRef.current = new AbortController();
 
-      if (!init()) {
-        const t0 = Date.now();
-        const timer = setInterval(() => {
-          if (init() || Date.now() - t0 > 8000) clearInterval(timer);
-        }, 250);
-        return () => clearInterval(timer);
+        setLoading(true);
+
+        const res = await fetch(
+          `/api/google/address/autocomplete?term=${encodeURIComponent(term)}`,
+          { signal: abortRef.current.signal }
+        );
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          console.warn("[getAddress autocomplete] non-200:", data);
+          setSuggestions([]);
+          setOpen(false);
+          return;
+        }
+
+        const raw = Array.isArray(data?.suggestions) ? data.suggestions : [];
+
+        // getAddress autocomplete typically returns: { id, address } (sometimes different keys)
+        const mapped = raw
+          .map((s) => ({
+            id: s?.id || s?.Id || s?.slug || s?.value || "",
+            address: s?.address || s?.Address || s?.text || s?.suggestion || "",
+          }))
+          .filter((x) => x.id && x.address);
+
+        setSuggestions(mapped);
+        setOpen(mapped.length > 0);
+      } catch (e) {
+        if (e?.name !== "AbortError") {
+          console.warn("[getAddress autocomplete] failed:", e);
+        }
+        setSuggestions([]);
+        setOpen(false);
+      } finally {
+        setLoading(false);
       }
-    })();
+    }, 250);
 
     return () => {
-      autocomplete = null;
-      autocompleteRef.current = null;
-      if (boundsTimerRef.current) clearTimeout(boundsTimerRef.current);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [setAddress, setCounty, setPostcode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [term]);
+
+  const pickSuggestion = async (s) => {
+    try {
+      setOpen(false);
+      setSuggestions([]);
+      setLoading(true);
+
+      const res = await fetch(
+        `/api/google/address/get?id=${encodeURIComponent(s.id)}`
+      );
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        console.warn("[getAddress get] non-200:", data);
+        // fall back to just the suggestion text
+        setValue(s.address);
+        return;
+      }
+
+      // getAddress "get" returns structured fields; build something user-friendly
+      const line1 = data?.line_1 || data?.line1 || data?.Line1 || "";
+      const line2 = data?.line_2 || data?.line2 || data?.Line2 || "";
+      const town =
+        data?.town_or_city || data?.town || data?.Town || data?.city || "";
+      const countyVal = data?.county || data?.County || "";
+      const postcodeVal = data?.postcode || data?.Postcode || "";
+
+      const formatted = [line1, line2, town, countyVal, postcodeVal]
+        .map((x) => normaliseSpaces(x))
+        .filter(Boolean)
+        .join(", ");
+
+      setValue(formatted || s.address);
+      if (postcodeVal) setPostcode?.(postcodeVal);
+      if (countyVal) setCounty?.(countyVal);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
       <input
-        type="text"
         ref={inputRef}
-        placeholder="Type your venue postcode or full address…"
-        className="border rounded p-2 w-full"
+        type="text"
+        value={inputValue}
+        placeholder={placeholder || "Type your venue or postcode..."}
+        className={className || "border rounded p-2 w-full"}
         onChange={(e) => {
-          const v = e.target.value;
-
-          // user is typing, so we no longer trust county/postcode
-          setAddress?.(v);
-          setCounty?.("");
-          setPostcode?.("");
-
-          // If they enter a postcode, Google often won’t list every premise unless
-          // they add a house name/number — so we guide them and bias results.
-          if (isLikelyUkPostcode(v) || isPossiblyUkPostcode(v)) {
-            setHelperText("Tip: add the house number/name after the postcode to see specific addresses (e.g. “12 CM19 5LE”).");
-            biasPredictionsToPostcode(v);
-          } else {
-            setHelperText("");
-          }
+          setValue(e.target.value);
         }}
-        aria-label="Venue postcode or address"
+        onFocus={() => {
+          if (suggestions.length > 0) setOpen(true);
+        }}
+        onBlur={() => {
+          setTimeout(() => setOpen(false), 150);
+        }}
+        autoComplete="off"
+        aria-label="Venue address or postcode"
         {...props}
       />
 
-      {helperText ? (
-        <div className="mt-1 text-xs text-gray-500">{helperText}</div>
+      {loading ? (
+        <div className="absolute right-2 top-2 text-xs opacity-60">
+          Loading…
+        </div>
+      ) : null}
+
+      {open && suggestions.length > 0 ? (
+        <div className="absolute z-50 mt-2 w-full max-h-64 overflow-auto rounded-xl border bg-white shadow">
+          {suggestions.map((s, idx) => (
+            <button
+              key={`${s.id}-${idx}`}
+              type="button"
+              className="block w-full text-left px-4 py-3 hover:bg-gray-50"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pickSuggestion(s)}
+            >
+              {s.address}
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   );

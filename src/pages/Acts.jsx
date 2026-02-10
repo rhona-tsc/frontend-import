@@ -295,6 +295,16 @@ if (storedDate) {
   // setSelectedCounty?.(p.county);
 
   // hide the search box if open
+    try {
+    ACTS_DBG("applyPresetLocation() -> setShowSearch(false)", {
+      presetKey: key,
+      county: p.county,
+      address: p.address,
+      placeLabel: p.placeLabel,
+      before_showSearch: showSearch,
+    });
+  } catch {}
+
   setShowSearch(false);
 
   // ensure we're on /acts (optional)
@@ -535,6 +545,40 @@ const hasStoredLocation = () => {
 
   // --- FILTER TOGGLE DEBUG ---------------------------------------------------
 
+    useEffect(() => {
+    if (!DEBUG_FILTER) return;
+
+    const storedDate = getStored("selectedDate");
+    const storedAddress = getStored("selectedAddress");
+    const storedCounty = getStored("selectedCounty");
+    const storedPlace = getStored("selectedPlace");
+
+    ACTS_DBG("STATE SNAPSHOT", {
+      showSearch,
+      initializing,
+      updatingResults,
+      preset,
+      appliedOnce: appliedOnceRef.current,
+      selectedDate,
+      selectedAddress,
+      selectedCounty,
+      storedDate,
+      storedAddress,
+      storedCounty,
+      storedPlace,
+      noLocation: !storedAddress && !storedCounty && !storedPlace,
+      hasStoredLocation: hasStoredLocation(),
+    });
+  }, [
+    showSearch,
+    initializing,
+    updatingResults,
+    preset,
+    selectedDate,
+    selectedAddress,
+    selectedCounty,
+  ]);
+
   const uniqPush = (arr = [], v) => (arr.includes(v) ? arr : [...arr, v]);
 
   const logToggle = (group, { value, checked, before = [], after = [] }) => {
@@ -703,10 +747,28 @@ const hasStoredLocation = () => {
   };
 
   const triggerSearch = () => {
+    try {
+      ACTS_DBG("triggerSearch()", {
+        before_showSearch: showSearch,
+        storedAddress: getStored("selectedAddress"),
+        storedCounty: getStored("selectedCounty"),
+        storedPlace: getStored("selectedPlace"),
+        selectedDate,
+        selectedAddress,
+        selectedCounty,
+      });
+    } catch {}
+
     setShowSearch(true); // ✅ Open the search box
+
+    try {
+      ACTS_DBG("triggerSearch() -> setShowSearch(true) called", {
+        after_call_showSearch: showSearch,
+      });
+    } catch {}
+
     window.scrollTo(0, 0); // ✅ Ensure it stays on the acts page
   };
-
   const toggleGenre = (e) => {
     const value = e.target.value;
     const checked = e.target.checked;
@@ -2193,6 +2255,20 @@ useEffect(() => {
       !storedAddress && !storedCounty && !getStored("selectedPlace");
 
     const isPresetRoute = Boolean(preset); // you already have useParams()
+
+        if (DEBUG_FILTER) {
+      ACTS_DBG("INIT auto-open check", {
+        preset,
+        isPresetRoute,
+        appliedOnce_before: appliedOnceRef.current,
+        noLocation,
+        storedDate,
+        storedAddress,
+        storedCounty,
+        storedPlace: getStored("selectedPlace"),
+      });
+    }
+
 
     if (!isPresetRoute && noLocation && !appliedOnceRef.current) {
       appliedOnceRef.current = true;
