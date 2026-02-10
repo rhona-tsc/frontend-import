@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 /**
  * getAddress.io autocomplete (NO Google Places)
  *
- * Uses your backend proxy routes:
+ * Backend proxy routes:
  *  - GET /api/google/address/autocomplete?term=...
  *  - GET /api/google/address/get?id=...
  *
@@ -59,7 +59,9 @@ const GoogleAutocomplete = ({
 
   const term = useMemo(() => normaliseSpaces(inputValue), [inputValue]);
 
-  // Fetch autocomplete as user types
+  // Prefer relative /api calls (Netlify proxy) — but allow override if you want
+  const API_BASE = import.meta.env.VITE_BACKEND_URL || "";
+
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
@@ -77,14 +79,17 @@ const GoogleAutocomplete = ({
 
         setLoading(true);
 
-       const API_BASE =
-  import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
+        // ✅ FIX: use autocomplete (free-text typing)
+        const res = await fetch(
+          `${API_BASE}/api/google/address/autocomplete?term=${encodeURIComponent(
+            term
+          )}`,
+          { signal: abortRef.current.signal }
+        );
 
-const res = await fetch(
-`${API_BASE}/api/google/address/autocomplete?term=${encodeURIComponent(term)}`);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          console.warn("[getAddress lookup] non-200:", data);
+          console.warn("[getAddress autocomplete] non-200:", data);
           setSuggestions([]);
           setOpen(false);
           return;
@@ -92,7 +97,6 @@ const res = await fetch(
 
         const raw = Array.isArray(data?.suggestions) ? data.suggestions : [];
 
-        // getAddress autocomplete typically returns: { id, address } (sometimes different keys)
         const mapped = raw
           .map((s) => ({
             id: s?.id || s?.Id || s?.slug || s?.value || "",
@@ -116,8 +120,7 @@ const res = await fetch(
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [term]);
+  }, [term, API_BASE]);
 
   const pickSuggestion = async (s) => {
     try {
@@ -125,21 +128,20 @@ const res = await fetch(
       setSuggestions([]);
       setLoading(true);
 
+      // ✅ FIX: also use API_BASE here for consistency
       const res = await fetch(
-        `/api/google/address/get?id=${encodeURIComponent(s.id)}`
+        `${API_BASE}/api/google/address/get?id=${encodeURIComponent(s.id)}`
       );
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         console.warn("[getAddress get] non-200:", data);
-        // fall back to just the suggestion text
         setValue(s.address);
         lastSelectedAddressRef.current = s.address;
         selectedRef.current = true;
         return;
       }
 
-      // getAddress "get" returns structured fields; build something user-friendly
       const line1 = data?.line_1 || data?.line1 || data?.Line1 || "";
       const line2 = data?.line_2 || data?.line2 || data?.Line2 || "";
       const town =
@@ -158,7 +160,6 @@ const res = await fetch(
       if (postcodeVal) setPostcode?.(postcodeVal);
       if (countyVal) setCounty?.(countyVal);
 
-      // mark that postcode/county came from selection
       lastSelectedAddressRef.current = finalAddress;
       selectedRef.current = true;
     } finally {
