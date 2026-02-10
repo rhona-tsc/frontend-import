@@ -77,13 +77,13 @@ const GoogleAutocomplete = ({
         setLoading(true);
 
         const res = await fetch(
-          `/api/google/address/autocomplete?term=${encodeURIComponent(term)}`,
+          `/api/google/address/lookup?term=${encodeURIComponent(term)}`,
           { signal: abortRef.current.signal }
         );
 
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          console.warn("[getAddress autocomplete] non-200:", data);
+          console.warn("[getAddress lookup] non-200:", data);
           setSuggestions([]);
           setOpen(false);
           return;
