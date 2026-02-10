@@ -77,7 +77,7 @@ const GoogleAutocomplete = ({
         setLoading(true);
 
         const res = await fetch(
-          `/api/google/address/lookup?term=${encodeURIComponent(term)}`,
+          `/api/google/address/autocomplete?term=${encodeURIComponent(term)}`,
           { signal: abortRef.current.signal }
         );
 
