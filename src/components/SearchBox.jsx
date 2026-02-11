@@ -78,41 +78,45 @@ const SearchBox = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAddress, selectedDate]);
 
+  const getStored = (key) => sessionStorage.getItem(key) || "";
   // ✅ Determine if we already have enough info to NOT show the search box on /acts
   // Rule: date required AND (address OR valid postcode) present (from context or session storage)
   const searchSnapshot = useMemo(() => {
     const ssAddr = getStored("selectedAddress");
     const ssDate = getStored("selectedDate");
-    const ssPc = getStored("selectedPostcode");
-    const ssCounty = getStored("selectedCounty");
+ 
+
     const ssPlace = getStored("selectedPlace");
 
     const ctxAddr = String(selectedAddress || "").trim();
     const ctxDate = String(selectedDate || "").trim();
-    const ctxPc = String(selectedPostcode || "").trim();
-    const ctxCounty = String(selectedCounty || "").trim();
+    
 
     const date = (ctxDate || ssDate).trim();
     const addr = (ctxAddr || ssAddr).trim();
-
+const extractPostcode = (text = "") => {
+      const m = String(text || "")
+        .toUpperCase()
+        .match(/([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})/);
+      return m ? m[1] : "";};
     // ✅ postcode can come from context, session, or be embedded in address text
-    const rawPc = (ctxPc || ssPc || extractPostcode(addr)).trim();
+    const rawPc = ( extractPostcode(addr)).trim();
 
     const pcOk = isValidUKPostcode(rawPc);
     const hasVenue =
-      Boolean(addr) || pcOk || Boolean(ctxCounty || ssCounty || ssPlace);
+      Boolean(addr) || pcOk || Boolean( ssPlace);
 
     const hasCompleteSearch = Boolean(date) && (Boolean(addr) || pcOk);
 
     return {
       // sources
-      ctx: { ctxAddr, ctxDate, ctxPc, ctxCounty },
-      ss: { ssAddr, ssDate, ssPc, ssCounty, ssPlace },
+      ctx: { ctxAddr, ctxDate},
+      ss: { ssAddr, ssDate, ssPlace },
 
       // resolved
       resolved: { date, addr, rawPc, pcOk, hasVenue, hasCompleteSearch },
     };
-  }, [selectedAddress, selectedDate, selectedPostcode, selectedCounty]);
+  }, [selectedAddress, selectedDate]);
 
   // ✅ On arrival to /acts:
   // - if complete search exists → keep CLOSED
