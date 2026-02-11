@@ -26,7 +26,6 @@ import ResetPassword from "./pages/ResetPassword";
   import Privacy from "./pages/Privacy";
   import { useState, useEffect   } from "react";
 import AuthGateModal from "./components/AuthGateModal";
-import LandingPage from "./pages/LandingPage";
 import ScrollToTop from "./components/ScrollToTop";
 
   // 👇 helper to decode token once
@@ -130,7 +129,7 @@ import ScrollToTop from "./components/ScrollToTop";
                   password={password}
                   userId={userId}
                   />} />
-                  <Route path="/lp" element={<LandingPage />} />
+                  
               <Route path="/about" element={<About />} />
               <Route path="/act/:key" element={<Act />} />
               <Route path="/acts/:preset" element={<Acts />} />

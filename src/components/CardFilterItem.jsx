@@ -1,6 +1,6 @@
 // frontend/src/components/CardFilterActItem.jsx
-import React, { useState, useEffect, useContext } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useContext } from 'react';
+import { Link} from 'react-router-dom';
 import calculateActPricing from '../pages/utils/pricing';
 import { ShopContext } from '../context/ShopContext';
 
@@ -80,11 +80,9 @@ const PriceSkeleton = () => (
 );
 
 const CardFilterItem = ({ actData, shortlistCount, standalone = false }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
+ 
 
-  let ctx = {};
-  try { ctx = useContext(ShopContext) || {}; } catch { ctx = {}; }
+const ctx = useContext(ShopContext) || {};
 
   const {
     shortlistedActs,
