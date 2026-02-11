@@ -17,7 +17,7 @@ const normaliseUKPostcode = (value = "") => {
   return `${pc.slice(0, pc.length - 3)} ${pc.slice(-3)}`;
 };
 
-const SearchBox = () => {
+const SearchBar = () => {
   const location = useLocation();
 
   const {
@@ -199,4 +199,4 @@ const handleSearch = () => {
   ) : null;
 };
 
-export default SearchBox;
+export default SearchBar;
