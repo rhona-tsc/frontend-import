@@ -2235,20 +2235,8 @@ actsCopy = actsCopy.map((act) => {
     }
   }
 
-  // 1) Initial boot — keep as-is
-useEffect(() => {
-  const init = async () => {
-    setInitializing(true);
 
-    const storedDate = getStored("selectedDate");
-    const storedAddress = getStored("selectedAddress");
-    const storedCounty = getStored("selectedCounty");
-
-    if (storedCounty) setSelectedCounty(storedCounty);
-    if (storedDate) setSelectedDate(storedDate);
-    if (storedAddress) setSelectedAddress(storedAddress);
-
-   const AUTO_OPEN_KEY = "acts:autoOpenSearchDone";
+    const AUTO_OPEN_KEY = "acts:autoOpenSearchDone";
 
 const getStoredLocation = () => ({
   storedAddress: getStored("selectedAddress"),
@@ -2267,6 +2255,7 @@ const hasAnyLocation = () => {
   );
 };
 
+  // 1) Initial boot — keep as-is
 useEffect(() => {
   const init = async () => {
     const { storedAddress, storedCounty, storedPlace } = getStoredLocation();
@@ -2327,7 +2316,7 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
-// ✅ If user selects a location while search is open, close it immediately
+    // ✅ If user selects a location while search is open, close it immediately
 useEffect(() => {
   if (showSearch && hasAnyLocation()) {
     if (DEBUG_FILTER) ACTS_DBG("Location detected -> closing search");
@@ -2352,6 +2341,14 @@ useEffect(() => {
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [actsFilterPageCards.length]);
+
+  // 3) When availability loading state flips, run filter again
+  useEffect(() => {
+    if (!initializing) {
+      applyFilter();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availLoading]);
 
   // 4) Main “filters changed” effect
   useEffect(() => {
