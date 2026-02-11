@@ -65,6 +65,7 @@ const SearchBox = () => {
   const [animate, setAnimate] = useState(false);
 
   const openedAtRef = useRef(null);
+  const DISMISS_KEY = "acts:searchboxDismissed";
 
   // Keep local inputs in sync with context + session storage (on load)
   useEffect(() => {
@@ -132,14 +133,32 @@ const extractPostcode = (text = "") => {
       ? hasCompleteSearch // strict: needs date+venue to close
       : hasVenue; // recommended: any venue closes
 
+    const dismissed = sessionStorage.getItem(DISMISS_KEY) === "1";
+
     SB_GROUP("📍 /acts searchbox decision");
     SB("showSearch BEFORE:", showSearch);
     SB("STRICT_REQUIRE_DATE_TO_HIDE:", STRICT_REQUIRE_DATE_TO_HIDE);
+    SB("dismissed:", dismissed);
     SB("ctx:", ctx);
     SB("ss:", ss);
     SB("resolved:", resolved);
-    SB("DECISION:", shouldClose ? "CLOSE ✅" : "OPEN ❗️");
+    SB(
+      "DECISION:",
+      shouldClose ? "CLOSE ✅" : dismissed ? "STAY CLOSED (dismissed) ✅" : "OPEN ❗️",
+    );
     SB_END();
+
+    // If user dismissed manually, don't auto-reopen until we have enough info
+    if (!shouldClose && dismissed) {
+      setAnimate(false);
+      setShowSearch(false);
+      return;
+    }
+
+    // If we now have enough info, clear any old dismissal
+    if (shouldClose && dismissed) {
+      sessionStorage.removeItem(DISMISS_KEY);
+    }
 
     if (shouldClose) {
       setAnimate(false);
@@ -148,7 +167,7 @@ const extractPostcode = (text = "") => {
       setShowSearch(true);
       setAnimate(true);
     }
-  }, [location.pathname, searchSnapshot, setShowSearch, showSearch]);
+  }, [location.pathname, searchSnapshot, setShowSearch]);
 
   // Auto-hide when navigating away from /acts (optional behaviour you already had)
   useEffect(() => {
@@ -165,6 +184,17 @@ const extractPostcode = (text = "") => {
 
   const handleClose = (reason = "manual") => {
     SB("handleClose()", { reason });
+
+    // If user clicked X, remember dismissal so /acts auto-open logic doesn't re-open it
+    if (reason === "manual") {
+      sessionStorage.setItem(DISMISS_KEY, "1");
+    }
+
+    // If search completed successfully, clear any previous dismissal
+    if (reason === "submit_success") {
+      sessionStorage.removeItem(DISMISS_KEY);
+    }
+
     setAnimate(false);
     setTimeout(() => setShowSearch(false), 500);
   };
@@ -233,6 +263,9 @@ const extractPostcode = (text = "") => {
       county,
       duration_ms: ms,
     });
+
+    // Clear any previous manual dismissal because we now have a valid search
+    sessionStorage.removeItem(DISMISS_KEY);
 
     handleClose("submit_success");
   };

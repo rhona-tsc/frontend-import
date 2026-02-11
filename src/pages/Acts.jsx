@@ -2124,15 +2124,40 @@ console.log("🧪 actsCopy len after filters:", actsCopy.length);
     const updatedActs = await Promise.all(
       actsCopy.map(async (act) => {
         try {
-          if (!selectedDate || !selectedAddress) {
+          const effDate = String(
+            selectedDate ||
+              sessionStorage.getItem("selectedDate") ||
+              localStorage.getItem("selectedDate") ||
+              ""
+          ).trim();
+
+          const effAddr = String(
+            (typeof selectedAddress === "string" && selectedAddress) ||
+              sessionStorage.getItem("selectedAddress") ||
+              localStorage.getItem("selectedAddress") ||
+              ""
+          ).trim();
+
+          const effCounty = String(
+            selectedCounty ||
+              sessionStorage.getItem("selectedCounty") ||
+              localStorage.getItem("selectedCounty") ||
+              ""
+          )
+            .trim()
+            .toLowerCase();
+
+          if (!effDate || !effAddr) {
             return { ...act, formattedPrice: null };
           }
+
           const price = await calculateActPricing(
             act,
-            selectedCounty,
-            selectedAddress,
-            selectedDate
+            effCounty,
+            effAddr,
+            effDate
           );
+
           return { ...act, formattedPrice: price };
         } catch {
           return { ...act, formattedPrice: null };
