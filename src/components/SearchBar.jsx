@@ -41,8 +41,7 @@ const SearchBar = () => {
   const [county, setCounty] = useState("");
   const [postcode, setPostcode] = useState("");
   const openedAtRef = useRef(null);
-  const postcodeOk = useMemo(() => isValidUKPostcode(postcode), [postcode]);
-const navigate = useNavigate();
+  const navigate = useNavigate();
   useEffect(() => {
     setLocalAddress(selectedAddress || "");
     setLocalDate(selectedDate || "");

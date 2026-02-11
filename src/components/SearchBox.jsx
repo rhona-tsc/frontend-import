@@ -39,6 +39,28 @@ const SearchBox = () => {
 const openedAtRef = React.useRef(null);
   const postcodeOk = useMemo(() => isValidUKPostcode(postcode), [postcode]);
 
+  const hasStoredSearch = useMemo(() => {
+  const addr = (sessionStorage.getItem("selectedAddress") || "").trim();
+  const date = (sessionStorage.getItem("selectedDate") || "").trim();
+  const pc = (sessionStorage.getItem("selectedPostcode") || "").trim();
+  return !!addr && !!date && isValidUKPostcode(pc);
+}, []);
+
+useEffect(() => {
+  if (location.pathname !== "/acts") return;
+
+  if (hasStoredSearch) {
+    // ✅ We already have enough info → keep searchbox closed
+    setAnimate(false);
+    setShowSearch(false);
+  } else {
+    // ❗ No stored search → show it so they can search
+    setShowSearch(true);
+    setAnimate(true);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [location.pathname, hasStoredSearch]);
+
   useEffect(() => {
     setLocalAddress(selectedAddress || "");
     setLocalDate(selectedDate || "");
