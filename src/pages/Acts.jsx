@@ -2281,6 +2281,10 @@ useEffect(() => {
     }
 
     if (DEBUG_FILTER) {
+      const storedDate =
+  sessionStorage.getItem("selectedDate") ||
+  localStorage.getItem("selectedDate") ||
+  "";
       ACTS_DBG("INIT auto-open check", {
         preset,
         isPresetRoute,
@@ -2296,6 +2300,10 @@ useEffect(() => {
 
     // warm availability from cache (keep your existing logic)
     try {
+      const storedDate =
+  sessionStorage.getItem("selectedDate") ||
+  localStorage.getItem("selectedDate") ||
+  "";
       const d = (storedDate || "").slice(0, 10);
       if (d) {
         const cached = sessionStorage.getItem(`availMap:${d}`);
