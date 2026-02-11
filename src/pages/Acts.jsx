@@ -2232,7 +2232,15 @@ actsCopy = actsCopy.map((act) => {
       ACTS_DBG(`Skipping stale filter run #${runId}`);
       ENDGROUP();
     }
+    console.table(
+  updatedActs.slice(0, 15).map((a) => ({
+    name: a.tscName || a.name,
+    formattedPrice: a.formattedPrice,
+    numeric: Number(a.formattedPrice),
+  }))
+);
   }
+  
 
 
     const AUTO_OPEN_KEY = "acts:autoOpenSearchDone";
