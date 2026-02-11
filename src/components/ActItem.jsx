@@ -51,7 +51,15 @@ const getBasePrice = (src) => {
   return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
 };
 const getLove = (src, shortlistCount) => {
-  const n = src?.loveCount ?? src?.numberOfShortlistsIn ?? shortlistCount ?? src?.shortlistCount ?? src?.metrics?.shortlists ?? 0;
+  const n =
+    src?.loveCount ??
+    src?.timesShortlisted ??              // ✅ ADD THIS
+    src?.numberOfShortlistsIn ??
+    shortlistCount ??
+    src?.shortlistCount ??
+    src?.metrics?.shortlists ??
+    0;
+
   return Math.max(0, Number(n) || 0);
 };
 
@@ -450,7 +458,11 @@ const handleHeartClick = (e) => {
   // ✅ Optimistic local count change layered on top of DB value
   setLoveCount((prev) => {
     const safe = Number(prev) || 0;
-    return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
+setLoveCount((prev) => {
+  const safe = Number(prev) || 0;
+  // ✅ Only bump when adding. Never decrement.
+  return isShortlistedNow ? safe : safe + 1;
+});
   });
 
   // ✅ Let ShopContext handle guest mode + auth gate + server calls

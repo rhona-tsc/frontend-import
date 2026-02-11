@@ -2433,7 +2433,7 @@ const getSortPrice = (act) => {
 };
 
 const results = useMemo(() => {
-  const arr = Array.isArray(filterProducts) ? filterProducts : [];
+  const arr = Array.isArray(results) ? results : [];
   if (sortType === "relevant") return arr;
 
   const dir = sortType === "low-high" ? 1 : -1;
@@ -2450,8 +2450,20 @@ const results = useMemo(() => {
 
     return dir * (A - B);
   });
-}, [filterProducts, sortType]);
+}, [results, sortType]);
 
+useEffect(() => {
+  try {
+    console.log("🔃 [Acts] sort preview", { sortType, count: results?.length || 0 });
+    console.table(
+      (results || []).slice(0, 12).map((a) => ({
+        name: a.tscName || a.name,
+        formattedPrice: a.formattedPrice,
+        sortPrice: getSortPrice(a),
+      }))
+    );
+  } catch {}
+}, [sortType, results]);
 
 const applyTimerRef = useRef(null);
 
@@ -4161,6 +4173,7 @@ useEffect(() => {
                       item?.images ??
                       item?.__card?.images ??
                       item?.__card?.coverImages,
+                     
                   }}
                   variant="listing"
                 />

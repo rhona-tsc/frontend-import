@@ -20,10 +20,11 @@ const getBasePrice = (src) => {
   const base = src?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
   return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
 };
-const getLove = (src, shortlistCount) => {
-  const n = src?.loveCount ?? src?.numberOfShortlistsIn ?? shortlistCount ?? src?.shortlistCount ?? src?.metrics?.shortlists ?? 0;
+const getLove = (src, fallback) => {
+  const n = src?.timesShortlisted ?? src?.loveCount ?? fallback ?? 0;
   return Math.max(0, Number(n) || 0);
 };
+
 const getSlug = (src) => {
   const s =
     src?.slug ||

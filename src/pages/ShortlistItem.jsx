@@ -29,7 +29,16 @@ const ShortlistItem = ({
   const [isAnimating, setIsAnimating] = useState(false);
   const [price, setPrice] = useState(null);
 
-  const [loveCount, setLoveCount] = useState(shortlistCount || 0);
+const getEngagement = (act, fallback) => {
+  const n = act?.timesShortlisted ?? fallback ?? 0;
+  return Math.max(0, Number(n) || 0);
+};
+
+const [loveCount, setLoveCount] = useState(() => getEngagement(actData, shortlistCount));
+
+useEffect(() => {
+  setLoveCount(getEngagement(actData, shortlistCount));
+}, [actData?.timesShortlisted, shortlistCount]);
   const { shortlistAct, shortlistedActs, selectedCounty, selectedAddress, selectedDate, triggerSearch } = useContext(ShopContext);
 
   // ✅ One source of truth for the act id (some parents pass `id`, others rely on `actData._id`)
@@ -161,7 +170,10 @@ useEffect(() => {
       console.warn("⚠️ No actId available for shortlist toggle", { id, _id, actData });
       return;
     }
-
+setLoveCount((prev) => {
+  const safe = Number(prev) || 0;
+  return heartOn ? Math.max(0, safe - 1) : safe + 1;
+});
     setIsAnimating(true);
     onShortlistToggle?.(resolved);
     setTimeout(() => setIsAnimating(false), 300);
@@ -378,10 +390,10 @@ return (
   </svg>
 )}
             </button>
-<p className={`text-xs ${shortlistCount === 0 ? 'text-white' : 'text-gray-700'}`}>
-  {shortlistCount === 0
+<p className={`text-xs ${loveCount === 0 ? 'text-white' : 'text-gray-700'}`}>
+  {loveCount === 0
     ? 'love me'
-    : `${formatLoveCount(shortlistCount)} ${shortlistCount === 1 ? 'love' : 'loves'}`}
+    : `${formatLoveCount(loveCount)} ${loveCount === 1 ? 'love' : 'loves'}`}
 </p>
           </div>
         </div>

@@ -63,7 +63,19 @@ const BestSeller = () => {
               key={String(item.actId || item._id)}
               style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
             >
-              <ActItem actData={item} />
+              <ActItem 
+                           actData={{
+                                  ...item,
+                      
+                                    loveCount: Number(
+                item.loveCount ??
+                item.timesShortlisted ??
+                item.numberOfShortlistsIn ??
+                item.shortlistCount ??
+                0
+              ) || 0,
+                                  }}
+                           />
             </div>
           ))}
         </div>

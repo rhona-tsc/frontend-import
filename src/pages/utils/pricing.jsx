@@ -22,7 +22,16 @@ const calculateActPricing = async (
     return { total: 0, travelCalculated: false };
   }
 
-  const normalizeCounty = (c) => String(c || "").toLowerCase().trim();
+const normalizeCounty = (c) =>
+  String(c || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[.,]/g, "")
+    .replace(/\bcounty\b/g, "")
+    .replace(/\bgreater\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   const isManagerLike = (m = {}) => {
     const has = (s = "") => /\b(manager|management)\b/i.test(String(s));
@@ -32,22 +41,37 @@ const calculateActPricing = async (
     return rolesArr.some((r) => has(r?.role) || has(r?.title));
   };
 
-  const getCountyFeeFromMap = (feesMap, countyName) => {
-    if (!feesMap) return undefined;
-    const target = normalizeCounty(countyName);
-    const entries =
-      typeof feesMap.forEach === "function"
-        ? (() => {
-            const arr = [];
-            feesMap.forEach((v, k) => arr.push([k, v]));
-            return arr;
-          })()
-        : Object.entries(feesMap);
-    for (const [key, val] of entries) {
-      if (normalizeCounty(key) === target) return val;
-    }
-    return undefined;
-  };
+const getCountyFeeFromMap = (feesMap, countyName) => {
+  if (!feesMap) return undefined;
+  const target = normalizeCounty(countyName);
+
+  const entries =
+    typeof feesMap.forEach === "function"
+      ? (() => {
+          const arr = [];
+          feesMap.forEach((v, k) => arr.push([k, v]));
+          return arr;
+        })()
+      : Object.entries(feesMap);
+
+  const normLookup = new Map();
+  for (const [key, val] of entries) {
+    normLookup.set(normalizeCounty(key), val);
+  }
+
+  if (normLookup.has(target)) return normLookup.get(target);
+
+  // London alias handling
+  if (target === "london") {
+    return (
+      normLookup.get("greater london") ??
+      normLookup.get("inner london") ??
+      normLookup.get("outer london")
+    );
+  }
+
+  return undefined;
+};
 
   const hasAnyCountyFees = (feesMap) => {
     if (!feesMap) return false;
@@ -177,8 +201,20 @@ const calculateActPricing = async (
   const countyFees = act?.countyFees ?? TRAVEL.countyFees ?? null;
   const costPerMileNorm = Number(act?.costPerMile ?? TRAVEL.costPerMile) || 0;
 
-  const hasCountyTable = !!(useCounty && hasAnyCountyFees(countyFees) && derivedCounty);
+const countyFeePerMemberRaw = useCounty
+  ? getCountyFeeFromMap(countyFees, derivedCounty)
+  : undefined;
 
+const countyFeePerMember = countyFeePerMemberRaw != null
+  ? Number(String(countyFeePerMemberRaw).replace(/[^0-9.-]/g, ""))
+  : undefined;
+
+const hasCountyTable = !!(
+  useCounty &&
+  hasAnyCountyFees(countyFees) &&
+  derivedCounty &&
+  Number.isFinite(countyFeePerMember)
+);
   console.log("🌍 Travel flags (normalized):", {
     useCounty,
     hasCountyFees: hasAnyCountyFees(countyFees),
@@ -285,14 +321,22 @@ const calculateActPricing = async (
   let travelCalculated = false;
 
   if (decision === "county") {
-    const feePerMemberRaw = getCountyFeeFromMap(countyFees, derivedCounty);
-    const feePerMember = Number(feePerMemberRaw) || 0;
-    console.log("📊 County travel fee per member (raw):", feePerMemberRaw, "→ parsed:", feePerMember);
-    if (travelEligibleCount > 0) {
-      travelFee = feePerMember * travelEligibleCount;
-      travelCalculated = true;
-    }
+  console.log(
+    "📊 County travel fee per member (raw):",
+    countyFeePerMemberRaw,
+    "→ parsed:",
+    countyFeePerMember
+  );
+
+  if (Number.isFinite(countyFeePerMember) && travelEligibleCount > 0) {
+    travelFee = countyFeePerMember * travelEligibleCount;
+    travelCalculated = true;
+  } else {
+    console.warn(
+      "⚠️ County travel selected but no matching county fee found — will fall back."
+    );
   }
+}
 
   if (!travelCalculated && (!selectedAddress || !selectedDate)) {
     const totalPrice = Math.ceil(baseFeeTotal);

@@ -46,6 +46,7 @@ const ShopProvider = (props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [cartTotal, setCartTotal] = useState(0);
+  const [selectedCounty, setSelectedCounty] = useState("");
   const [cartTotalLoading, setCartTotalLoading] = useState(false);
   const currency = "£";
   const delivery_fee = 10;
@@ -307,6 +308,9 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
     instruments: asArray(merged?.instruments),
     leadRole: asStr(merged?.leadRole),
     vocalist: asStr(merged?.vocalist),
+    timesShortlisted: Number(merged?.timesShortlisted ) || 0,
+    numberOfShortlistsIn: Number(merged?.numberOfShortlistsIn) || 0,
+
   };
 };
 
@@ -526,7 +530,6 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
         slug: c.slug || c.s || "",
         imageUrl: c.imageUrl || c.img || "",
         basePrice: num(c.basePrice ?? c.p),
-        loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
         availabilityBadge: c.availabilityBadge || c.badge || null,
         status: c.status || c.st || "",
         createdAt: c.createdAt || null,
@@ -537,6 +540,8 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
 instruments: Array.isArray(c.instruments) ? c.instruments : [],
 leadRole: c.leadRole || "",
 vocalist: c.vocalist || "",
+timesShortlisted: Number(c.timesShortlisted || 0) || 0, 
+numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
       };
     };
 
@@ -571,8 +576,8 @@ vocalist: c.vocalist || "",
         slug: a?.slug || "",
         imageUrl: pickImage(a),
         basePrice,
-        loveCount:
-          Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
+        timesShortlisted: Number(a?.timesShortlisted || 0) || 0,  
+        numberOfShortlistsIn: Number(a?.numberOfShortlistsIn || 0) || 0,
         availabilityBadge: null,
         status: a?.status || "",
         createdAt: a?.createdAt,
@@ -675,14 +680,14 @@ vocalist: c.vocalist || "",
         updatedAt: a.updatedAt,
         bestseller: a.bestseller ?? a.bestSeller ?? false,
         minDisplayPrice: a.minDisplayPrice || null,
-        loveCount:
-          Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
         availabilityBadge: null,
         status: a?.status || "",
         genres: Array.isArray(a.genres) ? a.genres : [],
 instruments: Array.isArray(a.instruments) ? a.instruments : [],
 leadRole: a.leadRole || "",
 vocalist: a.vocalist || "",
+timesShortlisted: Number(a.timesShortlisted || 0) || 0,
+numberOfShortlistsIn: Number(a.numberOfShortlistsIn || 0) || 0,
       };
     };
 
@@ -748,13 +753,14 @@ vocalist: a.vocalist || "",
         slug: c.slug || "",
         imageUrl: c.imageUrl || "",
         basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
-        loveCount: Number(c.loveCount) || 0,
         availabilityBadge: c.availabilityBadge || null,
         status: c.status || "",
 genres: Array.isArray(c.genres) ? c.genres : [],
 instruments: Array.isArray(c.instruments) ? c.instruments : [],
 leadRole: c.leadRole || "",
 vocalist: c.vocalist || "",
+timesShortlisted: Number(c.timesShortlisted || 0) || 0,
+numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
         // ✅ needed by NewActs + BestSeller
         createdAt: c.createdAt || null,
         minDisplayPrice: Number.isFinite(c.minDisplayPrice)
@@ -816,13 +822,15 @@ vocalist: c.vocalist || "",
         slug: c.slug || c.s || "",
         imageUrl: c.imageUrl || c.img || "",
         basePrice: num(c.basePrice ?? c.p),
-        loveCount: Number(c.loveCount ?? c.l ?? 0) || 0,
         availabilityBadge: c.availabilityBadge || c.badge || null,
         status: c.status || c.st || "",
         genres: Array.isArray(c.genres) ? c.genres : [],
 instruments: Array.isArray(c.instruments) ? c.instruments : [],
 leadRole: c.leadRole || "",
 vocalist: c.vocalist || "",
+timesShortlisted: Number(c.timesShortlisted || 0) || 0,
+numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
+
       };
     };
 
@@ -985,8 +993,8 @@ vocalist: c.vocalist || "",
         basePrice,
 
         // prefer a specific shortlist counter if present
-        loveCount:
-          Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
+        timesShortlisted: Number(a?.timesShortlisted) || 0,
+        numberOfShortlistsIn: Number(a?.numberOfShortlistsIn) || 0,
 
         status: a?.status || "",
 
@@ -1219,8 +1227,8 @@ vocalist: c.vocalist || "",
         tscName: a?.tscName || a?.name || "",
         imageUrl: pickImage(a),
         basePrice,
-        loveCount:
-          Number(a?.numberOfShortlistsIn || a?.timesShortlisted || 0) || 0,
+        timesShortlisted: Number(a?.timesShortlisted || 0) || 0,
+        numberOfShortlistsIn: Number(a?.numberOfShortlistsIn || 0) || 0,
         status: a?.status || "",
 
         // extra fields commonly used in filters
@@ -1315,10 +1323,6 @@ vocalist: c.vocalist || "",
           slug: c.slug || "",
           imageUrl: pickImage(c),
           basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
-          loveCount:
-            Number(
-              c.loveCount || c.timesShortlisted || c.numberOfShortlistsIn
-            ) || 0,
           availabilityBadge: c.availabilityBadge || null,
           status: c.status || "",
           // ✅ needed by NewActs + BestSeller
@@ -1348,6 +1352,8 @@ vocalist: c.vocalist || "",
           images: c.images || c.coverImages || null,
 leadRole: c.leadRole || "",
 vocalist: c.vocalist || "",
+timesShortlisted: Number(c.timesShortlisted) || 0,
+numberOfShortlistsIn: Number(c.numberOfShortlistsIn) || 0,
         };
       });
 
@@ -1991,47 +1997,7 @@ vocalist: c.vocalist || "",
     return ALLOWED_ACT_NAMES.has(name);
   };
 
-  // Compute vocalist-specific “fee” for messaging (optional/nice-to-have)
-  const computeVocalistFeeForMessage = async ({
-    act,
-    lineup,
-    address,
-    date,
-  }) => {
-    try {
-      // members & base per-head
-      const members = Array.isArray(lineup?.bandMembers)
-        ? lineup.bandMembers
-        : [];
-      const lineupTotal =
-        Number(lineup?.base_fee?.[0]?.total_fee) ||
-        Number(act?.base_fee?.[0]?.total_fee) ||
-        0;
-      const perHead = members.length > 0 ? lineupTotal / members.length : 0;
 
-      // try a basic travel component (very light touch; your pricing util can be heavier)
-      // we won’t overfit here—this is just for the message number
-      const vocalist =
-        members.find((m) =>
-          [
-            "Lead Male Vocal",
-            "Lead Female Vocal",
-            "Lead Vocal",
-            "vocalist-guitarist",
-          ].includes(m.instrument)
-        ) || members[0];
-
-      let travelFee = 0;
-      if (vocalist?.postCode && act?.costPerMile > 0 && address) {
-        // We can omit the distance API for now to avoid extra latency — per your current code you often fallback.
-        // travelFee stays 0 (or you can add a fixed heuristic if you prefer)
-      }
-      const fee = Math.ceil(Math.max(0, perHead + travelFee));
-      return fee > 0 ? String(fee) : null;
-    } catch {
-      return null;
-    }
-  };
 
   // Deduped availability trigger
   const requestVocalistAvailability = (() => {
@@ -2081,8 +2047,7 @@ vocalist: c.vocalist || "",
     };
   })();
 
-  // 🔁 Global AUTO-TRIGGER: when user adds date+address AFTER shortlisting,
-  // ping availability for ALL shortlisted acts (with 6h per-act cooldown).
+  // 🔁 Global AUTO-TRIGGER: currently does nothing.
   useEffect(() => {
     (async () => {
       try {
@@ -2491,35 +2456,32 @@ const shortlistAct = async (uid, actId) => {
     Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
 
   // ✅ Helper: sync loveCount in your cards list from server value
-  const syncLoveCountFromServer = (newLoveCount) => {
-    if (newLoveCount === undefined || newLoveCount === null) return;
+const updateShortlistsInEverywhere = (actId, newCount) => {
+  const idStr = String(actId);
+  const n = Math.max(0, Number(newCount) || 0);
 
-    // 🔁 Change this setter name if yours differs
-    if (typeof setFilterActCards === "function") {
-      setFilterActCards((prevCards) => {
-        if (!Array.isArray(prevCards)) return prevCards;
-
-        return prevCards.map((card) => {
-          // Try a few common id shapes
-          const cardId =
-            String(
-              card?.actId ??
-                card?._id ??
-                card?.act?._id ??
-                card?.act ??
-                ""
-            ) || "";
-
-          if (cardId !== idStr) return card;
-
-          return {
-            ...card,
-            loveCount: Number(newLoveCount) || 0,
-          };
-        });
-      });
-    }
+  const patchCard = (card) => {
+    const cardId = String(card?.actId ?? card?._id ?? card?.id ?? "");
+    if (cardId !== idStr) return card;
+    return { ...card, numberOfShortlistsIn: n }; // ✅ ONLY this
   };
+
+  setActCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
+  setActFilterCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
+  setActsFilterCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
+  setActsPageCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
+  setActsFilterPageCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
+
+  setActs((prev) =>
+    Array.isArray(prev)
+      ? prev.map((a) => {
+          const aid = String(a?._id ?? a?.actId ?? "");
+          if (aid !== idStr) return a;
+          return { ...a, numberOfShortlistsIn: n }; // ✅ ONLY this
+        })
+      : prev
+  );
+};
 
   // ⚡ Optimistic shortlist list update (NOT loveCount — we’ll trust server response)
   const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
@@ -2542,12 +2504,10 @@ const shortlistAct = async (uid, actId) => {
       );
 
       // ✅ Expect your backend to return: { success: true, loveCount: <number> }
-      const loveCountFromServer =
-        res?.data?.loveCount ??
-        res?.data?.numberOfShortlistsIn ??
-        res?.data?.count;
+     const loveCountFromServer =
+res?.data?.timesShortlisted 
 
-      syncLoveCountFromServer(loveCountFromServer);
+updateShortlistsInEverywhere(idStr, loveCountFromServer);
     } else {
       // 🟢 Adding to shortlist
       const res = await axios.patch(
@@ -2555,12 +2515,11 @@ const shortlistAct = async (uid, actId) => {
         clientPayload
       );
 
-      const loveCountFromServer =
-        res?.data?.loveCount ??
-        res?.data?.numberOfShortlistsIn ??
-        res?.data?.count;
+    const loveCountFromServer =
+  
+  res?.data?.timesShortlisted ??
 
-      syncLoveCountFromServer(loveCountFromServer);
+updateShortlistsInEverywhere(idStr, loveCountFromServer);
 
       // ✅ Google Ads conversion: only fire on successful ADD
       reportShortlistConversion({ actId: idStr, value: 1.0, currency: "GBP" });
@@ -2991,6 +2950,7 @@ const addToCart = async (
     setSearch,
     showSearch,
     setShowSearch,
+    selectedCounty,
     backendUrl,
     getActById,
     searchActCards,
