@@ -106,8 +106,8 @@ const SearchBar = () => {
   const searchDisabled = !postcodeOk;
 
   return (
-    <div className="fixed top-16 left-0 right-0 border-t border-b bg-gray-50 text-center shadow-md z-50 py-4">
-      {/* ⬇️ Key change: align blocks from the top, and make each control its own “column” */}
+<div className="w-full border border-gray-200 bg-gray-50 text-center shadow-sm py-4 rounded-xl mx-auto max-w-5xl">
+        {/* ⬇️ Key change: align blocks from the top, and make each control its own “column” */}
       <div className="flex flex-col sm:flex-row items-start justify-center gap-4 px-5">
         {/* Date column */}
         <div className="w-full sm:w-auto flex flex-col text-left">
