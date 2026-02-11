@@ -594,6 +594,14 @@ const hasStoredLocation = () => {
                   : [];
 
       const genresRaw = flat1(rawArr);
+        // --- GENRES helpers ------------------------------------------------------
+  const NORM_GENRE = (s) =>
+    String(s || "")
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+      
       const genresNorm = genresRaw.map(NORM_GENRE);
 
       console.log(`#${i} genres_raw:`, genresRaw);
@@ -673,13 +681,7 @@ const hasStoredLocation = () => {
 
   const items = Array.isArray(actsFilterPageCards) ? actsFilterPageCards : [];
 
-  // --- GENRES helpers ------------------------------------------------------
-  const NORM_GENRE = (s) =>
-    String(s || "")
-      .toLowerCase()
-      .replace(/&/g, "and")
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
+
 
   // Pull genres from multiple places and return a deduped list
   const getActGenres = (item) => {
@@ -2352,25 +2354,20 @@ const removeFilterPill = (item) => {
       ]);
     }
   };
-
-// ✅ Sorted results (no state mutation)
-const parsePrice = (v) => {
+// ✅ Price helpers (declare BEFORE any useMemo that uses them)
+function parsePrice(v) {
   if (v === null || typeof v === "undefined") return NaN;
   if (typeof v === "number") return Number.isFinite(v) ? v : NaN;
 
   const s = String(v).trim();
   if (!s) return NaN;
 
-  // remove currency symbols/spaces and thousands separators
   const cleaned = s.replace(/,/g, "").replace(/[^0-9.]/g, "");
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : NaN;
+}
 
-  
-};
-
-
-const formatGBP = (n) => {
+function formatGBP(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return null;
   return new Intl.NumberFormat("en-GB", {
@@ -2378,21 +2375,10 @@ const formatGBP = (n) => {
     currency: "GBP",
     maximumFractionDigits: 0,
   }).format(x);
-};
+}
 
-const resultsWithPrice = useMemo(() => {
-  return (results || []).map((a) => {
-    const sortPrice = getSortPrice(a); // <-- your existing numeric getter
-    return {
-      ...a,
-      sortPrice: Number.isFinite(sortPrice) ? sortPrice : null, // keep a numeric field
-      formattedPrice: formatGBP(sortPrice),                      // always derived
-    };
-  });
-}, [results]);
-
-
-const getSortPrice = (act) => {
+// Decide numeric sort price for an act/card
+function getSortPrice(act) {
   // If pricing has been calculated (address+date), use it
   const priced = parsePrice(act?.formattedPrice);
   if (!Number.isNaN(priced)) return priced;
@@ -2416,8 +2402,9 @@ const getSortPrice = (act) => {
   }
 
   return NaN;
-};
+}
 
+// ✅ First: compute results (sorted)
 const results = useMemo(() => {
   const arr = Array.isArray(filterProducts) ? filterProducts : [];
   if (sortType === "relevant") return arr;
@@ -2429,14 +2416,25 @@ const results = useMemo(() => {
     const B = getSortPrice(b);
 
     // Missing/NaN prices go to the end consistently
-    const bothNaN = Number.isNaN(A) && Number.isNaN(B);
-    if (bothNaN) return 0;
+    if (Number.isNaN(A) && Number.isNaN(B)) return 0;
     if (Number.isNaN(A)) return 1;
     if (Number.isNaN(B)) return -1;
 
     return dir * (A - B);
   });
 }, [filterProducts, sortType]);
+
+// ✅ Then: derive display fields from results
+const resultsWithPrice = useMemo(() => {
+  return (results || []).map((a) => {
+    const sortPrice = getSortPrice(a);
+    return {
+      ...a,
+      sortPrice: Number.isFinite(sortPrice) ? sortPrice : null,
+      formattedPrice: formatGBP(sortPrice),
+    };
+  });
+}, [results]);
 
 useEffect(() => {
   try {
