@@ -14,9 +14,30 @@ const offscreenStyle = {
   pointerEvents: "none",
 };
 
+const waitForPca = (timeoutMs = 5000) =>
+  new Promise((resolve, reject) => {
+    const start = Date.now();
+    const tick = () => {
+      if (
+        window.pca &&
+        typeof window.pca.Address === "function" &&
+        window.pca.fieldMode
+      ) {
+        resolve(window.pca);
+        return;
+      }
+      if (Date.now() - start > timeoutMs) {
+        reject(new Error("pca library not ready"));
+        return;
+      }
+      setTimeout(tick, 50);
+    };
+    tick();
+  });
+
 const RoyalMailAddressNow = ({
-  captureKey,          // ✅ new
-  idPrefix = "an",     // ✅ supports multiple instances
+  captureKey, // ✅ your Capture key for this instance
+  idPrefix = "an", // ✅ MUST be unique per instance on a page
   setAddress,
   setCounty,
   setPostcode,
@@ -27,6 +48,13 @@ const RoyalMailAddressNow = ({
   ...props
 }) => {
   const inputRef = useRef(null);
+
+  // AddressNow-populated field refs (hidden/offscreen inputs)
+  const line1Ref = useRef(null);
+  const line2Ref = useRef(null);
+  const townRef = useRef(null);
+  const countyRef = useRef(null);
+  const postcodeRef = useRef(null);
 
   // controlled/uncontrolled input
   const isControlled = typeof value !== "undefined";
@@ -49,91 +77,91 @@ const RoyalMailAddressNow = ({
     const p = String(idPrefix || "an");
     return {
       search: `${p}_search`,
-      formatted: `${p}_formatted`,
-      postcode: `${p}_postcode`,
-      county: `${p}_county`,
       line1: `${p}_line1`,
       line2: `${p}_line2`,
       town: `${p}_town`,
+      county: `${p}_county`,
+      postcode: `${p}_postcode`,
     };
   }, [idPrefix]);
 
-  // AddressNow-populated field refs
-  const formattedRef = useRef(null);
-  const postcodeRef = useRef(null);
-  const countyRef = useRef(null);
-  const line1Ref = useRef(null);
-  const line2Ref = useRef(null);
-  const townRef = useRef(null);
-
-  // ✅ Initialise AddressNow capture on the search input
+  // Bind AddressNow to THIS input + populate THESE hidden fields
   useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
+    let control = null;
+    let cancelled = false;
 
-    // wait for AddressNow to exist
-    if (!window.pca || !window.pca.Address) return;
+    const bind = async () => {
+      const el = inputRef.current;
+      if (!el) return;
 
-    // avoid double-binding
-    if (el.dataset.pcaBound === "1") return;
+      // prevent double-bind on re-renders
+      if (el.dataset.pcaBound === "1") return;
 
-    try {
-      // If you omit this, it will use the key from the script URL.
-      // If you include it, it forces the key you pass in here.
-      const keyToUse = captureKey || null;
+      try {
+        const pca = await waitForPca();
+        if (cancelled) return;
 
-      // Bind AddressNow to the search input
-      // NOTE: This is the standard AddressNow Capture API shape.
-      // If your account uses a different initializer, we can tweak.
-      const control = keyToUse
-        ? new window.pca.Address({ key: keyToUse }, el)
-        : new window.pca.Address({}, el);
+        // Fields mapping: SEARCH input + POPULATE into our hidden inputs
+        const fields = [
+          { element: ids.search, field: "", mode: pca.fieldMode.SEARCH },
+          { element: ids.line1, field: "Line1", mode: pca.fieldMode.POPULATE },
+          { element: ids.line2, field: "Line2", mode: pca.fieldMode.POPULATE },
+          { element: ids.town, field: "City", mode: pca.fieldMode.POPULATE },
+          {
+            element: ids.county,
+            field: "ProvinceName",
+            mode: pca.fieldMode.POPULATE,
+          },
+          {
+            element: ids.postcode,
+            field: "PostalCode",
+            mode: pca.fieldMode.POPULATE,
+          },
+        ];
 
-      // Optional: map fields (some setups auto-map via their on-page setup)
-      // We still poll the hidden inputs to sync into React.
+        const options = captureKey ? { key: captureKey } : {};
 
-      el.dataset.pcaBound = "1";
+        // Create the control
+        control = new pca.Address(fields, options);
 
-      return () => {
-        // best-effort cleanup; library doesn’t always expose destroy safely
-        try {
-          if (control?.destroy) control.destroy();
-        } catch {}
-      };
-    } catch (e) {
-      console.warn("AddressNow init failed:", e);
-    }
-  }, [captureKey]);
+        // When user selects an address, push into React state
+        control.listen("populate", () => {
+          const line1 = normaliseSpaces(line1Ref.current?.value || "");
+          const line2 = normaliseSpaces(line2Ref.current?.value || "");
+          const town = normaliseSpaces(townRef.current?.value || "");
+          const county = normaliseSpaces(countyRef.current?.value || "");
+          const postcode = normaliseSpaces(postcodeRef.current?.value || "");
 
-  // ✅ Keep React state synced with populated values
-  useEffect(() => {
-    let lastPostcode = "";
-    let lastCounty = "";
-    let lastFormatted = "";
+          const formatted = [line1, line2, town, county, postcode]
+            .filter(Boolean)
+            .join(", ");
 
-    const read = () => {
-      const pc = normaliseSpaces(postcodeRef.current?.value || "");
-      const cty = normaliseSpaces(countyRef.current?.value || "");
-      const fmt = normaliseSpaces(formattedRef.current?.value || "");
+          if (postcode) setPostcode?.(postcode);
+          if (county) setCounty?.(county);
+          if (formatted) setValue(formatted);
+        });
 
-      if (pc && pc !== lastPostcode) {
-        lastPostcode = pc;
-        setPostcode?.(pc);
-      }
-      if (cty && cty !== lastCounty) {
-        lastCounty = cty;
-        setCounty?.(cty);
-      }
-      if (fmt && fmt !== lastFormatted) {
-        lastFormatted = fmt;
-        setValue(fmt);
+        el.dataset.pcaBound = "1";
+      } catch (e) {
+        // If this happens, it usually means the script didn't load (or was blocked)
+        console.warn("[AddressNow] bind failed:", e);
       }
     };
 
-    const t = setInterval(read, 200);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setPostcode, setCounty, setAddress]);
+    bind();
+
+    return () => {
+      cancelled = true;
+      const el = inputRef.current;
+      if (el) delete el.dataset.pcaBound;
+
+      try {
+        if (control?.destroy) control.destroy();
+      } catch {
+        // some versions don’t expose destroy; ignore
+      }
+    };
+  }, [captureKey, ids.search, ids.line1, ids.line2, ids.town, ids.county, ids.postcode]);
 
   return (
     <div className="w-full relative">
@@ -144,21 +172,19 @@ const RoyalMailAddressNow = ({
         type="text"
         value={inputValue}
         placeholder={placeholder || "Start typing venue name or postcode..."}
-        className={className || "border rounded p-2 w-full"}
+        className={className || "border-2 border-gray-300 p-2 text-gray-500 bg-white w-full"}
         autoComplete="off"
         onChange={(e) => setValue(e.target.value)}
         {...props}
       />
 
-      {/* Off-screen mapped fields */}
+      {/* Off-screen fields for AddressNow to populate */}
       <div style={offscreenStyle} aria-hidden="true">
-        <input ref={formattedRef} id={ids.formatted} name={ids.formatted} />
-        <input ref={postcodeRef} id={ids.postcode} name={ids.postcode} />
-        <input ref={countyRef} id={ids.county} name={ids.county} />
-
         <input ref={line1Ref} id={ids.line1} name={ids.line1} />
         <input ref={line2Ref} id={ids.line2} name={ids.line2} />
         <input ref={townRef} id={ids.town} name={ids.town} />
+        <input ref={countyRef} id={ids.county} name={ids.county} />
+        <input ref={postcodeRef} id={ids.postcode} name={ids.postcode} />
       </div>
     </div>
   );

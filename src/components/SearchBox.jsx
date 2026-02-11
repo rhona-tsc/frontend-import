@@ -147,14 +147,15 @@ const handleSearch = () => {
         <div className="w-full sm:w-[420px] flex flex-col text-left">
           <p className="font-medium text-sm text-gray-700 mb-1">VENUE POSTCODE</p>
 
-         <RoyalMailAddressNow
-  captureKey="uu93-fd14-xw69-bu42"
+     <RoyalMailAddressNow
+  captureKey="KR44-RW29-HH36-NC62"
+  idPrefix="sb"              // ✅ unique
   setAddress={setLocalAddress}
   setCounty={setCounty}
   setPostcode={setPostcode}
   initialValue={localAddress}
   className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
-  placeholder="Start typing your venue"
+  placeholder="Type your venue or postcode..."
   required
 />
 

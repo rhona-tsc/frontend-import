@@ -154,17 +154,16 @@ const SearchBar = () => {
               VENUE
             </label>
 
-            <RoyalMailAddressNow
-              // if you're using different keys per location, pass it here
-              // captureKey="uu93-fd14-xw69-bu42"
-              setAddress={setLocalAddress}
-              setCounty={setCounty}
-              setPostcode={setPostcode}
-              // ✅ match SearchBox: square edges + thicker border
-              className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
-              placeholder="Start typing your venue"
-              id="qs-venue"
-            />
+  <RoyalMailAddressNow
+  captureKey="UU93-FD14-XW69-BU42"
+  idPrefix="qs"              // ✅ unique
+  setAddress={setLocalAddress}
+  setCounty={setCounty}
+  setPostcode={setPostcode}
+  className="w-full text-base px-3 py-2 border-2 border-gray-300 bg-white"
+  placeholder="Start typing your venue..."
+  id="qs-venue"
+/>
 
             {/* Optional: show captured postcode like SearchBox does */}
             <div className="min-h-[16px] mt-1">
