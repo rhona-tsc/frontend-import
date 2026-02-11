@@ -110,7 +110,7 @@ const SearchBar = () => {
         {/* ⬇️ Key change: align blocks from the top, and make each control its own “column” */}
           {/* ✅ Title */}
     <div className="px-5 mb-3 text-left">
-      <p className="text-xs uppercase tracking-wider text-gray-500">Quick Search</p>
+      <p className="text-5xl uppercase tracking-wider text-gray-500">Quick Search</p>
       {/* optional: tiny helper line */}
       <p className="text-sm text-gray-700">Instant pricing for your date & venue</p>
     </div>
