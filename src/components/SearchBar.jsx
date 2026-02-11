@@ -162,7 +162,7 @@ const SearchBar = () => {
                 : "bg-[#ff6667] hover:bg-[#ff3333]"
             }`}
             onClick={handleSearch}
-            disabled={searchDisabled}
+            
           >
             SEARCH
           </button>
