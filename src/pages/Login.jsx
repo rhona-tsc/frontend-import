@@ -31,6 +31,20 @@ const Login = () => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [location.pathname]); // ✅ runs whenever you navigate to /login
 
+  useEffect(() => {
+  const pendingActId = sessionStorage.getItem("pendingShortlistActId");
+  const storedUserRaw = localStorage.getItem("user");
+  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+
+  if (pendingActId && storedUser?._id) {
+    // User is already logged in, just do the auto-shortlist + redirect
+    (async () => {
+      await handleAutoShortlist(storedUser._id);
+      redirectAfterAuth();
+    })();
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
   
   // ✅ Helper – send them to the page they wanted before login (or home)
   const redirectAfterAuth = () => {
@@ -55,11 +69,10 @@ const Login = () => {
       // 1) Pull latest shortlist from server so we don’t toggle-off something that’s already saved
       let latest = Array.isArray(shortlistedActs) ? shortlistedActs : [];
 
-      if (typeof fetchShortlistedActs === "function") {
-        const res = await fetchShortlistedActs(userId);
-        // tolerate either returning the list or just updating context internally
-        if (Array.isArray(res)) latest = res;
-      }
+if (typeof fetchShortlistedActs === "function") {
+  const serverIds = await fetchShortlistedActs(userId);
+  if (Array.isArray(serverIds) && serverIds.length) latest = serverIds;
+}
 
       const alreadyShortlisted = latest.some(
         (id) => String(id) === String(pendingActId)

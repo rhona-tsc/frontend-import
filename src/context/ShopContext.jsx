@@ -1693,8 +1693,9 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn) || 0,
         lineup
       );
 
-      const total = Number(result?.total || 0);
-      return Number.isFinite(total) ? Math.ceil(total) : null;
+      const total = Number(result?.total);
+return Number.isFinite(total) ? total : null;
+
     } catch (e) {
       console.warn(
         "⚠️[ShopContext] getCardPriceWithTravel failed:",
@@ -2338,21 +2339,28 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn) || 0,
   // ============ Shortlist helpers ============
 
   // Public helper to refresh shortlist from backend
-  const fetchShortlistedActs = async (uid) => {
-    try {
-      const u = uid || userId;
-      if (!u) return;
-      const res = await axios.get(
-        `${backendUrl}/api/availability/user/${u}/shortlisted`
-      );
-      if (res.data.success) {
-        const ids = (res.data.acts || []).map((a) => String(a._id));
-        setShortlistedActs(ids);
-        setShortlistItems(ids);
-        localStorage.setItem("shortlistItems", JSON.stringify(ids));
-      }
-    } catch (err) {}
-  };
+ const fetchShortlistedActs = async (uid) => {
+  try {
+    const u = uid || userId;
+    if (!u) return [];
+
+    const res = await axios.get(
+      `${backendUrl}/api/availability/user/${u}/shortlisted`
+    );
+
+    const ids = (res.data?.acts || res.data?.items || res.data?.data || []).map((a) =>
+      String(a._id || a.actId || a.id)
+    );
+
+    setShortlistedActs(ids);
+    setShortlistItems(ids);
+    localStorage.setItem("shortlistItems", JSON.stringify(ids));
+
+    return ids; // ✅ return so callers can use it immediately
+  } catch (err) {
+    return [];
+  }
+};
 
   // Small helper: nudge user to log in and remember where they were
   const promptLogin = (
@@ -2377,17 +2385,31 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn) || 0,
   };
 
   // Add to shortlist (uses toggle route + triggers availability if date/address present)
-  const addToShortlist = async (itemId, selectedLineup) => {
-    // keep signature for callers, but route through shortlistAct (toggle)
-    const storedUserRaw = localStorage.getItem("user");
-    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-    const u = storedUser?._id || userId;
-    if (!u) {
-      promptLogin("Please log in to save acts to your shortlist.");
-      return;
-    }
-    await shortlistAct(u, String(itemId));
-  };
+ const addToShortlist = async (itemId, selectedLineup) => {
+  const storedUserRaw = localStorage.getItem("user");
+  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+  const u = storedUser?._id || userId;
+
+  const idStr = String(itemId);
+
+  // Try to resolve act name for nicer toast
+  const act =
+    (Array.isArray(acts) ? acts.find(a => String(a?._id || a?.actId) === idStr) : null) ||
+    (Array.isArray(actCards) ? actCards.find(a => String(a?.actId || a?._id) === idStr) : null);
+
+  const actName = act?.tscName || act?.name || "Act";
+
+  if (!u) {
+    promptLogin(
+      "Please log in to save acts to your shortlist.",
+      idStr,
+      actName
+    );
+    return;
+  }
+
+  await shortlistAct(u, idStr);
+};
 
 
   const reportShortlistConversion = ({ actId, value = 1.0, currency = "GBP" } = {}) => {

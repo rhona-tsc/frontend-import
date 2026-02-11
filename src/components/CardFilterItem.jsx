@@ -101,15 +101,13 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false }) => {
   const [price, setPrice] = useState(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
 
-  useEffect(() => {
-    setLoveCount(getLove(actData, shortlistCount));
-  }, [
-    actData?.loveCount,
-    actData?.numberOfShortlistsIn,
-    actData?.shortlistCount,
-    actData?.metrics?.shortlists,
-    shortlistCount
-  ]);
+ useEffect(() => {
+  setLoveCount(getLove(actData, shortlistCount));
+}, [
+  actData?.timesShortlisted,
+  actData?.loveCount,
+  shortlistCount,
+]);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,8 +173,8 @@ const CardFilterItem = ({ actData, shortlistCount, standalone = false }) => {
           return;
         }
 
-        // IMPORTANT: result.total already includes the 33% margin — do NOT reapply
-        !cancelled && setPrice({ ...result });
+        const withMargin = applyMargin(result.total);
+!cancelled && setPrice({ ...result, total: withMargin });
       } catch (err) {
         console.error('❌ Failed to calculate price:', {
           err,
