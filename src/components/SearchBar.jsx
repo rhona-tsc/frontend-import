@@ -191,7 +191,7 @@ const SearchBar = () => {
               // ✅ closer to SearchBox: py-2, rounded (small), no heavy font class
               className={`w-full sm:w-auto px-6 py-2 border-2 border-[#ff6667] bg-[#ff6667] text-white transition duration-300 ${
                 searchDisabled
-                  ? "bg-gray-400 cursor-not-allowed"
+                  ? "bg-[#ff6667] hover:bg-gray-400 cursor-not-allowed"
                   : "bg-[#ff6667] hover:bg-[#ff3333]"
               }`}
             >
