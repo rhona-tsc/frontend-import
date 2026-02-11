@@ -145,7 +145,7 @@ const handleSearch = () => {
 
         {/* Venue column */}
         <div className="w-full sm:w-[420px] flex flex-col text-left">
-          <p className="font-medium text-sm text-gray-700 mb-1">VENUE POSTCODE</p>
+          <p className="font-medium text-sm text-gray-700 mb-1">VENUE</p>
 
      <RoyalMailAddressNow
   captureKey="KR44-RW29-HH36-NC62"
@@ -155,7 +155,7 @@ const handleSearch = () => {
   setPostcode={setPostcode}
   initialValue={localAddress}
   className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
-  placeholder="Type your venue or postcode..."
+  placeholder="Type your venue..."
   required
 />
 
