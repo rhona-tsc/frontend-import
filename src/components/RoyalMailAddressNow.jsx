@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const normaliseSpaces = (s = "") => String(s || "").replace(/\s+/g, " ").trim();
 
@@ -15,6 +15,7 @@ const offscreenStyle = {
 };
 
 const RoyalMailAddressNow = ({
+  idPrefix = "addressnow",
   setAddress,
   setCounty,
   setPostcode,
@@ -52,6 +53,23 @@ const RoyalMailAddressNow = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValue]);
 
+  // Build unique IDs per instance
+  const ids = useMemo(() => {
+    const safe = String(idPrefix || "addressnow")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9_-]/g, "");
+    return {
+      search: `${safe}_search`,
+      formatted: `${safe}_formatted`,
+      postcode: `${safe}_postcode`,
+      county: `${safe}_county`,
+      line1: `${safe}_line1`,
+      line2: `${safe}_line2`,
+      town: `${safe}_town`,
+    };
+  }, [idPrefix]);
+
   // Keep React state synced with AddressNow populated values
   useEffect(() => {
     let lastPostcode = "";
@@ -84,12 +102,11 @@ const RoyalMailAddressNow = ({
 
   return (
     <div className="w-full relative">
-      {/* This is the box the user types into.
-          AddressNow will attach suggestions UI to this. */}
+      {/* User input — AddressNow attaches suggestions UI to THIS */}
       <input
         ref={inputRef}
-        id="addressnow_search"
-        name="addressnow_search"
+        id={ids.search}
+        name={ids.search}
         type="text"
         value={inputValue}
         placeholder={placeholder || "Start typing venue name or postcode..."}
@@ -101,13 +118,13 @@ const RoyalMailAddressNow = ({
 
       {/* Fields for AddressNow to populate (off-screen, not hidden) */}
       <div style={offscreenStyle} aria-hidden="true">
-        <input ref={formattedRef} id="address_formatted" name="address_formatted" />
-        <input ref={postcodeRef} id="address_postcode" name="address_postcode" />
-        <input ref={countyRef} id="address_county" name="address_county" />
+        <input ref={formattedRef} id={ids.formatted} name={ids.formatted} />
+        <input ref={postcodeRef} id={ids.postcode} name={ids.postcode} />
+        <input ref={countyRef} id={ids.county} name={ids.county} />
 
-        <input ref={line1Ref} id="address_line1" name="address_line1" />
-        <input ref={line2Ref} id="address_line2" name="address_line2" />
-        <input ref={townRef} id="address_town" name="address_town" />
+        <input ref={line1Ref} id={ids.line1} name={ids.line1} />
+        <input ref={line2Ref} id={ids.line2} name={ids.line2} />
+        <input ref={townRef} id={ids.town} name={ids.town} />
       </div>
     </div>
   );
