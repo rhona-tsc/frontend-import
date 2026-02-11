@@ -144,14 +144,14 @@ const SearchBar = () => {
               VENUE
             </label>
 
-           <RoyalMailAddressNow
-  idPrefix="qs"
-  setAddress={setLocalAddress}
-  setCounty={setCounty}
-  setPostcode={setPostcode}
-  className="w-full text-base px-3 py-2 border-2 border-gray-300 rounded"
-  placeholder="Start typing your venue..."
-/>
+            <RoyalMailAddressNow
+              setAddress={setLocalAddress}
+              setCounty={setCounty}
+              setPostcode={setPostcode} // ✅ NEW
+              className="w-full text-base px-3 py-2 border-2 border-gray-300 rounded"
+              placeholder="Start typing your venue (select from dropdown)..."
+              id="qs-venue"
+            />
 
             {/* ✅ helper text */}
             {!postcodeOk && localAddress?.trim() ? (
