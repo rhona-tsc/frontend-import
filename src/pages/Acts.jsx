@@ -1251,69 +1251,34 @@ const hasStoredLocation = () => {
       return new Set();
     };
 
-    let serverIds = new Set();
-    if (ENABLE_SERVER_SEARCH && hasActiveFilters(filters)) {
-      const compatPayload = {
-        ...payload,
-        status: payload.includeStatuses ||
-          payload.status || [
-            "approved",
-            "live",
-            "approved_changes_pending",
-            "live_changes_pending",
-          ],
-        statuses: payload.includeStatuses || payload.status,
-        genres_norm:
-          payload.genres_norm ||
-          (payload.genres || []).map((s) =>
-            String(s)
-              .toLowerCase()
-              .replace(/&/g, "and")
-              .replace(/[^a-z0-9]+/g, " ")
-              .trim()
-          ),
-        genreTokens: (payload.genres || []).map((s) =>
-          String(s)
-            .toLowerCase()
-            .replace(/&/g, "and")
-            .replace(/[^a-z0-9]+/g, " ")
-            .trim()
-        ),
-      };
-      //, api("api/act/cards/search")
-      console.log("📤 sending search payload:", payload, JSON.stringify(payload));
-      const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search")];
-      serverIds = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
+    let serverIds = null; // null = "not used / ignore", Set = "filter to these ids"
+if (ENABLE_SERVER_SEARCH && hasActiveFilters(filters)) {
+  const compatPayload = { ...payload, /* your extra compat keys */ };
 
-      if (serverIds.size === 0) {
-        if (onlyDjServices) {
-          console.info(
-            "🔶 Server search returned 0 ids for djServices — falling back to client-side DJ filtering."
-          );
-          // Fall back to client-side DJ services filtering using local cards/extras
-          serverIds = new Set();
-        } else {
-          console.info("🔶 Server search yielded 0 ids — showing no results.");
-          setFilterProducts([]);
-          ACTS_DBG(
-            "No matching records after server search, setting filterProducts to []"
-          );
-          return;
-        }
-      }
-    } else if (DEBUG_FILTER) {
+  const SEARCH_ENDPOINTS = [api("api/v2/act-cards/search")];
+  const found = await postCandidates(SEARCH_ENDPOINTS, compatPayload);
+
+  // If backend returns nothing, DON'T wipe results — just ignore server filtering.
+  if (found.size > 0) {
+    serverIds = found;
+  } else {
+    console.info("🔶 Server search returned 0 ids — falling back to client-side filtering.");
+    serverIds = null;
+  }
+} else if (DEBUG_FILTER) {
       console.info("🔶 Server search disabled — using client-only filtering.");
     }
-
+console.log("🧪 serverIds size:", serverIds?.size, {
+  activeKeys,
+  payload,
+});
     // ───────────────────────────────────────────────────────────────────────────────
     // Build source card set
     // ───────────────────────────────────────────────────────────────────────────────
-    const allCards = Array.isArray(cards) ? cards : [];
-    let approvedCards = serverIds.size
-      ? allCards.filter((c) =>
-          serverIds.has(String(c.actId ?? c._id ?? c.id ?? ""))
-        )
-      : allCards;
+   const allCards = Array.isArray(cards) ? cards : [];
+let approvedCards = serverIds
+  ? allCards.filter((c) => serverIds.has(String(c.actId ?? c._id ?? c.id ?? "")))
+  : allCards;
 
     // Debug: print all IDs and names in actsFilterPageCards and approvedCards
     console.log(
@@ -1566,6 +1531,7 @@ actsCopy = actsCopy.map((act) => {
   };
 });
 
+console.log("🧪 actsCopy len after filters:", actsCopy.length);
 
     ACTS_DBG("actsCopy after card reattach", {
       len: Array.isArray(actsCopy) ? actsCopy.length : 0,
@@ -2336,7 +2302,7 @@ useEffect(() => {
     setShowSearch(false);
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [selectedAddress, selectedCounty]);
+}, [showSearch, selectedAddress, selectedCounty]);
 
 
 const removeFilterPill = (item) => {
