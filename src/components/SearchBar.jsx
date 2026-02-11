@@ -110,10 +110,9 @@ const SearchBar = () => {
 <div className="w-full border border-gray-200 bg-gray-50 text-center shadow-sm py-4 mx-auto max-w-5xl mt-4">
         {/* ⬇️ Key change: align blocks from the top, and make each control its own “column” */}
           {/* ✅ Title */}
-    <div className="px-5 mb-3 text-center">
+    <div className="px-5 text-center py-8 text-3xl">
       <Title text1="QUICK" text2="SEARCH" />
       {/* optional: tiny helper line */}
-      <p className="text-sm text-gray-700">Instant pricing for your date & venue</p>
     </div>
 
       <div className="flex flex-col sm:flex-row items-start justify-center gap-4 px-5">
