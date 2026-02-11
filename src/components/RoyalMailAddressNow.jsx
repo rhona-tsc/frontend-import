@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const normaliseSpaces = (s = "") => String(s || "").replace(/\s+/g, " ").trim();
 
@@ -15,6 +15,8 @@ const offscreenStyle = {
 };
 
 const RoyalMailAddressNow = ({
+  captureKey,          // ✅ new
+  idPrefix = "an",     // ✅ supports multiple instances
   setAddress,
   setCounty,
   setPostcode,
@@ -25,16 +27,6 @@ const RoyalMailAddressNow = ({
   ...props
 }) => {
   const inputRef = useRef(null);
-
-  // Fields AddressNow will populate
-  const formattedRef = useRef(null);
-  const postcodeRef = useRef(null);
-  const countyRef = useRef(null);
-
-  // Optional extras if you ever want them
-  const line1Ref = useRef(null);
-  const line2Ref = useRef(null);
-  const townRef = useRef(null);
 
   // controlled/uncontrolled input
   const isControlled = typeof value !== "undefined";
@@ -52,7 +44,68 @@ const RoyalMailAddressNow = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValue]);
 
-  // Keep React state synced with AddressNow populated values
+  // unique IDs per instance
+  const ids = useMemo(() => {
+    const p = String(idPrefix || "an");
+    return {
+      search: `${p}_search`,
+      formatted: `${p}_formatted`,
+      postcode: `${p}_postcode`,
+      county: `${p}_county`,
+      line1: `${p}_line1`,
+      line2: `${p}_line2`,
+      town: `${p}_town`,
+    };
+  }, [idPrefix]);
+
+  // AddressNow-populated field refs
+  const formattedRef = useRef(null);
+  const postcodeRef = useRef(null);
+  const countyRef = useRef(null);
+  const line1Ref = useRef(null);
+  const line2Ref = useRef(null);
+  const townRef = useRef(null);
+
+  // ✅ Initialise AddressNow capture on the search input
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+
+    // wait for AddressNow to exist
+    if (!window.pca || !window.pca.Address) return;
+
+    // avoid double-binding
+    if (el.dataset.pcaBound === "1") return;
+
+    try {
+      // If you omit this, it will use the key from the script URL.
+      // If you include it, it forces the key you pass in here.
+      const keyToUse = captureKey || null;
+
+      // Bind AddressNow to the search input
+      // NOTE: This is the standard AddressNow Capture API shape.
+      // If your account uses a different initializer, we can tweak.
+      const control = keyToUse
+        ? new window.pca.Address({ key: keyToUse }, el)
+        : new window.pca.Address({}, el);
+
+      // Optional: map fields (some setups auto-map via their on-page setup)
+      // We still poll the hidden inputs to sync into React.
+
+      el.dataset.pcaBound = "1";
+
+      return () => {
+        // best-effort cleanup; library doesn’t always expose destroy safely
+        try {
+          if (control?.destroy) control.destroy();
+        } catch {}
+      };
+    } catch (e) {
+      console.warn("AddressNow init failed:", e);
+    }
+  }, [captureKey]);
+
+  // ✅ Keep React state synced with populated values
   useEffect(() => {
     let lastPostcode = "";
     let lastCounty = "";
@@ -84,12 +137,10 @@ const RoyalMailAddressNow = ({
 
   return (
     <div className="w-full relative">
-      {/* This is the box the user types into.
-          AddressNow will attach suggestions UI to this. */}
       <input
         ref={inputRef}
-        id="addressnow_search"
-        name="addressnow_search"
+        id={ids.search}
+        name={ids.search}
         type="text"
         value={inputValue}
         placeholder={placeholder || "Start typing venue name or postcode..."}
@@ -99,15 +150,15 @@ const RoyalMailAddressNow = ({
         {...props}
       />
 
-      {/* Fields for AddressNow to populate (off-screen, not hidden) */}
+      {/* Off-screen mapped fields */}
       <div style={offscreenStyle} aria-hidden="true">
-        <input ref={formattedRef} id="address_formatted" name="address_formatted" />
-        <input ref={postcodeRef} id="address_postcode" name="address_postcode" />
-        <input ref={countyRef} id="address_county" name="address_county" />
+        <input ref={formattedRef} id={ids.formatted} name={ids.formatted} />
+        <input ref={postcodeRef} id={ids.postcode} name={ids.postcode} />
+        <input ref={countyRef} id={ids.county} name={ids.county} />
 
-        <input ref={line1Ref} id="address_line1" name="address_line1" />
-        <input ref={line2Ref} id="address_line2" name="address_line2" />
-        <input ref={townRef} id="address_town" name="address_town" />
+        <input ref={line1Ref} id={ids.line1} name={ids.line1} />
+        <input ref={line2Ref} id={ids.line2} name={ids.line2} />
+        <input ref={townRef} id={ids.town} name={ids.town} />
       </div>
     </div>
   );
