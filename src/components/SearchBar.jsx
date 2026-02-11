@@ -69,8 +69,8 @@ const SearchBar = () => {
       has_date: !!localDate.trim(),
       has_address: !!localAddress.trim(),
       has_county: !!county.trim(),
-      postcode_valid:
-        postcodeOk || isValidUKPostcode(extractPostcode(localAddress)),
+      
+       postcode_valid: canSearch,
     });
 
     if (!pcOk) {
