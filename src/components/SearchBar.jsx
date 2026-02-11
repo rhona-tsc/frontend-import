@@ -50,13 +50,7 @@ const openedAtRef = React.useRef(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAddress, selectedDate]);
 
-  useEffect(() => {
-    if (location.pathname !== "/acts" && showSearch) {
-      setAnimate(false);
-      setTimeout(() => setShowSearch(false), 300);
-    }
-  }, [location.pathname, showSearch, setShowSearch]);
-
+ 
   useEffect(() => {
     if (showSearch) setAnimate(true);
   }, [showSearch]);
@@ -118,7 +112,7 @@ const handleSearch = () => {
 
   const searchDisabled = !postcodeOk;
 
-  return showSearch || animate ? (
+ return(
     <div
       className={`fixed top-16 left-0 right-0 border-t border-b bg-gray-50 text-center shadow-md z-50 py-4 
       transition-all duration-500 ${
@@ -185,18 +179,10 @@ const handleSearch = () => {
           <div className="min-h-[16px] mt-1" aria-hidden="true" />
         </div>
 
-        {/* Close */}
-        <div className="mb-4 pt-[22px] sm:pt-[22px]">
-          <img
-            onClick={handleClose}
-            className="w-4 cursor-pointer"
-            src={assets.cross_icon}
-            alt="Close"
-          />
-        </div>
+       
       </div>
     </div>
-  ) : null;
+  );  
 };
 
 export default SearchBar;
