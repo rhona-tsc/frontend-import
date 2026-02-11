@@ -104,7 +104,19 @@ const SearchBar = () => {
     });
   };
 
-  const searchDisabled = !postcodeOk;
+  const extractedPostcode = useMemo(() => {
+  const m = String(localAddress || "")
+    .toUpperCase()
+    .match(/([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})/);
+  return m ? m[1] : "";
+}, [localAddress]);
+
+const canSearch = useMemo(() => {
+  const raw = postcode || extractedPostcode;
+  return isValidUKPostcode(raw);
+}, [postcode, extractedPostcode]);
+
+const searchDisabled = !canSearch;
 
   return (
 <div className="w-full border border-gray-200 bg-gray-50 text-center shadow-sm py-4 mx-auto max-w-5xl mt-4">
@@ -156,13 +168,14 @@ const SearchBar = () => {
           {/* label spacer to match the DATE/VENUE label height */}
           <div className="h-[20px] mb-1" aria-hidden="true" />
           <button
+            type="button"
             className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 border-2 border-[#ff6667] ${
               searchDisabled
                 ? "bg-[#ff6667] hover:bg-gray-400 cursor-not-allowed"
                 : "bg-[#ff6667] hover:bg-[#ff3333]"
             }`}
             onClick={handleSearch}
-            
+            disabled={searchDisabled}
           >
             SEARCH
           </button>
