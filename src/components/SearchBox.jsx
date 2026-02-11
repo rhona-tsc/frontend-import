@@ -7,13 +7,18 @@ import { gtagEvent } from "../utils/gtag";
 
 // UK postcode validator (accepts with/without space, normalises later)
 const isValidUKPostcode = (value = "") => {
-  const pc = String(value || "").trim().toUpperCase();
+  const pc = String(value || "")
+    .trim()
+    .toUpperCase();
   return /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/.test(pc);
 };
 
 // Optional: normalise to "SW1A 1AA"
 const normaliseUKPostcode = (value = "") => {
-  const pc = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+  const pc = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
   if (pc.length < 5) return value;
   return `${pc.slice(0, pc.length - 3)} ${pc.slice(-3)}`;
 };
@@ -31,6 +36,27 @@ const SearchBox = () => {
     setSelectedPostcode,
     setSelectedCounty,
   } = useContext(ShopContext);
+
+  // ---------------- DEBUG ----------------
+  const SB_DEBUG = true; // flip off anytime
+  const SB = (...args) => SB_DEBUG && console.log("🔎 [SearchBox]", ...args);
+  const SB_GROUP = (label) => {
+    if (!SB_DEBUG) return;
+    try {
+      console.groupCollapsed(label);
+    } catch {}
+  };
+  const SB_END = () => {
+    if (!SB_DEBUG) return;
+    try {
+      console.groupEnd();
+    } catch {}
+  };
+
+  // choose behaviour:
+  // true  => open if missing date OR missing venue (old strict mode)
+  // false => open only if missing venue (recommended to stop preset re-open)
+  const STRICT_REQUIRE_DATE_TO_HIDE = false;
 
   const [localAddress, setLocalAddress] = useState("");
   const [localDate, setLocalDate] = useState("");
@@ -54,18 +80,39 @@ const SearchBox = () => {
 
   // ✅ Determine if we already have enough info to NOT show the search box on /acts
   // Rule: date required AND (address OR valid postcode) present (from context or session storage)
-  const hasCompleteSearch = useMemo(() => {
-    const ssAddr = (sessionStorage.getItem("selectedAddress") || "").trim();
-    const ssDate = (sessionStorage.getItem("selectedDate") || "").trim();
-    const ssPc = (sessionStorage.getItem("selectedPostcode") || "").trim();
+  const searchSnapshot = useMemo(() => {
+    const ssAddr = getStored("selectedAddress");
+    const ssDate = getStored("selectedDate");
+    const ssPc = getStored("selectedPostcode");
+    const ssCounty = getStored("selectedCounty");
+    const ssPlace = getStored("selectedPlace");
 
-    const date = String(selectedDate || ssDate || "").trim();
-    const addr = String(selectedAddress || ssAddr || "").trim();
-    const pcOk = isValidUKPostcode(ssPc);
+    const ctxAddr = String(selectedAddress || "").trim();
+    const ctxDate = String(selectedDate || "").trim();
+    const ctxPc = String(selectedPostcode || "").trim();
+    const ctxCounty = String(selectedCounty || "").trim();
 
-    const hasVenue = !!addr || pcOk;
-    return !!date && hasVenue;
-  }, [selectedDate, selectedAddress]);
+    const date = (ctxDate || ssDate).trim();
+    const addr = (ctxAddr || ssAddr).trim();
+
+    // ✅ postcode can come from context, session, or be embedded in address text
+    const rawPc = (ctxPc || ssPc || extractPostcode(addr)).trim();
+
+    const pcOk = isValidUKPostcode(rawPc);
+    const hasVenue =
+      Boolean(addr) || pcOk || Boolean(ctxCounty || ssCounty || ssPlace);
+
+    const hasCompleteSearch = Boolean(date) && (Boolean(addr) || pcOk);
+
+    return {
+      // sources
+      ctx: { ctxAddr, ctxDate, ctxPc, ctxCounty },
+      ss: { ssAddr, ssDate, ssPc, ssCounty, ssPlace },
+
+      // resolved
+      resolved: { date, addr, rawPc, pcOk, hasVenue, hasCompleteSearch },
+    };
+  }, [selectedAddress, selectedDate, selectedPostcode, selectedCounty]);
 
   // ✅ On arrival to /acts:
   // - if complete search exists → keep CLOSED
@@ -73,14 +120,31 @@ const SearchBox = () => {
   useEffect(() => {
     if (location.pathname !== "/acts") return;
 
-    if (hasCompleteSearch) {
+    const { resolved, ctx, ss } = searchSnapshot;
+    const { hasVenue, hasCompleteSearch } = resolved;
+
+    // Decide based on chosen rule
+    const shouldClose = STRICT_REQUIRE_DATE_TO_HIDE
+      ? hasCompleteSearch // strict: needs date+venue to close
+      : hasVenue; // recommended: any venue closes
+
+    SB_GROUP("📍 /acts searchbox decision");
+    SB("showSearch BEFORE:", showSearch);
+    SB("STRICT_REQUIRE_DATE_TO_HIDE:", STRICT_REQUIRE_DATE_TO_HIDE);
+    SB("ctx:", ctx);
+    SB("ss:", ss);
+    SB("resolved:", resolved);
+    SB("DECISION:", shouldClose ? "CLOSE ✅" : "OPEN ❗️");
+    SB_END();
+
+    if (shouldClose) {
       setAnimate(false);
       setShowSearch(false);
     } else {
       setShowSearch(true);
       setAnimate(true);
     }
-  }, [location.pathname, hasCompleteSearch, setShowSearch]);
+  }, [location.pathname, searchSnapshot, setShowSearch, showSearch]);
 
   // Auto-hide when navigating away from /acts (optional behaviour you already had)
   useEffect(() => {
@@ -95,10 +159,25 @@ const SearchBox = () => {
     if (showSearch) setAnimate(true);
   }, [showSearch]);
 
-  const handleClose = () => {
+  const handleClose = (reason = "manual") => {
+    SB("handleClose()", { reason });
     setAnimate(false);
     setTimeout(() => setShowSearch(false), 500);
   };
+
+  useEffect(() => {
+    SB_GROUP("🎛 showSearch changed");
+    SB("showSearch:", showSearch, "animate:", animate);
+    SB("selectedAddress:", selectedAddress);
+    SB("selectedDate:", selectedDate);
+
+    SB("ss.selectedAddress:", sessionStorage.getItem("selectedAddress"));
+    SB("ss.selectedDate:", sessionStorage.getItem("selectedDate"));
+    SB("ss.selectedPostcode:", sessionStorage.getItem("selectedPostcode"));
+    SB_END();
+
+    if (showSearch) openedAtRef.current = Date.now();
+  }, [showSearch]); // keep it tight
 
   const handleSearch = () => {
     // Allow postcode to be typed/pasted into the venue box too
@@ -124,7 +203,7 @@ const SearchBox = () => {
         reason: "invalid_or_missing_postcode",
       });
       return alert(
-        "Please type a full UK postcode (or select an address) so we can calculate travel."
+        "Please type a full UK postcode (or select an address) so we can calculate travel.",
       );
     }
 
