@@ -43,7 +43,6 @@ const SearchBar = () => {
   const openedAtRef = useRef(null);
   const postcodeOk = useMemo(() => isValidUKPostcode(postcode), [postcode]);
 const navigate = useNavigate();
-navigate("/acts");
   useEffect(() => {
     setLocalAddress(selectedAddress || "");
     setLocalDate(selectedDate || "");
@@ -106,6 +105,8 @@ navigate("/acts");
       county,
       duration_ms: ms,
     });
+
+    navigate("/acts");
   };
 
  const extractedPostcode = useMemo(() => {
