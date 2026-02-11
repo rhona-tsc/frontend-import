@@ -206,6 +206,9 @@ const [enrichedCards, setEnrichedCards] = useState([]);
   const [showActSizeFilter, setShowActSizeFilter] = useState(false);
   const [showWirelessFilter, setShowWirelessFilter] = useState(false);
   const navigate = useNavigate();
+    // Full act objects (with lineups) from ShopContext — used for pricing
+  // (safe even if ShopContext hasn’t populated yet)
+  const { acts: fullActsFromCtx = [] } = useContext(ShopContext) || {};
   const storedPlace = sessionStorage.getItem("selectedPlace") || "";
   const [selectedCounty, setSelectedCounty] = useState(
     sessionStorage.getItem("selectedCounty")?.trim().toLowerCase() || ""
@@ -1416,10 +1419,39 @@ const hasStoredLocation = () => {
       obj.hero ||
       null;
 
+    const fullActs = Array.isArray(fullActsFromCtx) ? fullActsFromCtx : [];
+    // If we don’t yet have full Act objects, show cards immediately and skip pricing/sort-by-price.
+    // (Avoid calling setFilterProducts inside a .map before actsCopy exists.)
+    if (!fullActs.length) {
+      const quickCards = (withSafety || []).map((card) => {
+        const id = String(card.actId || card._id || card.id || "");
+        return {
+          ...card,
+          _id: id,
+          name: card.tscName || card.name || "Untitled Act",
+          tscName: card.tscName,
+          __card: card,
+        };
+      });
+
+      setFilterProducts(quickCards);
+      try {
+        ACTS_DBG("No full acts yet — showing cards only", {
+          len: quickCards.length,
+        });
+      } catch {}
+      ENDGROUP();
+      return;
+    }
+
+    const latestActMap = new Map(
+      fullActs.map((a) => [String(a._id || a.actId || a.id || ""), a])
+    );
+
     let actsCopy = withSafety
       .map((card) => {
         const id = String(card.actId || card._id || card.id || "");
-        const act = actMap.get(id);
+        const act = latestActMap.get(id);
 
         // Always ensure lineupSizes is present and is an array
         const safeLineupSizes = Array.isArray(card.lineupSizes)
@@ -2194,10 +2226,19 @@ actsCopy = actsCopy.map((act) => {
     // ───────────────────────────────────────────────────────────────────────────────
     if (runId === filterRunIdRef.current) {
 
-      const num = (v) => {
-        const n = Number(v);
-        return Number.isFinite(n) ? n : NaN;
-      };
+    const num = (v) => {
+  if (v === null || v === undefined) return NaN;
+
+  if (typeof v === "string") {
+    const cleaned = v.replace(/[^\d.]/g, ""); // removes £, commas, etc.
+    if (!cleaned) return NaN;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+};
 
       if (sortType === "low-high") {
         updatedActs.sort((a, b) => {
@@ -2219,6 +2260,14 @@ actsCopy = actsCopy.map((act) => {
         });
       }
 
+       console.table(
+  updatedActs.slice(0, 15).map((a) => ({
+    name: a.tscName || a.name,
+    formattedPrice: a.formattedPrice,
+    numeric: num(a.formattedPrice),
+  }))
+);
+
       ACTS_DBG("finalActs before set", { len: updatedActs.length });
       setFilterProducts(updatedActs);
       console.log(
@@ -2231,14 +2280,10 @@ actsCopy = actsCopy.map((act) => {
     } else {
       ACTS_DBG(`Skipping stale filter run #${runId}`);
       ENDGROUP();
+
+      
     }
-    console.table(
-  updatedActs.slice(0, 15).map((a) => ({
-    name: a.tscName || a.name,
-    formattedPrice: a.formattedPrice,
-    numeric: Number(a.formattedPrice),
-  }))
-);
+   
   }
   
 
