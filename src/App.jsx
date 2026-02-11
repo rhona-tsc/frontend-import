@@ -26,6 +26,7 @@ import ResetPassword from "./pages/ResetPassword";
   import Privacy from "./pages/Privacy";
   import { useState, useEffect   } from "react";
 import AuthGateModal from "./components/AuthGateModal";
+import LandingPage from "./pages/LandingPage";
 
   // 👇 helper to decode token once
   function parseToken(t) {
@@ -126,6 +127,7 @@ import AuthGateModal from "./components/AuthGateModal";
                   password={password}
                   userId={userId}
                   />} />
+                  <Route path="/lp" element={<LandingPage />} />
               <Route path="/about" element={<About />} />
               <Route path="/act/:key" element={<Act />} />
               <Route path="/acts/:preset" element={<Acts />} />

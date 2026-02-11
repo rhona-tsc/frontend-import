@@ -2257,70 +2257,23 @@ const hasAnyLocation = () => {
 
   // 1) Initial boot — keep as-is
 useEffect(() => {
-  const init = async () => {
-    const { storedAddress, storedCounty, storedPlace } = getStoredLocation();
+  const { storedAddress, storedCounty, storedPlace } = getStoredLocation();
+  const noLocation = !storedAddress && !storedCounty && !storedPlace;
 
-    // ✅ Auto-open search ONCE if there’s no location saved
-    // - don’t do this if we’re coming via /acts/:preset
-    // - don’t reopen repeatedly if user closes it
-    const noLocation = !storedAddress && !storedCounty && !storedPlace;
-    const isPresetRoute = Boolean(preset);
+  const alreadyAutoOpened = sessionStorage.getItem(AUTO_OPEN_KEY) === "1";
+  const isPresetRoute = Boolean(preset);
 
-    // ✅ if location exists, ensure search is CLOSED
-    if (hasAnyLocation()) {
-      setShowSearch(false);
-    } else {
-      // ✅ only auto-open once per session (not every remount)
-      const alreadyAutoOpened = sessionStorage.getItem(AUTO_OPEN_KEY) === "1";
-
-      if (!isPresetRoute && !alreadyAutoOpened) {
-        sessionStorage.setItem(AUTO_OPEN_KEY, "1");
-        setShowSearch(true);
-        window.scrollTo(0, 0);
-      }
+  if (noLocation) {
+    if (!isPresetRoute && !alreadyAutoOpened) {
+      sessionStorage.setItem(AUTO_OPEN_KEY, "1");
+      setShowSearch(true);
+      window.scrollTo(0, 0);
     }
+  } else {
+    setShowSearch(false);
+  }
 
-    if (DEBUG_FILTER) {
-      const storedDate =
-  sessionStorage.getItem("selectedDate") ||
-  localStorage.getItem("selectedDate") ||
-  "";
-      ACTS_DBG("INIT auto-open check", {
-        preset,
-        isPresetRoute,
-        noLocation,
-        storedDate,
-        storedAddress,
-        storedCounty,
-        storedPlace,
-        hasAnyLocation: hasAnyLocation(),
-        alreadyAutoOpened: sessionStorage.getItem(AUTO_OPEN_KEY) === "1",
-      });
-    }
-
-    // warm availability from cache (keep your existing logic)
-    try {
-      const storedDate =
-  sessionStorage.getItem("selectedDate") ||
-  localStorage.getItem("selectedDate") ||
-  "";
-      const d = (storedDate || "").slice(0, 10);
-      if (d) {
-        const cached = sessionStorage.getItem(`availMap:${d}`);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && typeof parsed === "object") {
-            setAvailableMap(parsed);
-          }
-        }
-      }
-    } catch {}
-
-    await applyFilter();
-    setInitializing(false);
-  };
-
-  init();
+  setInitializing(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
@@ -2333,65 +2286,68 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [selectedAddress, selectedCounty]);
 
-// 2) When acts arrive (0 → N), run filter
-useEffect(() => {
-  if (!initializing) {
-    // Debug: print all fields from API response for each act
-    console.groupCollapsed("actsFilterPageCards FULL API response");
-    (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []).forEach(
-      (act, i) => {
-        console.log(`#${i} actId:`, act.actId || act._id || act.id, act);
-      }
-    );
-    console.groupEnd();
 
-    applyFilter();
+const removeFilterPill = (item) => {
+  // ✅ duration keys special-case: remove ALL duration keys together
+  if (DURATION_KEYS.includes(item)) {
+    setExtraServices((prev) => prev.filter((x) => !DURATION_KEYS.includes(x)));
+    return;
   }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [actsFilterPageCards.length]);
 
-  // 3) When availability loading state flips, run filter again
-  useEffect(() => {
-    if (!initializing) {
-      applyFilter();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availLoading]);
+  // everything else: remove the specific pill from whichever bucket it lives in
+  if (genre.includes(item)) {
+    setGenre((prev) => prev.filter((x) => x !== item));
+    return;
+  }
 
-  // 4) Main “filters changed” effect
-  useEffect(() => {
-    const asyncApply = async () => {
-      setUpdatingResults(true);
-      await applyFilter();
-      setUpdatingResults(false);
-    };
-    asyncApply();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    // search & UI toggles
-    search,
-    showSearch,
-    genre,
-    act_size,
-    djServices,
-    instruments,
-    songSearch,
-    actSearch,
-    soundLimiters,
-    setupAndSoundcheck,
-    paAndLights,
-    pli,
-    extraServices,
-    wireless,
+  if (act_size.includes(item)) {
+    setActSize((prev) => prev.filter((x) => x !== item));
+    return;
+  }
 
-    // availability & date
-    selectedDate,
-    availableMap, // identity changes on setAvailableMap(map)
-    availLoading, // re-run after it finishes
+  if (djServices.includes(item)) {
+    setDjServices((prev) => prev.filter((x) => x !== item));
+    return;
+  }
 
-    // acts arriving
-    approvedActsCount,
-  ]);
+  if (instruments.includes(item)) {
+    setInstruments((prev) => prev.filter((x) => x !== item));
+    return;
+  }
+
+  if (wireless.includes(item)) {
+    setWireless((prev) => prev.filter((x) => x !== item));
+    return;
+  }
+
+  if (soundLimiters.includes(item)) {
+    setSoundLimiters((prev) => prev.filter((x) => x !== item));
+    return;
+  }
+
+  if (setupAndSoundcheck.includes(item)) {
+    setSetupAndSoundcheck((prev) => prev.filter((x) => x !== item));
+    return;
+  }
+
+  if (paAndLights.includes(item)) {
+    setPaAndLights((prev) => prev.filter((x) => x !== item));
+    return;
+  }
+
+  if (pli.includes(item)) {
+    setPli((prev) => prev.filter((x) => x !== item));
+    return;
+  }
+
+  if (extraServices.includes(item)) {
+    setExtraServices((prev) => prev.filter((x) => x !== item));
+    return;
+  }
+};
+ 
+
+
 
   const DURATION_KEYS = [
     "extra_30min_performance_per_band_member",
@@ -2478,6 +2434,71 @@ const results = useMemo(() => {
   });
 }, [filterProducts, sortType]);
 
+
+const applyTimerRef = useRef(null);
+
+const availMapKey = useMemo(() => {
+  const keys = Object.keys(availableMap || {});
+  keys.sort();
+  return keys.join("|");
+}, [availableMap]);
+
+const filterKey = useMemo(() => {
+  const filters = buildServerFilterPayload();
+
+  return JSON.stringify({
+    actsLen: Array.isArray(actsFilterPageCards) ? actsFilterPageCards.length : 0,
+    filters,
+    selectedDate: (selectedDate || "").slice(0, 10),
+    selectedAddress: selectedAddress || "",
+    selectedCounty: selectedCounty || "",
+    availLoading: !!availLoading,
+    availMapKey, // ✅ stable
+    sortType,
+  });
+}, [
+  actsFilterPageCards,
+  genre,
+  act_size,
+  djServices,
+  instruments,
+  wireless,
+  soundLimiters,
+  setupAndSoundcheck,
+  paAndLights,
+  pli,
+  extraServices,
+  songSearch,
+  actSearch,
+  selectedDate,
+  selectedAddress,
+  selectedCounty,
+  availLoading,
+  availMapKey, // ✅ use this, remove `availableMap`
+  sortType,
+]);
+
+useEffect(() => {
+  // don’t filter until we actually have cards
+  const cardsLen = Array.isArray(actsFilterPageCards) ? actsFilterPageCards.length : 0;
+  if (!cardsLen) return;
+
+  // debounce to collapse rapid state-changes into one run
+  if (applyTimerRef.current) clearTimeout(applyTimerRef.current);
+
+  setUpdatingResults(true);
+  applyTimerRef.current = setTimeout(async () => {
+  const startRun = filterRunIdRef.current + 1; // predicted run id
+  await applyFilter();
+  // only clear if we're not mid-new-run
+  if (startRun === filterRunIdRef.current) setUpdatingResults(false);
+}, 50);
+
+  return () => {
+    if (applyTimerRef.current) clearTimeout(applyTimerRef.current);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [filterKey]);
 
   return (
     <div className="my-10 max-w-7xl mx-auto px-4">
@@ -4055,35 +4076,13 @@ const results = useMemo(() => {
                   >
                     {labelMap[item] || item}{" "}
                     {/* Use labelMap to show a friendly name */}
-                    <button
-                      onClick={() => {
-                        if (genre.includes(item))
-                          toggleGenre({ target: { value: item } });
-                        else if (act_size.includes(item))
-                          toggleActSize({ target: { value: item } });
-                        else if (djServices.includes(item))
-                          toggleDjServices({ target: { value: item } });
-                        else if (instruments.includes(item))
-                          toggleInstruments({ target: { value: item } });
-                        else if (wireless.includes(item))
-                          toggleWireless({ target: { value: item } });
-                        else if (soundLimiters.includes(item))
-                          toggleSoundLimiters({ target: { value: item } });
-                        else if (setupAndSoundcheck.includes(item))
-                          toggleSetupAndSoundcheck({
-                            target: { value: item },
-                          });
-                        else if (paAndLights.includes(item))
-                          togglePaAndLights({ target: { value: item } });
-                        else if (pli.includes(item))
-                          togglePli({ target: { value: item } });
-                        else if (extraServices.includes(item))
-                          toggleExtraServices({ target: { value: item } });
-                      }}
-                      className="text-gray-100 text-xs font-bold"
-                    >
-                      ✖️
-                    </button>
+                  <button
+  onClick={() => removeFilterPill(item)}
+  className="text-gray-700 text-xs font-bold"
+  type="button"
+>
+  ✖️
+</button>
                   </span>
                 ))}
 
