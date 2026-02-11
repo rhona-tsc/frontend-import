@@ -118,8 +118,9 @@ import ScrollToTop from "./components/ScrollToTop";
           <AuthGateModal />
           <div className="mt-16">
              <SearchBox />
+             <ScrollToTop />
             <Routes>
-               <ScrollToTop />
+               
               <Route path="/" element={<Home />} />
               <Route path="/acts" element={<Acts email={email}
                   userRole={userRole}
