@@ -2248,32 +2248,61 @@ useEffect(() => {
     if (storedDate) setSelectedDate(storedDate);
     if (storedAddress) setSelectedAddress(storedAddress);
 
+   const AUTO_OPEN_KEY = "acts:autoOpenSearchDone";
+
+const getStoredLocation = () => ({
+  storedAddress: getStored("selectedAddress"),
+  storedCounty: getStored("selectedCounty"),
+  storedPlace: getStored("selectedPlace"),
+});
+
+const hasAnyLocation = () => {
+  const { storedAddress, storedCounty, storedPlace } = getStoredLocation();
+  return Boolean(
+    selectedAddress ||
+      selectedCounty ||
+      storedAddress ||
+      storedCounty ||
+      storedPlace
+  );
+};
+
+useEffect(() => {
+  const init = async () => {
+    const { storedAddress, storedCounty, storedPlace } = getStoredLocation();
+
     // ✅ Auto-open search ONCE if there’s no location saved
     // - don’t do this if we’re coming via /acts/:preset
     // - don’t reopen repeatedly if user closes it
-    const noLocation =
-      !storedAddress && !storedCounty && !getStored("selectedPlace");
+    const noLocation = !storedAddress && !storedCounty && !storedPlace;
+    const isPresetRoute = Boolean(preset);
 
-    const isPresetRoute = Boolean(preset); // you already have useParams()
+    // ✅ if location exists, ensure search is CLOSED
+    if (hasAnyLocation()) {
+      setShowSearch(false);
+    } else {
+      // ✅ only auto-open once per session (not every remount)
+      const alreadyAutoOpened = sessionStorage.getItem(AUTO_OPEN_KEY) === "1";
 
-        if (DEBUG_FILTER) {
+      if (!isPresetRoute && !alreadyAutoOpened) {
+        sessionStorage.setItem(AUTO_OPEN_KEY, "1");
+        setShowSearch(true);
+        window.scrollTo(0, 0);
+      }
+    }
+
+    if (DEBUG_FILTER) {
       ACTS_DBG("INIT auto-open check", {
         preset,
         isPresetRoute,
-        appliedOnce_before: appliedOnceRef.current,
         noLocation,
         storedDate,
         storedAddress,
         storedCounty,
-        storedPlace: getStored("selectedPlace"),
+        storedPlace,
+        hasAnyLocation: hasAnyLocation(),
+        alreadyAutoOpened: sessionStorage.getItem(AUTO_OPEN_KEY) === "1",
       });
-    }
-
-
-    if (!isPresetRoute && noLocation && !appliedOnceRef.current) {
-      appliedOnceRef.current = true;
-      setShowSearch(true);
-      window.scrollTo(0, 0);
     }
 
     // warm availability from cache (keep your existing logic)
@@ -2298,29 +2327,31 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
-  // 2) When acts arrive (0 → N), run filter
-  useEffect(() => {
-    if (!initializing) {
-      // Debug: print all fields from API response for each act
-      console.groupCollapsed("actsFilterPageCards FULL API response");
-      (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []).forEach(
-        (act, i) => {
-          console.log(`#${i} actId:`, act.actId || act._id || act.id, act);
-        }
-      );
-      console.groupEnd();
-      applyFilter();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actsFilterPageCards.length]);
+// ✅ If user selects a location while search is open, close it immediately
+useEffect(() => {
+  if (showSearch && hasAnyLocation()) {
+    if (DEBUG_FILTER) ACTS_DBG("Location detected -> closing search");
+    setShowSearch(false);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [selectedAddress, selectedCounty]);
 
-  // 3) When availability loading state flips, run filter again
-  useEffect(() => {
-    if (!initializing) {
-      applyFilter();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availLoading]);
+// 2) When acts arrive (0 → N), run filter
+useEffect(() => {
+  if (!initializing) {
+    // Debug: print all fields from API response for each act
+    console.groupCollapsed("actsFilterPageCards FULL API response");
+    (Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []).forEach(
+      (act, i) => {
+        console.log(`#${i} actId:`, act.actId || act._id || act.id, act);
+      }
+    );
+    console.groupEnd();
+
+    applyFilter();
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [actsFilterPageCards.length]);
 
   // 4) Main “filters changed” effect
   useEffect(() => {
