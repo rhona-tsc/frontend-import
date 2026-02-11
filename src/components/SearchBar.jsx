@@ -5,6 +5,9 @@ import { useLocation } from "react-router-dom";
 import RoyalMailAddressNow from "./RoyalMailAddressNow";
 import { gtagEvent } from "../utils/gtag";
 import Title from "./Title";
+import { useNavigate } from "react-router-dom";
+
+
 // UK postcode validator (accepts with/without space, normalises later)
 const isValidUKPostcode = (value = "") => {
   const pc = String(value || "")
@@ -39,7 +42,8 @@ const SearchBar = () => {
   const [postcode, setPostcode] = useState("");
   const openedAtRef = useRef(null);
   const postcodeOk = useMemo(() => isValidUKPostcode(postcode), [postcode]);
-
+const navigate = useNavigate();
+navigate("/acts");
   useEffect(() => {
     setLocalAddress(selectedAddress || "");
     setLocalDate(selectedDate || "");
@@ -104,7 +108,7 @@ const SearchBar = () => {
     });
   };
 
-  const extractedPostcode = useMemo(() => {
+ const extractedPostcode = useMemo(() => {
   const m = String(localAddress || "")
     .toUpperCase()
     .match(/([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})/);
