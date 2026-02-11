@@ -154,7 +154,7 @@ const handleSearch = () => {
   setPostcode={setPostcode}
   initialValue={localAddress}
   className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
-  placeholder="Type your venue or postcode..."
+  placeholder="Start typing your venue"
   required
 />
 
@@ -168,7 +168,7 @@ const handleSearch = () => {
           {/* label spacer to match the DATE/VENUE label height */}
           <div className="h-[20px] mb-1" aria-hidden="true" />
           <button
-            className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 rounded ${
+            className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 border-2 border-[#ff6667] ${
               searchDisabled
                 ? "bg-[#ff6667] hover:bg-gray-400 cursor-not-allowed"
                 : "bg-[#ff6667] hover:bg-[#ff3333]"
@@ -185,7 +185,7 @@ const handleSearch = () => {
         </div>
 
         {/* Close */}
-        <div className="pt-[22px] sm:pt-[22px]">
+        <div className="mb-4 pt-[22px] sm:pt-[22px]">
           <img
             onClick={handleClose}
             className="w-4 cursor-pointer"
