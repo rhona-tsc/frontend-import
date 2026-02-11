@@ -37,46 +37,7 @@ const api = (path = "") => {
   return `${BASE}/${p}`;
 };
 
-const norm = (s = "") =>
-  String(s)
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9 ]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 
-// Helper for normalising ACT SIZE values
-const norm2 = (s) => {
-  if (!s) return "";
-
-  let v = String(s).toLowerCase().trim();
-
-  // convert word numbers → digits
-  v = v
-    .replace(/\bone\b/g, "1")
-    .replace(/\btwo\b/g, "2")
-    .replace(/\bthree\b/g, "3")
-    .replace(/\bfour\b/g, "4")
-    .replace(/\bfive\b/g, "5")
-    .replace(/\bsix\b/g, "6")
-    .replace(/\bseven\b/g, "7");
-
-  // "4 piece" → "4-piece"
-  v = v.replace(/[\s_]+/g, "-");
-
-  // fix: "4piece" → "4-piece"
-  v = v.replace(/^(\d)-?piece$/g, "$1-piece");
-
-  // clean double hyphens
-  v = v.replace(/-+/g, "-");
-
-  // special standard mapping
-  if (v === "1-piece") return "solo";
-  if (v === "2-piece") return "2-piece";
-  if (v === "3-piece") return "3-piece";
-
-  return v;
-};
 
 const flat1 = (v) =>
   Array.isArray(v) ? (v.flat ? v.flat() : [].concat(...v)) : v;
@@ -2433,7 +2394,7 @@ const getSortPrice = (act) => {
 };
 
 const results = useMemo(() => {
-  const arr = Array.isArray(results) ? results : [];
+  const arr = Array.isArray(filterProducts) ? filterProducts : [];
   if (sortType === "relevant") return arr;
 
   const dir = sortType === "low-high" ? 1 : -1;
@@ -2450,7 +2411,7 @@ const results = useMemo(() => {
 
     return dir * (A - B);
   });
-}, [results, sortType]);
+}, [filterProducts, sortType]);
 
 useEffect(() => {
   try {

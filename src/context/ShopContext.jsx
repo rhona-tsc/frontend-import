@@ -163,7 +163,6 @@ const ShopProvider = (props) => {
       return {};
     }
   });
-  const [cartUpdated, setCartUpdated] = useState(false);
   const [actsPageCards, setActsPageCards] = useState([]);
   const [actFilterCards, setActFilterCards] = useState([]);
   const [actsFilterPageCards, setActsFilterPageCards] = useState([]);
