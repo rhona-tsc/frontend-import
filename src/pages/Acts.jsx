@@ -2365,7 +2365,32 @@ const parsePrice = (v) => {
   const cleaned = s.replace(/,/g, "").replace(/[^0-9.]/g, "");
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : NaN;
+
+  
 };
+
+
+const formatGBP = (n) => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return null;
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+    maximumFractionDigits: 0,
+  }).format(x);
+};
+
+const resultsWithPrice = useMemo(() => {
+  return (results || []).map((a) => {
+    const sortPrice = getSortPrice(a); // <-- your existing numeric getter
+    return {
+      ...a,
+      sortPrice: Number.isFinite(sortPrice) ? sortPrice : null, // keep a numeric field
+      formattedPrice: formatGBP(sortPrice),                      // always derived
+    };
+  });
+}, [results]);
+
 
 const getSortPrice = (act) => {
   // If pricing has been calculated (address+date), use it
@@ -2425,6 +2450,8 @@ useEffect(() => {
     );
   } catch {}
 }, [sortType, results]);
+
+
 
 const applyTimerRef = useRef(null);
 
@@ -4125,7 +4152,7 @@ useEffect(() => {
                 No matching records
               </div>
             ) : (
-              results.map((item) => (
+              resultsWithPrice.map((item) => (
                 <CardFilterItem
                   key={item.actId || item._id}
                   actData={{
