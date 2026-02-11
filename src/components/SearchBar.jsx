@@ -1,7 +1,6 @@
 import React, { useState, useContext, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
-import GoogleAutocomplete from "./GoogleAutocomplete";
 import RoyalMailAddressNow from "./RoyalMailAddressNow";
 
 // UK postcode validator (accepts with/without space, normalises later)
@@ -28,7 +27,7 @@ const SearchBar = () => {
   } = useContext(ShopContext);
 
   const [county, setCounty] = useState("");
-  const [postcode, setPostcode] = useState(""); // ✅ NEW
+  const [postcode, setPostcode] = useState("");
   const navigate = useNavigate();
 
   // Local controlled inputs
@@ -43,7 +42,7 @@ const SearchBar = () => {
     sessionStorage.setItem("selectedAddress", localAddress);
     sessionStorage.setItem("selectedDate", localDate);
     sessionStorage.setItem("selectedCounty", county);
-    sessionStorage.setItem("selectedPostcode", pc); // ✅ store it
+    sessionStorage.setItem("selectedPostcode", pc);
     sessionStorage.removeItem("availabilityBadges");
 
     if (!localAddress.trim()) {
@@ -59,7 +58,6 @@ const SearchBar = () => {
       return;
     }
 
-    // ✅ require a postcode from the selected Google place
     if (!postcodeOk) {
       alert(
         "Please select a venue that includes a valid UK postcode (choose an option from the dropdown)."
@@ -74,7 +72,7 @@ const SearchBar = () => {
     navigate("/acts", {
       state: {
         county,
-        postcode: pc, // ✅ pass it along
+        postcode: pc,
         selectedAddress: localAddress,
         selectedDate: localDate,
       },
@@ -87,7 +85,7 @@ const SearchBar = () => {
      update shortlisted acts and request availability.
   -------------------------------------------------------- */
   useEffect(() => {
-    // ✅ Only trigger when both date and a confirmed Google place (county + postcode) exist
+    // Only trigger when both date and a confirmed selection (county + postcode) exist
     if (!localDate || !localAddress || !county || !postcodeOk) return;
 
     const dateISO = new Date(localDate).toISOString().slice(0, 10);
@@ -100,10 +98,21 @@ const SearchBar = () => {
         // swallow per-item failures
       }
     });
-  }, [localDate, localAddress, county, postcodeOk, shortlistedActs, handleDateOrAddressChange, requestVocalistAvailability]);
+  }, [
+    localDate,
+    localAddress,
+    county,
+    postcodeOk,
+    shortlistedActs,
+    handleDateOrAddressChange,
+    requestVocalistAvailability,
+  ]);
 
   const searchDisabled =
-    !localDate?.trim() || !localAddress?.trim() || !county?.trim() || !postcodeOk;
+    !localDate?.trim() ||
+    !localAddress?.trim() ||
+    !county?.trim() ||
+    !postcodeOk;
 
   return (
     <section className="w-full bg-black py-6">
@@ -128,7 +137,8 @@ const SearchBar = () => {
             <input
               id="qs-date"
               type="date"
-              className="w-full border-2 border-gray-300 p-2 shadow-sm text-gray-700 rounded"
+              // ✅ match SearchBox: square edges + thicker border + simple padding
+              className="border-2 border-gray-300 p-2 text-gray-500 bg-white w-full"
               value={localDate}
               onChange={(e) => setLocalDate(e.target.value)}
               min={new Date().toISOString().split("T")[0]}
@@ -145,38 +155,49 @@ const SearchBar = () => {
             </label>
 
             <RoyalMailAddressNow
+              // if you're using different keys per location, pass it here
+              // captureKey="uu93-fd14-xw69-bu42"
               setAddress={setLocalAddress}
               setCounty={setCounty}
-              setPostcode={setPostcode} // ✅ NEW
-              className="w-full text-base px-3 py-2 border-2 border-gray-300 rounded"
+              setPostcode={setPostcode}
+              // ✅ match SearchBox: square edges + thicker border
+              className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
               placeholder="Start typing your venue (select from dropdown)..."
               id="qs-venue"
             />
 
-           
-
-          
+            {/* Optional: show captured postcode like SearchBox does */}
+            <div className="min-h-[16px] mt-1">
+              {postcodeOk ? (
+                <p className="text-xs text-green-400">
+                  Postcode detected: {normaliseUKPostcode(postcode)}
+                </p>
+              ) : (
+                <span className="block text-xs opacity-0 select-none">
+                  placeholder
+                </span>
+              )}
+            </div>
           </div>
 
-         {/* Search button */}
-<div className="w-full sm:w-auto flex flex-col">
-  {/* spacer to match the label height above inputs */}
-  <div className="h-[18px] mb-1" aria-hidden="true" />
-  <button
-    type="button"
-    onClick={handleSearch}
-    disabled={searchDisabled}
-    className={`w-full sm:w-auto px-6 py-3 font-medium rounded transition
-      ${
-        searchDisabled
-          ? "bg-gray-600 cursor-not-allowed opacity-60"
-          : "bg-[#ff6667] hover:opacity-90 text-white"
-      }
-    `}
-  >
-    SEARCH
-  </button>
-</div>
+          {/* Search button */}
+          <div className="w-full sm:w-auto flex flex-col">
+            {/* spacer to match the label height above inputs */}
+            <div className="h-[18px] mb-1" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={searchDisabled}
+              // ✅ closer to SearchBox: py-2, rounded (small), no heavy font class
+              className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 rounded ${
+                searchDisabled
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-[#ff6667] hover:bg-[#ff3333]"
+              }`}
+            >
+              SEARCH
+            </button>
+          </div>
         </div>
       </div>
     </section>

@@ -118,85 +118,70 @@ const handleSearch = () => {
 
   const searchDisabled = !postcodeOk;
 
-return showSearch || animate ? (
-  <div
-    className={`fixed top-16 left-0 right-0 border-t border-b bg-black text-center shadow-md z-50 py-6
-    transition-all duration-500 ${
-      animate ? "opacity-100 scale-100" : "opacity-0 scale-95"
-    }`}
-  >
-    <div className="mx-auto max-w-6xl px-4">
-      <div className="flex flex-wrap items-start gap-4">
-        {/* Date */}
-        <div className="flex-1 min-w-[220px]">
-          <label className="block text-white text-xs sm:text-sm mb-1" htmlFor="sb-date">
-            DATE
-          </label>
+  return showSearch || animate ? (
+    <div
+      className={`fixed top-16 left-0 right-0 border-t border-b bg-gray-50 text-center shadow-md z-50 py-4 
+      transition-all duration-500 ${
+        animate ? "opacity-100 scale-100" : "opacity-0 scale-95"
+      }`}
+    >
+      {/* ⬇️ Key change: align blocks from the top, and make each control its own “column” */}
+      <div className="flex flex-col sm:flex-row items-start justify-center gap-4 px-5">
+        {/* Date column */}
+        <div className="w-full sm:w-auto flex flex-col text-left">
+          <p className="font-medium text-sm text-gray-700 mb-1">DATE</p>
           <input
-            id="sb-date"
             type="date"
-            className="w-full border-2 border-gray-300 p-2 shadow-sm text-gray-700 rounded"
+            className="border-2 border-gray-300 p-2 text-gray-500 bg-white"
             value={localDate}
             onChange={(e) => setLocalDate(e.target.value)}
             min={new Date().toISOString().split("T")[0]}
             required
           />
+          {/* reserve the same “helper space” as venue so alignment never shifts */}
+          <div className="min-h-[16px] mt-1" aria-hidden="true" />
+          <div className="min-h-[16px] mt-1" aria-hidden="true" />
         </div>
 
-        {/* Venue */}
-        <div className="flex-[2] min-w-[260px]">
-          <label className="block text-white text-xs sm:text-sm mb-1" htmlFor="sb-venue">
-            VENUE
-          </label>
+        {/* Venue column */}
+        <div className="w-full sm:w-[420px] flex flex-col text-left">
+          <p className="font-medium text-sm text-gray-700 mb-1">VENUE POSTCODE</p>
 
-          <RoyalMailAddressNow
-            captureKey="uu93-fd14-xw69-bu42"
-            idPrefix="searchbox"          // ✅ avoids clashes if you render multiple
-            setAddress={setLocalAddress}
-            setCounty={setCounty}
-            setPostcode={setPostcode}
-            initialValue={localAddress}
-            className="w-full text-base px-3 py-2 border-2 border-gray-300 rounded"
-            placeholder="Start typing your venue (select from dropdown)..."
-            id="sb-venue"
-            required
-          />
+         <RoyalMailAddressNow
+  captureKey="uu93-fd14-xw69-bu42"
+  setAddress={setLocalAddress}
+  setCounty={setCounty}
+  setPostcode={setPostcode}
+  initialValue={localAddress}
+  className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
+  placeholder="Type your venue or postcode..."
+  required
+/>
 
-          {/* Helper text like SearchBar */}
-          {!postcodeOk && localAddress?.trim() ? (
-            <p className="mt-1 text-xs text-[#ff6667]">
-              Please select a result that includes a UK postcode.
-            </p>
-          ) : (
-            <p className="mt-1 text-xs text-gray-400">
-              Tip: choose a dropdown result (not free-typed) so we can confirm the postcode.
-            </p>
-          )}
+       
 
-          {postcodeOk ? (
-            <p className="mt-1 text-xs text-green-400">
-              Postcode detected: {normaliseUKPostcode(postcode)}
-            </p>
-          ) : null}
+         
         </div>
 
-        {/* Search button */}
-        <div className="w-full sm:w-auto flex flex-col">
-          <div className="h-[18px] mb-1" aria-hidden="true" />
+        {/* Search button column */}
+        <div className="w-full sm:w-auto flex flex-col text-left">
+          {/* label spacer to match the DATE/VENUE label height */}
+          <div className="h-[20px] mb-1" aria-hidden="true" />
           <button
-            type="button"
+            className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 rounded ${
+              searchDisabled
+                ? "bg-[#ff6667] hover:bg-gray-400 cursor-not-allowed"
+                : "bg-[#ff6667] hover:bg-[#ff3333]"
+            }`}
             onClick={handleSearch}
             disabled={searchDisabled}
-            className={`w-full sm:w-auto px-6 py-3 font-medium rounded transition
-              ${
-                searchDisabled
-                  ? "bg-gray-600 cursor-not-allowed opacity-60"
-                  : "bg-[#ff6667] hover:opacity-90 text-white"
-              }
-            `}
           >
             SEARCH
           </button>
+
+          {/* keep column height consistent with other columns */}
+          <div className="min-h-[16px] mt-1" aria-hidden="true" />
+          <div className="min-h-[16px] mt-1" aria-hidden="true" />
         </div>
 
         {/* Close */}
@@ -210,8 +195,7 @@ return showSearch || animate ? (
         </div>
       </div>
     </div>
-  </div>
-) : null;
+  ) : null;
 };
 
 export default SearchBox;
