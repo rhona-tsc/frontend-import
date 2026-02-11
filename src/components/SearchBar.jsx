@@ -162,7 +162,7 @@ const SearchBar = () => {
               setPostcode={setPostcode}
               // ✅ match SearchBox: square edges + thicker border
               className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
-              placeholder="Start typing your venue (select from dropdown)..."
+              placeholder="Start typing your venue"
               id="qs-venue"
             />
 
@@ -189,7 +189,7 @@ const SearchBar = () => {
               onClick={handleSearch}
               disabled={searchDisabled}
               // ✅ closer to SearchBox: py-2, rounded (small), no heavy font class
-              className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 rounded ${
+              className={`w-full sm:w-auto px-6 py-2 border-2 border-[#ff6667] bg-[#ff6667] text-white transition duration-300 ${
                 searchDisabled
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-[#ff6667] hover:bg-[#ff3333]"
