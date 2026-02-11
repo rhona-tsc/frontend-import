@@ -2193,7 +2193,6 @@ actsCopy = actsCopy.map((act) => {
     // Sort + set
     // ───────────────────────────────────────────────────────────────────────────────
     if (runId === filterRunIdRef.current) {
-      let finalActs = [...updatedActs];
 
       const num = (v) => {
         const n = Number(v);
@@ -2201,7 +2200,7 @@ actsCopy = actsCopy.map((act) => {
       };
 
       if (sortType === "low-high") {
-        finalActs.sort((a, b) => {
+        updatedActs.sort((a, b) => {
           const A = num(a.formattedPrice);
           const B = num(b.formattedPrice);
           if (Number.isNaN(A) && Number.isNaN(B)) return 0;
@@ -2210,7 +2209,7 @@ actsCopy = actsCopy.map((act) => {
           return A - B;
         });
       } else if (sortType === "high-low") {
-        finalActs.sort((a, b) => {
+        updatedActs.sort((a, b) => {
           const A = num(a.formattedPrice);
           const B = num(b.formattedPrice);
           if (Number.isNaN(A) && Number.isNaN(B)) return 0;
@@ -2220,14 +2219,14 @@ actsCopy = actsCopy.map((act) => {
         });
       }
 
-      ACTS_DBG("finalActs before set", { len: finalActs.length });
-      setFilterProducts(finalActs);
+      ACTS_DBG("finalActs before set", { len: updatedActs.length });
+      setFilterProducts(updatedActs);
       console.log(
         "✅ Filtered products set:",
-        finalActs.length,
-        finalActs.map((a) => a.name || a.tscName)
+        updatedActs.length,
+        updatedActs.map((a) => a.name || a.tscName)
       );
-      ACTS_DBG("✅ setFilterProducts(final)", { len: finalActs.length });
+      ACTS_DBG("✅ setFilterProducts(final)", { len: updatedActs.length });
       ENDGROUP();
     } else {
       ACTS_DBG(`Skipping stale filter run #${runId}`);

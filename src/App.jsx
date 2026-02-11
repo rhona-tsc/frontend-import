@@ -27,6 +27,7 @@ import ResetPassword from "./pages/ResetPassword";
   import { useState, useEffect   } from "react";
 import AuthGateModal from "./components/AuthGateModal";
 import LandingPage from "./pages/LandingPage";
+import ScrollToTop from "./components/ScrollToTop";
 
   // 👇 helper to decode token once
   function parseToken(t) {
@@ -118,6 +119,7 @@ import LandingPage from "./pages/LandingPage";
           <div className="mt-16">
              <SearchBox />
             <Routes>
+               <ScrollToTop />
               <Route path="/" element={<Home />} />
               <Route path="/acts" element={<Acts email={email}
                   userRole={userRole}
