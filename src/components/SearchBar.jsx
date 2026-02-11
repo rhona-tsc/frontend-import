@@ -153,23 +153,9 @@ const SearchBar = () => {
               id="qs-venue"
             />
 
-            {/* ✅ helper text */}
-            {!postcodeOk && localAddress?.trim() ? (
-              <p className="mt-1 text-xs text-[#ff6667]">
-                Please select a result that includes a UK postcode.
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-gray-400">
-                Tip: choose a dropdown result (not free-typed) so we can confirm the postcode.
-              </p>
-            )}
+           
 
-            {/* Optional: show captured postcode */}
-            {postcodeOk ? (
-              <p className="mt-1 text-xs text-green-400">
-                Postcode detected: {normaliseUKPostcode(postcode)}
-              </p>
-            ) : null}
+          
           </div>
 
          {/* Search button */}
