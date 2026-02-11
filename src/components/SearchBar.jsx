@@ -4,6 +4,7 @@ import { assets } from "../assets/assets";
 import { useLocation } from "react-router-dom";
 import RoyalMailAddressNow from "./RoyalMailAddressNow";
 import { gtagEvent } from "../utils/gtag";
+import Title from "./Title";
 // UK postcode validator (accepts with/without space, normalises later)
 const isValidUKPostcode = (value = "") => {
   const pc = String(value || "")
@@ -106,11 +107,11 @@ const SearchBar = () => {
   const searchDisabled = !postcodeOk;
 
   return (
-<div className="w-full border border-gray-200 bg-gray-50 text-center shadow-sm py-4 mx-auto max-w-5xl">
+<div className="w-full border border-gray-200 bg-gray-50 text-center shadow-sm py-4 mx-auto max-w-5xl mt-4">
         {/* ⬇️ Key change: align blocks from the top, and make each control its own “column” */}
           {/* ✅ Title */}
-    <div className="px-5 mb-3 text-left">
-      <p className="text-5xl uppercase tracking-wider text-gray-500">Quick Search</p>
+    <div className="px-5 mb-3 text-center">
+      <Title text1="QUICK" text2="SEARCH" />
       {/* optional: tiny helper line */}
       <p className="text-sm text-gray-700">Instant pricing for your date & venue</p>
     </div>
