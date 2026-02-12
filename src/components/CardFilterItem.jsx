@@ -9,10 +9,35 @@ const applyMargin = (v) => Math.ceil((Number(v) || 0) * (1 + MARGIN_RATE));
 
 const getActId   = (src) => src?.actId || src?._id || src?.id || '';
 const getTitle   = (src) => src?.tscName || src?.name || 'Act';
+const isHttp = (s) => typeof s === "string" && /^https?:\/\//i.test(s);
+
 const getImageUrl = (src) => {
-  const v = src?.imageUrl || src?.profileImage?.[0]?.url || '';
-  return v && v.startsWith('http') ? v : '/placeholder.jpg';
+  const v =
+    src?.imageUrl ||
+    src?.profileImage?.[0]?.url ||
+    src?.profileImage?.url ||
+    src?.images?.[0]?.url ||
+    src?.images?.[0] ||
+    src?.image ||
+    "";
+
+  // allow local/static paths too
+  if (typeof v === "string" && (isHttp(v) || v.startsWith("/"))) return v;
+
+  return "/placeholder.jpg";
 };
+
+const getLove = (src, fallback) => {
+  const n =
+    src?.timesShortlisted ??
+    src?.loveCount ??
+    src?.numberOfShortlistsIn ??   // 👈 you HAVE this in your payload
+    fallback ??
+    0;
+
+  return Math.max(0, Number(n) || 0);
+};
+
 const getBadge   = (src) => src?.availabilityBadge || null;
 const getBasePrice = (src) => {
   if (src?.basePrice != null) return Number(String(src.basePrice).replace(/[^0-9.+-]/g, ''));
@@ -20,10 +45,7 @@ const getBasePrice = (src) => {
   const base = src?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
   return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
 };
-const getLove = (src, fallback) => {
-  const n = src?.timesShortlisted ?? src?.loveCount ?? fallback ?? 0;
-  return Math.max(0, Number(n) || 0);
-};
+
 
 const getSlug = (src) => {
   const s =
@@ -101,11 +123,7 @@ const ctx = useContext(ShopContext) || {};
 
  useEffect(() => {
   setLoveCount(getLove(actData, shortlistCount));
-}, [
-  actData?.timesShortlisted,
-  actData?.loveCount,
-  shortlistCount,
-]);
+}, [actData, shortlistCount]);
 
   useEffect(() => {
     let cancelled = false;
@@ -237,9 +255,19 @@ const ctx = useContext(ShopContext) || {};
   return (
     <div className="relative group">
       <Link to={getActUrl(actData)} onClick={() => { if (typeof window !== "undefined") window.scrollTo(0, 0); }} className="block text-gray-700">
-        <div className="overflow-hidden h-full w-full">
-          <img className="h-full w-full object-cover hover:scale-110 transition ease-in-out" src={resolvedImage} alt={getTitle(actData)} />
-        </div>
+        <div className="relative w-full aspect-[4/3] overflow-hidden">
+  <img
+    className="absolute inset-0 w-full h-full object-cover hover:scale-110 transition ease-in-out"
+    src={resolvedImage}
+    alt={getTitle(actData)}
+    loading="lazy"
+    onError={(e) => {
+      // prevents broken-image blanks
+      if (e.currentTarget.src.endsWith("/placeholder.jpg")) return;
+      e.currentTarget.src = "/placeholder.jpg";
+    }}
+  />
+</div>
 
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
