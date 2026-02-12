@@ -52,7 +52,17 @@ const SearchBox = () => {
       console.groupEnd();
     } catch {}
   };
-
+const setShowSearchDBG = (next, reason = "unknown") => {
+  const value = typeof next === "function" ? next(showSearch) : next;
+  console.groupCollapsed(
+    `🧭 [SearchBox] setShowSearch(${String(value)}) — reason: ${reason}`
+  );
+  console.log("route:", location.pathname);
+  console.log("BEFORE showSearch:", showSearch, "animate:", animate);
+  console.trace("stack");
+  console.groupEnd();
+  setShowSearch(value);
+};
   // choose behaviour:
   // true  => open if missing date OR missing venue (old strict mode)
   // false => open only if missing venue (recommended to stop preset re-open)
@@ -151,9 +161,11 @@ const extractPostcode = (text = "") => {
     // If user dismissed manually, don't auto-reopen until we have enough info
     if (!shouldClose && dismissed) {
       setAnimate(false);
-      setShowSearch(false);
+      setShowSearchDBG(false, "acts_decision_close");
       return;
     }
+
+    
 
     // If we now have enough info, clear any old dismissal
     if (shouldClose && dismissed) {
@@ -162,9 +174,9 @@ const extractPostcode = (text = "") => {
 
     if (shouldClose) {
       setAnimate(false);
-      setShowSearch(false);
+      setShowSearchDBG(false, "acts_decision_close");
     } else {
-      setShowSearch(true);
+      setShowSearchDBG(true, "acts_decision_open");
       setAnimate(true);
     }
   }, [location.pathname, searchSnapshot, setShowSearch]);
@@ -173,8 +185,7 @@ const extractPostcode = (text = "") => {
   useEffect(() => {
     if (location.pathname !== "/acts" && showSearch) {
       setAnimate(false);
-      setTimeout(() => setShowSearch(false), 300);
-    }
+setTimeout(() => setShowSearchDBG(false, "navigate_away_autohide"), 300);    }
   }, [location.pathname, showSearch, setShowSearch]);
 
   // Animate in when opened
@@ -196,8 +207,7 @@ const extractPostcode = (text = "") => {
     }
 
     setAnimate(false);
-    setTimeout(() => setShowSearch(false), 500);
-  };
+setTimeout(() => setShowSearchDBG(false, `handleClose:${reason}`), 500);  };
 
   useEffect(() => {
     SB_GROUP("🎛 showSearch changed");
@@ -208,6 +218,9 @@ const extractPostcode = (text = "") => {
     SB("ss.selectedAddress:", sessionStorage.getItem("selectedAddress"));
     SB("ss.selectedDate:", sessionStorage.getItem("selectedDate"));
     SB("ss.selectedPostcode:", sessionStorage.getItem("selectedPostcode"));
+    SB("ls.selectedAddress:", localStorage.getItem("selectedAddress"));
+SB("ls.selectedDate:", localStorage.getItem("selectedDate"));
+SB("ls.selectedPostcode:", localStorage.getItem("selectedPostcode"));
     SB_END();
 
     if (showSearch) openedAtRef.current = Date.now();
