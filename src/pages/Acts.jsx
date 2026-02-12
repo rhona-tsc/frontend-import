@@ -177,7 +177,6 @@ const [enrichedCards, setEnrichedCards] = useState([]);
 
   // near the top
   const FILTER_DATA_ENDPOINTS = [api("api/v2/act-cards/search")];
-const noLocation = !storedAddress && !storedCounty && !storedPlace;
 const setShowSearchDBG = (next, reason = "unknown") => {
   const value = typeof next === "function" ? next(showSearch) : next;
   console.groupCollapsed(
