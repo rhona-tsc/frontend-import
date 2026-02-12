@@ -101,7 +101,7 @@ const PriceSkeleton = () => (
   <div className="h-5 w-24 rounded-md bg-gray-200 animate-pulse" />
 );
 
-const CardFilterItem = ({ actData, shortlistCount, standalone = false }) => {
+const CardFilterItem = ({ actData, timesShortlisted, standalone = false }) => {
  
 
 const ctx = useContext(ShopContext) || {};
@@ -117,13 +117,13 @@ const ctx = useContext(ShopContext) || {};
   } = ctx;
 
   const [isAnimating, setIsAnimating] = useState(false);
-  const [loveCount, setLoveCount] = useState(() => getLove(actData, shortlistCount));
+  const [loveCount, setLoveCount] = useState(() => getLove(actData, timesShortlisted));
   const [price, setPrice] = useState(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
 
 useEffect(() => {
-  setLoveCount(getLove(actData, shortlistCount));
-}, [actData, shortlistCount]);
+  setLoveCount(getLove(actData, timesShortlisted));
+}, [actData, timesShortlisted]);
 
   useEffect(() => {
     let cancelled = false;
