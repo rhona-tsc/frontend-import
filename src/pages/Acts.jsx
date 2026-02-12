@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useRef, useMemo } from "react";
+import { useContext, useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ShopContext } from "../context/ShopContext.jsx";
 import { useSearchParams, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -121,6 +121,7 @@ const Acts = ({ userRole, email }) => {
   } = useContext(ShopContext);
   const [searchParams] = useSearchParams();
   const appliedOnceRef = useRef(false);
+const [priceMap, setPriceMap] = useState({}); // { [actId]: number }
 
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
@@ -217,7 +218,13 @@ const setShowSearchDBG = (next, reason = "unknown") => {
 
 const { preset } = useParams();
 
-
+const onPriceComputed = useCallback((actId, total) => {
+  if (!actId || !Number.isFinite(total)) return;
+  setPriceMap((prev) => {
+    if (prev[actId] === total) return prev;
+    return { ...prev, [actId]: total };
+  });
+}, []);
 const lastPresetKeyRef = useRef("");
 
 useEffect(() => {
@@ -2431,11 +2438,17 @@ function formatGBP(n) {
 
 // Decide numeric sort price for an act/card
 function getSortPrice(act) {
-  // If pricing has been calculated (address+date), use it
+  const id = String(act?.actId || act?._id || act?.id || "");
+
+  // ✅ 1) Prefer the *actual displayed* computed price from cards
+  const fromMap = priceMap[id];
+  if (Number.isFinite(fromMap)) return fromMap;
+
+  // ✅ 2) Then fallback to any precomputed field you might have
   const priced = parsePrice(act?.formattedPrice);
   if (!Number.isNaN(priced)) return priced;
 
-  // Otherwise fall back to the card's minimum "from" price
+  // ✅ 3) Then fallback to "from" prices on cards/acts
   const candidates = [
     act?.minDisplayPrice,
     act?.minPrice,
@@ -2466,15 +2479,12 @@ const results = useMemo(() => {
   return [...arr].sort((a, b) => {
     const A = getSortPrice(a);
     const B = getSortPrice(b);
-
-    // Missing/NaN prices go to the end consistently
     if (Number.isNaN(A) && Number.isNaN(B)) return 0;
     if (Number.isNaN(A)) return 1;
     if (Number.isNaN(B)) return -1;
-
     return dir * (A - B);
   });
-}, [filterProducts, sortType]);
+}, [filterProducts, sortType, priceMap]); // ✅ add priceMap
 
 // ✅ Then: derive display fields from results
 const resultsWithPrice = useMemo(() => {
@@ -2483,10 +2493,11 @@ const resultsWithPrice = useMemo(() => {
     return {
       ...a,
       sortPrice: Number.isFinite(sortPrice) ? sortPrice : null,
-      formattedPrice: formatGBP(sortPrice),
+      displayPrice: formatGBP(sortPrice), // ✅ separate field
     };
   });
-}, [results]);
+}, [results, priceMap]);
+
 
 useEffect(() => {
   try {
@@ -4203,18 +4214,12 @@ useEffect(() => {
               </div>
             ) : (
               resultsWithPrice.map((item) => (
-                <CardFilterItem
-                  key={item.actId || item._id}
-                  actData={{
-                    ...item,
-                    images:
-                      item?.images ??
-                      item?.__card?.images ??
-                      item?.__card?.coverImages,
-                     
-                  }}
-                  variant="listing"
-                />
+               <CardFilterItem
+  key={item.actId || item._id}
+  actData={{ ...item, images: item?.images ?? item?.__card?.images ?? item?.__card?.coverImages }}
+  variant="listing"
+  onPriceComputed={onPriceComputed}   // ✅ add this
+/>
               ))
             )}
           </div>

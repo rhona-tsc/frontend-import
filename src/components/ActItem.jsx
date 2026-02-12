@@ -1,70 +1,80 @@
 // frontend/src/components/ActItem.jsx
-import React, { useState, useEffect, useContext } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import calculateActPricing from '../pages/utils/pricing';
-import { ShopContext } from '../context/ShopContext';
-import PropTypes from 'prop-types';
+import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
+import calculateActPricing from "../pages/utils/pricing";
+import { ShopContext } from "../context/ShopContext";
+import PropTypes from "prop-types";
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Lightweight debug logger for this component
-// Toggle on/off without touching every console.log
+// Debug logger
 // ──────────────────────────────────────────────────────────────────────────────
-const DBG = true; // set to false to silence logs
-const DBG_PRICE = true; // pricing-only logs
-const dlog = (...a) => DBG && console.log('🎯[ActItem]', ...a);
-
-// Grouped pricing logger to make per-act fee builds easy to scan
+const DBG = true; // set false to silence all
+const DBG_PRICE = true; // set false to silence pricing logs
+const dlog = (...a) => DBG && console.log("🎯[ActItem]", ...a);
 const pgroup = (label, fn) => {
   if (!(DBG && DBG_PRICE)) return fn();
   console.groupCollapsed(`💷[ActItem] ${label}`);
-  try { fn(); } finally { console.groupEnd(); }
+  try {
+    fn();
+  } finally {
+    console.groupEnd();
+  }
 };
-
 const pmoney = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? `£${n}` : String(v);
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Margin to apply on all displayed prices
+// Margin
 // ──────────────────────────────────────────────────────────────────────────────
-const MARGIN_RATE = 0.33; // 33%
-const applyMargin = (v) => {
-  const n = Number(v) || 0;
-  return Math.ceil(n * (1 + MARGIN_RATE));
-};
+const MARGIN_RATE = 0.33;
+const applyMargin = (v) => Math.ceil((Number(v) || 0) * (1 + MARGIN_RATE));
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Helpers to support BOTH shapes: lightweight ActCard and full Act document
-// ActCard fields: { actId, imageUrl, basePrice, loveCount, name, tscName, availabilityBadge }
-// Full Act fields: { _id, profileImage[], formattedPrice, numberOfShortlistsIn, lineups, ... }
+// Core helpers
 // ──────────────────────────────────────────────────────────────────────────────
-const getActId = (src) => src?.actId || src?._id || src?.id || '';
-const getTitle = (src) => src?.tscName || src?.name || 'Act';
-const getImageUrl = (src) =>
-  src?.imageUrl || src?.profileImage?.[0]?.url || '/placeholder.jpg';
+const isHttp = (s) => typeof s === "string" && /^https?:\/\//i.test(s);
+
+const getActId = (src) => src?.actId || src?._id || src?.id || "";
+const getTitle = (src) => src?.tscName || src?.name || "Act";
+
+const getImageUrl = (src) => {
+  const v =
+    src?.imageUrl ||
+    src?.profileImage?.[0]?.url ||
+    src?.profileImage?.url ||
+    src?.images?.[0]?.url ||
+    src?.images?.[0] ||
+    src?.image ||
+    "";
+
+  if (typeof v === "string" && (isHttp(v) || v.startsWith("/"))) return v;
+  return "/placeholder.jpg";
+};
+
 const getBadge = (src) => src?.availabilityBadge || null;
+
 const getBasePrice = (src) => {
-  if (src?.basePrice != null) return Number(String(src.basePrice).replace(/[^0-9.+-]/g, ''));
+  if (src?.basePrice != null) return Number(String(src.basePrice).replace(/[^0-9.+-]/g, ""));
   const lineup = src?.lineups?.[0] || null;
   const base = src?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
-  return base != null ? Number(String(base).replace(/[^0-9.+-]/g, '')) : null;
+  return base != null ? Number(String(base).replace(/[^0-9.+-]/g, "")) : null;
 };
+
 const getLove = (src, shortlistCount) => {
   const n =
     src?.loveCount ??
-    src?.timesShortlisted ??              // ✅ ADD THIS
+    src?.timesShortlisted ??
     src?.numberOfShortlistsIn ??
     shortlistCount ??
     src?.shortlistCount ??
     src?.metrics?.shortlists ??
     0;
-
   return Math.max(0, Number(n) || 0);
 };
 
-// Manual override: if you set this in actcards/actfiltercards, we can show a stable "from" price
-// when no location/date is selected (avoids slow/buggy derived pricing for now).
+// Manual override: stable “from” price if provided
 const getMinDisplayPrice = (src) => {
   const v =
     src?.minBasePrice ??
@@ -76,23 +86,27 @@ const getMinDisplayPrice = (src) => {
     src?.minimumFee ??
     src?.minFee;
 
-  const n = v == null ? null : Number(String(v).replace(/[^0-9.+-]/g, ''));
+  const n = v == null ? null : Number(String(v).replace(/[^0-9.+-]/g, ""));
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-
-const getSlug = (src) => String(src?.slug || "").trim();
+const getSlug = (src) => {
+  const s = src?.slug || src?.tscSlug || src?.routeSlug || src?.key || "";
+  return typeof s === "string" ? s.trim() : "";
+};
 
 const getActUrl = (src) => {
   const slug = getSlug(src);
   const id = getActId(src);
-  return slug ? `/act/${slug}` : (id ? `/act/${id}` : "/");
+  return slug ? `/act/${encodeURIComponent(slug)}` : id ? `/act/${id}` : "/";
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Travel model normalizers (ActCards may store these under travelModel)
 // ──────────────────────────────────────────────────────────────────────────────
 const getTravelModel = (src) => src?.travelModel || src?.travelModelHints || null;
+
+const num = (v) => (v == null ? 0 : Number(String(v).replace(/[^0-9.+-]/g, "")) || 0);
 
 const getUseCountyTravelFee = (src) => {
   const tm = getTravelModel(src);
@@ -118,29 +132,24 @@ const getCountyFees = (src) => {
 const getHasCountyFees = (src) => {
   const cf = getCountyFees(src);
   const tm = getTravelModel(src);
-  if (cf && typeof cf === 'object' && Object.keys(cf).length > 0) return true;
+  if (cf && typeof cf === "object" && Object.keys(cf).length > 0) return true;
   return Boolean(tm?.hasCountyFees);
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Pricing helpers (fallback when base_fee is missing)
-//   • Choose the SMALLEST lineup by bandMembers count (tie-breaker: cheaper)
-//   • Sum each member's fee + essential additionalRoles' additionalFee
-//   • Travel adds: (min county fee) × (member count, excluding managers)
+// Derived base fallback (when no location/date OR missing base_fee)
 // ──────────────────────────────────────────────────────────────────────────────
-const num = (v) => (v == null ? 0 : Number(String(v).replace(/[^0-9.+-]/g, '')) || 0);
-
 const essentialRolesFee = (member) => {
   const roles = Array.isArray(member?.additionalRoles) ? member.additionalRoles : [];
   return roles.reduce((s, r) => s + (r?.isEssential ? num(r?.additionalFee) : 0), 0);
 };
 
-const isManagerMember = (member) => /manager/i.test(String(member?.instrument || ''));
+const isManagerMember = (member) => /manager/i.test(String(member?.instrument || ""));
 
 const minCountyFeeFromAct = (act) => {
   const useCounty = getUseCountyTravelFee(act);
   const countyFees = getCountyFees(act);
-  if (!(useCounty && countyFees && typeof countyFees === 'object')) return 0;
+  if (!(useCounty && countyFees && typeof countyFees === "object")) return 0;
   const vals = Object.values(countyFees)
     .map((v) => Number(v))
     .filter((v) => Number.isFinite(v) && v > 0);
@@ -156,7 +165,6 @@ const computeBaseFromSmallestLineup = (act) => {
   const lineups = Array.isArray(act?.lineups) ? act.lineups : [];
   if (!lineups.length) return null;
 
-  // Sort: smallest member count first; then cheaper bare fee as tie-breaker
   const sorted = [...lineups].sort((a, b) => {
     const na = Array.isArray(a?.bandMembers) ? a.bandMembers.length : Number.POSITIVE_INFINITY;
     const nb = Array.isArray(b?.bandMembers) ? b.bandMembers.length : Number.POSITIVE_INFINITY;
@@ -169,7 +177,6 @@ const computeBaseFromSmallestLineup = (act) => {
 
   const members = Array.isArray(chosen.bandMembers) ? chosen.bandMembers : [];
 
-  // Per-member fee breakdown (fee + essential additionalRoles)
   const memberBreakdown = members.map((m, idx) => {
     const fee = num(m?.fee);
     const essential = essentialRolesFee(m);
@@ -177,12 +184,12 @@ const computeBaseFromSmallestLineup = (act) => {
     const roles = Array.isArray(m?.additionalRoles)
       ? m.additionalRoles
           .filter((r) => r?.isEssential)
-          .map((r) => ({ role: r?.customRole || r?.role || 'Role', fee: num(r?.additionalFee) }))
+          .map((r) => ({ role: r?.customRole || r?.role || "Role", fee: num(r?.additionalFee) }))
       : [];
 
     return {
       idx,
-      name: m?.firstName ? `${m.firstName}${m?.lastName ? ` ${m.lastName}` : ''}` : undefined,
+      name: m?.firstName ? `${m.firstName}${m?.lastName ? ` ${m.lastName}` : ""}` : undefined,
       instrument: m?.instrument,
       isManager: isManagerMember(m),
       fee,
@@ -193,50 +200,33 @@ const computeBaseFromSmallestLineup = (act) => {
   });
 
   const memberFees = memberBreakdown.reduce((s, x) => s + (Number(x.memberTotal) || 0), 0);
-
-  // Travel: exclude manager from *count* only
   const travelCount = memberBreakdown.reduce((n, m) => n + (m.isManager ? 0 : 1), 0);
   const travelUnit = minCountyFeeFromAct(act);
   const travel = (Number(travelUnit) || 0) * (Number(travelCount) || 0);
-
   const total = memberFees + travel;
 
   pgroup(`Derived base (no when/where) — ${getTitle(act)} (${getActId(act)})`, () => {
-    dlog('chosen lineup snapshot', {
+    dlog("chosen lineup snapshot", {
       act: getTitle(act),
       lineupLabel: chosen?.act_size || chosen?.actSize || null,
       memberCount: members.length,
       useCountyTravelFee: getUseCountyTravelFee(act),
       hasCountyFees: getHasCountyFees(act),
     });
-
-    dlog('member breakdown', memberBreakdown);
-
-    dlog('travel breakdown', {
-      travelCount,
-      travelUnit,
-      travel,
-    });
-
-    dlog('totals (pre-margin)', {
-      memberFees,
-      travel,
-      total,
-    });
+    dlog("member breakdown", memberBreakdown);
+    dlog("travel breakdown", { travelCount, travelUnit, travel });
+    dlog("totals (pre-margin)", { memberFees, travel, total });
   });
 
   return Number.isFinite(total) ? total : null;
 };
 
+const PriceSkeleton = () => <div className="h-5 w-24 rounded-md bg-gray-200 animate-pulse" />;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────────────────────────────────────
 const ActItem = ({ actData, shortlistCount }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [loveCount, setLoveCount] = useState(() => getLove(actData, shortlistCount));
-  const [price, setPrice] = useState(null);
-
-  // ✅ use shortlist from context
   const {
     shortlistedActs,
     shortlistAct,
@@ -244,43 +234,75 @@ const ActItem = ({ actData, shortlistCount }) => {
     selectedCounty,
     selectedAddress,
     selectedDate,
-    getCardPriceWithTravel, // 🔹 for travel-aware pricing when we only have a card
-  } = useContext(ShopContext);
+    getCardPriceWithTravel,
+  } = useContext(ShopContext) || {};
 
-  
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [loveCount, setLoveCount] = useState(() => getLove(actData, shortlistCount));
+  const [price, setPrice] = useState(null);
+  const [loadingPrice, setLoadingPrice] = useState(false);
 
-  // Keep loveCount in sync when actData changes
+  // keep latest handler refs stable
+  const getCardPriceWithTravelRef = useRef(getCardPriceWithTravel);
+  useEffect(() => {
+    getCardPriceWithTravelRef.current = getCardPriceWithTravel;
+  }, [getCardPriceWithTravel]);
+
+  // Sync love count to incoming data
   useEffect(() => {
     setLoveCount(getLove(actData, shortlistCount));
-  }, [
-    actData?.loveCount,
-    actData?.numberOfShortlistsIn,
-    actData?.shortlistCount,
-    actData?.metrics?.shortlists,
-    shortlistCount,
-  ]);
+  }, [actData, shortlistCount]);
 
-  // Compute/refresh price
+  // Pricing key (primitive) to prevent recalcing on every render/object identity change
+  const actId = useMemo(() => String(getActId(actData)), [actData]);
+  const actVer = useMemo(() => String(actData?.updatedAt || actData?.__v || ""), [actData]);
+  const addrNorm = useMemo(() => String(selectedAddress || "").trim(), [selectedAddress]);
+  const hasAddress = useMemo(() => !!addrNorm, [addrNorm]);
+
+  const dateISO = useMemo(() => {
+    if (!selectedDate) return "";
+    const d = new Date(selectedDate);
+    return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+  }, [selectedDate]);
+
+  const pricingKey = useMemo(() => {
+    const county = String(selectedCounty || "");
+    return `${actId}|${actVer}|${county}|${addrNorm}|${dateISO}`;
+  }, [actId, actVer, selectedCounty, addrNorm, dateISO]);
+
+  const safeSetPrice = useCallback((next) => {
+    setPrice((prev) => {
+      const prevTotal = prev?.total ?? null;
+      const nextTotal = next?.total ?? null;
+      const prevTC = !!prev?.travelCalculated;
+      const nextTC = !!next?.travelCalculated;
+      if (prevTotal === nextTotal && prevTC === nextTC) return prev;
+      return next;
+    });
+  }, []);
+
+  // Compute/refresh price (debounced by pricingKey)
   useEffect(() => {
+    let cancelled = false;
+
     const run = async () => {
+      setLoadingPrice(true);
       try {
-        const id = getActId(actData);
         const baseOnly = getBasePrice(actData);
+        const manualMin = !hasAddress || !dateISO ? getMinDisplayPrice(actData) : null;
         const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
 
-        const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
-        const manualMin = getMinDisplayPrice(actData);
-
-        pgroup(`Price build — ${getTitle(actData)} (${id})`, () => {
-          dlog('inputs', {
-            id,
+        pgroup(`Price build — ${getTitle(actData)} (${actId})`, () => {
+          dlog("inputs", {
+            id: actId,
             title: getTitle(actData),
             hasLineups,
             baseOnly,
-            hasAddress,
+            manualMin,
             selectedCounty: selectedCounty || null,
             selectedAddress: selectedAddress || null,
-            selectedDate: selectedDate || null,
+            selectedDate,
+            dateISO,
             useCountyTravelFee: getUseCountyTravelFee(actData),
             travelModeHints: {
               useMUTravelRates: getUseMUTravelRates(actData),
@@ -288,85 +310,63 @@ const ActItem = ({ actData, shortlistCount }) => {
               costPerMile: getCostPerMile(actData),
               hasCountyFees: getHasCountyFees(actData),
             },
-            cardFields: Object.keys(actData || {}),
           });
         });
 
-        // No date/location → show MANUAL minDisplayPrice first (if present), else derived base from lineups, else fallback base
-        if (!hasAddress || !selectedDate) {
+        // 1) No when/where → stable “from” price
+        if (!hasAddress || !dateISO) {
           if (manualMin != null) {
-            pgroup(`Price result (manual minDisplayPrice) — ${getTitle(actData)} (${id})`, () => {
-              dlog('manualMin (display, no extra margin applied)', pmoney(manualMin));
-            });
-            setPrice({ total: manualMin, travelCalculated: false, isManual: true });
+            // NOTE: manualMin assumed NET or already display-ready. If your API stores NET,
+            // you probably want margin here. If manualMin is already post-margin, keep as-is.
+            // I’m following your earlier behaviour: no extra margin applied.
+            if (!cancelled) safeSetPrice({ total: manualMin, travelCalculated: false, isManual: true });
             return;
           }
 
           const derived = computeBaseFromSmallestLineup(actData);
           if (derived != null) {
-            const withMargin = applyMargin(derived);
-            pgroup(`Price result (no when/where) — ${getTitle(actData)} (${id})`, () => {
-              dlog('derived base (pre-margin)', pmoney(derived));
-              dlog('derived base (post-margin)', pmoney(withMargin));
-            });
-            setPrice({ total: withMargin, travelCalculated: false });
-          } else if (baseOnly != null) {
-            const withMargin = applyMargin(baseOnly);
-            pgroup(`Price result (no when/where fallback) — ${getTitle(actData)} (${id})`, () => {
-              dlog('baseOnly (pre-margin)', pmoney(baseOnly));
-              dlog('baseOnly (post-margin)', pmoney(withMargin));
-            });
-            setPrice({ total: withMargin, travelCalculated: false });
-          } else {
-            pgroup(`Price result (no when/where) — ${getTitle(actData)} (${id})`, () => {
-              dlog('no price available (manualMin + derived + baseOnly missing)');
-            });
+            if (!cancelled) safeSetPrice({ total: applyMargin(derived), travelCalculated: false });
+            return;
           }
+
+          if (baseOnly != null) {
+            if (!cancelled) safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+            return;
+          }
+
+          if (!cancelled) safeSetPrice(null);
           return;
         }
 
-        // If this is a lightweight card (no lineups), try context helper to compute travel-aware total
+        // 2) We have when/where
+        // If this is a lightweight card (no lineups), try context helper
         if (!hasLineups) {
-          if (typeof getCardPriceWithTravel === 'function') {
+          const fn = getCardPriceWithTravelRef.current;
+          if (typeof fn === "function") {
             try {
-              const total = await getCardPriceWithTravel(id);
-              if (Number.isFinite(total)) {
-                const withMargin = applyMargin(total);
-                pgroup(`Card travel-aware pricing — ${getTitle(actData)} (${id})`, () => {
-                  dlog('card travel-aware total (pre-margin)', pmoney(total));
-                  dlog('card travel-aware total (post-margin)', pmoney(withMargin));
-                  dlog('context inputs', {
-                    selectedCounty: selectedCounty || null,
-                    selectedAddress: selectedAddress || null,
-                    selectedDate: selectedDate || null,
-                  });
-                });
-                setPrice({ total: withMargin, travelCalculated: true });
+              const totalNet = await fn(actId);
+              if (!cancelled && Number.isFinite(totalNet)) {
+                safeSetPrice({ total: applyMargin(totalNet), travelCalculated: true });
                 return;
               }
             } catch (err) {
-              dlog('card travel-aware pricing failed', err?.message || err);
+              dlog("card travel-aware pricing failed", err?.message || err);
             }
           }
-          if (baseOnly != null) {
-            const withMargin = applyMargin(baseOnly);
-            pgroup(`Card fallback baseOnly — ${getTitle(actData)} (${id})`, () => {
-              dlog('baseOnly (pre-margin)', pmoney(baseOnly));
-              dlog('baseOnly (post-margin)', pmoney(withMargin));
-            });
-            setPrice({ total: withMargin, travelCalculated: false });
-          }
+
+          if (!cancelled && baseOnly != null) safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
           return;
         }
 
-        // Full act doc available → compute locally
+        // 3) Full act doc pricing
         const countyFees = getCountyFees(actData);
         const hasCountyTable = Boolean(
           getUseCountyTravelFee(actData) &&
-          countyFees &&
-          typeof countyFees === 'object' &&
-          Object.keys(countyFees).length > 0
+            countyFees &&
+            typeof countyFees === "object" &&
+            Object.keys(countyFees).length > 0
         );
+
         const lineup = actData.lineups[0];
 
         const result = await calculateActPricing(
@@ -377,123 +377,115 @@ const ActItem = ({ actData, shortlistCount }) => {
           lineup
         );
 
+        if (cancelled) return;
+
         if (!result || result.total == null) {
-          if (baseOnly != null) {
-            pgroup(`Full pricing fallback baseOnly — ${getTitle(actData)} (${id})`, () => {
-              dlog('calc failed, fallback baseOnly', baseOnly);
-            });
-            setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
-          } else {
-            pgroup(`Full pricing fallback — ${getTitle(actData)} (${id})`, () => {
-              dlog('calc failed, no baseOnly');
-            });
-          }
+          if (baseOnly != null) safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
           return;
         }
 
-        const withMargin = applyMargin(result.total);
-        pgroup(`Full pricing breakdown — ${getTitle(actData)} (${id})`, () => {
-          dlog('calculateActPricing() result (raw)', result);
-          dlog('total (pre-margin)', pmoney(result.total));
-          dlog('total (post-margin)', pmoney(withMargin));
-          dlog('selected inputs', {
-            selectedCounty: selectedCounty || null,
-            selectedAddress: selectedAddress || null,
-            selectedDate: selectedDate || null,
-          });
-          dlog('act travel flags', {
-            useMUTravelRates: getUseMUTravelRates(actData),
-            useCountyTravelFee: getUseCountyTravelFee(actData),
-            costPerMile: getCostPerMile(actData),
-            hasCountyFees: getHasCountyFees(actData),
-          });
-        });
-        setPrice({ ...result, total: withMargin });
+        safeSetPrice({ ...result, total: applyMargin(result.total), travelCalculated: true });
       } catch (err) {
-        console.error('❌ Failed to calculate price:', {
+        console.error("❌ Failed to calculate price:", {
           err,
-          actId: getActId(actData),
+          actId,
           useCountyTravelFee: actData?.useCountyTravelFee,
         });
         const baseOnly = getBasePrice(actData);
-        if (baseOnly != null) setPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+        if (!cancelled && baseOnly != null) safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+        if (!cancelled && baseOnly == null) safeSetPrice(null);
+      } finally {
+        if (!cancelled) setLoadingPrice(false);
       }
     };
 
     run();
-  }, [actData, selectedCounty, selectedAddress, selectedDate, getCardPriceWithTravel]);
+    return () => {
+      cancelled = true;
+    };
+  }, [pricingKey, actData, actId, hasAddress, dateISO, selectedCounty, selectedAddress, selectedDate, safeSetPrice]);
 
-  // Display total chooses computed price, else base from card/act
-  // Ensure margin is applied even if we fell back to base price without computing `price`
-  const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
-  const manualMin = (!hasAddress || !selectedDate) ? getMinDisplayPrice(actData) : null;
+  // UI display total
+  const computedFallback = useMemo(() => {
+    // used if price is null
+    const manualMin = !hasAddress || !dateISO ? getMinDisplayPrice(actData) : null;
+    if (manualMin != null) return manualMin;
 
-  // price.total is already post-margin when derived/calc’d, and already display-ready when manualMin is used.
-  const rawTotal =
-    price?.total ??
-    (manualMin != null
-      ? manualMin
-      : (getBasePrice(actData) != null ? applyMargin(getBasePrice(actData)) : null));
-  // Helpful trace: what ends up in the UI
+    const derived = computeBaseFromSmallestLineup(actData);
+    if (derived != null) return applyMargin(derived);
+
+    const b = getBasePrice(actData);
+    if (b != null) return applyMargin(b);
+
+    return null;
+  }, [actData, hasAddress, dateISO]);
+
+  const rawTotal = price?.total ?? computedFallback;
+
   useEffect(() => {
-    pgroup(`UI total — ${getTitle(actData)} (${getActId(actData)})`, () => {
+    pgroup(`UI total — ${getTitle(actData)} (${actId})`, () => {
       if (!(DBG && DBG_PRICE)) return;
-      dlog('price state', price);
-      dlog('basePrice source (pre-margin)', getBasePrice(actData));
-      dlog('UI rawTotal (post-margin)', rawTotal);
+      dlog("price state", price);
+      dlog("fallback (post-margin)", computedFallback);
+      dlog("UI rawTotal", rawTotal);
     });
-  }, [actData, price, rawTotal]);
+  }, [actId, actData, price, computedFallback, rawTotal]);
 
-  const displayTotal = rawTotal != null ? Number(String(rawTotal).replace(/[^0-9.+-]/g, '')) : null;
+  const displayTotal = useMemo(() => {
+    if (rawTotal == null) return null;
+    const n = Number(String(rawTotal).replace(/[^0-9.+-]/g, ""));
+    return Number.isFinite(n) ? n : null;
+  }, [rawTotal]);
 
-const handleHeartClick = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
+  // Heart click (fixes your duplicated setLoveCount bug + no decrements)
+  const handleHeartClick = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-  setIsAnimating(true);
+      setIsAnimating(true);
 
-  const actId = String(getActId(actData));
-  const isShortlistedNow = Array.isArray(shortlistedActs) && shortlistedActs.includes(actId);
+      const isShortlistedNow = Array.isArray(shortlistedActs) && shortlistedActs.includes(actId);
 
-  // ✅ Optimistic local count change layered on top of DB value
-  setLoveCount((prev) => {
-    const safe = Number(prev) || 0;
-setLoveCount((prev) => {
-  const safe = Number(prev) || 0;
-  // ✅ Only bump when adding. Never decrement.
-  return isShortlistedNow ? safe : safe + 1;
-});
-  });
+      // ✅ Only bump when adding. Never decrement.
+      setLoveCount((prev) => {
+        const safe = Number(prev) || 0;
+        return isShortlistedNow ? safe : safe + 1;
+      });
 
-  // ✅ Let ShopContext handle guest mode + auth gate + server calls
-  shortlistAct(userId || null, actId);
+      shortlistAct?.(userId || null, actId);
 
-  setTimeout(() => setIsAnimating(false), 300);
-};
+      setTimeout(() => setIsAnimating(false), 300);
+    },
+    [actId, shortlistedActs, shortlistAct, userId]
+  );
 
   const formatLoveCount = (count) => {
-    if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}K`;
-    return count;
+    const n = Number(count) || 0;
+    if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+    return n;
   };
 
-  const isShortlisted = shortlistedActs?.includes(String(getActId(actData)));
+  const isShortlisted = Array.isArray(shortlistedActs) && shortlistedActs.includes(actId);
 
-  // Decide which image to show (availability badge takes priority if matching date)
+  // Badge photo priority (if matches selected date)
   const badge = getBadge(actData) || {};
-  const selectedISO = selectedDate ? new Date(selectedDate).toISOString().slice(0, 10) : null;
+  const selectedISO = dateISO || null;
   const badgeDateISO = badge?.dateISO || null;
   const badgeActive = Boolean(badge?.active);
   const badgeHasPhoto = Boolean(badge?.photoUrl);
   const badgeMatches = Boolean(badgeActive && badgeDateISO && selectedISO && badgeDateISO === selectedISO);
-  const resolvedImage = (badgeMatches && badgeHasPhoto) ? badge.photoUrl : getImageUrl(actData);
+  const resolvedImage = badgeMatches && badgeHasPhoto ? badge.photoUrl : getImageUrl(actData);
 
   return (
     <div className="relative group">
       <Link
-  to={getActUrl(actData)}
-onClick={() => { if (typeof window !== "undefined") window.scrollTo(0, 0); }}
-  className="block text-gray-700"
->
+        to={getActUrl(actData)}
+        onClick={() => {
+          if (typeof window !== "undefined") window.scrollTo(0, 0);
+        }}
+        className="block text-gray-700"
+      >
         <div className="overflow-hidden h-full w-full">
           <img
             className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
@@ -505,26 +497,32 @@ onClick={() => { if (typeof window !== "undefined") window.scrollTo(0, 0); }}
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
             <p className="text-sm">{getTitle(actData)}</p>
-            <div className="act-price">
-              {displayTotal !== null
-                ? (price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`)
-                : 'Loading price...'}
+
+            <div className="act-price min-h-[20px]">
+              {loadingPrice ? (
+                <PriceSkeleton />
+              ) : displayTotal !== null ? (
+                price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`
+              ) : (
+                "Loading price..."
+              )}
             </div>
           </div>
 
           <div className="flex flex-col items-center lg:items-end justify-between min-h-[40px]">
             <button
+              type="button"
               onClick={handleHeartClick}
               disabled={isAnimating}
               className="p-1 transition-transform duration-150 ease-in-out"
-              aria-label={isShortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
-              title={isShortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
+              aria-label={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
+              title={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
             >
               {isShortlisted ? (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="-1 -1 34 32"
-                  className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
+                  className={`w-6 h-6 transition-transform ${isAnimating ? "scale-125" : ""}`}
                   fill="#ff6667"
                   stroke="#cc5253"
                   strokeWidth="1.5"
@@ -537,7 +535,7 @@ onClick={() => { if (typeof window !== "undefined") window.scrollTo(0, 0); }}
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="-1 -1 34 32"
-                  className={`w-6 h-6 transition-transform ${isAnimating ? 'scale-125' : ''}`}
+                  className={`w-6 h-6 transition-transform ${isAnimating ? "scale-125" : ""}`}
                   fill="none"
                   stroke="#000"
                   strokeWidth="1.5"
@@ -549,11 +547,8 @@ onClick={() => { if (typeof window !== "undefined") window.scrollTo(0, 0); }}
               )}
             </button>
 
-            {/* Always show a readable label */}
-            <p className={`text-xs ${loveCount === 0 ? 'text-gray-400' : 'text-gray-700'} text-center w-full self-center lg:self-end`}>
-              {loveCount === 0
-                ? 'love me'
-                : `${formatLoveCount(loveCount)} ${loveCount === 1 ? 'love' : 'loves'}`}
+            <p className={`text-xs ${loveCount === 0 ? "text-gray-400" : "text-gray-700"} text-center w-full self-center lg:self-end`}>
+              {loveCount === 0 ? "love me" : `${formatLoveCount(loveCount)} ${loveCount === 1 ? "love" : "loves"}`}
             </p>
           </div>
         </div>
@@ -567,4 +562,10 @@ ActItem.propTypes = {
   shortlistCount: PropTypes.number,
 };
 
-export default ActItem;
+export default React.memo(ActItem, (prev, next) => {
+  const prevId = String(getActId(prev.actData));
+  const nextId = String(getActId(next.actData));
+  const prevVer = String(prev.actData?.updatedAt || prev.actData?.__v || "");
+  const nextVer = String(next.actData?.updatedAt || next.actData?.__v || "");
+  return prevId === nextId && prevVer === nextVer && prev.shortlistCount === next.shortlistCount;
+});
