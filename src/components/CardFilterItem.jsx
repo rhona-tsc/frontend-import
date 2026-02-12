@@ -121,7 +121,7 @@ const ctx = useContext(ShopContext) || {};
   const [price, setPrice] = useState(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
 
- useEffect(() => {
+useEffect(() => {
   setLoveCount(getLove(actData, shortlistCount));
 }, [actData, shortlistCount]);
 
@@ -255,19 +255,9 @@ const ctx = useContext(ShopContext) || {};
   return (
     <div className="relative group">
       <Link to={getActUrl(actData)} onClick={() => { if (typeof window !== "undefined") window.scrollTo(0, 0); }} className="block text-gray-700">
-        <div className="relative w-full aspect-[4/3] overflow-hidden">
-  <img
-    className="absolute inset-0 w-full h-full object-cover hover:scale-110 transition ease-in-out"
-    src={resolvedImage}
-    alt={getTitle(actData)}
-    loading="lazy"
-    onError={(e) => {
-      // prevents broken-image blanks
-      if (e.currentTarget.src.endsWith("/placeholder.jpg")) return;
-      e.currentTarget.src = "/placeholder.jpg";
-    }}
-  />
-</div>
+        <div className="overflow-hidden h-full w-full">
+          <img className="h-full w-full object-cover hover:scale-110 transition ease-in-out" src={resolvedImage} alt={getTitle(actData)} />
+        </div>
 
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
