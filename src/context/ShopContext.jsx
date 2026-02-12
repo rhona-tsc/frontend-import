@@ -116,32 +116,31 @@ const ShopProvider = (props) => {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
-  // ✅ Keep search UI in sync with route
-  // Show the search box automatically on /acts (and subroutes), hide elsewhere.
-  useEffect(() => {
-    const pathname = String(location?.pathname || "");
-    const onActsPage = pathname.startsWith("/acts");
+useEffect(() => {
+  const pathname = String(location?.pathname || "");
+  const onActsPage = pathname.startsWith("/acts");
 
-    console.log("🔎[ShopContext] route->showSearch sync", {
-      pathname,
-      onActsPage,
-      prevShowSearch: showSearch,
-      prevSearch: search,
-    });
+  console.log("🔎[ShopContext] route->showSearch sync", {
+    pathname,
+    onActsPage,
+    prevShowSearch: showSearch,
+    prevSearch: search,
+  });
 
-    setShowSearch((prev) => {
-      if (prev !== onActsPage) {
-        console.log("🔎[ShopContext] setShowSearch", { from: prev, to: onActsPage });
-      }
-      return onActsPage;
-    });
+  // ✅ ONLY handle leaving /acts: close + clear.
+  // 🚫 Do NOT auto-open on entering /acts (let the page decide).
+  if (!onActsPage) {
+    if (showSearch) {
+      console.log("🔎[ShopContext] leaving /acts -> closing search");
+      setShowSearch(false);
+    }
 
-    // Optional: clear search when leaving the acts page so you don't carry filters around
-    if (!onActsPage) {
+    if (search) {
       console.log("🔎[ShopContext] leaving /acts -> clearing search", { from: search });
       setSearch("");
     }
-  }, [location?.pathname]);
+  }
+}, [location?.pathname]); // keep your deps as-is
 
   // 🔍 Debug: confirm when showSearch/search actually changes
   useEffect(() => {

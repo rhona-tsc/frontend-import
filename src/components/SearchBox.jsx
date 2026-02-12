@@ -129,6 +129,12 @@ const extractPostcode = (text = "") => {
     };
   }, [selectedAddress, selectedDate]);
 
+
+  useEffect(() => {
+  if (showSearch) setAnimate(true);
+  else setAnimate(false);
+}, [showSearch]);
+
   // ✅ On arrival to /acts:
   // - if complete search exists → keep CLOSED
   // - else → OPEN so they must enter details
@@ -158,6 +164,8 @@ const extractPostcode = (text = "") => {
     );
     SB_END();
 
+    
+
     // If user dismissed manually, don't auto-reopen until we have enough info
     if (!shouldClose && dismissed) {
       setAnimate(false);
@@ -172,13 +180,17 @@ const extractPostcode = (text = "") => {
       sessionStorage.removeItem(DISMISS_KEY);
     }
 
-    if (shouldClose) {
-      setAnimate(false);
-      setShowSearchDBG(false, "acts_decision_close");
-    } else {
-      setShowSearchDBG(true, "acts_decision_open");
-      setAnimate(true);
-    }
+if (shouldClose) {
+  setAnimate(false);
+  setShowSearchDBG(false, "acts_decision_close");
+} else {
+  // 🚫 SearchBox should NOT auto-open on /acts.
+  // Acts page (or ShopContext) decides whether to open.
+  setAnimate(false);
+  // (optional) if you want to be explicit:
+  // setShowSearchDBG(false, "acts_decision_no_autopen");
+}
+
   }, [location.pathname, searchSnapshot, setShowSearch]);
 
   // Auto-hide when navigating away from /acts (optional behaviour you already had)
@@ -189,9 +201,9 @@ setTimeout(() => setShowSearchDBG(false, "navigate_away_autohide"), 300);    }
   }, [location.pathname, showSearch, setShowSearch]);
 
   // Animate in when opened
-  useEffect(() => {
-    if (showSearch) setAnimate(true);
-  }, [showSearch]);
+useEffect(() => {
+  setAnimate(showSearch);
+}, [showSearch]);
 
   const handleClose = (reason = "manual") => {
     SB("handleClose()", { reason });

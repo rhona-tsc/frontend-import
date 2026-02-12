@@ -177,8 +177,23 @@ const [enrichedCards, setEnrichedCards] = useState([]);
 
   // near the top
   const FILTER_DATA_ENDPOINTS = [api("api/v2/act-cards/search")];
-
-
+const noLocation = !storedAddress && !storedCounty && !storedPlace;
+const setShowSearchDBG = (next, reason = "unknown") => {
+  const value = typeof next === "function" ? next(showSearch) : next;
+  console.groupCollapsed(
+    `🧭 [Acts] setShowSearch(${String(value)}) — reason: ${reason}`
+  );
+  console.log("preset:", preset);
+  console.log("context:", {
+    selectedAddress,
+    selectedCounty,
+    selectedDate,
+  });
+  console.log("storage:", getStoredLocation());
+  console.trace("stack");
+  console.groupEnd();
+  setShowSearch(value);
+};
   const PRESET_LOCATIONS = {
   london: {
     county: "greater london",
@@ -403,9 +418,7 @@ const normalizeExtraKey = (s) =>
     .replace(/^_+|_+$/g, "");
 
 const getStored = (key) =>
-  sessionStorage.getItem(key) ||
-  localStorage.getItem(key) ||
-  "";
+  sessionStorage.getItem(key) || localStorage.getItem(key) || "";
 
 const hasStoredLocation = () => {
   const addr = getStored("selectedAddress");
@@ -725,7 +738,7 @@ const hasStoredLocation = () => {
       });
     } catch {}
 
-    setShowSearch(true); // ✅ Open the search box
+    setShowSearchDBG(true, "boot_auto_open_noLocation");
 
     try {
       ACTS_DBG("triggerSearch() -> setShowSearch(true) called", {
@@ -2264,11 +2277,26 @@ const hasAnyLocation = () => {
   // 1) Initial boot — keep as-is
 useEffect(() => {
   const { storedAddress, storedCounty, storedPlace } = getStoredLocation();
-  const noLocation = !storedAddress && !storedCounty && !storedPlace;
+const noLocation =
+  !String(selectedAddress || "").trim() &&
+  !String(selectedCounty || "").trim() &&
+  !String(storedAddress || "").trim() &&
+  !String(storedCounty || "").trim() &&
+  !String(storedPlace || "").trim();
 
   const alreadyAutoOpened = sessionStorage.getItem(AUTO_OPEN_KEY) === "1";
   const isPresetRoute = Boolean(preset);
 
+  ACTS_DBG("BOOT DECISION", {
+    noLocation,
+    alreadyAutoOpened,
+    isPresetRoute,
+    selectedAddress,
+    selectedCounty,
+    storedAddress,
+    storedCounty,
+    storedPlace,
+  });
   if (noLocation) {
     if (!isPresetRoute && !alreadyAutoOpened) {
       sessionStorage.setItem(AUTO_OPEN_KEY, "1");
@@ -2276,7 +2304,7 @@ useEffect(() => {
       window.scrollTo(0, 0);
     }
   } else {
-    setShowSearch(false);
+  setShowSearchDBG(false, "boot_close_hasLocation");
   }
 
   setInitializing(false);
