@@ -49,49 +49,70 @@ const ActPerformanceOverview = ({ actData }) => {
   };
 
   const generateDescription = (lineup) => {
-    const count = lineup.actSize || lineup.bandMembers.length;
+  const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
 
-    const instruments = lineup.bandMembers
-      .filter((m) => m.isEssential)
-      .map((m) => m.instrument)
-      .filter(Boolean);
+  // Exclude manager/admin rows from performer count + instrument list
+  const performers = members.filter((m) => {
+    const role = String(m?.instrument || "").trim().toLowerCase();
+    return role && role !== "manager" && role !== "admin" && !role.includes("manager");
+  });
 
-    instruments.sort((a, b) => {
-      const aLower = a.toLowerCase();
-      const bLower = b.toLowerCase();
-      const isVocal = (str) => str.includes("vocal");
-      const isDrums = (str) => str === "drums";
+  const count = lineup?.actSize || performers.length;
 
-      if (isVocal(aLower) && !isVocal(bLower)) return -1;
-      if (!isVocal(aLower) && isVocal(bLower)) return 1;
-      if (isDrums(aLower)) return 1;
-      if (isDrums(bLower)) return -1;
-      return 0;
-    });
+  // Instruments (keep duplicates, e.g. "Lead Female Vocal" twice)
+  const instruments = performers
+    .filter((m) => m?.isEssential)
+    .map((m) => String(m?.instrument || "").trim())
+    .filter(Boolean);
 
-    const formatWithAnd = (arr) => {
-      const unique = [...new Set(arr)];
-      if (unique.length === 0) return "";
-      if (unique.length === 1) return unique[0];
-      if (unique.length === 2) return `${unique[0]} & ${unique[1]}`;
-      return `${unique.slice(0, -1).join(", ")} & ${unique[unique.length - 1]}`;
-    };
+  // Sort: vocals first, drums last
+  instruments.sort((a, b) => {
+    const aLower = a?.toLowerCase?.() || "";
+    const bLower = b?.toLowerCase?.() || "";
+    const isVocal = (str) => str.includes("vocal");
+    const isDrums = (str) => str === "drums";
 
-    const roles = lineup.bandMembers.flatMap((member) =>
-      (member.additionalRoles || [])
-        .filter((r) => r.isEssential)
-        .map((r) => r.role || r.role || "Unnamed Service")
-    );
+    if (isVocal(aLower) && !isVocal(bLower)) return -1;
+    if (!isVocal(aLower) && isVocal(bLower)) return 1;
+    if (isDrums(aLower)) return 1;
+    if (isDrums(bLower)) return -1;
+    return 0;
+  });
 
-    if (count === 0) return "Add a Lineup";
+  // Roles/services from additionalRoles (keep duplicates — no de-dupe)
+  const roles = performers.flatMap((member) =>
+    (Array.isArray(member?.additionalRoles) ? member.additionalRoles : [])
+      .filter((r) => r?.isEssential)
+      .map((r) => String(r?.role || "Unnamed Service").trim())
+      .filter(Boolean)
+  );
 
-    const instrumentsStr = formatWithAnd(instruments);
-    const rolesStr = roles.length
-      ? ` (including ${formatWithAnd(roles)} services)`
-      : "";
+  // Add Band Management service if a manager/admin row exists anywhere in lineup
+  const hasManagerRow = members.some((m) => {
+    const role = String(m?.instrument || "").trim().toLowerCase();
+    return role === "manager" || role === "admin" || role.includes("manager");
+  });
 
-    return `${count}: ${instrumentsStr}${rolesStr}`;
+  if (hasManagerRow) roles.push("Band Management");
+
+  if (count === 0) return "Add a Lineup";
+
+  const formatWithAnd = (arr) => {
+    if (!arr.length) return "";
+    if (arr.length === 1) return arr[0];
+    if (arr.length === 2) return `${arr[0]} & ${arr[1]}`;
+    return `${arr.slice(0, -1).join(", ")} & ${arr[arr.length - 1]}`;
   };
+
+  const instrumentsStr = formatWithAnd(instruments);
+
+  const rolesStr = roles.length
+    ? ` (including ${formatWithAnd(roles)} services)`
+    : "";
+
+  // If you want "-Piece" always, swap to: `${count}-Piece: ...`
+  return `${count}-Piece: ${instrumentsStr}${rolesStr}`;
+};
 
   return (
     <section className="bg-white p-6 border rounded shadow-sm space-y-6">
