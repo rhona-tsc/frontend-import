@@ -1,5 +1,12 @@
 // frontend/src/components/ActItem.jsx
-import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useContext,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { Link } from "react-router-dom";
 import calculateActPricing from "../pages/utils/pricing";
 import { ShopContext } from "../context/ShopContext";
@@ -39,6 +46,14 @@ const isHttp = (s) => typeof s === "string" && /^https?:\/\//i.test(s);
 const getActId = (src) => src?.actId || src?._id || src?.id || "";
 const getTitle = (src) => src?.tscName || src?.name || "Act";
 
+const normalizeAddrStrict = (s = "") =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/\buk\b/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/,\s*/g, ",")
+    .trim();
+
 const getImageUrl = (src) => {
   const v =
     src?.imageUrl ||
@@ -62,15 +77,15 @@ const getBasePrice = (src) => {
   return base != null ? Number(String(base).replace(/[^0-9.+-]/g, "")) : null;
 };
 
-const getLove = (src, shortlistCount) => {
+const getLove = (src, fallback) => {
   const n =
-    src?.loveCount ??
     src?.timesShortlisted ??
-    src?.numberOfShortlistsIn ??
-    shortlistCount ??
-    src?.shortlistCount ??
-    src?.metrics?.shortlists ??
+    src?.loveCount ?? // legacy alias
+    fallback ?? // prop fallback
+    src?.shortlistCount ?? // legacy alias
+    src?.metrics?.shortlists ?? // legacy alias
     0;
+
   return Math.max(0, Number(n) || 0);
 };
 
@@ -105,7 +120,6 @@ const getActUrl = (src) => {
 // Travel model normalizers (ActCards may store these under travelModel)
 // ──────────────────────────────────────────────────────────────────────────────
 const getTravelModel = (src) => src?.travelModel || src?.travelModelHints || null;
-
 const num = (v) => (v == null ? 0 : Number(String(v).replace(/[^0-9.+-]/g, "")) || 0);
 
 const getUseCountyTravelFee = (src) => {
@@ -184,12 +198,17 @@ const computeBaseFromSmallestLineup = (act) => {
     const roles = Array.isArray(m?.additionalRoles)
       ? m.additionalRoles
           .filter((r) => r?.isEssential)
-          .map((r) => ({ role: r?.customRole || r?.role || "Role", fee: num(r?.additionalFee) }))
+          .map((r) => ({
+            role: r?.customRole || r?.role || "Role",
+            fee: num(r?.additionalFee),
+          }))
       : [];
 
     return {
       idx,
-      name: m?.firstName ? `${m.firstName}${m?.lastName ? ` ${m.lastName}` : ""}` : undefined,
+      name: m?.firstName
+        ? `${m.firstName}${m?.lastName ? ` ${m.lastName}` : ""}`
+        : undefined,
       instrument: m?.instrument,
       isManager: isManagerMember(m),
       fee,
@@ -221,12 +240,15 @@ const computeBaseFromSmallestLineup = (act) => {
   return Number.isFinite(total) ? total : null;
 };
 
-const PriceSkeleton = () => <div className="h-5 w-24 rounded-md bg-gray-200 animate-pulse" />;
+const PriceSkeleton = () => (
+  <div className="h-5 w-24 rounded-md bg-gray-200 animate-pulse" />
+);
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────────────────────────────────────
-const ActItem = ({ actData, shortlistCount }) => {
+const ActItem = ({ actData, shortlistCount, standalone = false }) => {
+  const ctx = useContext(ShopContext) || {};
   const {
     shortlistedActs,
     shortlistAct,
@@ -235,29 +257,47 @@ const ActItem = ({ actData, shortlistCount }) => {
     selectedAddress,
     selectedDate,
     getCardPriceWithTravel,
-  } = useContext(ShopContext) || {};
+  } = ctx;
 
   const [isAnimating, setIsAnimating] = useState(false);
   const [loveCount, setLoveCount] = useState(() => getLove(actData, shortlistCount));
   const [price, setPrice] = useState(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
 
-  // keep latest handler refs stable
+  // keep latest handlers/inputs in refs so pricing effect can depend ONLY on a primitive key
   const getCardPriceWithTravelRef = useRef(getCardPriceWithTravel);
   useEffect(() => {
     getCardPriceWithTravelRef.current = getCardPriceWithTravel;
   }, [getCardPriceWithTravel]);
 
-  // Sync love count to incoming data
+  const actDataRef = useRef(actData);
   useEffect(() => {
-    setLoveCount(getLove(actData, shortlistCount));
-  }, [actData, shortlistCount]);
+    actDataRef.current = actData;
+  }, [actData]);
 
-  // Pricing key (primitive) to prevent recalcing on every render/object identity change
+  const ctxRef = useRef({ selectedCounty, selectedAddress, selectedDate });
+  useEffect(() => {
+    ctxRef.current = { selectedCounty, selectedAddress, selectedDate };
+  }, [selectedCounty, selectedAddress, selectedDate]);
+
+  // Sync love count to incoming data
+  const incomingLove = useMemo(
+    () => getLove(actData, shortlistCount),
+    [actData?.timesShortlisted, actData?.loveCount, shortlistCount]
+  );
+
+  useEffect(() => {
+    setLoveCount((prev) => (prev === incomingLove ? prev : incomingLove));
+  }, [incomingLove]);
+
+  // Primitive pricing key (prevents recalcing on every render/object identity change)
   const actId = useMemo(() => String(getActId(actData)), [actData]);
   const actVer = useMemo(() => String(actData?.updatedAt || actData?.__v || ""), [actData]);
-  const addrNorm = useMemo(() => String(selectedAddress || "").trim(), [selectedAddress]);
-  const hasAddress = useMemo(() => !!addrNorm, [addrNorm]);
+
+  const addrNorm = useMemo(
+    () => normalizeAddrStrict(selectedAddress || ""),
+    [selectedAddress]
+  );
 
   const dateISO = useMemo(() => {
     if (!selectedDate) return "";
@@ -267,8 +307,9 @@ const ActItem = ({ actData, shortlistCount }) => {
 
   const pricingKey = useMemo(() => {
     const county = String(selectedCounty || "");
-    return `${actId}|${actVer}|${county}|${addrNorm}|${dateISO}`;
-  }, [actId, actVer, selectedCounty, addrNorm, dateISO]);
+    const mode = standalone ? "standalone" : "card";
+    return `${mode}|${actId}|${actVer}|${county}|${addrNorm}|${dateISO}`;
+  }, [standalone, actId, actVer, selectedCounty, addrNorm, dateISO]);
 
   const safeSetPrice = useCallback((next) => {
     setPrice((prev) => {
@@ -276,54 +317,77 @@ const ActItem = ({ actData, shortlistCount }) => {
       const nextTotal = next?.total ?? null;
       const prevTC = !!prev?.travelCalculated;
       const nextTC = !!next?.travelCalculated;
-      if (prevTotal === nextTotal && prevTC === nextTC) return prev;
+      const prevManual = !!prev?.isManual;
+      const nextManual = !!next?.isManual;
+      if (prevTotal === nextTotal && prevTC === nextTC && prevManual === nextManual) return prev;
       return next;
     });
   }, []);
 
-  // Compute/refresh price (debounced by pricingKey)
+  // Compute/refresh price (effect depends ONLY on pricingKey to avoid “glitching”)
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
       setLoadingPrice(true);
       try {
-        const baseOnly = getBasePrice(actData);
-        const manualMin = !hasAddress || !dateISO ? getMinDisplayPrice(actData) : null;
-        const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
+        const a = actDataRef.current;
+        const { selectedCounty: county, selectedAddress: addr, selectedDate: dt } = ctxRef.current;
 
-        pgroup(`Price build — ${getTitle(actData)} (${actId})`, () => {
+        const addrN = normalizeAddrStrict(addr || "");
+        const dateStr = (() => {
+          if (!dt) return "";
+          const d = new Date(dt);
+          return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+        })();
+
+        const baseOnly = getBasePrice(a);
+        const hasLineups = Array.isArray(a?.lineups) && a.lineups.length > 0;
+        const hasAnyLocation = !!(addrN || county);
+        const hasDate = !!dateStr;
+
+        pgroup(`Price build — ${getTitle(a)} (${actId})`, () => {
           dlog("inputs", {
             id: actId,
-            title: getTitle(actData),
+            title: getTitle(a),
+            standalone,
             hasLineups,
             baseOnly,
-            manualMin,
-            selectedCounty: selectedCounty || null,
-            selectedAddress: selectedAddress || null,
-            selectedDate,
-            dateISO,
-            useCountyTravelFee: getUseCountyTravelFee(actData),
+            selectedCounty: county || null,
+            selectedAddress: addr || null,
+            addrNorm: addrN || null,
+            selectedDate: dt || null,
+            dateISO: dateStr || null,
             travelModeHints: {
-              useMUTravelRates: getUseMUTravelRates(actData),
-              useCountyTravelFee: getUseCountyTravelFee(actData),
-              costPerMile: getCostPerMile(actData),
-              hasCountyFees: getHasCountyFees(actData),
+              useMUTravelRates: getUseMUTravelRates(a),
+              useCountyTravelFee: getUseCountyTravelFee(a),
+              costPerMile: getCostPerMile(a),
+              hasCountyFees: getHasCountyFees(a),
             },
           });
         });
 
-        // 1) No when/where → stable “from” price
-        if (!hasAddress || !dateISO) {
+        // 1) Standalone tiles: stable “from” price (no travel calc)
+        if (standalone) {
+          const derived = baseOnly ?? computeBaseFromSmallestLineup(a);
+          if (derived != null && !cancelled) {
+            safeSetPrice({ total: applyMargin(derived), travelCalculated: false });
+          } else if (!cancelled) {
+            safeSetPrice(null);
+          }
+          return;
+        }
+
+        // 2) Missing when/where → stable “from” price
+        if (!hasAnyLocation || !hasDate) {
+          const manualMin = getMinDisplayPrice(a);
           if (manualMin != null) {
-            // NOTE: manualMin assumed NET or already display-ready. If your API stores NET,
-            // you probably want margin here. If manualMin is already post-margin, keep as-is.
-            // I’m following your earlier behaviour: no extra margin applied.
+            // Kept as your previous behaviour: treat manualMin as already display-ready.
             if (!cancelled) safeSetPrice({ total: manualMin, travelCalculated: false, isManual: true });
             return;
           }
 
-          const derived = computeBaseFromSmallestLineup(actData);
+          const derived = computeBaseFromSmallestLineup(a);
           if (derived != null) {
             if (!cancelled) safeSetPrice({ total: applyMargin(derived), travelCalculated: false });
             return;
@@ -338,8 +402,7 @@ const ActItem = ({ actData, shortlistCount }) => {
           return;
         }
 
-        // 2) We have when/where
-        // If this is a lightweight card (no lineups), try context helper
+        // 3) We have when/where, but a lightweight card without lineups → try helper
         if (!hasLineups) {
           const fn = getCardPriceWithTravelRef.current;
           if (typeof fn === "function") {
@@ -358,22 +421,22 @@ const ActItem = ({ actData, shortlistCount }) => {
           return;
         }
 
-        // 3) Full act doc pricing
-        const countyFees = getCountyFees(actData);
+        // 4) Full act doc pricing
+        const countyFees = getCountyFees(a);
         const hasCountyTable = Boolean(
-          getUseCountyTravelFee(actData) &&
+          getUseCountyTravelFee(a) &&
             countyFees &&
             typeof countyFees === "object" &&
             Object.keys(countyFees).length > 0
         );
 
-        const lineup = actData.lineups[0];
+        const lineup = a.lineups[0];
 
         const result = await calculateActPricing(
-          actData,
-          hasCountyTable ? selectedCounty : null,
-          selectedAddress,
-          selectedDate,
+          a,
+          hasCountyTable ? county : null,
+          addrN,     // normalized address
+          dateStr,   // ISO date
           lineup
         );
 
@@ -389,9 +452,9 @@ const ActItem = ({ actData, shortlistCount }) => {
         console.error("❌ Failed to calculate price:", {
           err,
           actId,
-          useCountyTravelFee: actData?.useCountyTravelFee,
+          useCountyTravelFee: actDataRef.current?.useCountyTravelFee,
         });
-        const baseOnly = getBasePrice(actData);
+        const baseOnly = getBasePrice(actDataRef.current);
         if (!cancelled && baseOnly != null) safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
         if (!cancelled && baseOnly == null) safeSetPrice(null);
       } finally {
@@ -403,13 +466,23 @@ const ActItem = ({ actData, shortlistCount }) => {
     return () => {
       cancelled = true;
     };
-  }, [pricingKey, actData, actId, hasAddress, dateISO, selectedCounty, selectedAddress, selectedDate, safeSetPrice]);
 
-  // UI display total
+    // Intentionally depends on ONE primitive key to prevent churn/race “glitching”
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricingKey]);
+
+  // UI fallback (used if price is null)
   const computedFallback = useMemo(() => {
-    // used if price is null
-    const manualMin = !hasAddress || !dateISO ? getMinDisplayPrice(actData) : null;
-    if (manualMin != null) return manualMin;
+    if (standalone) {
+      const derived = getBasePrice(actData) ?? computeBaseFromSmallestLineup(actData);
+      return derived != null ? applyMargin(derived) : null;
+    }
+
+    // no when/where: allow manual min
+    if (!addrNorm || !dateISO) {
+      const manualMin = getMinDisplayPrice(actData);
+      if (manualMin != null) return manualMin;
+    }
 
     const derived = computeBaseFromSmallestLineup(actData);
     if (derived != null) return applyMargin(derived);
@@ -418,7 +491,7 @@ const ActItem = ({ actData, shortlistCount }) => {
     if (b != null) return applyMargin(b);
 
     return null;
-  }, [actData, hasAddress, dateISO]);
+  }, [actData, addrNorm, dateISO, standalone]);
 
   const rawTotal = price?.total ?? computedFallback;
 
@@ -426,7 +499,7 @@ const ActItem = ({ actData, shortlistCount }) => {
     pgroup(`UI total — ${getTitle(actData)} (${actId})`, () => {
       if (!(DBG && DBG_PRICE)) return;
       dlog("price state", price);
-      dlog("fallback (post-margin)", computedFallback);
+      dlog("fallback", computedFallback);
       dlog("UI rawTotal", rawTotal);
     });
   }, [actId, actData, price, computedFallback, rawTotal]);
@@ -437,27 +510,28 @@ const ActItem = ({ actData, shortlistCount }) => {
     return Number.isFinite(n) ? n : null;
   }, [rawTotal]);
 
-  // Heart click (fixes your duplicated setLoveCount bug + no decrements)
   const handleHeartClick = useCallback(
     (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (standalone) return;
 
       setIsAnimating(true);
 
-      const isShortlistedNow = Array.isArray(shortlistedActs) && shortlistedActs.includes(actId);
+      const isShortlistedNow = (shortlistedActs || []).includes(actId);
 
-      // ✅ Only bump when adding. Never decrement.
+      // loveCount represents timesShortlisted UI
       setLoveCount((prev) => {
         const safe = Number(prev) || 0;
-        return isShortlistedNow ? safe : safe + 1;
+        return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
       });
 
+      // Let ShopContext handle guest/local vs authed/server
       shortlistAct?.(userId || null, actId);
 
       setTimeout(() => setIsAnimating(false), 300);
     },
-    [actId, shortlistedActs, shortlistAct, userId]
+    [standalone, shortlistedActs, shortlistAct, userId, actId]
   );
 
   const formatLoveCount = (count) => {
@@ -466,7 +540,7 @@ const ActItem = ({ actData, shortlistCount }) => {
     return n;
   };
 
-  const isShortlisted = Array.isArray(shortlistedActs) && shortlistedActs.includes(actId);
+  const isShortlisted = standalone ? false : Array.isArray(shortlistedActs) && shortlistedActs.includes(actId);
 
   // Badge photo priority (if matches selected date)
   const badge = getBadge(actData) || {};
@@ -513,12 +587,18 @@ const ActItem = ({ actData, shortlistCount }) => {
             <button
               type="button"
               onClick={handleHeartClick}
-              disabled={isAnimating}
+              disabled={isAnimating || standalone}
               className="p-1 transition-transform duration-150 ease-in-out"
               aria-label={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
-              title={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
+              title={
+                standalone
+                  ? "Shortlist disabled here"
+                  : isShortlisted
+                  ? "Remove from shortlist"
+                  : "Add to shortlist"
+              }
             >
-              {isShortlisted ? (
+              {!standalone && isShortlisted ? (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="-1 -1 34 32"
@@ -547,8 +627,14 @@ const ActItem = ({ actData, shortlistCount }) => {
               )}
             </button>
 
-            <p className={`text-xs ${loveCount === 0 ? "text-gray-400" : "text-gray-700"} text-center w-full self-center lg:self-end`}>
-              {loveCount === 0 ? "love me" : `${formatLoveCount(loveCount)} ${loveCount === 1 ? "love" : "loves"}`}
+            <p
+              className={`text-xs ${
+                loveCount === 0 ? "text-gray-400" : "text-gray-700"
+              } text-center w-full self-center lg:self-end`}
+            >
+              {loveCount === 0
+                ? "love me"
+                : `${formatLoveCount(loveCount)} ${loveCount === 1 ? "love" : "loves"}`}
             </p>
           </div>
         </div>
@@ -560,6 +646,7 @@ const ActItem = ({ actData, shortlistCount }) => {
 ActItem.propTypes = {
   actData: PropTypes.object.isRequired,
   shortlistCount: PropTypes.number,
+  standalone: PropTypes.bool,
 };
 
 export default React.memo(ActItem, (prev, next) => {
@@ -567,5 +654,10 @@ export default React.memo(ActItem, (prev, next) => {
   const nextId = String(getActId(next.actData));
   const prevVer = String(prev.actData?.updatedAt || prev.actData?.__v || "");
   const nextVer = String(next.actData?.updatedAt || next.actData?.__v || "");
-  return prevId === nextId && prevVer === nextVer && prev.shortlistCount === next.shortlistCount;
+  return (
+    prevId === nextId &&
+    prevVer === nextVer &&
+    prev.shortlistCount === next.shortlistCount &&
+    prev.standalone === next.standalone
+  );
 });

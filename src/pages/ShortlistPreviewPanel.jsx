@@ -441,52 +441,81 @@ const act = baseAct;
     largeLight: "large",
   };
 
-  const generateDescription = (lineup) => {
-    if (!lineup || !Array.isArray(lineup.bandMembers)) return "Select a Lineup";
+ const generateDescription = (lineup) => {
+  const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
 
-    const count = lineup.actSize || lineup.bandMembers.length;
+  // Exclude Manager/Admin rows from performer count + instrument list
+  const performers = members.filter((m) => {
+    const role = String(m?.instrument || "").trim().toLowerCase();
+    return role && role !== "manager" && role !== "admin";
+  });
 
-    const instruments = lineup.bandMembers
-      .filter((m) => m.isEssential)
-      .map((m) => m.instrument)
-      .filter(Boolean);
+  // Prefer explicit actSize if present (e.g. "6-Piece"), else count performers
+  const countLabel =
+    (lineup?.actSize && String(lineup.actSize).trim()) ||
+    `${performers.length}-Piece`;
 
-    instruments.sort((a, b) => {
-      const aLower = a.toLowerCase();
-      const bLower = b.toLowerCase();
-      const isVocal = (str) => str.includes("vocal");
-      const isDrums = (str) => str === "drums";
+  // Only essential performer instruments
+  const instruments = performers
+    .filter((m) => m?.isEssential)
+    .map((m) => String(m?.instrument || "").trim())
+    .filter(Boolean);
 
-      if (isVocal(aLower) && !isVocal(bLower)) return -1;
-      if (!isVocal(aLower) && isVocal(bLower)) return 1;
-      if (isDrums(aLower)) return 1;
-      if (isDrums(bLower)) return -1;
-      return 0;
+  // Sort: vocals first, drums last (same intent as before)
+  instruments.sort((a, b) => {
+    const aLower = a.toLowerCase();
+    const bLower = b.toLowerCase();
+    const isVocal = (str) => str.includes("vocal");
+    const isDrums = (str) => str === "drums";
+
+    if (isVocal(aLower) && !isVocal(bLower)) return -1;
+    if (!isVocal(aLower) && isVocal(bLower)) return 1;
+    if (isDrums(aLower)) return 1;
+    if (isDrums(bLower)) return -1;
+    return 0;
+  });
+
+  // Essential roles, but only from performer members
+  const roles = performers.flatMap((member) =>
+    (Array.isArray(member?.additionalRoles) ? member.additionalRoles : [])
+      .filter((r) => r?.isEssential)
+      .map((r) => String(r?.role || "Unnamed Service").trim())
+      .filter(Boolean)
+  );
+
+  if (performers.length === 0) return "Add a Lineup";
+
+  // Turn ["Lead Female Vocal","Lead Female Vocal","Bass Guitar"] into:
+  // ["Lead Female Vocal x 2","Bass Guitar"]
+  const formatWithCounts = (arr) => {
+    const counts = new Map();
+    for (const item of arr) {
+      counts.set(item, (counts.get(item) || 0) + 1);
+    }
+
+    const expanded = [];
+    for (const [name, n] of counts.entries()) {
+      expanded.push(n > 1 ? `${name} x ${n}` : name);
+    }
+
+    // Keep a stable order based on first appearance in original array
+    expanded.sort((x, y) => {
+      const baseX = x.replace(/\s+x\s+\d+$/i, "");
+      const baseY = y.replace(/\s+x\s+\d+$/i, "");
+      return arr.findIndex((v) => v === baseX) - arr.findIndex((v) => v === baseY);
     });
 
-    const formatWithAnd = (arr) => {
-      const unique = [...new Set(arr)];
-      if (unique.length === 0) return "";
-      if (unique.length === 1) return unique[0];
-      if (unique.length === 2) return `${unique[0]} & ${unique[1]}`;
-      return `${unique.slice(0, -1).join(", ")} & ${unique[unique.length - 1]}`;
-    };
-
-    const roles = lineup.bandMembers.flatMap((member) =>
-      (member.additionalRoles || [])
-        .filter((r) => r.isEssential)
-        .map((r) => r.role || "Unnamed Service")
-    );
-
-    if (count === 0) return "Add a Lineup";
-
-    const instrumentsStr = formatWithAnd(instruments);
-    const rolesStr = roles.length
-      ? ` (including ${formatWithAnd(roles)} services)`
-      : "";
-
-    return `${count}: ${instrumentsStr}${rolesStr}`;
+    if (expanded.length === 0) return "";
+    if (expanded.length === 1) return expanded[0];
+    if (expanded.length === 2) return `${expanded[0]} & ${expanded[1]}`;
+    return `${expanded.slice(0, -1).join(", ")} & ${expanded[expanded.length - 1]}`;
   };
+
+  const instrumentsStr = formatWithCounts(instruments);
+  const rolesStr = roles.length ? ` (including ${formatWithCounts(roles)} services)` : "";
+
+  return `${countLabel}: ${instrumentsStr}${rolesStr}`;
+};
 
   
 const handleLineupChange = async (lineup) => {

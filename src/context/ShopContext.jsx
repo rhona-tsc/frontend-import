@@ -14,6 +14,7 @@ import CustomToast from "../components/CustomToast";
 import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
 import debounce from "lodash.debounce";
+import AuthGateModal from "../components/AuthGateModal";
 
 export const ShopContext = createContext();
 
@@ -59,7 +60,40 @@ const ShopProvider = (props) => {
       .map((s) => s.trim())
       .filter(Boolean)
   );
+// ✅ guest shortlist gate
+const GUEST_SHORTLIST_LIMIT = 2; // change to 3 if you want
+const [authGate, setAuthGate] = useState({
+  open: false,
+  kind: null, // "save_shortlist"
+  count: 0,
+  justAddedActName: "",
+});
 
+const closeAuthGate = () =>
+  setAuthGate({ open: false, kind: null, count: 0, justAddedActName: "" });
+
+const openSaveShortlistGate = ({ count, actName }) => {
+  console.log("🧱[AuthGate] openSaveShortlistGate", {
+    count: Number(count) || 0,
+    actName: actName || "",
+    pathname: String(location?.pathname || ""),
+  });
+
+  setAuthGate({
+    open: true,
+    kind: "save_shortlist",
+    count: Number(count) || 0,
+    justAddedActName: actName || "",
+  });
+};
+
+// Helper to resolve act name for nicer copy
+const resolveActNameById = (idStr) => {
+  const a =
+    (Array.isArray(acts) ? acts.find(x => String(x?._id || x?.actId) === idStr) : null) ||
+    (Array.isArray(actCards) ? actCards.find(x => String(x?.actId || x?._id) === idStr) : null);
+  return a?.tscName || a?.name || "Act";
+};
   // Be conservative: match common “test” prefixes without blocking legit names
   const TEST_NAME_RE = /^(test|demo)\b|^\s*(test|demo)\s*[-–—]/i;
 
@@ -115,6 +149,47 @@ const ShopProvider = (props) => {
   // --- Core UI / data ---
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+
+
+  // ✅ numberOfShortlistsIn can go up/down
+const updateNumberOfShortlistsInEverywhere = (actId, newCount) => {
+  const idStr = String(actId);
+  const n = Math.max(0, Number(newCount) || 0);
+
+  const patch = (x) => {
+    const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
+    if (xid !== idStr) return x;
+    return { ...x, numberOfShortlistsIn: n };
+  };
+
+  setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActs((p) => (Array.isArray(p) ? p.map(patch) : p));
+};
+
+// ✅ timesShortlisted is cumulative (never decrease)
+const updateTimesShortlistedEverywhere = (actId, newCount) => {
+  const idStr = String(actId);
+  const n = Math.max(0, Number(newCount) || 0);
+
+  const patch = (x) => {
+    const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
+    if (xid !== idStr) return x;
+    const prev = Math.max(0, Number(x?.timesShortlisted) || 0);
+    return { ...x, timesShortlisted: Math.max(prev, n) };
+  };
+
+  setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActs((p) => (Array.isArray(p) ? p.map(patch) : p));
+};
+
 
 useEffect(() => {
   const pathname = String(location?.pathname || "");
@@ -254,6 +329,44 @@ useEffect(() => {
       return [];
     }
   });
+
+  const guestToggleShortlist = (actId) => {
+  const idStr = String(actId || "");
+  if (!idStr) return;
+
+  const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
+  const isIn = prev.includes(idStr);
+ console.log("👤[GuestShortlist] toggle", {
+  actId: idStr,
+  beforeLen: Array.isArray(shortlistedActs) ? shortlistedActs.length : "non-array",
+  limit: GUEST_SHORTLIST_LIMIT,
+  pathname: String(location?.pathname || ""),
+});
+
+  const next = isIn ? prev.filter((x) => x !== idStr) : [...new Set([...prev, idStr])];
+console.log("👤[GuestShortlist] computed", { isIn, afterLen: next.length, ids: next });
+
+  setShortlistedActs(next);
+  setShortlistItems(next);
+
+ 
+  try {
+    localStorage.setItem("shortlistItems", JSON.stringify(next));
+    localStorage.setItem("guestShortlistDirty", "1"); // mark for merge-on-login if you want
+  } catch {}
+console.log("👤[GuestShortlist] hitting limit -> opening gate", {
+  afterLen: next.length,
+  limit: GUEST_SHORTLIST_LIMIT,
+  actName: resolveActNameById(idStr),
+});
+  // only gate when ADDING (not removing)
+  if (!isIn && next.length >= GUEST_SHORTLIST_LIMIT) {
+    openSaveShortlistGate({
+      count: next.length,
+      actName: resolveActNameById(idStr),
+    });
+  }
+};
 
   // Assumes you have actFilterCards in scope (from context or props) <--- This one is for the Home page
   useEffect(() => {
@@ -1035,8 +1148,12 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
                 : [];
           if (arr.length) {
             const mapped = arr.map(buildFilterCardFromAct);
-            const filtered = mapped.filter(shouldIncludeActItem);
-            setActsFilterPageCards(filtered);
+const allowTestActs = getAllowTestActs();
+const filtered = (mapped || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
+setActsFilterPageCards(filtered);
+
             return;
           }
         } catch {}
@@ -1051,8 +1168,11 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
       const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
       if (!raw.length) return void (await fallbackFromActs());
       const mapped = raw.map(normalize);
-      const filtered = mapped.filter(shouldIncludeActItem);
-      setActsFilterPageCards(filtered);
+const allowTestActs = getAllowTestActs();
+const filtered = (mapped || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
+setActsFilterPageCards(filtered);
     } catch {
       await fallbackFromActs();
     }
@@ -1360,8 +1480,11 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn) || 0,
         return;
       }
 
-      const filtered = (cards || []).filter(shouldIncludeActItem);
-      setActCards(filtered);
+      const allowTestActs = getAllowTestActs();
+const filtered = (cards || []).filter((a) =>
+  shouldIncludeActItem(a, { allowTestActs })
+);
+setActCards(filtered);
       try {
         window.__TSC_ACTS_RAW__ = cards; // raw
         window.__TSC_ACTS__ = filtered; // what UI uses
@@ -2094,6 +2217,37 @@ return Number.isFinite(total) ? total : null;
     })();
   }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
 
+  // ✅ After login, auto-add any pending shortlist act we saved pre-login
+useEffect(() => {
+  (async () => {
+    try {
+      const storedUserRaw = localStorage.getItem("user");
+      const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+      const uid = storedUser?._id || userId;
+      if (!uid) return;
+
+      const pendingActId = sessionStorage.getItem("pendingShortlistActId");
+      const pendingActName = sessionStorage.getItem("pendingShortlistActName") || "Act";
+      if (!pendingActId) return;
+
+      // Clear first to avoid loops
+      sessionStorage.removeItem("pendingShortlistActId");
+      sessionStorage.removeItem("pendingShortlistActName");
+
+      await shortlistAct(uid, pendingActId);
+
+      try {
+        toast(
+          <CustomToast
+            type="success"
+            message={`${pendingActName} has been saved to your shortlist.`}
+          />
+        );
+      } catch {}
+    } catch {}
+  })();
+}, [userId]); // or [userId, shortlistedActs] if you prefer 
+
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
   useEffect(() => {
     let sse;
@@ -2437,13 +2591,33 @@ return Number.isFinite(total) ? total : null;
 
 // ✅ Toggle shortlist via PATCH routes with optimistic UI
 const shortlistAct = async (uid, actId) => {
+  console.log("❤️[shortlistAct] called", {
+  uid,
+  actId,
+  pathname: String(window?.location?.pathname || ""),
+  tokenPresent: !!token,
+  storedUserPresent: !!localStorage.getItem("user"),
+});
   if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
 
-  const storedUserRaw = localStorage.getItem("user");
-  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-  const userId = uid || storedUser?._id; // ✅ consistent naming
+ const storedUserRaw = localStorage.getItem("user");
+const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
 
-  if (!actId) return;
+const resolvedUserId = uid || storedUser?._id;
+const isLoggedIn = Boolean(resolvedUserId && token);
+
+console.log("❤️[shortlistAct] auth resolved", {
+  resolvedUserId: resolvedUserId || null,
+  isLoggedIn,
+  tokenPresent: !!token,
+});
+
+// ✅ Guest behaviour
+if (!isLoggedIn) {
+  guestToggleShortlist(actId);
+  return;
+}
+
 
   // ✅ Only consider date/address if user actually provided BOTH (no placeholders)
   const hasDate = !!selectedDate;
@@ -2456,54 +2630,75 @@ const shortlistAct = async (uid, actId) => {
 
   // Build payload WITHOUT placeholder date/address to avoid accidental availability triggers
   const clientPayload = {
-    userId,
+    userId: resolvedUserId,
     clientEmail: storedUser?.email || "",
     clientName:
       storedUser?.firstName || storedUser?.name || storedUser?.surname || "",
   };
+
   if (selectedDateFinal && selectedAddressFinal) {
     clientPayload.selectedDate = selectedDateFinal;
     clientPayload.selectedAddress = selectedAddressFinal;
-  }
-
-  if (!userId) {
-    promptLogin("Please log in to manage your shortlist.");
-    return;
   }
 
   const idStr = String(actId);
   const isShortlistedNow =
     Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
 
-  // ✅ Helper: sync loveCount in your cards list from server value
-const updateShortlistsInEverywhere = (actId, newCount) => {
-  const idStr = String(actId);
-  const n = Math.max(0, Number(newCount) || 0);
+  // ✅ Keep these helpers BEFORE use (avoid temporal dead zone)
+  const updateTimesShortlistedEverywhere = (actId, newCount) => {
+    const targetId = String(actId);
+    const n = Math.max(0, Number(newCount) || 0);
 
-  const patchCard = (card) => {
-    const cardId = String(card?.actId ?? card?._id ?? card?.id ?? "");
-    if (cardId !== idStr) return card;
-    return { ...card, numberOfShortlistsIn: n }; // ✅ ONLY this
+    const patch = (x) => {
+      const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
+      if (xid !== targetId) return x;
+      return { ...x, timesShortlisted: n };
+    };
+
+    setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+
+    setActs((p) =>
+      Array.isArray(p)
+        ? p.map((a) => {
+            const aid = String(a?._id ?? a?.actId ?? "");
+            return aid === targetId ? { ...a, timesShortlisted: n } : a;
+          })
+        : p
+    );
   };
 
-  setActCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
-  setActFilterCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
-  setActsFilterCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
-  setActsPageCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
-  setActsFilterPageCards((prev) => (Array.isArray(prev) ? prev.map(patchCard) : prev));
+  const updateNumberOfShortlistsInEverywhere = (actId, newCount) => {
+    const targetId = String(actId);
+    const n = Math.max(0, Number(newCount) || 0);
 
-  setActs((prev) =>
-    Array.isArray(prev)
-      ? prev.map((a) => {
-          const aid = String(a?._id ?? a?.actId ?? "");
-          if (aid !== idStr) return a;
-          return { ...a, numberOfShortlistsIn: n }; // ✅ ONLY this
-        })
-      : prev
-  );
-};
+    const patch = (x) => {
+      const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
+      if (xid !== targetId) return x;
+      return { ...x, numberOfShortlistsIn: n };
+    };
 
-  // ⚡ Optimistic shortlist list update (NOT loveCount — we’ll trust server response)
+    setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+
+    setActs((p) =>
+      Array.isArray(p)
+        ? p.map((a) => {
+            const aid = String(a?._id ?? a?.actId ?? "");
+            return aid === targetId ? { ...a, numberOfShortlistsIn: n } : a;
+          })
+        : p
+    );
+  };
+
+  // ⚡ Optimistic shortlist list update
   const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
   const next = isShortlistedNow
     ? prev.filter((id) => id !== idStr)
@@ -2516,30 +2711,20 @@ const updateShortlistsInEverywhere = (actId, newCount) => {
   } catch {}
 
   try {
+    let res;
+
     if (isShortlistedNow) {
       // 🔵 Removing from shortlist
-      const res = await axios.patch(
+      res = await axios.patch(
         `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
         clientPayload
       );
-
-      // ✅ Expect your backend to return: { success: true, loveCount: <number> }
-     const loveCountFromServer =
-res?.data?.timesShortlisted 
-
-updateShortlistsInEverywhere(idStr, loveCountFromServer);
     } else {
       // 🟢 Adding to shortlist
-      const res = await axios.patch(
+      res = await axios.patch(
         `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
         clientPayload
       );
-
-    const loveCountFromServer =
-  
-  res?.data?.timesShortlisted ??
-
-updateShortlistsInEverywhere(idStr, loveCountFromServer);
 
       // ✅ Google Ads conversion: only fire on successful ADD
       reportShortlistConversion({ actId: idStr, value: 1.0, currency: "GBP" });
@@ -2554,8 +2739,27 @@ updateShortlistsInEverywhere(idStr, loveCountFromServer);
         });
       }
     }
+
+    // Prefer new field names; keep backwards-compat fallbacks
+    const numberOfShortlistsInFromServer =
+      res?.data?.numberOfShortlistsIn ??
+      res?.data?.shortlistsIn ??
+      res?.data?.loveCount;
+
+    const timesShortlistedFromServer =
+      res?.data?.timesShortlisted ??
+      res?.data?.totalTimesShortlisted ??
+      res?.data?.timesShortlistedTotal;
+
+    // ✅ update BOTH counters everywhere
+    if (numberOfShortlistsInFromServer != null) {
+      updateNumberOfShortlistsInEverywhere(idStr, numberOfShortlistsInFromServer);
+    }
+    if (timesShortlistedFromServer != null) {
+      updateTimesShortlistedEverywhere(idStr, timesShortlistedFromServer);
+    }
   } catch (err) {
-    console.error("❌ shortlistAct error:", err.message);
+    console.error("❌ shortlistAct error:", err?.message || err);
 
     // 🔁 Revert on failure
     setShortlistedActs(prev);
@@ -2574,7 +2778,7 @@ updateShortlistsInEverywhere(idStr, loveCountFromServer);
     try {
       if (!eventISO) return null;
       const d = new Date(eventISO);
-      if (Number.isNaN(d.getTime())) return null;
+      if (Number.isNaN(d.getTime())) return null; 
       d.setDate(d.getDate() - 14);
       // Normalise to 00:00 local time
       d.setHours(0, 0, 0, 0);
@@ -3049,11 +3253,20 @@ const addToCart = async (
     toggleVocalistForAct,
     ensureLeadIncluded,
     setUser,
+    openSaveShortlistGate,
   };
 
   return (
-    <ShopContext.Provider value={value}>{props.children}</ShopContext.Provider>
-  );
+<ShopContext.Provider value={value}>
+  {props.children}
+
+  <AuthGateModal
+  open={authGate.open}
+  msg={authGate.msg}
+  kind={authGate.kind}
+  onClose={() => setAuthGate((p) => ({ ...p, open: false }))}
+ />
+</ShopContext.Provider>  );
 };
 
 export default ShopProvider;

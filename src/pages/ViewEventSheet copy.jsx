@@ -370,89 +370,80 @@ const handleGenerateParkingInvoice = async ({ amountPence }) => {
 console.log("Stripe key present:", !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 
-const generateDescription = (itemOrLineup) => {
-  if (!itemOrLineup) return "";
+ const generateDescription = (lineup) => {
+  const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
 
-  // accept either a lineup or an item containing a lineup/bandMembers
-  const lineup =
-    itemOrLineup.lineup || itemOrLineup;
+  // Exclude Manager/Admin rows from performer count + instrument list
+  const performers = members.filter((m) => {
+    const role = String(m?.instrument || "").trim().toLowerCase();
+    return role && role !== "manager" && role !== "admin";
+  });
 
-  const bandMembers = Array.isArray(lineup?.bandMembers)
-    ? lineup.bandMembers
-    : Array.isArray(itemOrLineup?.bandMembers)
-    ? itemOrLineup.bandMembers
-    : [];
+  // Prefer explicit actSize if present (e.g. "6-Piece"), else count performers
+  const countLabel =
+    (lineup?.actSize && String(lineup.actSize).trim()) ||
+    `${performers.length}-Piece`;
 
-  // count label: prefer explicit bandMembersCount or actSize -> 5 / "5-Piece"
-  const actSizeStr =
-    lineup?.actSize ||
-    itemOrLineup?.actSize ||
-    (itemOrLineup?.bandMembersCount
-      ? `${itemOrLineup.bandMembersCount}-Piece`
-      : bandMembers.length
-      ? `${bandMembers.length}-Piece`
-      : "");
-
-  const capWords = (str = "") =>
-    String(str).replace(/\b\w/g, (c) => c.toUpperCase());
-
-  // instrument aliases/normalisation
-  const alias = {
-    "acoustic guitar": "Guitar",
-    "electric guitar": "Guitar",
-    "acoustic bass guitar": "Bass Guitar",
-    "double bass": "Bass Guitar",
-    "lead vocal": "Lead Vocal",
-    "lead female vocal": "Lead Female Vocal",
-    "lead male vocal": "Lead Male Vocal",
-    vox: "Vocal",
-  };
-
-  // instruments: essentials only, exclude management/non-performers
-  const instruments = bandMembers
-    .filter((m) => (m?.isEssential ?? true) && !isManagerLike(m))
-    .map((m) => {
-      const raw = String(m.instrument || "").trim();
-      const norm = alias[raw.toLowerCase()] || raw;
-      return capWords(norm);
-    })
+  // Only essential performer instruments
+  const instruments = performers
+    .filter((m) => m?.isEssential)
+    .map((m) => String(m?.instrument || "").trim())
     .filter(Boolean);
 
-  // sort: vocals first, drums last
+  // Sort: vocals first, drums last (same intent as before)
   instruments.sort((a, b) => {
-    const A = a.toLowerCase();
-    const B = b.toLowerCase();
-    const isVocal = (s) => s.includes("vocal");
-    const isDrums = (s) => s === "drums";
-    if (isVocal(A) && !isVocal(B)) return -1;
-    if (!isVocal(A) && isVocal(B)) return 1;
-    if (isDrums(A) && !isDrums(B)) return 1;
-    if (!isDrums(A) && isDrums(B)) return -1;
+    const aLower = a.toLowerCase();
+    const bLower = b.toLowerCase();
+    const isVocal = (str) => str.includes("vocal");
+    const isDrums = (str) => str === "drums";
+
+    if (isVocal(aLower) && !isVocal(bLower)) return -1;
+    if (!isVocal(aLower) && isVocal(bLower)) return 1;
+    if (isDrums(aLower)) return 1;
+    if (isDrums(bLower)) return -1;
     return 0;
   });
 
-  // unique + nice “A, B & C”
-  const uniq = [...new Set(instruments)];
-  const withAnd =
-    uniq.length <= 1
-      ? (uniq[0] || "")
-      : uniq.length === 2
-      ? `${uniq[0]} & ${uniq[1]}`
-      : `${uniq.slice(0, -1).join(", ")} & ${uniq[uniq.length - 1]}`;
-
-  // essential services (e.g. Sound Engineering) – optional tail
-  const roles = bandMembers.flatMap((m) =>
-    (m.additionalRoles || [])
-      .filter((r) => r.isEssential)
-      .map((r) => capWords(r.role || "Unnamed Service"))
+  // Essential roles, but only from performer members
+  const roles = performers.flatMap((member) =>
+    (Array.isArray(member?.additionalRoles) ? member.additionalRoles : [])
+      .filter((r) => r?.isEssential)
+      .map((r) => String(r?.role || "Unnamed Service").trim())
+      .filter(Boolean)
   );
-  const rolesUniq = [...new Set(roles)];
-  const rolesTail = rolesUniq.length
-    ? ` (including ${rolesUniq.length === 1 ? rolesUniq[0] : rolesUniq.slice(0, -1).join(", ") + " & " + rolesUniq.slice(-1)} services)`
-    : "";
 
-  if (!actSizeStr && !withAnd) return "";
-  return `${actSizeStr ? `${actSizeStr} ` : ""}${withAnd ? `(${withAnd})` : ""}${rolesTail}`;
+  if (performers.length === 0) return "Add a Lineup";
+
+  // Turn ["Lead Female Vocal","Lead Female Vocal","Bass Guitar"] into:
+  // ["Lead Female Vocal x 2","Bass Guitar"]
+  const formatWithCounts = (arr) => {
+    const counts = new Map();
+    for (const item of arr) {
+      counts.set(item, (counts.get(item) || 0) + 1);
+    }
+
+    const expanded = [];
+    for (const [name, n] of counts.entries()) {
+      expanded.push(n > 1 ? `${name} x ${n}` : name);
+    }
+
+    // Keep a stable order based on first appearance in original array
+    expanded.sort((x, y) => {
+      const baseX = x.replace(/\s+x\s+\d+$/i, "");
+      const baseY = y.replace(/\s+x\s+\d+$/i, "");
+      return arr.findIndex((v) => v === baseX) - arr.findIndex((v) => v === baseY);
+    });
+
+    if (expanded.length === 0) return "";
+    if (expanded.length === 1) return expanded[0];
+    if (expanded.length === 2) return `${expanded[0]} & ${expanded[1]}`;
+    return `${expanded.slice(0, -1).join(", ")} & ${expanded[expanded.length - 1]}`;
+  };
+
+  const instrumentsStr = formatWithCounts(instruments);
+  const rolesStr = roles.length ? ` (including ${formatWithCounts(roles)} services)` : "";
+
+  return `${countLabel}: ${instrumentsStr}${rolesStr}`;
 };
 
   // Normalize items from actsSummary/items with best-guess name & price

@@ -994,65 +994,81 @@ const basePrice = subtotalWithMargin; // already gross
 };
 
   // Build a friendly lineup description from a lineup object, including roles tail
-  const generateDescription = (lineup = {}) => {
-    try {
-      const members = Array.isArray(lineup.bandMembers)
-        ? lineup.bandMembers
-        : [];
-      if (!members.length) return "";
+ const generateDescription = (lineup) => {
+  const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
 
-      // Helpers
-      const cap = (s = "") =>
-        String(s).replace(/\b\w/g, (c) => c.toUpperCase());
-      const isEssentialPerformer = (m = {}) => {
-        if (m.isEssential === true) return true;
-        const roles = Array.isArray(m.additionalRoles) ? m.additionalRoles : [];
-        return roles.some((r) => r?.isEssential === true);
-      };
-      const formatWithAnd = (arr = []) => {
-        const uniq = [...new Set(arr.filter(Boolean))];
-        if (uniq.length === 0) return "";
-        if (uniq.length === 1) return uniq[0];
-        if (uniq.length === 2) return `${uniq[0]} & ${uniq[1]}`;
-        return `${uniq.slice(0, -1).join(", ")} & ${uniq[uniq.length - 1]}`;
-      };
+  // Exclude Manager/Admin rows from performer count + instrument list
+  const performers = members.filter((m) => {
+    const role = String(m?.instrument || "").trim().toLowerCase();
+    return role && role !== "manager" && role !== "admin";
+  });
 
-      // Instruments from essential performers only
-      const instruments = members
-        .filter(isEssentialPerformer)
-        .map((m) => cap(m.instrument || "").trim())
-        .filter(Boolean);
+  // Prefer explicit actSize if present (e.g. "6-Piece"), else count performers
+  const countLabel =
+    (lineup?.actSize && String(lineup.actSize).trim()) ||
+    `${performers.length}-Piece`;
 
-      if (!instruments.length) return "";
+  // Only essential performer instruments
+  const instruments = performers
+    .filter((m) => m?.isEssential)
+    .map((m) => String(m?.instrument || "").trim())
+    .filter(Boolean);
 
-      // Sort: vocals first, drums last, others in the middle
-      const weight = (s) => {
-        const x = s.toLowerCase();
-        if (x.includes("vocal")) return 0;
-        if (x === "drums" || x.includes("drum")) return 999;
-        return 100;
-      };
-      const instrumentsOrdered = [...new Set(instruments)].sort(
-        (a, b) => weight(a) - weight(b)
-      );
-      const instrumentsStr = formatWithAnd(instrumentsOrdered);
+  // Sort: vocals first, drums last (same intent as before)
+  instruments.sort((a, b) => {
+    const aLower = a.toLowerCase();
+    const bLower = b.toLowerCase();
+    const isVocal = (str) => str.includes("vocal");
+    const isDrums = (str) => str === "drums";
 
-      // Essential service roles (e.g., Sound Engineering, Band Management)
-      const roles = members.flatMap((m) =>
-        (m.additionalRoles || [])
-          .filter((r) => r?.isEssential)
-          .map((r) => cap(r.role || r.title || "Unnamed Service"))
-      );
-      const rolesStr = formatWithAnd(roles);
+    if (isVocal(aLower) && !isVocal(bLower)) return -1;
+    if (!isVocal(aLower) && isVocal(bLower)) return 1;
+    if (isDrums(aLower)) return 1;
+    if (isDrums(bLower)) return -1;
+    return 0;
+  });
 
-      // Append roles tail when present
-      const rolesTail = rolesStr ? ` (including ${rolesStr} services)` : "";
+  // Essential roles, but only from performer members
+  const roles = performers.flatMap((member) =>
+    (Array.isArray(member?.additionalRoles) ? member.additionalRoles : [])
+      .filter((r) => r?.isEssential)
+      .map((r) => String(r?.role || "Unnamed Service").trim())
+      .filter(Boolean)
+  );
 
-      return `${instrumentsStr}${rolesTail}`;
-    } catch {
-      return "";
+  if (performers.length === 0) return "Add a Lineup";
+
+  // Turn ["Lead Female Vocal","Lead Female Vocal","Bass Guitar"] into:
+  // ["Lead Female Vocal x 2","Bass Guitar"]
+  const formatWithCounts = (arr) => {
+    const counts = new Map();
+    for (const item of arr) {
+      counts.set(item, (counts.get(item) || 0) + 1);
     }
+
+    const expanded = [];
+    for (const [name, n] of counts.entries()) {
+      expanded.push(n > 1 ? `${name} x ${n}` : name);
+    }
+
+    // Keep a stable order based on first appearance in original array
+    expanded.sort((x, y) => {
+      const baseX = x.replace(/\s+x\s+\d+$/i, "");
+      const baseY = y.replace(/\s+x\s+\d+$/i, "");
+      return arr.findIndex((v) => v === baseX) - arr.findIndex((v) => v === baseY);
+    });
+
+    if (expanded.length === 0) return "";
+    if (expanded.length === 1) return expanded[0];
+    if (expanded.length === 2) return `${expanded[0]} & ${expanded[1]}`;
+    return `${expanded.slice(0, -1).join(", ")} & ${expanded[expanded.length - 1]}`;
   };
+
+  const instrumentsStr = formatWithCounts(instruments);
+  const rolesStr = roles.length ? ` (including ${formatWithCounts(roles)} services)` : "";
+
+  return `${countLabel}: ${instrumentsStr}${rolesStr}`;
+};
 
 const handlePerformancePlanChange = (actId, lineupId, selectedPlanIndex, actData) => {
    // mirror to local UI state

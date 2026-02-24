@@ -7,7 +7,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 const GUEST_SHORTLIST_KEY = "guestShortlistItems";
 
-// small helpers
+/* -------------------------------------------------------------- */
+/* small helpers                                                  */
+/* -------------------------------------------------------------- */
 const readGuestShortlist = () => {
   try {
     const raw = localStorage.getItem(GUEST_SHORTLIST_KEY);
@@ -24,7 +26,7 @@ const clearGuestShortlist = () => {
   } catch {}
 };
 
-const AuthGateModal = () => {
+const AuthGateModal = ({ open, msg, kind, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -37,41 +39,39 @@ const AuthGateModal = () => {
     shortlistedActs,
   } = useContext(ShopContext);
 
-  const [open, setOpen] = useState(false);
-  const [gateMsg, setGateMsg] = useState("");
-  const [intent, setIntent] = useState("shortlist");
+  const gateMsg =
+    msg || "Save your shortlist & check availability — enter your details.";
 
   const [step, setStep] = useState(1); // 1=email, 2=otp
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-
   const [loading, setLoading] = useState(false);
-  const emailOk = useMemo(() => /\S+@\S+\.\S+/.test(String(email || "").trim()), [email]);
 
-  // Listen for ShopContext event: window.dispatchEvent(new CustomEvent("tsc:auth_gate", { detail: {...}}))
+  const emailOk = useMemo(
+    () => /\S+@\S+\.\S+/.test(String(email || "").trim()),
+    [email]
+  );
+
+  // Reset internal state whenever modal opens
   useEffect(() => {
-    const onGate = (e) => {
-      const d = e?.detail || {};
-      setGateMsg(d.msg || "Save your shortlist & check availability — enter your details.");
-      setIntent(d.intent || d.reason || "shortlist");
-      setStep(1);
-      setOtp("");
-      setOpen(true);
-    };
-
-    window.addEventListener("tsc:auth_gate", onGate);
-    return () => window.removeEventListener("tsc:auth_gate", onGate);
-  }, []);
+    if (!open) return;
+    setStep(1);
+    setOtp("");
+    setLoading(false);
+  }, [open]);
 
   // Close on ESC
   useEffect(() => {
+    if (!open) return;
+
     const onEsc = (e) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") onClose?.();
     };
-    if (open) document.addEventListener("keydown", onEsc);
+
+    document.addEventListener("keydown", onEsc);
     return () => document.removeEventListener("keydown", onEsc);
-  }, [open]);
+  }, [open, onClose]);
 
   const redirectAfterAuth = () => {
     const next = sessionStorage.getItem("postLoginNext");
@@ -87,15 +87,19 @@ const AuthGateModal = () => {
     const guestIds = readGuestShortlist();
     if (!guestIds.length) return;
 
-    let latest = Array.isArray(shortlistedActs) ? shortlistedActs.map(String) : [];
+    let latest = Array.isArray(shortlistedActs)
+      ? shortlistedActs.map(String)
+      : [];
 
-    // refresh server shortlist first (if available)
     if (typeof fetchShortlistedActs === "function") {
-      const res = await fetchShortlistedActs(userId);
-      if (Array.isArray(res)) latest = res.map(String);
+      try {
+        const res = await fetchShortlistedActs(userId);
+        if (Array.isArray(res)) latest = res.map(String);
+      } catch (e) {
+        console.warn("fetchShortlistedActs failed before merge", e?.message || e);
+      }
     }
 
-    // add missing guest acts (avoid toggling off)
     for (const actId of guestIds) {
       if (latest.includes(String(actId))) continue;
       try {
@@ -105,7 +109,6 @@ const AuthGateModal = () => {
       }
     }
 
-    // refresh again
     if (typeof fetchShortlistedActs === "function") {
       try {
         await fetchShortlistedActs(userId);
@@ -117,6 +120,7 @@ const AuthGateModal = () => {
 
   const requestOtp = async () => {
     const trimmed = String(email || "").trim().toLowerCase();
+
     if (!/\S+@\S+\.\S+/.test(trimmed)) {
       toast(<CustomToast type="error" message="Please enter a valid email address." />);
       return;
@@ -124,9 +128,25 @@ const AuthGateModal = () => {
 
     setLoading(true);
     try {
-      await axios.post(`${backendUrl}/api/auth/request-otp`, { email: trimmed });
+      const res = await axios.post(
+        `${backendUrl}/api/auth/request-otp`,
+        { email: trimmed, kind: kind || "save_shortlist" },
+        { withCredentials: true }
+      );
+
+      // always move to step 2 because code may already be in inbox
       setStep(2);
-      toast(<CustomToast type="success" message="We’ve sent a 6-digit code to your email." />);
+
+      if (res?.data?.throttled) {
+        toast(
+          <CustomToast
+            type="info"
+            message="Code already sent — check inbox/spam. You can resend in a few seconds."
+          />
+        );
+      } else {
+        toast(<CustomToast type="success" message="We’ve sent a 6-digit code to your email." />);
+      }
     } catch (e) {
       console.error(e);
       toast(<CustomToast type="error" message="Couldn’t send the code. Please try again." />);
@@ -146,21 +166,28 @@ const AuthGateModal = () => {
 
     setLoading(true);
     try {
-      const res = await axios.post(`${backendUrl}/api/auth/verify-otp`, {
-        email: trimmedEmail,
-        code,
-        phone: String(phone || "").trim(), // optional (backend can ignore if not implemented)
-      });
+      const res = await axios.post(
+        `${backendUrl}/api/auth/verify-otp`,
+        {
+          email: trimmedEmail,
+          code,
+          phone: String(phone || "").trim(),
+          kind: kind || "save_shortlist",
+        },
+        { withCredentials: true }
+      );
 
       if (!res?.data?.success || !res?.data?.token || !res?.data?.userId) {
         toast(<CustomToast type="error" message="That code didn’t work. Try again." />);
-        setLoading(false);
         return;
       }
 
-      // Save auth
       const token = res.data.token;
-      const user = { _id: res.data.userId, email: res.data.email || trimmedEmail };
+      const user = {
+        _id: res.data.userId,
+        email: res.data.email || trimmedEmail,
+        role: res.data.role || "customer",
+      };
 
       setToken(token);
       localStorage.setItem("token", token);
@@ -168,22 +195,22 @@ const AuthGateModal = () => {
       if (typeof setUser === "function") setUser(user);
       localStorage.setItem("user", JSON.stringify(user));
 
-      // Merge guest shortlist into server shortlist
       await mergeGuestShortlistToUser(user._id);
 
-      // Clean up any pending “auto add” keys (optional)
       sessionStorage.removeItem("pendingShortlistActId");
       sessionStorage.removeItem("pendingShortlistActName");
 
       toast(<CustomToast type="success" message="Saved! Your shortlist is now linked to your email." />);
 
-      setOpen(false);
+      onClose?.();
       redirectAfterAuth();
     } catch (e) {
       console.error(e);
       const msg =
         e?.response?.data?.message === "expired_code"
           ? "That code expired — request a new one."
+          : e?.response?.data?.message === "too_many_attempts"
+          ? "Too many attempts — request a new code."
           : "That code didn’t work — please try again.";
       toast(<CustomToast type="error" message={msg} />);
     } finally {
@@ -195,26 +222,22 @@ const AuthGateModal = () => {
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
-        onClick={() => setOpen(false)}
+        onClick={() => onClose?.()}
         aria-hidden="true"
       />
 
-      {/* Modal */}
       <div className="relative w-[92%] max-w-md bg-white rounded-xl shadow-2xl p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold">Save your shortlist</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              {gateMsg || "Enter your email to save your shortlist and check availability."}
-            </p>
+            <p className="text-sm text-gray-600 mt-1">{gateMsg}</p>
           </div>
 
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            onClick={() => onClose?.()}
             className="text-gray-500 hover:text-black"
             aria-label="Close"
           >
@@ -223,7 +246,6 @@ const AuthGateModal = () => {
         </div>
 
         <div className="mt-4 space-y-3">
-          {/* Step 1 */}
           {step === 1 && (
             <>
               <div>
@@ -269,7 +291,6 @@ const AuthGateModal = () => {
             </>
           )}
 
-          {/* Step 2 */}
           {step === 2 && (
             <>
               <div>
@@ -298,7 +319,7 @@ const AuthGateModal = () => {
               <div className="flex items-center justify-between text-sm">
                 <button
                   type="button"
-                  onClick={() => requestOtp()}
+                  onClick={requestOtp}
                   className="underline text-gray-700"
                   disabled={loading}
                 >
@@ -315,9 +336,7 @@ const AuthGateModal = () => {
                 </button>
               </div>
 
-              <p className="text-[12px] text-gray-500 leading-snug">
-                Code expires in 10 minutes.
-              </p>
+              <p className="text-[12px] text-gray-500 leading-snug">Code expires in 10 minutes.</p>
             </>
           )}
         </div>

@@ -1,5 +1,12 @@
 // frontend/src/components/CardFilterActItem.jsx
-import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useContext,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { Link } from "react-router-dom";
 import calculateActPricing from "../pages/utils/pricing";
 import { ShopContext } from "../context/ShopContext";
@@ -34,14 +41,16 @@ const getImageUrl = (src) => {
 };
 
 const getLove = (src, fallback) => {
-  const n = src?.timesShortlisted ?? src?.loveCount ?? src?.numberOfShortlistsIn ?? fallback ?? 0;
+  const n = src?.timesShortlisted ?? src?.loveCount ?? fallback ?? 0;
   return Math.max(0, Number(n) || 0);
 };
 
 const getBadge = (src) => src?.availabilityBadge || null;
 
 const getBasePrice = (src) => {
-  if (src?.basePrice != null) return Number(String(src.basePrice).replace(/[^0-9.+-]/g, ""));
+  if (src?.basePrice != null) {
+    return Number(String(src.basePrice).replace(/[^0-9.+-]/g, ""));
+  }
   const lineup = src?.lineups?.[0] || null;
   const base = src?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
   return base != null ? Number(String(base).replace(/[^0-9.+-]/g, "")) : null;
@@ -60,20 +69,27 @@ const getActUrl = (src) => {
 
 // ——— helpers for fallback base calculation ———
 const num = (v) => (v == null ? 0 : Number(String(v).replace(/[^0-9.+-]/g, "")) || 0);
+
 const essentialRolesFee = (member) => {
   const roles = Array.isArray(member?.additionalRoles) ? member.additionalRoles : [];
   return roles.reduce((s, r) => s + (r?.isEssential ? num(r?.additionalFee) : 0), 0);
 };
+
 const isManagerMember = (m) => /manager/i.test(String(m?.instrument || ""));
+
 const minCountyFeeFromAct = (act) => {
   if (!(act?.useCountyTravelFee && act?.countyFees && typeof act.countyFees === "object")) return 0;
-  const vals = Object.values(act.countyFees).map(Number).filter((v) => Number.isFinite(v) && v > 0);
+  const vals = Object.values(act.countyFees)
+    .map(Number)
+    .filter((v) => Number.isFinite(v) && v > 0);
   return vals.length ? Math.min(...vals) : 0;
 };
+
 const lineupBareFee = (lineup) => {
   const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
   return members.reduce((sum, m) => sum + num(m?.fee) + essentialRolesFee(m), 0);
 };
+
 const computeBaseFromSmallestLineup = (act) => {
   const lineups = Array.isArray(act?.lineups) ? act.lineups : [];
   if (!lineups.length) return null;
@@ -96,12 +112,14 @@ const computeBaseFromSmallestLineup = (act) => {
   return Number.isFinite(total) ? total : null;
 };
 
-const PriceSkeleton = () => <div className="h-5 w-24 rounded-md bg-gray-200 animate-pulse" />;
+const PriceSkeleton = () => (
+  <div className="h-5 w-24 rounded-md bg-gray-200 animate-pulse" />
+);
 
 /**
  * Notes on the “glitching” fix:
  * - compute a primitive pricingKey and only recompute when it changes
- * - keep deps stable (avoid actData object in deps where possible)
+ * - keep deps stable (effect depends ONLY on pricingKey)
  * - cancel in-flight async work on rapid changes
  * - avoid extra state churn (don’t set price repeatedly to same value)
  */
@@ -122,19 +140,42 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
   const [price, setPrice] = useState(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
 
-  // keep latest onPriceComputed without forcing effect reruns
+  // keep latest callbacks without forcing effect reruns
   const onPriceComputedRef = useRef(onPriceComputed);
   useEffect(() => {
     onPriceComputedRef.current = onPriceComputed;
   }, [onPriceComputed]);
 
+  const getCardPriceWithTravelRef = useRef(getCardPriceWithTravel);
   useEffect(() => {
-    setLoveCount(getLove(actData, timesShortlisted));
-  }, [actData, timesShortlisted]);
+    getCardPriceWithTravelRef.current = getCardPriceWithTravel;
+  }, [getCardPriceWithTravel]);
+
+  // keep latest act + context values in refs (so pricing effect can depend only on pricingKey)
+  const actDataRef = useRef(actData);
+  useEffect(() => {
+    actDataRef.current = actData;
+  }, [actData]);
+
+  const ctxRef = useRef({ selectedCounty, selectedAddress, selectedDate });
+  useEffect(() => {
+    ctxRef.current = { selectedCounty, selectedAddress, selectedDate };
+  }, [selectedCounty, selectedAddress, selectedDate]);
+
+  const incomingLove = useMemo(
+    () => getLove(actData, timesShortlisted),
+    [actData?.timesShortlisted, actData?.loveCount, timesShortlisted]
+  );
+
+  useEffect(() => {
+    setLoveCount((prev) => (prev === incomingLove ? prev : incomingLove));
+  }, [incomingLove]);
 
   const actId = useMemo(() => String(getActId(actData)), [actData]);
   const actVer = useMemo(() => String(actData?.updatedAt || actData?.__v || ""), [actData]);
+
   const addrNorm = useMemo(() => normalizeAddrStrict(selectedAddress || ""), [selectedAddress]);
+
   const dateISO = useMemo(() => {
     if (!selectedDate) return "";
     const d = new Date(selectedDate);
@@ -143,7 +184,6 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
 
   // Only recompute pricing when these change
   const pricingKey = useMemo(() => {
-    // include county because county-based fees depend on it
     const county = String(selectedCounty || "");
     const mode = standalone ? "standalone" : "card";
     return `${mode}|${actId}|${actVer}|${county}|${addrNorm}|${dateISO}`;
@@ -151,7 +191,6 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
 
   const safeSetPrice = useCallback((next) => {
     setPrice((prev) => {
-      // avoid needless re-renders if the value didn’t change
       const prevTotal = prev?.total ?? null;
       const nextTotal = next?.total ?? null;
       const prevTC = !!prev?.travelCalculated;
@@ -168,25 +207,37 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
       setLoadingPrice(true);
 
       try {
-        const baseOnly = getBasePrice(actData);
-        const hasLineups = Array.isArray(actData?.lineups) && actData.lineups.length > 0;
-        const hasAnyLocation = !!(addrNorm || selectedCounty);
-        const hasDate = !!dateISO;
+        const a = actDataRef.current;
+        const { selectedCounty: county, selectedAddress: addr, selectedDate: dt } = ctxRef.current;
 
-        // 1) Standalone cards: show a stable “from” price (no travel calc)
+        const addrN = normalizeAddrStrict(addr || "");
+        const dateStr = (() => {
+          if (!dt) return "";
+          const d = new Date(dt);
+          return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+        })();
+
+        const baseOnly = getBasePrice(a);
+        const hasLineups = Array.isArray(a?.lineups) && a.lineups.length > 0;
+        const hasAnyLocation = !!(addrN || county);
+        const hasDate = !!dateStr;
+
+        // 1) Standalone cards: stable “from” price (no travel calc)
         if (standalone) {
           if (baseOnly != null) {
             if (!cancelled) safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
           } else {
-            const derived = computeBaseFromSmallestLineup(actData);
-            if (derived != null && !cancelled) safeSetPrice({ total: applyMargin(derived), travelCalculated: false });
+            const derived = computeBaseFromSmallestLineup(a);
+            if (derived != null && !cancelled) {
+              safeSetPrice({ total: applyMargin(derived), travelCalculated: false });
+            }
           }
           return;
         }
 
         // 2) Missing location/date → show “from” price
         if (!hasAnyLocation || !hasDate) {
-          const derived = computeBaseFromSmallestLineup(actData);
+          const derived = computeBaseFromSmallestLineup(a);
           if (derived != null) {
             if (!cancelled) safeSetPrice({ total: applyMargin(derived), travelCalculated: false });
           } else if (baseOnly != null) {
@@ -199,9 +250,10 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
 
         // 3) No lineups → try context helper (if provided), else fallback to base
         if (!hasLineups) {
-          if (typeof getCardPriceWithTravel === "function") {
+          const fn = getCardPriceWithTravelRef.current;
+          if (typeof fn === "function") {
             try {
-              const totalNet = await getCardPriceWithTravel(actId);
+              const totalNet = await fn(actId);
               if (!cancelled && Number.isFinite(totalNet)) {
                 safeSetPrice({ total: applyMargin(totalNet), travelCalculated: true });
                 return;
@@ -211,25 +263,27 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
             }
           }
 
-          if (!cancelled && baseOnly != null) safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+          if (!cancelled && baseOnly != null) {
+            safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+          }
           return;
         }
 
         // 4) Full pricing with travel
         const hasCountyTable = !!(
-          actData?.useCountyTravelFee &&
-          actData?.countyFees &&
-          typeof actData.countyFees === "object" &&
-          Object.keys(actData.countyFees).length > 0
+          a?.useCountyTravelFee &&
+          a?.countyFees &&
+          typeof a.countyFees === "object" &&
+          Object.keys(a.countyFees).length > 0
         );
 
-        const lineup = actData.lineups[0];
+        const lineup = a.lineups[0];
 
         const result = await calculateActPricing(
-          actData,
-          hasCountyTable ? selectedCounty : null,
-          addrNorm,          // normalized address
-          dateISO,           // ISO date string
+          a,
+          hasCountyTable ? county : null,
+          addrN,
+          dateStr,
           lineup
         );
 
@@ -243,16 +297,16 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
         safeSetPrice({
           ...result,
           total: applyMargin(result.total),
-          travelCalculated: true, // result is travel-aware at this point
+          travelCalculated: true,
         });
       } catch (err) {
         console.error("❌ Failed to calculate price:", {
           err,
           actId,
-          useCountyTravelFee: actData?.useCountyTravelFee,
+          useCountyTravelFee: actDataRef.current?.useCountyTravelFee,
         });
 
-        const baseOnly = getBasePrice(actData);
+        const baseOnly = getBasePrice(actDataRef.current);
         if (!cancelled && baseOnly != null) safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
         if (!cancelled && baseOnly == null) safeSetPrice(null);
       } finally {
@@ -264,8 +318,9 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
     return () => {
       cancelled = true;
     };
-    // 👇 the key is a single primitive dependency
-  }, [pricingKey, actData, actId, addrNorm, dateISO, selectedCounty, standalone, getCardPriceWithTravel, safeSetPrice]);
+    // Intentionally depend on ONE primitive key to prevent “glitching” from churny deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricingKey]);
 
   const computedFallback = useMemo(() => {
     const b = getBasePrice(actData);
@@ -283,12 +338,11 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
     return Number.isFinite(n) ? n : null;
   }, [rawTotal]);
 
-  // Lift computed price up for sorting etc., without making the effect depend on onPriceComputed identity
+  // Lift computed price up for sorting etc.
   useEffect(() => {
     if (standalone) return;
     if (loadingPrice) return;
     if (displayTotal == null) return;
-
     onPriceComputedRef.current?.(actId, displayTotal);
   }, [actId, displayTotal, loadingPrice, standalone]);
 
@@ -302,13 +356,13 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
 
       const isShortlistedNow = (shortlistedActs || []).includes(actId);
 
-      // Optimistic UI love count
+      // loveCount represents timesShortlisted UI
       setLoveCount((prev) => {
         const safe = Number(prev) || 0;
         return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
       });
 
-      // Let ShopContext handle auth gate + server sync
+      // Let ShopContext handle guest/local vs authed/server
       shortlistAct?.(userId || null, actId);
 
       setTimeout(() => setIsAnimating(false), 300);
@@ -365,7 +419,13 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
               disabled={isAnimating || standalone}
               className="p-1 transition-transform duration-150 ease-in-out"
               aria-label={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
-              title={standalone ? "Shortlist disabled here" : isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
+              title={
+                standalone
+                  ? "Shortlist disabled here"
+                  : isShortlisted
+                  ? "Remove from shortlist"
+                  : "Add to shortlist"
+              }
             >
               {!standalone && isShortlisted ? (
                 <svg
@@ -396,12 +456,17 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
               )}
             </button>
 
-            <p className={`text-xs ${loveCount === 0 ? "text-gray-400" : "text-gray-700"} text-center w-full self-center lg:self-end`}>
+            <p
+              className={`text-xs ${
+                loveCount === 0 ? "text-gray-400" : "text-gray-700"
+              } text-center w-full self-center lg:self-end`}
+            >
               {loveCount === 0
                 ? "love me"
-                : `${loveCount >= 1000 ? (loveCount / 1000).toFixed(1).replace(/\.0$/, "") + "K" : loveCount} ${
-                    loveCount === 1 ? "love" : "loves"
-                  }`}
+                : `${loveCount >= 1000
+                    ? (loveCount / 1000).toFixed(1).replace(/\.0$/, "") + "K"
+                    : loveCount
+                  } ${loveCount === 1 ? "love" : "loves"}`}
             </p>
           </div>
         </div>
@@ -418,7 +483,6 @@ export default React.memo(CardFilterItem, (prev, next) => {
   const nextVer = String(next.actData?.updatedAt || next.actData?.__v || "");
   const sameCore = prevId === nextId && prevVer === nextVer;
 
-  // If parent passes different handler identity every render, we still want to be stable.
   // We *don’t* include onPriceComputed in the comparison.
   return (
     sameCore &&
