@@ -48,24 +48,38 @@ export const formatDate = (dateString) => {
 export const generateDescription = (lineup) => {
   const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
 
-  // Exclude manager/admin rows from performer count + instrument list
-  const performers = members.filter((m) => {
-    const role = String(m?.instrument || "").trim().toLowerCase();
-    return role && role !== "manager" && role !== "admin" && !role.includes("manager");
+  const norm = (s = "") => String(s || "").trim();
+  const lower = (s = "") => norm(s).toLowerCase();
+
+  const isManagerLikeInstrument = (instrument = "") => {
+    const v = lower(instrument);
+    return v === "manager" || v === "admin" || v.includes("band manager");
+  };
+
+  // Count performers (exclude manager/admin/blank instrument rows)
+  const performerMembers = members.filter((m) => {
+    if (!m?.isEssential) return false;
+    const inst = norm(m?.instrument);
+    if (!inst) return false;
+    if (isManagerLikeInstrument(inst)) return false;
+    return true;
   });
 
-  const count = lineup?.actSize || performers.length;
+  // Label prefix: prefer actSize if provided ("6-Piece"), otherwise build it
+  const actSizeLabel = norm(lineup?.actSize);
+  const countLabel = actSizeLabel
+    ? actSizeLabel
+    : `${performerMembers.length}-Piece`;
 
-  // Instruments (keep duplicates, e.g. "Lead Female Vocal" twice)
-  const instruments = performers
-    .filter((m) => m?.isEssential)
-    .map((m) => String(m?.instrument || "").trim())
+  // Build instrument list (essential only, excluding manager/admin/blank)
+  let instruments = performerMembers
+    .map((m) => norm(m?.instrument))
     .filter(Boolean);
 
-  // Sort: vocals first, drums last
+  // Sort (vocals first, drums last) — same rule as your original
   instruments.sort((a, b) => {
-    const aLower = a?.toLowerCase?.() || "";
-    const bLower = b?.toLowerCase?.() || "";
+    const aLower = a.toLowerCase();
+    const bLower = b.toLowerCase();
     const isVocal = (str) => str.includes("vocal");
     const isDrums = (str) => str === "drums";
 
@@ -76,39 +90,56 @@ export const generateDescription = (lineup) => {
     return 0;
   });
 
-  // Roles/services from additionalRoles (keep duplicates — no de-dupe)
-  const roles = performers.flatMap((member) =>
+  // Turn duplicates into "x N" while keeping the first-seen order
+  const withCountsInOrder = (arr) => {
+    const out = [];
+    const counts = new Map();
+    for (const item of arr) {
+      counts.set(item, (counts.get(item) || 0) + 1);
+      if (!out.includes(item)) out.push(item);
+    }
+    return out.map((item) => {
+      const n = counts.get(item) || 1;
+      return n > 1 ? `${item} x ${n}` : item;
+    });
+  };
+
+  const instrumentsDisplayArr = withCountsInOrder(instruments);
+
+  // Roles: all essential additionalRoles (NO de-dupe)
+  const rolesRaw = members.flatMap((member) =>
     (Array.isArray(member?.additionalRoles) ? member.additionalRoles : [])
       .filter((r) => r?.isEssential)
-      .map((r) => String(r?.role || "Unnamed Service").trim())
+      .map((r) => norm(r?.role || "Unnamed Service"))
       .filter(Boolean)
   );
 
-  // Add Band Management service if a manager/admin row exists anywhere in lineup
-  const hasManagerRow = members.some((m) => {
-    const role = String(m?.instrument || "").trim().toLowerCase();
-    return role === "manager" || role === "admin" || role.includes("manager");
-  });
+  // If "Band Manager" is present, display it as "Band Management"
+  // (covers: role: "Band Manager", instrument: "", etc.)
+  const hasBandManagerRole = rolesRaw.some((r) => lower(r).includes("band manager"));
+  const rolesNormalized = rolesRaw.map((r) =>
+    lower(r).includes("band manager") ? "Band Management" : r
+  );
 
-  if (hasManagerRow) roles.push("Band Management");
-
-  if (count === 0) return "Add a Lineup";
+  const rolesDisplayArr = withCountsInOrder(rolesNormalized);
 
   const formatWithAnd = (arr) => {
-    if (!arr.length) return "";
-    if (arr.length === 1) return arr[0];
-    if (arr.length === 2) return `${arr[0]} & ${arr[1]}`;
-    return `${arr.slice(0, -1).join(", ")} & ${arr[arr.length - 1]}`;
+    const items = Array.isArray(arr) ? arr : [];
+    if (items.length === 0) return "";
+    if (items.length === 1) return items[0];
+    if (items.length === 2) return `${items[0]} & ${items[1]}`;
+    return `${items.slice(0, -1).join(", ")} & ${items[items.length - 1]}`;
   };
 
-  const instrumentsStr = formatWithAnd(instruments);
-
-  const rolesStr = roles.length
-    ? ` (including ${formatWithAnd(roles)} services)`
+  const instrumentsStr = formatWithAnd(instrumentsDisplayArr);
+  const rolesStr = rolesDisplayArr.length
+    ? ` (including ${formatWithAnd(rolesDisplayArr)} services)`
     : "";
 
-  // If you want "-Piece" always, swap to: `${count}-Piece: ...`
-return `${count}-Piece: ${instrumentsStr}${rolesStr}`;};
+  if (!countLabel || performerMembers.length === 0) return "Add a Lineup";
+
+  return `${countLabel}: ${instrumentsStr}${rolesStr}`;
+};
 
 export const numberToWords = (num) => {
     const words = [
