@@ -114,8 +114,7 @@ const extractPostcode = (text = "") => {
     const rawPc = ( extractPostcode(addr)).trim();
 
     const pcOk = isValidUKPostcode(rawPc);
-    const hasVenue =
-      Boolean(addr) || pcOk || Boolean( ssPlace);
+const hasVenue = Boolean(addr) || pcOk; // ✅ only real address/postcode counts
 
     const hasCompleteSearch = Boolean(date) && (Boolean(addr) || pcOk);
 
@@ -140,6 +139,10 @@ const extractPostcode = (text = "") => {
   // - else → OPEN so they must enter details
   useEffect(() => {
     if (location.pathname !== "/acts") return;
+
+    // ✅ If the user has just opened the search box, don't auto-close it.
+    // This prevents the "opens then instantly closes" flicker when other logic decides it "shouldClose".
+    if (showSearch) return;
 
     const { resolved, ctx, ss } = searchSnapshot;
     const { hasVenue, hasCompleteSearch } = resolved;
@@ -191,7 +194,7 @@ if (shouldClose) {
   // setShowSearchDBG(false, "acts_decision_no_autopen");
 }
 
-  }, [location.pathname, searchSnapshot, setShowSearch]);
+  }, [location.pathname, searchSnapshot, showSearch, setShowSearch]);
 
   // Auto-hide when navigating away from /acts (optional behaviour you already had)
   useEffect(() => {
