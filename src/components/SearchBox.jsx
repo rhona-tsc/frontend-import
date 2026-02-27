@@ -26,6 +26,10 @@ const normaliseUKPostcode = (value = "") => {
 const SearchBox = () => {
   const location = useLocation();
 
+  // Determine if the search box is allowed to stay open on this route
+  const isSearchRoute =
+    location.pathname === "/acts" || location.pathname.startsWith("/act/");
+
   const {
     showSearch,
     setShowSearch,
@@ -196,12 +200,16 @@ if (shouldClose) {
 
   }, [location.pathname, searchSnapshot, showSearch, setShowSearch]);
 
-  // Auto-hide when navigating away from /acts (optional behaviour you already had)
+  // Auto-hide when navigating away from /acts or /act/:slug routes
   useEffect(() => {
-    if (location.pathname !== "/acts" && showSearch) {
+    // ✅ Only auto-hide if we leave routes where the search box is meant to be usable.
+    // This prevents the "opens then closes" flicker on /act/:slug when the user clicks
+    // "add my date and location".
+    if (!isSearchRoute && showSearch) {
       setAnimate(false);
-setTimeout(() => setShowSearchDBG(false, "navigate_away_autohide"), 300);    }
-  }, [location.pathname, showSearch, setShowSearch]);
+      setTimeout(() => setShowSearchDBG(false, "navigate_away_autohide"), 300);
+    }
+  }, [location.pathname, isSearchRoute, showSearch, setShowSearch]);
 
   // Animate in when opened
 useEffect(() => {
