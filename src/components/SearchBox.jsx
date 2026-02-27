@@ -370,7 +370,7 @@ SB("ls.selectedPostcode:", localStorage.getItem("selectedPostcode"));
             type="button"
             className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 border-2 border-[#ff6667] ${
               searchDisabled
-                ? "bg-[#ff6667] hover:bg-gray-400 cursor-not-allowed"
+                ? "bg-white hover:bg-gray-100 cursor-not-allowed"
                 : "bg-[#ff6667] hover:bg-[#ff3333]"
             }`}
             onClick={handleSearch}
