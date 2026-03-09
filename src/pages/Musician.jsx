@@ -29,6 +29,7 @@ const calculateAverageRating = (reviews) => {
 const Musician = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Extract YouTube video ID from a full URL or return as-is if already an ID
   const extractVideoId = (url) => {
@@ -154,7 +155,6 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData || nul
 
   const [selectedLineup, setSelectedLineup] = useState("");
   const [video, setVideo] = useState("");
-  const navigate = useNavigate();
 
   const formatDate = (dateString) => {
     if (!dateString) return "No date selected";
