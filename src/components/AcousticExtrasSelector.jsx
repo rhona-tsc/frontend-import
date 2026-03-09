@@ -29,6 +29,7 @@ const AcousticExtrasSelector = ({
   const [afternoonInstruments, setAfternoonInstruments] = useState([]);
   const [afternoonAmp, setAfternoonAmp] = useState("");
   const { setCartItems } = useContext(ShopContext);
+  const MARGIN_MULTIPLIER = 1.33;
 
   // Helpers: exclude managers / non-performers from time-based per-member counts
 const isManagerLike = (m = {}) => {
@@ -324,60 +325,7 @@ if (isAfternoon || isBoth) {
     const earlyArrivalRate =
       actData?.extras?.early_arrival_60min_per_band_member?.price || 0;
 
-    // Calculate start times for use in early arrival logic
-    let ceremonyStart = ceremonyTime
-      ? parseInt(ceremonyTime.split(":")[0]) +
-        parseInt(ceremonyTime.split(":")[1]) / 60
-      : 17;
-
-    let afternoonStart = afternoonTime
-      ? parseInt(afternoonTime.split(":")[0]) +
-        parseInt(afternoonTime.split(":")[1]) / 60
-      : 17;
-
-    // Member ID deduplication
-const uniqueCeremonyMemberIds = new Set(ceremonyPerformers.map(m => m._id));
-const uniqueAfternoonMemberIds = new Set(afternoonPerformers.map(m => m._id));       
-    const engineerMemberId = fallbackEngineer?._id;
-
-    // CEREMONY EARLY ARRIVAL
-    if (ceremonyStart + ceremonyDuration < 17) {
-      const ceremonyEarlyHours = Math.max(
-        0,
-        17 - (ceremonyStart + ceremonyDuration)
-      );
-      const numCeremonyMembers = uniqueCeremonyMemberIds.size;
-      if (ceremonyEarlyHours > 0 && earlyArrivalRate > 0) {
-        total += Math.round(
-          ceremonyEarlyHours * earlyArrivalRate * numCeremonyMembers
-        );
-     
-      }
-    }
-
     let needsEngineer = false;
-
-    // AFTERNOON EARLY ARRIVAL
-    if (afternoonStart + afternoonDuration < 17) {
-      const afternoonEarlyHours = Math.max(
-        0,
-        17 - (afternoonStart + afternoonDuration)
-      );
-      let numAfternoonMembers = uniqueAfternoonMemberIds.size;
-      if (
-        needsEngineer &&
-        engineerMemberId &&
-        !uniqueAfternoonMemberIds.has(engineerMemberId)
-      ) {
-        numAfternoonMembers += 1;
-      }
-      if (afternoonEarlyHours > 0 && earlyArrivalRate > 0) {
-        total += Math.round(
-          afternoonEarlyHours * earlyArrivalRate * numAfternoonMembers
-        );
-       
-      }
-    }
 
     const ampType = isCeremony
       ? ceremonyAmp || amplificationType
@@ -451,7 +399,7 @@ if (needsEngineer) {
     }
 
   
-    return Math.round(total * 1.33);
+    return Math.round(total * MARGIN_MULTIPLIER);
   };
 
   // --- NEW calculateCeremonyAndAfternoonPrice: handles "both" bookings with advanced early arrival gap logic ---
@@ -562,7 +510,7 @@ if (needsEngineer) {
       total += 150;
     }
    
-    return Math.round(total * 1.33);
+    return Math.round(total * MARGIN_MULTIPLIER);
   };
 
 
@@ -1032,9 +980,7 @@ if (needsEngineer) {
                       afternoonSize ||
                       lineupSize}{" "}
                     — £
-                    {calculateCeremonyAndAfternoonPrice(
-                      afternoonSize || lineupSize
-                    )}
+                    {calculatePrice(afternoonSize || lineupSize, "afternoon")}
                   </p>
                   <p className="text-sm text-gray-500">
                     Lineup: {afternoonInstruments.join(", ")}
@@ -1051,7 +997,7 @@ if (needsEngineer) {
                   alt="Add to cart"
                   className="w-6 cursor-pointer"
                   onClick={() => {
-                    const gross = calculateCeremonyAndAfternoonPrice(afternoonSize || lineupSize);
+                    const gross = calculatePrice(afternoonSize || lineupSize, "afternoon");
                     addCeremonyOrAfternoonToCart({
                       actId: actData._id,
                       lineupId: selectedLineupId,
