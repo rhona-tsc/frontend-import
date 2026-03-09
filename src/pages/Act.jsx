@@ -1779,13 +1779,10 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                     ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ""))
                     : null;
 
-                // if pricing util returned margin info, don't apply again
-                const needsMargin = !(price && price.marginApplied === 0.33);
-
-                const displayTotal =
-                  cleanTotal != null && !Number.isNaN(cleanTotal)
-                    ? Math.round(cleanTotal * (needsMargin ? 1.33 : 1))
-                    : null;
+              const displayTotal =
+  cleanTotal != null && !Number.isNaN(cleanTotal)
+    ? Math.round(cleanTotal)
+    : null;
 
                 const travelCalculated =
                   price?.travelCalculated || finalTravelPrice?.travelCalculated;
@@ -2390,6 +2387,21 @@ return (
                 <div className="border rounded px-4 py-6 text-m text-gray-700 w-full my-2 sm:px-6 sm:py-6">
                   {actData.extras &&
                     Object.entries(actData.extras).map(([key, value]) => {
+                      const normalizedExtraKey = String(key || "")
+  .toLowerCase()
+  .replace(/[\s\-]+/g, "_")
+  .replace(/_+/g, "_")
+  .replace(/^_+|_+$/g, "");
+
+const hiddenExtras = new Set([
+  "max_dj_hours",
+  "max_dj_hour",
+  "dj_max_hours",
+  "maximum_dj_hours",
+]);
+
+if (hiddenExtras.has(normalizedExtraKey)) return null;
+
                       // Only render extras that contain a numeric value.price
                       const price =
                         typeof value === "object"
@@ -2424,9 +2436,9 @@ return (
                             : fee;
 
                       const finalFee =
-                        rawFinalFee !== null && !isNaN(rawFinalFee)
-                          ? Math.ceil(rawFinalFee * 1.2)
-                          : null;
+  rawFinalFee !== null && !isNaN(rawFinalFee)
+    ? Math.ceil(rawFinalFee * 1.33)
+    : null;
 
                       if (finalFee === null || isNaN(finalFee)) return null;
 
