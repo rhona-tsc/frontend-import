@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useRef, lazy, Suspense, useDeferredValue } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import calculateActPricing from "./utils/pricing";
@@ -8,7 +8,6 @@ import "react-toastify/dist/ReactToastify.css";
 import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import axios from "axios";
-import { useLocation } from "react-router-dom";
 import MusicianHero from "../components/MusicianHero";
 const MusicianRepertoireSection = lazy(() => import("../components/MusicianRepertoireSection"));
 const RelatedMusicians = lazy(() => import("../components/RelatedMusicians"));
@@ -90,11 +89,18 @@ const Musician = () => {
             payload.act ||
             payload.data ||
             payload;
+
+          if (payload?.shouldRedirectToSlug && payload?.canonicalPath) {
+            navigate(payload.canonicalPath, { replace: true });
+            return;
+          }
+
           if (m) {
             setActData(m);
             console.log("📝 Bio fields:", {
               tscApprovedBio: m?.tscApprovedBio,
-              bio: m?.bio            });
+              bio: m?.bio,
+            });
 
             // pick a default video from approved links if present
             const vids = [
@@ -116,7 +122,7 @@ const Musician = () => {
     return () => {
       abort = true;
     };
-  }, [musicianId]);
+  }, [musicianId, navigate]);
 
   useEffect(() => {
     if (location.hash) {
@@ -334,7 +340,11 @@ useEffect(() => {
   if (!Array.isArray(acts) || acts.length === 0) return;
 
   console.log("🔍 Looking for musicianId:", musicianId);
-  const foundAct = acts.find((item) => String(item?._id) === String(musicianId));
+  const foundAct = acts.find(
+    (item) =>
+      String(item?._id) === String(musicianId) ||
+      String(item?.musicianSlug || "") === String(musicianId)
+  );
 
   if (!foundAct) {
     console.warn("⚠️ No matching act/musician in ShopContext. Skipping.");
