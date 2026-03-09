@@ -10,10 +10,18 @@ const API_URL =
 const CORE_PAGES = ["/", "/acts", "/about", "/contact"]; // edit to match your site
 
 async function fetchActSlugs() {
-  // Backend endpoint you’ll add below
   const res = await fetch(`${API_URL}/api/sitemap/act-slugs`);
   if (!res.ok) throw new Error(`Failed to fetch act slugs: ${res.status}`);
-  return res.json(); // expects: ["6803...", "6804...", ...]
+
+  const slugs = await res.json();
+
+  return (Array.isArray(slugs) ? slugs : []).filter((slug) => {
+    const cleanSlug = String(slug || "").trim().toLowerCase();
+    if (!cleanSlug) return false;
+    if (cleanSlug === "test-soul-allegiance") return false;
+    if (cleanSlug.startsWith("test-")) return false;
+    return true;
+  });
 }
 
 async function run() {
