@@ -128,6 +128,7 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
   const {
     shortlistedActs,
     shortlistAct,
+    addToShortlist,
     userId,
     selectedCounty,
     selectedAddress,
@@ -362,12 +363,21 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
         return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
       });
 
-      // Let ShopContext handle guest/local vs authed/server
-      shortlistAct?.(userId || null, actId);
+      const actPath = getActUrl(actData);
+
+      if (typeof addToShortlist === "function") {
+        addToShortlist(actId, null, actPath);
+      } else {
+        // Fallback so existing logged-in toggle behaviour still works if context is stale
+        try {
+          sessionStorage.setItem("pendingShortlistReturnTo", actPath);
+        } catch {}
+        shortlistAct?.(userId || null, actId);
+      }
 
       setTimeout(() => setIsAnimating(false), 300);
     },
-    [standalone, shortlistedActs, shortlistAct, userId, actId]
+    [standalone, shortlistedActs, shortlistAct, addToShortlist, userId, actId, actData]
   );
 
   const isShortlisted = standalone ? false : (shortlistedActs || []).includes(actId);

@@ -350,10 +350,11 @@ console.log("👤[GuestShortlist] computed", { isIn, afterLen: next.length, ids:
   setShortlistItems(next);
 
  
-  try {
-    localStorage.setItem("shortlistItems", JSON.stringify(next));
-    localStorage.setItem("guestShortlistDirty", "1"); // mark for merge-on-login if you want
-  } catch {}
+try {
+  localStorage.setItem("shortlistItems", JSON.stringify(next));
+  localStorage.setItem("guestShortlistItems", JSON.stringify(next));
+  localStorage.setItem("guestShortlistDirty", "1");
+} catch {}
 console.log("👤[GuestShortlist] hitting limit -> opening gate", {
   afterLen: next.length,
   limit: GUEST_SHORTLIST_LIMIT,
@@ -2491,26 +2492,52 @@ useEffect(() => {
   // ============ Shortlist helpers ============
 
   // Public helper to refresh shortlist from backend
- const fetchShortlistedActs = async (uid) => {
+const fetchShortlistedActs = async (uid, explicitToken = null, fallbackIds = []) => {
   try {
     const u = uid || userId;
-    if (!u) return [];
+    const authToken = explicitToken || token || localStorage.getItem("token") || "";
+    if (!u) return Array.isArray(fallbackIds) ? fallbackIds : [];
 
     const res = await axios.get(
-      `${backendUrl}/api/availability/user/${u}/shortlisted`
+      `${backendUrl}/api/availability/user/${u}/shortlisted`,
+      {
+        headers: authToken
+          ? {
+              Authorization: `Bearer ${authToken}`,
+              token: authToken,
+            }
+          : {},
+        withCredentials: true,
+      }
     );
 
-    const ids = (res.data?.acts || res.data?.items || res.data?.data || []).map((a) =>
-      String(a._id || a.actId || a.id)
-    );
+    let ids = (res.data?.acts || res.data?.items || res.data?.data || [])
+      .map((a) => String(a._id || a.actId || a.id))
+      .filter(Boolean);
+
+    // If the read endpoint is briefly stale right after auth/merge,
+    // keep any known-good ids so the shortlist UI stays correct.
+    if (Array.isArray(fallbackIds) && fallbackIds.length) {
+      ids = Array.from(new Set([...(ids || []), ...fallbackIds.map(String)]));
+    }
 
     setShortlistedActs(ids);
     setShortlistItems(ids);
     localStorage.setItem("shortlistItems", JSON.stringify(ids));
 
-    return ids; // ✅ return so callers can use it immediately
+    return ids;
   } catch (err) {
-    return [];
+    const fallback = Array.isArray(fallbackIds)
+      ? Array.from(new Set(fallbackIds.map(String).filter(Boolean)))
+      : [];
+
+    if (fallback.length) {
+      setShortlistedActs(fallback);
+      setShortlistItems(fallback);
+      localStorage.setItem("shortlistItems", JSON.stringify(fallback));
+    }
+
+    return fallback;
   }
 };
 
@@ -2518,33 +2545,38 @@ useEffect(() => {
   const promptLogin = (
     msg = "Please log in to save acts to your shortlist.",
     actId = null,
-    actName = null
+    redirectPath = null
   ) => {
     try {
       toast(<CustomToast type="info" message={msg} />);
     } catch {}
 
-    const next = `${location.pathname}${location.search || ""}`;
+    const next = redirectPath || `${location.pathname}${location.search || ""}`;
     sessionStorage.setItem("postLoginNext", next);
 
-    // 🪄 Store act info so we can auto-add and show act name in toast after login
     if (actId) {
       sessionStorage.setItem("pendingShortlistActId", actId);
-      if (actName) sessionStorage.setItem("pendingShortlistActName", actName);
     }
 
-    navigate("/login");
+    if (redirectPath) {
+      try {
+        sessionStorage.setItem("pendingShortlistReturnTo", redirectPath);
+      } catch {}
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } })
+    );
   };
 
   // Add to shortlist (uses toggle route + triggers availability if date/address present)
- const addToShortlist = async (itemId, selectedLineup) => {
+const addToShortlist = async (itemId, selectedLineup, redirectPath = null) => {
   const storedUserRaw = localStorage.getItem("user");
   const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
   const u = storedUser?._id || userId;
 
   const idStr = String(itemId);
 
-  // Try to resolve act name for nicer toast
   const act =
     (Array.isArray(acts) ? acts.find(a => String(a?._id || a?.actId) === idStr) : null) ||
     (Array.isArray(actCards) ? actCards.find(a => String(a?.actId || a?._id) === idStr) : null);
@@ -2555,7 +2587,7 @@ useEffect(() => {
     promptLogin(
       "Please log in to save acts to your shortlist.",
       idStr,
-      actName
+      redirectPath
     );
     return;
   }

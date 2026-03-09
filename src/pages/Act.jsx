@@ -95,13 +95,13 @@ useEffect(() => {
     acts,
     getActById,
     addToCart,
+    addToShortlist,
     selectedDate,
     setSelectedDate,
     selectedAddress,
     setSelectedAddress,
     setShowSearch,
     userId,
-    shortlistAct,
     shortlistedActs,
     cartItems,
     removeFromCart,
@@ -480,19 +480,27 @@ const heroUrlHigh = React.useMemo(() => {
 
   const promptLogin = (
     msg = "Please log in to save acts to your shortlist.",
-    actId = null
+    actId = null,
+    redirectPath = null
   ) => {
     try {
       toast(<CustomToast type="info" message={msg} />);
     } catch {}
 
-    const next = `${location.pathname}${location.search || ""}`;
+    const next = redirectPath || `${location.pathname}${location.search || ""}`;
     sessionStorage.setItem("postLoginNext", next);
 
-    // 🆕 Store act ID so we can auto-add after login
     if (actId) sessionStorage.setItem("pendingShortlistActId", actId);
 
-    window.dispatchEvent(new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } }));
+    if (redirectPath) {
+      try {
+        sessionStorage.setItem("pendingShortlistReturnTo", redirectPath);
+      } catch {}
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } })
+    );
   };
 
   // Derive what you actually render
@@ -1026,6 +1034,11 @@ const avgRating = React.useMemo(() => {
 
   // use a safe local reference everywhere you read selectedLineup
   const safeSelectedLineup = selectedLineup || actData.lineups?.[0] || null;
+  const actPath = actData?.slug
+    ? `/act/${encodeURIComponent(actData.slug)}`
+    : actData?._id
+      ? `/act/${actData._id}`
+      : `${location.pathname}${location.search || ""}`;
   console.log("[Act] counts", {
     reviews: reviews.length,
     songs: selectedSongs.length,
@@ -1301,17 +1314,9 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                   <button
                     onClick={async () => {
                       try {
-                        // 🔹 Check if user is logged in before proceeding
-                        if (!userId) {
-                          promptLogin(
-                            "Please log in to save acts to your shortlist.",
-                            actData._id
-                          );
-                          return;
-                        }
+                        await addToShortlist(actData._id, safeSelectedLineup, actPath);
 
-                        // 🔹 Proceed with shortlist toggle
-                        await shortlistAct(userId, actData._id);
+                        if (!userId) return;
 
                         toast(
                           <CustomToast
@@ -2072,17 +2077,9 @@ return (
               <button
                 onClick={async () => {
                   try {
-                    // 🔹 Check if user is logged in before proceeding
-                    if (!userId) {
-                      promptLogin(
-                        "Please log in to save acts to your shortlist.",
-                        actData._id
-                      );
-                      return;
-                    }
+                    await addToShortlist(actData._id, safeSelectedLineup, actPath);
 
-                    // 🔹 Proceed with shortlist toggle
-                    await shortlistAct(userId, actData._id);
+                    if (!userId) return;
 
                     toast(
                       <CustomToast

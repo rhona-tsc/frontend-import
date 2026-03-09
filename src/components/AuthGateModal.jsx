@@ -5,16 +5,24 @@ import CustomToast from "./CustomToast";
 import { ShopContext } from "../context/ShopContext";
 import { useLocation, useNavigate } from "react-router-dom";
 
-const GUEST_SHORTLIST_KEY = "guestShortlistItems";
+const GUEST_SHORTLIST_KEYS = ["guestShortlistItems", "shortlistItems"];
 
 /* -------------------------------------------------------------- */
 /* small helpers                                                  */
 /* -------------------------------------------------------------- */
 const readGuestShortlist = () => {
   try {
-    const raw = localStorage.getItem(GUEST_SHORTLIST_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.map(String) : [];
+    const merged = GUEST_SHORTLIST_KEYS.flatMap((key) => {
+      try {
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch {
+        return [];
+      }
+    });
+
+    return Array.from(new Set(merged.filter(Boolean)));
   } catch {
     return [];
   }
@@ -22,9 +30,14 @@ const readGuestShortlist = () => {
 
 const clearGuestShortlist = () => {
   try {
-    localStorage.removeItem(GUEST_SHORTLIST_KEY);
+    GUEST_SHORTLIST_KEYS.forEach((key) => localStorage.removeItem(key));
   } catch {}
 };
+
+const buildAuthHeaders = (token) => ({
+  Authorization: `Bearer ${token}`,
+  token,
+});
 
 const AuthGateModal = ({ open, msg, kind, onClose }) => {
   const navigate = useNavigate();
@@ -34,9 +47,9 @@ const AuthGateModal = ({ open, msg, kind, onClose }) => {
     backendUrl,
     setToken,
     setUser,
-    shortlistAct,
     fetchShortlistedActs,
-    shortlistedActs,
+    setShortlistedActs,
+    setShortlistItems,
   } = useContext(ShopContext);
 
   const gateMsg =
@@ -53,7 +66,6 @@ const AuthGateModal = ({ open, msg, kind, onClose }) => {
     [email]
   );
 
-  // Reset internal state whenever modal opens
   useEffect(() => {
     if (!open) return;
     setStep(1);
@@ -61,7 +73,6 @@ const AuthGateModal = ({ open, msg, kind, onClose }) => {
     setLoading(false);
   }, [open]);
 
-  // Close on ESC
   useEffect(() => {
     if (!open) return;
 
@@ -74,7 +85,10 @@ const AuthGateModal = ({ open, msg, kind, onClose }) => {
   }, [open, onClose]);
 
   const redirectAfterAuth = () => {
-    const next = sessionStorage.getItem("postLoginNext");
+    const returnTo = sessionStorage.getItem("pendingShortlistReturnTo");
+    const next = returnTo || sessionStorage.getItem("postLoginNext");
+
+    sessionStorage.removeItem("pendingShortlistReturnTo");
     if (next) {
       sessionStorage.removeItem("postLoginNext");
       if (next !== `${location.pathname}${location.search || ""}`) {
@@ -83,39 +97,160 @@ const AuthGateModal = ({ open, msg, kind, onClose }) => {
     }
   };
 
-  const mergeGuestShortlistToUser = async (userId) => {
-    const guestIds = readGuestShortlist();
-    if (!guestIds.length) return;
+  const fetchServerShortlistIds = async ({ userId, token }) => {
+    try {
+      const res = await axios.get(
+        `${backendUrl}/api/availability/user/${encodeURIComponent(userId)}/shortlisted`,
+        {
+          headers: buildAuthHeaders(token),
+          withCredentials: true,
+        }
+      );
 
-    let latest = Array.isArray(shortlistedActs)
-      ? shortlistedActs.map(String)
-      : [];
+      const ids = (res?.data?.acts || res?.data?.items || res?.data?.data || [])
+        .map((a) => String(a?._id || a?.actId || a?.id || ""))
+        .filter(Boolean);
 
-    if (typeof fetchShortlistedActs === "function") {
+      return Array.from(new Set(ids));
+    } catch (e) {
+      console.warn(
+        "fetchServerShortlistIds failed",
+        e?.response?.data || e?.message || e
+      );
+      return [];
+    }
+  };
+
+  const addActsToUserShortlist = async ({ userId, token, actIds, email }) => {
+    const ids = Array.from(new Set((actIds || []).map(String).filter(Boolean)));
+    if (!userId || !token || !ids.length) return [];
+
+    const added = [];
+
+    for (const actId of ids) {
       try {
-        const res = await fetchShortlistedActs(userId);
-        if (Array.isArray(res)) latest = res.map(String);
+        const res = await axios.patch(
+          `${backendUrl}/api/availability/act/${encodeURIComponent(actId)}/increment-shortlist`,
+          {
+            userId,
+            clientEmail: email || "",
+          },
+          {
+            headers: buildAuthHeaders(token),
+            withCredentials: true,
+          }
+        );
+
+        console.log("✅ addActsToUserShortlist success", {
+          actId,
+          response: res?.data,
+        });
+        added.push(String(actId));
       } catch (e) {
-        console.warn("fetchShortlistedActs failed before merge", e?.message || e);
+        console.warn(
+          "addActsToUserShortlist failed for act:",
+          actId,
+          e?.response?.data || e?.message || e
+        );
       }
     }
 
-    for (const actId of guestIds) {
-      if (latest.includes(String(actId))) continue;
-      try {
-        await shortlistAct(userId, String(actId));
-      } catch (e) {
-        console.warn("merge shortlist failed for act:", actId, e?.message || e);
-      }
+    return added;
+  };
+
+  const mergeGuestShortlistToUser = async ({ userId, token, email }) => {
+    const pendingActId = sessionStorage.getItem("pendingShortlistActId");
+
+    const guestIds = Array.from(
+      new Set(
+        [...readGuestShortlist(), ...(pendingActId ? [String(pendingActId)] : [])].filter(Boolean)
+      )
+    );
+
+    console.log("🪄 mergeGuestShortlistToUser start", {
+      userId,
+      guestIds,
+      localShortlistItems: (() => {
+        try {
+          return localStorage.getItem("shortlistItems");
+        } catch {
+          return null;
+        }
+      })(),
+      localGuestShortlistItems: (() => {
+        try {
+          return localStorage.getItem("guestShortlistItems");
+        } catch {
+          return null;
+        }
+      })(),
+      pendingActId,
+    });
+
+    if (!guestIds.length) return [];
+
+    const latest = await fetchServerShortlistIds({ userId, token });
+    const missingIds = guestIds.filter((actId) => !latest.includes(String(actId)));
+
+    console.log("🪄 mergeGuestShortlistToUser before add", {
+      latest,
+      missingIds,
+    });
+
+    let addedIds = [];
+    if (missingIds.length) {
+      addedIds = await addActsToUserShortlist({ userId, token, actIds: missingIds, email });
     }
 
-    if (typeof fetchShortlistedActs === "function") {
+    let refreshed = await fetchServerShortlistIds({ userId, token });
+
+    // If the read endpoint is delayed / eventually consistent, keep the UI/state correct
+    // by merging in the ids we just added successfully.
+    if (addedIds.length) {
+      refreshed = Array.from(new Set([...(refreshed || []), ...addedIds.map(String)]));
+    }
+
+    // Final safety net: ensure we never lose the guest shortlist locally right after auth.
+    if (!refreshed.length && guestIds.length) {
+      refreshed = Array.from(new Set(guestIds.map(String)));
+    }
+
+    console.log("🪄 mergeGuestShortlistToUser after add", {
+      addedIds,
+      refreshed,
+    });
+
+    if (typeof setShortlistedActs === "function") setShortlistedActs(refreshed);
+    if (typeof setShortlistItems === "function") setShortlistItems(refreshed);
+
+    try {
+      localStorage.setItem("shortlistItems", JSON.stringify(refreshed));
+      localStorage.setItem("guestShortlistItems", JSON.stringify(refreshed));
+    } catch {}
+
+    const allMerged = guestIds.every((actId) => refreshed.includes(String(actId)));
+
+    if (allMerged) {
+      clearGuestShortlist();
       try {
-        await fetchShortlistedActs(userId);
+        localStorage.setItem("shortlistItems", JSON.stringify(refreshed));
       } catch {}
+      sessionStorage.removeItem("pendingShortlistActId");
+      sessionStorage.removeItem("pendingShortlistActName");
+      console.log("✅ Guest shortlist fully merged to server/local state", {
+        guestIds,
+        addedIds,
+        refreshed,
+      });
+    } else {
+      console.warn("⚠️ Some guest shortlist ids were not confirmed by read endpoint", {
+        guestIds,
+        addedIds,
+        refreshed,
+      });
     }
 
-    clearGuestShortlist();
+    return refreshed;
   };
 
   const requestOtp = async () => {
@@ -134,7 +269,6 @@ const AuthGateModal = ({ open, msg, kind, onClose }) => {
         { withCredentials: true }
       );
 
-      // always move to step 2 because code may already be in inbox
       setStep(2);
 
       if (res?.data?.throttled) {
@@ -190,15 +324,38 @@ const AuthGateModal = ({ open, msg, kind, onClose }) => {
       };
 
       setToken(token);
+      console.log("🔐 OTP verified, token received", {
+        userId: res.data.userId,
+        tokenPresent: !!token,
+      });
       localStorage.setItem("token", token);
 
       if (typeof setUser === "function") setUser(user);
       localStorage.setItem("user", JSON.stringify(user));
 
-      await mergeGuestShortlistToUser(user._id);
+      try {
+        const currentGuest = readGuestShortlist();
+        localStorage.setItem("guestShortlistItems", JSON.stringify(currentGuest));
+      } catch {}
 
-      sessionStorage.removeItem("pendingShortlistActId");
-      sessionStorage.removeItem("pendingShortlistActName");
+      const mergedIds = await mergeGuestShortlistToUser({
+        userId: user._id,
+        token,
+        email: user.email || trimmedEmail,
+      });
+
+      if (typeof fetchShortlistedActs === "function") {
+        try {
+          const serverIds = await fetchShortlistedActs(user._id, token, mergedIds);
+          if (Array.isArray(serverIds) && serverIds.length) {
+            if (typeof setShortlistedActs === "function") setShortlistedActs(serverIds);
+            if (typeof setShortlistItems === "function") setShortlistItems(serverIds);
+            localStorage.setItem("shortlistItems", JSON.stringify(serverIds));
+          }
+        } catch (e) {
+          console.warn("post-merge fetchShortlistedActs failed", e?.message || e);
+        }
+      }
 
       toast(<CustomToast type="success" message="Saved! Your shortlist is now linked to your email." />);
 

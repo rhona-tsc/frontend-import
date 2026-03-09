@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { assets } from '../assets/assets';
 import { ShopContext } from '../context/ShopContext';
 import calculateActPricing from '../pages/utils/pricing';
@@ -12,7 +12,6 @@ const ShortlistItem = ({
   images,
   tscName,
   onShortlistToggle,
-  formattedPrice,
   shortlistCount,
   userId, 
   _id,
@@ -25,6 +24,7 @@ const ShortlistItem = ({
 
   const cardRef = React.useRef(null);
   const isOnScreen = useOnScreen(cardRef);
+  const location = useLocation();
 
   const [isAnimating, setIsAnimating] = useState(false);
   const [price, setPrice] = useState(null);
@@ -39,7 +39,7 @@ const [loveCount, setLoveCount] = useState(() => getEngagement(actData, shortlis
 useEffect(() => {
   setLoveCount(getEngagement(actData, shortlistCount));
 }, [actData?.timesShortlisted, shortlistCount]);
-  const { shortlistAct, shortlistedActs, selectedCounty, selectedAddress, selectedDate, triggerSearch } = useContext(ShopContext);
+  const { shortlistAct, shortlistedActs, selectedCounty, selectedAddress, selectedDate, triggerSearch, openSaveShortlistGate } = useContext(ShopContext);
 
   // ✅ One source of truth for the act id (some parents pass `id`, others rely on `actData._id`)
   const actId =
@@ -170,12 +170,28 @@ useEffect(() => {
       console.warn("⚠️ No actId available for shortlist toggle", { id, _id, actData });
       return;
     }
+
+    try {
+      const returnTo = `${actPath}${location.search || ''}`;
+      sessionStorage.setItem('pendingShortlistReturnTo', returnTo);
+      sessionStorage.setItem('postLoginNext', returnTo);
+      sessionStorage.setItem('pendingShortlistActId', String(resolved));
+      sessionStorage.setItem(
+        'pendingShortlistActName',
+        actData?.tscName || actData?.name || tscName || 'Act'
+      );
+    } catch {}
+
 setLoveCount((prev) => {
   const safe = Number(prev) || 0;
   return heartOn ? Math.max(0, safe - 1) : safe + 1;
 });
     setIsAnimating(true);
-    onShortlistToggle?.(resolved);
+    if (typeof onShortlistToggle === 'function') {
+      onShortlistToggle(resolved);
+    } else {
+      shortlistAct?.(null, resolved);
+    }
     setTimeout(() => setIsAnimating(false), 300);
   };
 
@@ -390,7 +406,7 @@ return (
   </svg>
 )}
             </button>
-<p className={`text-xs ${loveCount === 0 ? 'text-white' : 'text-gray-700'}`}>
+<p className={`text-xs ${loveCount === 0 ? 'text-gray-400' : 'text-gray-700'}`}>
   {loveCount === 0
     ? 'love me'
     : `${formatLoveCount(loveCount)} ${loveCount === 1 ? 'love' : 'loves'}`}

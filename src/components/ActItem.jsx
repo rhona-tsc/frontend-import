@@ -526,6 +526,11 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
         return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
       });
 
+      // Preserve the act page to return to after login/auth-gate flow
+      try {
+        sessionStorage.setItem("pendingShortlistReturnTo", getActUrl(actData));
+      } catch {}
+
       // Let ShopContext handle guest/local vs authed/server
       shortlistAct?.(userId || null, actId);
 
