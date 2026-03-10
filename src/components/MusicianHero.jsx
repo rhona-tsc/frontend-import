@@ -3,20 +3,38 @@ import PropTypes from "prop-types";
 
 const pickHeroImageFromMusician = (m) => {
   if (!m) return "";
-  if (m.coverHeroImage) return m.coverHeroImage;
-  if (m.profilePicture) return m.profilePicture;
-  if (Array.isArray(m.additionalImages) && m.additionalImages[0]) return m.additionalImages[0];
-  const wardrobes = [
-    "digitalWardrobeBlackTie",
-    "digitalWardrobeFormal",
-    "digitalWardrobeSmartCasual",
-    "digitalWardrobeSessionAllBlack",
-  ];
-  for (const key of wardrobes) {
-    const arr = m[key];
-    if (Array.isArray(arr) && arr.length && arr[0]) return arr[0];
-  }
-  return "";
+
+  const pickFirstImage = (value) => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (Array.isArray(value) && value.length) {
+      const first = value[0];
+      if (typeof first === "string") return first;
+      if (first && typeof first === "object") {
+        return first.url || first.secure_url || first.src || "";
+      }
+    }
+    if (typeof value === "object") {
+      return value.url || value.secure_url || value.src || "";
+    }
+    return "";
+  };
+
+  return (
+    pickFirstImage(m.coverHeroImage) ||
+    pickFirstImage(m.profilePhoto) ||
+    pickFirstImage(m.profilePicture) ||
+    pickFirstImage(m.additionalImages) ||
+    pickFirstImage(m.images) ||
+    pickFirstImage(m.profileImage) ||
+    pickFirstImage(m.coverImage) ||
+    pickFirstImage(m.musicianProfileImage) ||
+    pickFirstImage(m.musicianProfileImageUpload) ||
+    pickFirstImage(m.photoUrl) ||
+    pickFirstImage(m.imageUrl) ||
+    pickFirstImage(m.profilePhotoUrl) ||
+    pickFirstImage(m.profilePic)
+  );
 };
 
 const pickSubtitleFromMusician = (m) => {
@@ -62,8 +80,21 @@ const MusicianHero = ({
       const lastInitial = musician?.lastName ? ` ${musician.lastName.charAt(0)}` : "";
       return `${musician.firstName}${lastInitial}`;
     }
-    return musician?.stageName || "Musician";
-  }, [musician?.firstName, musician?.lastName, musician?.stageName]);
+    return (
+      musician?.stageName ||
+      musician?.displayName ||
+      musician?.preferredName ||
+      musician?.name ||
+      "Musician"
+    );
+  }, [
+    musician?.firstName,
+    musician?.lastName,
+    musician?.stageName,
+    musician?.displayName,
+    musician?.preferredName,
+    musician?.name,
+  ]);
 
   const subtitle = useMemo(() => pickSubtitleFromMusician(musician), [musician]);
 
@@ -73,7 +104,11 @@ const MusicianHero = ({
     const fromList =
       resolvedId &&
       Array.isArray(resolvedList) &&
-      resolvedList.find((item) => String(item?._id) === String(resolvedId));
+      resolvedList.find(
+        (item) =>
+          String(item?._id) === String(resolvedId) ||
+          String(item?.musicianId) === String(resolvedId)
+      );
 
     if (fromList) {
       if (mounted) setMusician(fromList);
@@ -99,7 +134,14 @@ const MusicianHero = ({
           if (!res.ok) continue;
 
           const data = await res.json();
-          const doc = data?.musician || data?.deputy || data?.act || data?.actData || data;
+          const doc =
+            data?.musician ||
+            data?.deputy ||
+            data?.musicianData ||
+            data?.profile ||
+            data?.act ||
+            data?.actData ||
+            data;
 
           if (doc && mounted) {
             setMusician(doc);
@@ -176,8 +218,56 @@ MusicianHero.propTypes = {
       lastName: PropTypes.string,
       tagLine: PropTypes.string,
       bio: PropTypes.string,
-      profilePicture: PropTypes.string,
-      additionalImages: PropTypes.arrayOf(PropTypes.string),
+      stageName: PropTypes.string,
+      displayName: PropTypes.string,
+      preferredName: PropTypes.string,
+      name: PropTypes.string,
+      profilePhoto: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.shape({
+          url: PropTypes.string,
+          secure_url: PropTypes.string,
+          src: PropTypes.string,
+        }),
+      ]),
+      profilePicture: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.shape({
+          url: PropTypes.string,
+          secure_url: PropTypes.string,
+          src: PropTypes.string,
+        }),
+      ]),
+      additionalImages: PropTypes.arrayOf(
+        PropTypes.oneOfType([
+          PropTypes.string,
+          PropTypes.shape({
+            url: PropTypes.string,
+            secure_url: PropTypes.string,
+            src: PropTypes.string,
+          }),
+        ])
+      ),
+      images: PropTypes.array,
+      profileImage: PropTypes.array,
+      coverImage: PropTypes.array,
+      musicianProfileImage: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.array,
+        PropTypes.object,
+      ]),
+      musicianProfileImageUpload: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.array,
+        PropTypes.object,
+      ]),
+      photoUrl: PropTypes.string,
+      imageUrl: PropTypes.string,
+      coverHeroImage: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.array,
+        PropTypes.object,
+      ]),
       instrumentation: PropTypes.arrayOf(
         PropTypes.shape({ instrument: PropTypes.string, skill_level: PropTypes.string })
       ),

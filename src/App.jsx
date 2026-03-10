@@ -143,8 +143,7 @@ import ScrollToTop from "./components/ScrollToTop";
 
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/musician/:musicianId" element={<Musician />} />
-            
+<Route path="/musician/:key" element={<Musician />} />            
               <Route path="/booking-success" element={<BookingSuccess />} />
     <Route path="/booking-cancelled" element={<BookingCancelled />} />
               <Route path="/musician-login" element={<Musician_Login />} />

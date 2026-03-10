@@ -2035,7 +2035,7 @@ return (
       const prof =
         item.profileUrl ||
         (item.musicianId
-          ? `${window.location.origin}/musician/${item.musicianId}`
+          ? `${PUBLIC_SITE_BASE}/musician/${encodeURIComponent(item.musicianId)}`
           : "");
 
       // your existing name resolution → shortName(...)

@@ -1,6 +1,6 @@
 import { assets } from "../assets/assets"; // top-level import
 const PUBLIC_SITE_BASE =
-  import.meta.env.FRONTEND_URL || window.location.origin; // fallback to current site origin
+  import.meta.env.VITE_FRONTEND_URL || window.location.origin;
 
 // 🎨 FeaturedVocalistBadge — single circular badge renderer
 export function FeaturedVocalistBadge({
@@ -24,14 +24,15 @@ export function FeaturedVocalistBadge({
       ? assets.Deputy_Vocalist_Available
       : assets.Featured_Vocalist_Available;
 
+  const safeImageUrl = typeof imageUrl === "string" ? imageUrl.trim() : "";
   const imgSrc =
-    imageUrl && cacheBuster
-      ? `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}v=${cacheBuster}`
-      : imageUrl;
+    safeImageUrl && cacheBuster
+      ? `${safeImageUrl}${safeImageUrl.includes("?") ? "&" : "?"}v=${cacheBuster}`
+      : safeImageUrl;
 
   const resolvedProfile =
-    profileUrl ||
-    (musicianId ? `${window.location.origin}/musician/${musicianId}` : "");
+    (typeof profileUrl === "string" && profileUrl.trim()) ||
+    (musicianId ? `${PUBLIC_SITE_BASE}/musician/${musicianId}` : "");
 
   return (
     <div
@@ -42,19 +43,21 @@ export function FeaturedVocalistBadge({
         className="relative select-none"
         style={{ width: size, height: size }}
       >
-        <img
-          src={imgSrc}
-          alt=""
-          className="absolute rounded-full object-cover shadow-sm"
-          style={{
-            width: inner,
-            height: inner,
-            left: "50%",
-            top: "50%",
-            transform: `translate(-50%, calc(-50% + ${photoOffsetY}px))`,
-          }}
-          draggable={false}
-        />
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt=""
+            className="absolute rounded-full object-cover shadow-sm"
+            style={{
+              width: inner,
+              height: inner,
+              left: "50%",
+              top: "50%",
+              transform: `translate(-50%, calc(-50% + ${photoOffsetY}px))`,
+            }}
+            draggable={false}
+          />
+        ) : null}
 
         <img
           src={ringSrc}
@@ -107,19 +110,35 @@ export function VocalistFeaturedAvailable({
     slot = badge;
   }
 
-  // Prefer a covering deputy who replied "yes" and has a usable photo
-  let renderData = slot;
-  if (slot && Array.isArray(slot.deputies) && slot.deputies.length) {
-    const covering = slot.deputies.find((d) => d?.state === "yes" && typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http"));
-    if (covering) {
-      renderData = { ...covering, isDeputy: true };
+  const isUsableHttpPhoto = (value) =>
+    typeof value === "string" && /^https?:\/\//i.test(value);
+
+  const slotPrimary = slot?.primary || null;
+
+  // Prefer whichever source is actually covering the slot.
+  let renderData = slotPrimary || slot;
+
+  if (slot?.covering === "deputy" && Array.isArray(slot?.deputies) && slot.deputies.length) {
+    const coveringDeputy = slot.deputies.find(
+      (d) => (d?.state === "yes" || d?.available === true) && isUsableHttpPhoto(d?.photoUrl),
+    );
+
+    if (coveringDeputy) {
+      renderData = { ...coveringDeputy, isDeputy: true };
+    } else if (slotPrimary?.isDeputy && isUsableHttpPhoto(slotPrimary?.photoUrl)) {
+      renderData = { ...slotPrimary, isDeputy: true };
     } else {
-      // If lead has no photo but any deputy does, pick the first deputy with a photo to render something
-      const firstWithPhoto = slot.deputies.find((d) => typeof d?.photoUrl === "string" && d.photoUrl.startsWith("http"));
-      if (firstWithPhoto) {
-        renderData = { ...firstWithPhoto, isDeputy: true };
+      const firstDeputyWithPhoto = slot.deputies.find((d) => isUsableHttpPhoto(d?.photoUrl));
+      if (firstDeputyWithPhoto) {
+        renderData = { ...firstDeputyWithPhoto, isDeputy: true };
       }
     }
+  } else if (slotPrimary) {
+    renderData = {
+      ...slot,
+      ...slotPrimary,
+      isDeputy: Boolean(slotPrimary?.isDeputy),
+    };
   }
 
   // Resolve display name for badge text
@@ -143,6 +162,7 @@ export function VocalistFeaturedAvailable({
       "displayName",
       "preferredName",
       "vocalistName",
+      "selectedVocalistName",
       "depName",
       "deputyName",
       "musicianName",
@@ -185,7 +205,7 @@ export function VocalistFeaturedAvailable({
   }
 
   const { musicianId, photoUrl, profileUrl, isDeputy } = renderData || {};
-  if (!photoUrl?.startsWith("http")) {
+  if (!isUsableHttpPhoto(photoUrl)) {
     return null;
   }
 
@@ -198,7 +218,7 @@ export function VocalistFeaturedAvailable({
       cacheBuster={cacheBuster}
       className={className}
       musicianId={String(musicianId || "")}
-      profileUrl={profileUrl}
+      profileUrl={profileUrl || slotPrimary?.profileUrl || slot?.profileUrl || ""}
       variant={isDeputy ? "deputy" : "lead"}
       displayName={displayName}
     />

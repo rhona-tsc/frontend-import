@@ -1,16 +1,31 @@
-import { assets } from "../assets/assets"; // top-level import
-
+import { useState } from "react";
+import { assets } from "../assets/assets";
 
 // Extract a valid http(s) URL from an object that may have profile fields.
 const pickProfilePicture = (obj = {}) => {
-  const v =
-    obj && typeof obj.profilePicture === "string"
-      ? obj.profilePicture.trim()
-      : "";
-  return v && v.startsWith("http") ? v : "";
-};
+  if (!obj || typeof obj !== "object") return "";
 
-import { useState } from "react";
+  const direct =
+    obj.profilePhoto ||
+    obj.profilePicture ||
+    obj.photoUrl ||
+    obj.imageUrl ||
+    "";
+
+  if (typeof direct === "string" && direct.trim().startsWith("http")) {
+    return direct.trim();
+  }
+
+  const arrayUrl =
+    (Array.isArray(obj.profileImage) && obj.profileImage[0]?.url) ||
+    (Array.isArray(obj.images) && obj.images[0]?.url) ||
+    (Array.isArray(obj.coverImage) && obj.coverImage[0]?.url) ||
+    "";
+
+  return typeof arrayUrl === "string" && arrayUrl.trim().startsWith("http")
+    ? arrayUrl.trim()
+    : "";
+};
 
 const DEFAULT_PUBLIC_SITE_BASE = "https://www.thesupremecollective.co.uk";
 
@@ -60,25 +75,44 @@ export function FeaturedVocalistBadgeForCart({
     ? `${resolvedImageUrl}${resolvedImageUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(cacheBuster)}`
     : resolvedImageUrl;
 
+const resolvedMusicianId =
+  musicianId ||
+  pictureSource?.musicianId ||
+  pictureSource?.resolvedMusicianId ||
+  pictureSource?._id ||
+  "";
+
 const effectiveProfileUrl =
   profileUrl ||
-  (musicianId ? `${PUBLIC_SITE_BASE}/musician/${encodeURIComponent(musicianId)}` : "");
+  pictureSource?.profileUrl ||
+  (resolvedMusicianId
+    ? `${PUBLIC_SITE_BASE}/musician/${encodeURIComponent(resolvedMusicianId)}`
+    : "");
 
   const handleClick = () => {
     if (disabled) return;
-    const id = musicianId || pictureSource?.musicianId || pictureSource?.resolvedMusicianId || pictureSource?._id || "";
-    if (onSelect && id) onSelect(id);
+    if (onSelect && resolvedMusicianId) onSelect(resolvedMusicianId);
   };
 
   const scaleClass = hover || isSelected ? "scale-105" : "scale-100";
   const cursorClass = disabled ? "cursor-not-allowed opacity-70" : (onSelect ? "cursor-pointer" : "cursor-default");
 
   const getShortName = (obj = {}) => {
-    const fullName = obj.vocalistName || obj.name || "";
+    const fullName =
+      obj.displayName ||
+      obj.vocalistName ||
+      obj.musicianName ||
+      obj.name ||
+      [obj.firstName, obj.lastName].filter(Boolean).join(" ") ||
+      "";
+
     if (!fullName) return "";
-    const parts = fullName.trim().split(" ");
+
+    const parts = String(fullName).trim().split(/\s+/);
     const first = parts[0] || "";
-    const lastInitial = parts.length > 1 ? parts[1][0] : "";
+    const last = parts.length > 1 ? parts[parts.length - 1] : "";
+    const lastInitial = last ? last[0] : "";
+
     return lastInitial ? `${first} ${lastInitial}.` : first;
   };
   const vocalistDisplayName = getShortName(pictureSource || {});

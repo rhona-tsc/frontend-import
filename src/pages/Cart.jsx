@@ -30,6 +30,24 @@ const BACKEND_URL =
   import.meta.env.BACKEND_URL?.replace(/\/$/, "") ||
   "";
 
+// --- Public site base URL helper ---
+const DEFAULT_PUBLIC_SITE_BASE = "https://www.thesupremecollective.co.uk";
+
+const PUBLIC_SITE_BASE = (() => {
+  const raw =
+    import.meta.env.VITE_PUBLIC_SITE_BASE ||
+    import.meta.env.VITE_FRONTEND_URL ||
+    "";
+  const fromEnv = typeof raw === "string" ? raw.trim() : "";
+
+  if (fromEnv.startsWith("http")) return fromEnv.replace(/\/+$/, "");
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  if (/\/\/(admin|api)\./.test(origin)) return DEFAULT_PUBLIC_SITE_BASE;
+
+  return (origin || DEFAULT_PUBLIC_SITE_BASE).replace(/\/+$/, "");
+})();
+
   // Is this member a vocalist? (checks instrument/role/name + additionalRoles text)
 const isVocalistMember = (m = {}) => {
   const extraRoles = Array.isArray(m.additionalRoles) ? m.additionalRoles : [];
@@ -103,10 +121,29 @@ const getLeadIdForDate = (actData, selectedDate, badgesOverride = null) => {
   const key = Object.keys(allBadges).find((k) => k.includes(clean));
   const badge = key ? allBadges[key] : null;
   const slots = Array.isArray(badge?.slots) ? badge.slots : [];
-  const lead = slots.find(
-    (s) => s?.state !== "unavailable" && typeof s?.photoUrl === "string" && s.photoUrl.startsWith("http")
-  );
-  return lead?.musicianId ? String(lead.musicianId) : null;
+
+  for (const slot of slots) {
+    const primary = slot?.primary || null;
+    const primaryId = String(
+      primary?.musicianId || slot?.musicianId || ""
+    ).trim();
+
+    const primaryState = String(
+      primary?.available === true
+        ? "yes"
+        : primary?.state || slot?.state || slot?.reply || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const isLead = primary?.isDeputy === false || slot?.covering === "lead";
+
+    if (primaryId && isLead && primaryState === "yes") {
+      return primaryId;
+    }
+  }
+
+  return null;
 };
 
 // Normalise selection shape (string or array) -> array
@@ -1978,14 +2015,19 @@ const availableLineups = availableLineupsRaw.filter((l) => Boolean(normLineupId(
 >
 {(() => {
   const isHttp = (u) => typeof u === "string" && u.startsWith("http");
-const norm = (v) => String(v || "").trim().toLowerCase();
+  const buildMusicianHref = (musicianId = "", profileUrl = "") => {
+    if (typeof profileUrl === "string" && profileUrl.trim()) return profileUrl.trim();
+    const id = String(musicianId || "").trim();
+    return id ? `${PUBLIC_SITE_BASE}/musician/${encodeURIComponent(id)}` : "";
+  };
+  const norm = (v) => String(v || "").trim().toLowerCase();
 
-const isYes = (d) => {
-  const s = norm(d?.state || d?.reply);
-  return s === "yes";
-};
+  const isYes = (d) => {
+    const s = norm(d?.state || d?.reply);
+    return s === "yes";
+  };
 
-const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
+  const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
   // Availability badge chooser — per-item, using per-act badges map
   const allBadges = (availabilityBadgesByAct?.[item.actId]) || (item.actData?.availabilityBadges) || {};
   const cleanDate = (selectedDate || "").slice(0, 10);
@@ -2013,21 +2055,28 @@ const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
   const selection = [];
 
   const pushUnique = (p, extra = {}) => {
-    const musicianId = String(p?.musicianId || p?.id || p?._id || "").trim();
+    const musicianId = String(
+      p?.musicianId || p?.id || p?._id || ""
+    ).trim();
     if (!musicianId || seen.has(musicianId)) return;
     seen.add(musicianId);
+
+    const resolvedProfileUrl = buildMusicianHref(
+      musicianId,
+      p?.profileUrl || extra?.profileUrl || ""
+    );
+
     selection.push({
       isDeputy: !!p?.isDeputy || !!extra.isDeputy,
       musicianId,
       photoUrl:
         p?.photoUrl ||
+        p?.profilePhoto ||
         p?.imageUrl ||
         p?.profilePicture ||
         p?.musicianProfileImage ||
         "",
-      profileUrl:
-        p?.profileUrl ||
-        (musicianId ? `${window.location.origin}/musician/${musicianId}` : ""),
+      profileUrl: resolvedProfileUrl,
       setAt: p?.setAt || p?.repliedAt || null,
       vocalistName:
         p?.vocalistName ||
@@ -2039,20 +2088,34 @@ const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
   };
 
   // Include LEADS with positive replies
- slots.forEach((slot) => {
-  // ✅ only include leads who explicitly said YES (and are not unavailable)
-  if (!isUnavailable(slot) && isYes(slot) && isHttp(slot?.photoUrl)) {
-    pushUnique(slot, { isDeputy: false });
-  }
+  slots.forEach((slot) => {
+    const primary = slot?.primary || null;
 
-  // ✅ only include deputies who explicitly said YES
-  const deps = Array.isArray(slot?.deputies) ? slot.deputies : [];
-  deps.forEach((dep) => {
-    if (!isUnavailable(dep) && isYes(dep) && isHttp(dep?.photoUrl)) {
-      pushUnique(dep, { isDeputy: true });
+    if (
+      primary &&
+      primary.isDeputy === false &&
+      !isUnavailable(primary) &&
+      isYes(primary) &&
+      isHttp(primary?.photoUrl)
+    ) {
+      pushUnique(
+        {
+          ...primary,
+          vocalistName:
+            primary?.vocalistName || slot?.vocalistName || primary?.displayName || "",
+          setAt: primary?.setAt || slot?.setAt || null,
+        },
+        { isDeputy: false }
+      );
     }
+
+    const deps = Array.isArray(slot?.deputies) ? slot.deputies : [];
+    deps.forEach((dep) => {
+      if (!isUnavailable(dep) && isYes(dep) && isHttp(dep?.photoUrl)) {
+        pushUnique(dep, { isDeputy: true });
+      }
+    });
   });
-});
 
   console.log('[selection]', selection.map(p => ({ id: p.musicianId, type: p.isDeputy ? 'deputy' : 'lead' })));
 
@@ -2147,12 +2210,13 @@ const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
             <FeaturedVocalistBadgeForCart
               pictureSource={person}
               imageUrl={person.photoUrl}
+              profileUrl={person.profileUrl}
               size={120}
               variant={person.isDeputy ? "deputy" : "lead"}
               musicianId={person.musicianId}
               cacheBuster={person.setAt}
               isSelected={isSelected}
-              disabled={false}
+              disabled={isLeadLocked}
               actContext={item.actName}
               dateContext={selectedDate}
             />

@@ -29,7 +29,6 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
     actId,
     acts,
     actCards,
-    setActData,
     selectedCounty,
     selectedAddress,
     selectedDate,
@@ -57,6 +56,28 @@ const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
 
 
 const baseAct = fullAct || localActData || actData;
+
+  useEffect(() => {
+    if (actData) {
+      setLocalActData(actData);
+    } else {
+      setLocalActData(null);
+    }
+  }, [actData]);
+
+  useEffect(() => {
+    const lineups = Array.isArray(baseAct?.lineups) ? baseAct.lineups : [];
+    if (!lineups.length) {
+      setSelectedLineup(null);
+      return;
+    }
+
+    setSelectedLineup((prev) => {
+      if (!prev?._id) return lineups[0];
+      const stillExists = lineups.find((l) => String(l?._id) === String(prev._id));
+      return stillExists || lineups[0];
+    });
+  }, [baseAct?._id, baseAct?.lineups]);
 
   // Hoisted helper (so it's safe to use below)
   function calcAvgRatingFromReviews(reviews) {
@@ -141,17 +162,17 @@ const normalisePricing = (res) => {
     }
   };
 
-    useEffect(() => {
-    console.log("👀 Badge watcher triggered:", actData?.availabilityBadge);
-  }, [actData?.availabilityBadge]);
-  
-  
+  useEffect(() => {
+    console.log("👀 Badge watcher triggered:", baseAct?.availabilityBadge);
+  }, [baseAct?.availabilityBadge]);
+
   useEffect(() => {
     const evtSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/availability/subscribe`);
     evtSource.onmessage = (e) => {
-    console.log("📡 Availability update received:", e.data);
-    setActData((prev) => ({ ...prev })); // simple re-render trigger if needed
-  };
+      console.log("📡 Availability update received:", e.data);
+      setLocalActData((prev) => (prev ? { ...prev } : prev));
+      setFullAct((prev) => (prev ? { ...prev } : prev));
+    };
     evtSource.onerror = (err) => console.warn("⚠️ SSE connection error", err);
     return () => evtSource.close();
   }, []);
@@ -160,10 +181,10 @@ const normalisePricing = (res) => {
 
   useEffect(() => {
     // Dev-only: compute pricing for all lineups to verify calculations
-if (import.meta.env.PROD) return;
+    if (import.meta.env.PROD) return;
     (async () => {
       try {
-const act = baseAct;
+        const act = baseAct;
         if (!act || !Array.isArray(act.lineups) || act.lineups.length === 0) return;
         for (const lu of act.lineups) {
           try {
@@ -189,7 +210,7 @@ const act = baseAct;
         }
       } catch {}
     })();
-  }, [actData, localActData, selectedCounty, selectedAddress, selectedDate]);
+  }, [baseAct, selectedCounty, selectedAddress, selectedDate]);
 
   const numberToWords = (num) => {
     const words = [
@@ -272,7 +293,7 @@ const act = baseAct;
     let abort = false;
     (async () => {
       try {
-        if (!actData?._id || !selectedDate) {
+        if (!baseAct?._id || !selectedDate) {
           if (!abort) setIsYesForSelectedDate(null);
           return;
         }
@@ -281,7 +302,7 @@ const act = baseAct;
         const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
         const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
         u.searchParams.set("date", dateISO);
-        u.searchParams.set("actId", String(actData._id));
+        u.searchParams.set("actId", String(baseAct._id));
 
         const resp = await fetch(u.toString(), { headers: { accept: "application/json" } });
         const text = await resp.text();
@@ -298,7 +319,7 @@ const act = baseAct;
       }
     })();
     return () => { abort = true; };
-  }, [actData?._id, selectedDate]);
+  }, [baseAct?._id, selectedDate]);
 
   const isVocalRole = (role = "") =>
     [
@@ -332,11 +353,11 @@ const act = baseAct;
 
   // Resolve which musician to show on the badge (uses backend base URL; no relative /api)
   useEffect(() => {
-    const actIdVal = actData?._id;
+    const actIdVal = baseAct?._id;
 
     // Compute badge date as fallback
-    const badgeDateISO = actData?.availabilityBadge?.dateISO
-      ? String(actData.availabilityBadge.dateISO).slice(0, 10)
+    const badgeDateISO = baseAct?.availabilityBadge?.dateISO
+      ? String(baseAct.availabilityBadge.dateISO).slice(0, 10)
       : null;
 
     // Use selectedDateISO if present, otherwise badgeDateISO
@@ -384,9 +405,9 @@ const act = baseAct;
     return () => {
       cancelled = true;
     };
-  }, [actData?._id, selectedDateISO, actData?.availabilityBadge?.dateISO]);
+  }, [baseAct?._id, selectedDateISO, baseAct?.availabilityBadge?.dateISO]);
 
-  const badge = actData?.availabilityBadge || {};
+  const badge = baseAct?.availabilityBadge || {};
   console.log("🪪 availabilityBadge (full)", badge);
 
   // Prefer backend photo (set by inbound YES), fall back to the lineup’s featured vocalist image
@@ -407,10 +428,10 @@ const act = baseAct;
   };
 
   console.log("🎖️ Badge check", {
-    active: actData?.availabilityBadge?.active,
-    badgeDateISO: actData?.availabilityBadge?.dateISO,
+    active: baseAct?.availabilityBadge?.active,
+    badgeDateISO: baseAct?.availabilityBadge?.dateISO,
     selectedDateISO: selectedDate ? new Date(selectedDate).toISOString().slice(0,10) : null,
-    matches: isBadgeForSelectedDate(actData?.availabilityBadge?.dateISO, selectedDate),
+    matches: isBadgeForSelectedDate(baseAct?.availabilityBadge?.dateISO, selectedDate),
     hasPhoto: !!featuredVocalistImg,
   });
 
@@ -543,13 +564,13 @@ const handleLineupChange = async (lineup) => {
     setSelectedLineup(lineup);
 
     // If this act is already in the cart, immediately migrate the lineup key
-    if (actData?._id) {
-      migrateCartLineup(actData._id, lineup?._id);
+    if (baseAct?._id) {
+      migrateCartLineup(baseAct._id, lineup?._id);
     }
 
     // Always use the central pricing util for accuracy
     const res = await calculateActPricing(
-      actData,
+      baseAct,
       selectedCounty,
       selectedAddress,
       selectedDate,
@@ -561,7 +582,7 @@ const handleLineupChange = async (lineup) => {
     try {
       const hasDate = !!selectedDate;
       const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
-      const actIdOk = !!actData?._id;
+      const actIdOk = !!baseAct?._id;
       const lineupIdOk = !!lineup?._id;
 
       if (hasDate && hasAddress && actIdOk && lineupIdOk) {
@@ -570,11 +591,8 @@ const handleLineupChange = async (lineup) => {
             ? String(selectedDate).slice(0, 10)
             : new Date(selectedDate).toISOString().slice(0, 10);
 
-        const storedUserRaw = localStorage.getItem("user");
-        const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-
         await axios.post(`${BACKEND_BASE}/api/availability/ensure-vocalists`, {
-          actId: String(actData._id),
+          actId: String(baseAct._id),
           lineupId: String(lineup._id),
           dateISO,
           formattedAddress: String(selectedAddress).trim(),
@@ -603,13 +621,13 @@ const handleLineupChange = async (lineup) => {
   // 🔔 Trigger availability request when adding to cart from the preview panel
   const requestAvailabilityForCart = async ({ reason = "cart_add_preview" } = {}) => {
     try {
-      if (!actData?._id || !selectedDate) return false;
+      if (!baseAct?._id || !selectedDate) return false;
 
       const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
       const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
 
       const payload = {
-        actId: String(actData._id),
+        actId: String(baseAct._id),
         lineupId: String((selectedLineup && (selectedLineup._id || selectedLineup.lineupId)) || ""),
         date: selectedDate,
         dateISO,
@@ -722,7 +740,7 @@ useEffect(() => {
             <ActHero
   hideHeart={true}
   actId={hoveredAct.actId}
-  acts={[baseAct]}
+  acts={baseAct ? [baseAct] : []}
 />{" "}
           </div>
 
@@ -769,7 +787,7 @@ useEffect(() => {
   </p>
 
   <div className="flex flex-wrap gap-2">
-    {actData?.lineups?.map((lineup, index) => {
+    {baseAct?.lineups?.map((lineup, index) => {
       const isSelected = selectedLineup?._id === lineup._id;
       return (
         <button
@@ -790,7 +808,7 @@ useEffect(() => {
 
 <div className="my-3 mt-5">
   {(() => {
-    const allBadges = actData?.availabilityBadges;
+    const allBadges = baseAct?.availabilityBadges;
     if (!allBadges || !selectedDate) return null;
 
     const cleanDate = selectedDate.slice(0, 10);
@@ -860,33 +878,33 @@ useEffect(() => {
 
           <div className="mt-10 text-2xl ">
             <Title
-              text1={getPossessiveTitleCase(actData?.tscName)}
+              text1={getPossessiveTitleCase(baseAct?.tscName)}
               text2="INCLUSIONS"
             />
           </div>
           {/* ✅ Inclusions */}
           <ul className="list-disc pl-5 text-lg text-gray-600 ml-3 mt-4">
-            {actData?.numberOfSets?.length > 1 &&
-              actData.lengthOfSets?.length > 1 && (
+            {baseAct?.numberOfSets?.length > 1 &&
+              baseAct.lengthOfSets?.length > 1 && (
                 <li>
-                  Up to {actData.numberOfSets[0]}x{actData.lengthOfSets[0]}mins
-                  or {actData.numberOfSets[1]}x{actData.lengthOfSets[1]}mins
+                  Up to {baseAct.numberOfSets[0]}x{baseAct.lengthOfSets[0]}mins
+                  or {baseAct.numberOfSets[1]}x{baseAct.lengthOfSets[1]}mins
                   live performance
                 </li>
               )}
-            {actData.paSystem && (
+            {baseAct.paSystem && (
               <li>
-                {`A ${paMap?.[actData.paSystem] || actData.paSystem} PA system`}
-                {actData.lightingSystem &&
-                  ` and a ${lightMap?.[actData.lightingSystem] || actData.lightingSystem} lighting system to light up your stage and dancefloor`}
+                {`A ${paMap?.[baseAct.paSystem] || baseAct.paSystem} PA system`}
+                {baseAct.lightingSystem &&
+                  ` and a ${lightMap?.[baseAct.lightingSystem] || baseAct.lightingSystem} lighting system to light up your stage and dancefloor`}
               </li>
             )}
             <li>
               The band on site for up to 7 hours or until midnight, whichever
               comes first
             </li>
-            {actData?.extras &&
-              Object.entries(actData.extras)
+            {baseAct?.extras &&
+              Object.entries(baseAct.extras)
                 .filter(([_, v]) => v?.complimentary)
                 .map(([key]) => (
                   <li key={key}>
@@ -895,11 +913,11 @@ useEffect(() => {
                       .replace(/^\w/, (c) => c.toUpperCase())}
                   </li>
                 ))}
-            {actData?.offRepertoireRequests > 0 && (
+            {baseAct?.offRepertoireRequests > 0 && (
               <li>
-                {actData.offRepertoireRequests === 1
+                {baseAct.offRepertoireRequests === 1
                   ? "One additional off-repertoire song request"
-                  : `${numberToWords(actData.offRepertoireRequests)} additional off-repertoire requests`}
+                  : `${numberToWords(baseAct.offRepertoireRequests)} additional off-repertoire requests`}
               </li>
             )}
             {selectedAddress && price?.travelCalculated && (
@@ -912,7 +930,7 @@ useEffect(() => {
             <button
               onClick={() => {
                 if (!selectedLineup) return;
-                const actId = actData._id;
+                const actId = baseAct._id;
                 const lineupId = selectedLineup._id;
 
                 if (hoveredAct.isInCart) {
@@ -955,9 +973,9 @@ useEffect(() => {
 
           <div className="w-full">
             <PreviewPanelRepertoireSection
-              selectedSongs={actData?.selectedSongs || []}
-              actData={actData}
-              actId={actData?._id}
+              selectedSongs={baseAct?.selectedSongs || []}
+              actData={baseAct}
+              actId={baseAct?._id}
               lineupId={selectedLineup?._id}
             />
           </div>

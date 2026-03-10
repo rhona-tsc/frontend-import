@@ -1,5 +1,6 @@
 // frontend/src/components/RelatedMusicians.jsx
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import Title from "./Title";
 import axios from "axios";
 
@@ -11,7 +12,7 @@ import axios from "axios";
  *   GET /api/musicians/performed-with/:musicianId
  *
  * Response shape:
- *   { musicians: [ { _id, firstName, lastName, tscName, profilePicture, additionalImages, instrumentation } ] }
+ *   { musicians: [ { _id, musicianSlug, firstName, lastName, tscName, profilePhoto, profilePicture, additionalImages, instrumentation } ] }
  *   or directly an array of musicians
  */
 const RelatedMusicians = ({ currentActId }) => {
@@ -74,11 +75,17 @@ const RelatedMusicians = ({ currentActId }) => {
     "Musician";
 
   const displayImage = (m) =>
+    m?.profilePhoto ||
     m?.profilePicture ||
-    (Array.isArray(m?.additionalImages) ? m.additionalImages[0] : "") ||
+    (Array.isArray(m?.additionalImages)
+      ? typeof m.additionalImages[0] === "string"
+        ? m.additionalImages[0]
+        : m.additionalImages[0]?.url || ""
+      : "") ||
     "";
 
-  const toMusicianHref = (m) => `/musician/${m?._id}`;
+  const toMusicianHref = (m) =>
+    `/musician/${encodeURIComponent(m?.musicianSlug || m?._id || "")}`;
 
   return (
     <div>
@@ -97,9 +104,9 @@ const RelatedMusicians = ({ currentActId }) => {
               const img = displayImage(m);
               const name = displayName(m);
               return (
-                <a
+                <Link
                   key={m._id}
-                  href={toMusicianHref(m)}
+                  to={toMusicianHref(m)}
                   className="block group border rounded overflow-hidden bg-white hover:shadow-md transition-shadow"
                 >
                   <div
@@ -133,7 +140,7 @@ const RelatedMusicians = ({ currentActId }) => {
                         </div>
                       )}
                   </div>
-                </a>
+                </Link>
               );
             })}
           </div>
