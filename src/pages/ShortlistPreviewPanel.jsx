@@ -21,6 +21,18 @@ const [selectedLineup, setSelectedLineup] = useState(null);
   const [price, setPrice] = useState(null);
 const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
 const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+const PUBLIC_SITE_BASE = (import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174").replace(/\/$/, "");
+
+const buildMusicianProfileUrl = ({ profileUrl = "", musicianSlug = "", musicianId = "" } = {}) => {
+  const direct = String(profileUrl || "").trim();
+  if (direct) return direct;
+
+  const slug = String(musicianSlug || "").trim();
+  if (slug) return `${PUBLIC_SITE_BASE}/musician/${slug}`;
+
+  const id = String(musicianId || "").trim();
+  return id ? `${PUBLIC_SITE_BASE}/musician/${id}` : "";
+};
 
 const storedUserRaw = localStorage.getItem("user");
 const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
@@ -446,8 +458,19 @@ const normalisePricing = (res) => {
    (typeof _ab.docForPhotoId === "string" && _ab.docForPhotoId) ||
   badgeMusicianId ||               // <-- new fallback from Availability YES row
   "";
-  const _PUBLIC_SITE_BASE = (import.meta?.env?.VITE_PUBLIC_SITE_URL || "http://localhost:5174").replace(/\/$/, "");
-  const _profileUrl = _musId ? `${_PUBLIC_SITE_BASE}/musician/${_musId}` : "";
+ const _profileUrl = buildMusicianProfileUrl({
+  profileUrl:
+    (hasDeputies && typeof _ab.deputies[0]?.profileUrl === "string" && _ab.deputies[0].profileUrl) ||
+    (typeof _ab.profileUrl === "string" && _ab.profileUrl) ||
+    (typeof _ab.primary?.profileUrl === "string" && _ab.primary.profileUrl) ||
+    "",
+  musicianSlug:
+    (hasDeputies && typeof _ab.deputies[0]?.musicianSlug === "string" && _ab.deputies[0].musicianSlug) ||
+    (typeof _ab.musicianSlug === "string" && _ab.musicianSlug) ||
+    (typeof _ab.primary?.musicianSlug === "string" && _ab.primary.musicianSlug) ||
+    "",
+  musicianId: _musId,
+});
   console.log("🔗 [ShortlistPreviewPanel] badge profile (computed)", { hasDeputies, _musId, _profileUrl });
 
   const paMap = {
@@ -811,8 +834,10 @@ useEffect(() => {
     const allBadges = baseAct?.availabilityBadges;
     if (!allBadges || !selectedDate) return null;
 
-    const cleanDate = selectedDate.slice(0, 10);
-    const matchedKey = Object.keys(allBadges).find((k) => k.includes(cleanDate));
+const cleanDate =
+  typeof selectedDate === "string"
+    ? selectedDate.slice(0, 10)
+    : new Date(selectedDate).toISOString().slice(0, 10);    const matchedKey = Object.keys(allBadges).find((k) => k.includes(cleanDate));
     if (!matchedKey) return null;
 
     const badgeForDate = allBadges[matchedKey];
@@ -862,7 +887,11 @@ useEffect(() => {
                       cacheBuster={dep.setAt || dep.repliedAt || slot.setAt || ""}
                       className="mt-2"
                       musicianId={dep.musicianId}
-                      profileUrl={dep.profileUrl}
+                      profileUrl={buildMusicianProfileUrl({
+  profileUrl: dep.profileUrl,
+  musicianSlug: dep.musicianSlug,
+  musicianId: dep.musicianId,
+})}
                       variant="deputy"
                       displayName={displayName}
                     />
