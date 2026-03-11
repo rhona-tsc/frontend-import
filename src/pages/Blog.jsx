@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { blogPosts } from "../data/blogPosts";
+import { blogPosts } from "../data/blogPosts.js";
 
 export default function Blog() {
   return (
