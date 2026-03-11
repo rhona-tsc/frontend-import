@@ -62,24 +62,35 @@ export default function BlogPost() {
       )}
 
       <div className="prose prose-lg max-w-none">
-        {post.content.map((block, index) => {
-          if (block.type === "heading") {
-            return (
-              <h2
-                key={index}
-                className="mt-10 mb-4 text-2xl md:text-3xl font-semibold"
-              >
-                {block.text}
-              </h2>
-            );
-          }
+    {post.content.map((block, index) => {
+  if (block.type === "heading") {
+    return (
+      <h2
+        key={index}
+        className="mt-10 mb-4 text-2xl md:text-3xl font-semibold"
+      >
+        {block.text}
+      </h2>
+    );
+  }
 
-          return (
-            <p key={index} className="mb-5 leading-8 text-gray-700">
-              {block.text}
-            </p>
-          );
-        })}
+  if (block.type === "image") {
+    return (
+      <img
+        key={index}
+        src={block.src}
+        alt={block.alt || "Blog image"}
+        className="w-full rounded-3xl object-cover my-8"
+      />
+    );
+  }
+
+  return (
+    <p key={index} className="mb-5 leading-8 text-gray-700">
+      {block.text}
+    </p>
+  );
+})}
       </div>
 
       <div className="mt-12 rounded-3xl border border-gray-200 p-8 bg-gray-50">

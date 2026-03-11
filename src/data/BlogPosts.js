@@ -39,6 +39,11 @@ export const blogPosts = [
         text: "As we head into the busier half of the year, we have some incredible events coming up. Some clients are using the band to build the perfect atmosphere before handing over to a DJ later in the evening. Others are planning rustic, festival-style weddings with acoustic performances woven into the day. Later in the year, corporate summer parties and Christmas events will bring another kind of energy altogether.",
       },
       {
+        type: "image",
+        src: "/images/blog/live-music-transforms-event-hero.jpg",
+        alt: "Guests celebrating on a packed dance floor with a live band performing",
+      },
+      {
         type: "paragraph",
         text: "Every one of them is a reminder that live music does not just entertain people. It moves them.",
       },
@@ -87,6 +92,11 @@ export const blogPosts = [
         text: "For couples searching for live music for wedding reception ideas, this is often the real magic. Live music does not just sound good. It makes the important moments feel bigger.",
       },
       {
+        type: "image",
+        src: "/images/blog/emotional-moment.jpg",
+        alt: "Couple sharing an emotional wedding dance surrounded by guests and sparklers",
+      },
+      {
         type: "heading",
         text: "3. It turns guests from spectators into participants",
       },
@@ -109,6 +119,11 @@ export const blogPosts = [
       {
         type: "paragraph",
         text: "These are the kinds of moments people remember because they feel spontaneous, exciting and genuinely unique.",
+      },
+      {
+        type: "image",
+        src: "/images/blog/audience-interaction.jpg",
+        alt: "Singer interacting with a bride during a live performance",
       },
       {
         type: "paragraph",
@@ -139,6 +154,11 @@ export const blogPosts = [
         text: "Whether you are looking for wedding musicians in London, a live band for a wedding in the UK, or a versatile party band for hire, live music brings personality in a way that makes the event feel far more bespoke.",
       },
       {
+        type: "image",
+        src: "/images/blog/roaming-band.jpg",
+        alt: "Roaming live musicians performing outdoors at an event",
+      },
+      {
         type: "heading",
         text: "5. It creates memories guests talk about long after the event",
       },
@@ -149,6 +169,11 @@ export const blogPosts = [
       {
         type: "paragraph",
         text: "And time and again, live music becomes one of the most talked-about parts of an event. Guests remember how it felt when the band kicked in. They remember the moment the dance floor filled. They remember the singer’s voice, the saxophone solo, the crowd interaction and the song that everyone shouted back word for word.",
+      },
+      {
+        type: "image",
+        src: "/images/blog/sax-in-crowd.jpg",
+        alt: "Saxophonist performing among guests on a packed dance floor",
       },
       {
         type: "paragraph",
