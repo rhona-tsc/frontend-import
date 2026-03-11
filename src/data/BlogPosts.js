@@ -11,8 +11,8 @@ export const blogPosts = [
     author: "The Supreme Collective",
     publishedAt: "2026-03-11",
     readTime: "6 min read",
-    heroImage:
-      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1600&q=80",
+    heroImage: "/images/blog/live-music-transforms-event-hero.jpg",
+
     content: [
       {
         type: "paragraph",
@@ -38,11 +38,7 @@ export const blogPosts = [
         type: "paragraph",
         text: "As we head into the busier half of the year, we have some incredible events coming up. Some clients are using the band to build the perfect atmosphere before handing over to a DJ later in the evening. Others are planning rustic, festival-style weddings with acoustic performances woven into the day. Later in the year, corporate summer parties and Christmas events will bring another kind of energy altogether.",
       },
-      {
-        type: "image",
-        src: "/images/blog/live-music-transforms-event-hero.jpg",
-        alt: "Guests celebrating on a packed dance floor with a live band performing",
-      },
+    
       {
         type: "paragraph",
         text: "Every one of them is a reminder that live music does not just entertain people. It moves them.",
