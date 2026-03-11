@@ -4,7 +4,9 @@
   import Navbar from "./components/Navbar";
   import SearchBox from "./components/SearchBox";
   import Footer from "./components/Footer";
-  import { Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
   import Home from "./pages/Home";
   import About from "./pages/About";
   import Act from "./pages/Act";
@@ -140,7 +142,8 @@ import ScrollToTop from "./components/ScrollToTop";
                 <Route path="/event-sheet/:bookingId" element={<ViewEventSheet />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
-
+ <Route path="/blog" element={<Blog />} />
+  <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 <Route path="/musician/:key" element={<Musician />} />            

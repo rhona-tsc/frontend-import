@@ -89,6 +89,9 @@ const {
             <p>ACTS</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
           </NavLink>
+          <NavLink to="/blog" className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity">
+  BLOG
+</NavLink>
           <NavLink to="/about" className="group flex flex-col items-center gap-1">
             <p>ABOUT</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
