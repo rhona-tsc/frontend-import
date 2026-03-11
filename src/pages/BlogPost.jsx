@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { blogPosts } from "../data/blogPosts";
+import { blogPosts } from "../data/BlogPosts.js";
 
 export default function BlogPost() {
   const { slug } = useParams();
