@@ -89,9 +89,10 @@ const {
             <p>ACTS</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
           </NavLink>
-          <NavLink to="/blog" className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity">
-  BLOG
-</NavLink>
+          <NavLink to="/blog" className="group flex flex-col items-center gap-1">
+            <p>BLOG</p>
+            <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
+          </NavLink>
           <NavLink to="/about" className="group flex flex-col items-center gap-1">
             <p>ABOUT</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -216,6 +217,9 @@ const {
           </NavLink>
           <NavLink onClick={() => setDrawerOpen(false)} to="/acts" className="block px-6 py-3 border-b">
             ACTS
+          </NavLink>
+          <NavLink onClick={() => setDrawerOpen(false)} to="/blog" className="block px-6 py-3 border-b">
+            BLOG
           </NavLink>
           <NavLink onClick={() => setDrawerOpen(false)} to="/about" className="block px-6 py-3 border-b">
             ABOUT
