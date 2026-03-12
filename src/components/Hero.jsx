@@ -28,9 +28,9 @@ const Hero = () => {
       </div>
 
       {/* Hero Right Side */}
-      <div className="w-full sm:w-1/2">
+      <div className="w-full sm:w-1/2 h-[150px] sm:h-[280px] lg:h-[340px]">
         <img
-          className="w-full h-[150px] sm:h-full object-cover"
+          className="w-full h-full object-cover"
           src={assets.hero_img}
           alt="Live wedding and event band performing"
         />
