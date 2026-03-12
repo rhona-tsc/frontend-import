@@ -1,32 +1,42 @@
-import React from 'react'
-import { assets } from '../assets/assets'
+import React from 'react';
+import { assets } from '../assets/assets';
 
 const Hero = () => {
-    return (
-        <div className='top-16 flex flex-col sm:flex-row border border-[#414141] border-t-0'>
+  return (
+    <div className="mt-16 flex flex-col sm:flex-row border border-gray-200 border-t-0 bg-white overflow-hidden">
+      {/* Hero Left Side */}
+      <div className="w-full sm:w-1/2 flex items-center justify-center px-6 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
+        <div className="text-[#414141] max-w-xl">
+          <div className="flex items-center gap-2 mb-3">
+            <p className="w-8 md:w-11 h-[2px] bg-[#414141]"></p>
+            <p className="font-medium text-sm md:text-base tracking-[0.12em]">BOOK NOW</p>
+          </div>
 
-            {/* Hero Left Side */}
-            <div className='w-full sm:w-1/2 flex items-center justify-center py-10 sm:py-0'>
-                <div className='text-[#414141]'>
-                    <div className='flex items-center gap-2'>
-                        <p className='w-8 md:w-11 h-[2px] bg-[#414141]'></p>
-                        <p className='font-medium text-sm md:text-base'>BOOK NOW</p>
-                    </div>
+          <h1 className="prata-regular text-3xl sm:text-4xl lg:text-5xl leading-tight sm:leading-tight lg:leading-[1.1]">
+            Exceptional Event & Wedding Bands for Hire
+          </h1>
 
-                    <h1 className='prata-regular text-2xl sm:py-3 lg:text-5xl leading-relaxed'>Exceptional Event & Wedding Bands for Hire</h1>
+          <p className="mt-4 text-sm sm:text-base text-gray-600 leading-7 max-w-lg">
+            Discover standout live entertainment for weddings, parties and corporate events, with flexible line-ups, trusted musicians and a seamless booking experience.
+          </p>
 
-                    <div className='flex items-center gap-2'>
-                        <p className='font-semibold text-sm md:text-base'>LET'S GET THIS PARTY STARTED</p>
-                        <p className='w-8 md:w-11 h-[1px] bg-[#414141]'></p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Hero Right Side */}
-                <img className='w-full sm:w-1/2' src={assets.hero_img} alt="" />
-                
+          <div className="flex items-center gap-2 mt-5">
+            <p className="font-semibold text-sm md:text-base">LET'S GET THIS PARTY STARTED</p>
+            <p className="w-8 md:w-11 h-[1px] bg-[#414141]"></p>
+          </div>
         </div>
-    )
-}
+      </div>
 
-export default Hero
+      {/* Hero Right Side */}
+      <div className="w-full sm:w-1/2">
+        <img
+          className="w-full h-[240px] sm:h-full object-cover"
+          src={assets.hero_img}
+          alt="Live wedding and event band performing"
+        />
+      </div>
+    </div>
+  );
+};
+
+export default Hero;
