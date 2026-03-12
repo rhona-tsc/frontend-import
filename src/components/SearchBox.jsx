@@ -323,78 +323,90 @@ SB("ls.selectedPostcode:", localStorage.getItem("selectedPostcode"));
 
   const searchDisabled = !canSearch;
 
-  return showSearch || animate ? (
-    <div
-      className={`fixed top-16 left-0 right-0 border-t border-b bg-gray-50 text-center shadow-md z-50 py-4 
-      transition-all duration-500 ${
-        animate ? "opacity-100 scale-100" : "opacity-0 scale-95"
-      }`}
-    >
-      <div className="flex flex-col sm:flex-row items-start justify-center gap-4 px-5">
-        {/* Date column */}
-        <div className="w-full sm:w-auto flex flex-col text-left">
-          <p className="font-medium text-sm text-gray-700 mb-1">DATE</p>
+return showSearch || animate ? (
+  <div
+    className={`fixed top-16 left-0 right-0 z-50 px-4 py-4 transition-all duration-500 ${
+      animate ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+    }`}
+  >
+    <div className="max-w-6xl mx-auto rounded-[32px] border border-gray-200 bg-white shadow-sm px-5 py-5 md:px-8 md:py-6">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <p className="text-sm uppercase tracking-[0.2em] text-gray-500 mb-2">
+            Search acts
+          </p>
+          <h2 className="text-2xl md:text-3xl font-semibold leading-tight text-[#111]">
+            Add your date and venue
+          </h2>
+          <p className="text-sm md:text-base text-gray-600 mt-2">
+            Enter your event date and a UK postcode or venue so we can show relevant acts and calculate travel.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => handleClose("manual")}
+          className="shrink-0 rounded-full p-2 hover:bg-gray-100 transition"
+          aria-label="Close search"
+        >
+          <img
+            className="w-4 h-4"
+            src={assets.cross_icon}
+            alt="Close"
+          />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-4 items-end">
+        {/* Date */}
+        <div className="flex flex-col">
+          <label className="font-medium text-sm text-gray-700 mb-2">DATE</label>
           <input
             type="date"
-            className="border-2 border-gray-300 p-2 text-gray-500 bg-white"
+            className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-700 outline-none focus:border-[#ff6667]"
             value={localDate}
             onChange={(e) => setLocalDate(e.target.value)}
             min={new Date().toISOString().split("T")[0]}
             required
           />
-          <div className="min-h-[16px] mt-1" aria-hidden="true" />
-          <div className="min-h-[16px] mt-1" aria-hidden="true" />
         </div>
 
-        {/* Venue column */}
-        <div className="w-full sm:w-[420px] flex flex-col text-left">
-          <p className="font-medium text-sm text-gray-700 mb-1">VENUE</p>
-
+        {/* Venue */}
+        <div className="flex flex-col">
+          <label className="font-medium text-sm text-gray-700 mb-2">VENUE</label>
           <RoyalMailAddressNow
             captureKey="KR44-RW29-HH36-NC62"
-            idPrefix="sb" // ✅ unique
+            idPrefix="sb"
             setAddress={setLocalAddress}
             setCounty={setCounty}
             setPostcode={setPostcode}
             initialValue={localAddress}
-            className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
+            className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-700"
             placeholder="Type your venue or postcode..."
             required
           />
         </div>
 
-        {/* Search button column */}
-        <div className="w-full sm:w-auto flex flex-col text-left">
-          <div className="h-[20px] mb-1" aria-hidden="true" />
+        {/* Button */}
+        <div className="flex flex-col">
+          <div className="hidden md:block h-[28px]" aria-hidden="true" />
           <button
             type="button"
-            className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 border-2 border-[#ff6667] ${
+            className={`w-full md:w-auto rounded-full px-6 py-3 text-sm font-medium text-white transition ${
               searchDisabled
-                ? "bg-white hover:bg-gray-100 cursor-not-allowed"
-                : "bg-[#ff6667] hover:bg-[#ff3333]"
+                ? "bg-gray-300 cursor-not-allowed"
+                : "bg-[#ff6667] hover:bg-[#ff4d4f]"
             }`}
             onClick={handleSearch}
             disabled={searchDisabled}
           >
-            SEARCH
+            Search
           </button>
-
-          <div className="min-h-[16px] mt-1" aria-hidden="true" />
-          <div className="min-h-[16px] mt-1" aria-hidden="true" />
-        </div>
-
-        {/* Close */}
-        <div className="mb-4 pt-[22px] sm:pt-[22px]">
-          <img
-            onClick={handleClose}
-            className="w-4 cursor-pointer"
-            src={assets.cross_icon}
-            alt="Close"
-          />
         </div>
       </div>
     </div>
-  ) : null;
+  </div>
+) : null;
 };
 
 export default SearchBox;
