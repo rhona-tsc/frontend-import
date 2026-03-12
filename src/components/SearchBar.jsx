@@ -129,26 +129,26 @@ const SearchBar = ({ embedded = false }) => {
   };
 
   return (
-    <div className={embedded ? "w-full mt-6" : "w-full px-4 py-6 mx-auto max-w-6xl mt-6"}>
+    <div className={embedded ? "w-full mt-5" : "w-full px-4 py-6 mx-auto max-w-6xl mt-6"}>
       <div
         className={
           embedded
-            ? "rounded-[28px] border border-gray-200 bg-white shadow-sm px-4 py-5"
+            ? "rounded-[24px] border border-gray-200 bg-white shadow-sm px-4 py-4"
             : "rounded-[32px] border border-gray-200 bg-white shadow-sm px-5 py-6 md:px-8 md:py-8"
         }
       >
-        <div className={embedded ? "text-left mb-4" : "text-center mb-6 md:mb-8"}>
-          <div className={embedded ? "text-2xl mb-2" : "text-3xl mb-3"}>
+        <div className={embedded ? "text-left mb-3" : "text-center mb-6 md:mb-8"}>
+          <div className={embedded ? "text-xl mb-1" : "text-3xl mb-3"}>
             <Title text1="QUICK" text2="SEARCH" />
           </div>
           <p
             className={
               embedded
-                ? "text-sm text-gray-600 max-w-xl"
+                ? "text-sm text-gray-600 max-w-xl leading-6"
                 : "text-sm md:text-base text-gray-600 max-w-2xl mx-auto"
             }
           >
-            Enter your event date and venue so we can show relevant acts and calculate travel.
+            Add your date and venue to see acts and travel pricing.
           </p>
         </div>
 
