@@ -2,24 +2,23 @@ import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import Hero from '../components/Hero';
 
+// 🪵 Debug helpers
 const DBG = true;
 const log = (...args) => DBG && console.log('🏠[Home]', ...args);
 const group = (label, fn) => {
   if (!DBG) return fn();
   console.groupCollapsed(`🏠[Home] ${label}`);
-  try {
-    fn();
-  } finally {
-    console.groupEnd();
-  }
+  try { fn(); } finally { console.groupEnd(); }
 };
 
+// ⛳ Defer everything below the fold so Hero paints instantly
 const SearchBar = lazy(() => import('../components/SearchBar'));
 const NewActs = lazy(() => import('../components/NewActs'));
 const BestSeller = lazy(() => import('../components/BestSeller'));
 const OurPolicy = lazy(() => import('../components/OurPolicy'));
 const NewsletterBox = lazy(() => import('../components/NewsletterBox'));
 
+// 🔍 Small helpers to log Suspense fallback usage and child mounts
 const Fallback = ({ label, className }) => {
   useEffect(() => {
     log(`⏳ Suspense fallback mounted for ${label}`);
@@ -85,6 +84,7 @@ const FeaturedBlogSection = () => {
 const Home = () => {
   const [showSearch, setShowSearch] = useState(false);
 
+  // On first mount
   useEffect(() => {
     group('Initial mount', () => {
       log('component mounted');
@@ -95,6 +95,7 @@ const Home = () => {
     return () => log('component unmounted');
   }, []);
 
+  // Mount the SearchBar on idle (or after a brief timeout) to avoid blocking FCP
   useEffect(() => {
     const hasRIC =
       typeof window !== 'undefined' && 'requestIdleCallback' in window;
@@ -128,37 +129,27 @@ const Home = () => {
 
   return (
     <div>
-      <div className="relative lg:pb-[190px]">
-        <Hero />
+      <Hero />
 
-        <Suspense fallback={<Fallback label="SearchBarOverlay" className={null} />}>
-          {showSearch ? (
-            <div className="hidden lg:block absolute right-6 bottom-6 z-20 w-[min(100%-3rem,560px)]">
-              <LogMount label="SearchBarOverlay">
-                <SearchBar overlay />
-              </LogMount>
-            </div>
-          ) : null}
-        </Suspense>
-      </div>
-
+      {/* SearchBar: lazy + idle-mounted */}
       <Suspense fallback={<Fallback label="SearchBar" className={null} />}>
         {showSearch ? (
-          <div className="lg:hidden">
-            <LogMount label="SearchBar">
-              <SearchBar />
-            </LogMount>
-          </div>
+          <LogMount label="SearchBar">
+            <SearchBar />
+          </LogMount>
         ) : null}
       </Suspense>
 
+     
+
+      {/* Below-the-fold sections: lazy + lightweight fallbacks */}
       <Suspense fallback={<Fallback label="NewActs" className="h-64 animate-pulse" />}>
         <LogMount label="NewActs">
           <NewActs />
         </LogMount>
       </Suspense>
 
-      <Suspense fallback={<Fallback label="OurPolicy" className="h-40 animate-pulse" />}>
+            <Suspense fallback={<Fallback label="OurPolicy" className="h-40 animate-pulse" />}>
         <LogMount label="OurPolicy">
           <OurPolicy />
         </LogMount>
@@ -170,7 +161,9 @@ const Home = () => {
         </LogMount>
       </Suspense>
 
-      <FeaturedBlogSection />
+
+
+ <FeaturedBlogSection />
 
       <Suspense fallback={<Fallback label="NewsletterBox" className="h-40 animate-pulse" />}>
         <LogMount label="NewsletterBox">

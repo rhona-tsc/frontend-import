@@ -1,12 +1,9 @@
 import React, { useContext, useEffect, useMemo, useState, useRef } from "react";
 import { ShopContext } from "../context/ShopContext";
-import { assets } from "../assets/assets";
-import { useLocation } from "react-router-dom";
 import RoyalMailAddressNow from "./RoyalMailAddressNow";
 import { gtagEvent } from "../utils/gtag";
 import Title from "./Title";
 import { useNavigate } from "react-router-dom";
-
 
 // UK postcode validator (accepts with/without space, normalises later)
 const isValidUKPostcode = (value = "") => {
@@ -42,6 +39,7 @@ const SearchBar = () => {
   const [postcode, setPostcode] = useState("");
   const openedAtRef = useRef(null);
   const navigate = useNavigate();
+
   useEffect(() => {
     setLocalAddress(selectedAddress || "");
     setLocalDate(selectedDate || "");
@@ -53,8 +51,27 @@ const SearchBar = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAddress, selectedDate]);
 
+  useEffect(() => {
+    openedAtRef.current = Date.now();
+  }, []);
+
+  const extractedPostcode = useMemo(() => {
+    const m = String(localAddress || "")
+      .toUpperCase()
+      .match(/([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})/);
+    return m ? m[1] : "";
+  }, [localAddress]);
+
+  const canSearch = useMemo(() => {
+    const raw = postcode || extractedPostcode;
+    const postcodeOk = isValidUKPostcode(raw);
+    const dateOk = !!localDate.trim();
+    return postcodeOk && dateOk;
+  }, [postcode, extractedPostcode, localDate]);
+
+  const searchDisabled = !canSearch;
+
   const handleSearch = () => {
-    // Allow postcode to be typed/pasted into the venue box too
     const extractPostcode = (text = "") => {
       const m = String(text || "")
         .toUpperCase()
@@ -69,8 +86,7 @@ const SearchBar = () => {
       has_date: !!localDate.trim(),
       has_address: !!localAddress.trim(),
       has_county: !!county.trim(),
-      
-       postcode_valid: canSearch,
+      postcode_valid: pcOk,
     });
 
     if (!pcOk) {
@@ -78,13 +94,16 @@ const SearchBar = () => {
         reason: "invalid_or_missing_postcode",
       });
       return alert(
-        "Please type a full UK postcode (or select an address) so we can calculate travel.",
+        "Please type a full UK postcode (or select an address) so we can calculate travel."
       );
+    }
+
+    if (!localDate.trim()) {
+      return alert("Please choose a date before searching.");
     }
 
     const pc = normaliseUKPostcode(rawPc);
 
-    // keep state in sync if postcode came from the venue input
     if (!postcode && pc) setPostcode(pc);
 
     setSelectedAddress(localAddress || "");
@@ -108,85 +127,61 @@ const SearchBar = () => {
     navigate("/acts");
   };
 
- const extractedPostcode = useMemo(() => {
-  const m = String(localAddress || "")
-    .toUpperCase()
-    .match(/([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})/);
-  return m ? m[1] : "";
-}, [localAddress]);
-
-const canSearch = useMemo(() => {
-  const raw = postcode || extractedPostcode;
-  return isValidUKPostcode(raw);
-}, [postcode, extractedPostcode]);
-
-const searchDisabled = !canSearch;
-
   return (
-<div className="w-full border border-gray-200 bg-gray-50 text-center shadow-sm py-4 mx-auto max-w-5xl mt-4">
-        {/* ⬇️ Key change: align blocks from the top, and make each control its own “column” */}
-          {/* ✅ Title */}
-    <div className="px-5 text-center py-8 text-3xl">
-      <Title text1="QUICK" text2="SEARCH" />
-      {/* optional: tiny helper line */}
-    </div>
-
-      <div className="flex flex-col sm:flex-row items-start justify-center gap-4 px-5">
-        {/* Date column */}
-        <div className="w-full sm:w-auto flex flex-col text-left">
-          <p className="font-medium text-sm text-gray-700 mb-1">DATE</p>
-          <input
-            type="date"
-            className="border-2 border-gray-300 p-2 text-gray-500 bg-white"
-            value={localDate}
-            onChange={(e) => setLocalDate(e.target.value)}
-            min={new Date().toISOString().split("T")[0]}
-            required
-          />
-          {/* reserve the same “helper space” as venue so alignment never shifts */}
-          <div className="min-h-[16px] mt-1" aria-hidden="true" />
-          <div className="min-h-[16px] mt-1" aria-hidden="true" />
-        </div>
-
-        {/* Venue column */}
-        <div className="w-full sm:w-[420px] flex flex-col text-left">
-          <p className="font-medium text-sm text-gray-700 mb-1">
-            VENUE
+    <div className="w-full px-4 py-6 mx-auto max-w-6xl mt-6">
+      <div className="rounded-[32px] border border-gray-200 bg-white shadow-sm px-5 py-6 md:px-8 md:py-8">
+        <div className="text-center mb-6 md:mb-8">
+          <div className="text-3xl mb-3">
+            <Title text1="QUICK" text2="SEARCH" />
+          </div>
+          <p className="text-sm md:text-base text-gray-600 max-w-2xl mx-auto">
+            Enter your event date and venue so we can show relevant acts and calculate travel.
           </p>
-
-          <RoyalMailAddressNow
-            captureKey="KR44-RW29-HH36-NC62"
-            idPrefix="sb" // ✅ unique
-            setAddress={setLocalAddress}
-            setCounty={setCounty}
-            setPostcode={setPostcode}
-            initialValue={localAddress}
-            className="text-base px-3 py-2 w-full border-2 border-gray-300 bg-white"
-            placeholder="Type your venue..."
-            required
-          />
         </div>
 
-        {/* Search button column */}
-        <div className="w-full sm:w-auto flex flex-col text-left">
-          {/* label spacer to match the DATE/VENUE label height */}
-          <div className="h-[20px] mb-1" aria-hidden="true" />
-          <button
-            type="button"
-            className={`w-full sm:w-auto px-6 py-2 text-white transition duration-300 border-2 border-[#ff6667] ${
-              searchDisabled
-                ? "bg-[#ff6667] hover:bg-gray-400 cursor-not-allowed"
-                : "bg-[#ff6667] hover:bg-[#ff3333]"
-            }`}
-            onClick={handleSearch}
-            disabled={searchDisabled}
-          >
-            SEARCH
-          </button>
+        <div className="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-4 items-end">
+          <div className="flex flex-col text-left">
+            <label className="font-medium text-sm text-gray-700 mb-2">DATE</label>
+            <input
+              type="date"
+              className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-700 outline-none focus:border-[#ff6667]"
+              value={localDate}
+              onChange={(e) => setLocalDate(e.target.value)}
+              min={new Date().toISOString().split("T")[0]}
+              required
+            />
+          </div>
 
-          {/* keep column height consistent with other columns */}
-          <div className="min-h-[16px] mt-1" aria-hidden="true" />
-          <div className="min-h-[16px] mt-1" aria-hidden="true" />
+          <div className="flex flex-col text-left">
+            <label className="font-medium text-sm text-gray-700 mb-2">VENUE</label>
+            <RoyalMailAddressNow
+              captureKey="KR44-RW29-HH36-NC62"
+              idPrefix="sb"
+              setAddress={setLocalAddress}
+              setCounty={setCounty}
+              setPostcode={setPostcode}
+              initialValue={localAddress}
+              className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-700"
+              placeholder="Type your venue or postcode..."
+              required
+            />
+          </div>
+
+          <div className="flex flex-col">
+            <div className="hidden md:block h-[28px]" aria-hidden="true" />
+            <button
+              type="button"
+              className={`w-full md:w-auto rounded-full px-6 py-3 text-sm font-medium text-white transition ${
+                searchDisabled
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-[#ff6667] hover:bg-[#ff4d4f]"
+              }`}
+              onClick={handleSearch}
+              disabled={searchDisabled}
+            >
+              Search
+            </button>
+          </div>
         </div>
       </div>
     </div>
