@@ -149,17 +149,19 @@ const Home = () => {
         </LogMount>
       </Suspense>
 
+            <Suspense fallback={<Fallback label="OurPolicy" className="h-40 animate-pulse" />}>
+        <LogMount label="OurPolicy">
+          <OurPolicy />
+        </LogMount>
+      </Suspense>
+
       <Suspense fallback={<Fallback label="BestSeller" className="h-64 animate-pulse" />}>
         <LogMount label="BestSeller">
           <BestSeller />
         </LogMount>
       </Suspense>
 
-      <Suspense fallback={<Fallback label="OurPolicy" className="h-40 animate-pulse" />}>
-        <LogMount label="OurPolicy">
-          <OurPolicy />
-        </LogMount>
-      </Suspense>
+
 
  <FeaturedBlogSection />
 
