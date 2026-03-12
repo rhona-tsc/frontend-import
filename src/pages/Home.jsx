@@ -140,7 +140,7 @@ const Home = () => {
         ) : null}
       </Suspense>
 
-      <FeaturedBlogSection />
+     
 
       {/* Below-the-fold sections: lazy + lightweight fallbacks */}
       <Suspense fallback={<Fallback label="NewActs" className="h-64 animate-pulse" />}>
@@ -160,6 +160,8 @@ const Home = () => {
           <OurPolicy />
         </LogMount>
       </Suspense>
+
+ <FeaturedBlogSection />
 
       <Suspense fallback={<Fallback label="NewsletterBox" className="h-40 animate-pulse" />}>
         <LogMount label="NewsletterBox">
