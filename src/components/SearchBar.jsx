@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState, useRef } from "react";
+import PropTypes from "prop-types";
 import { ShopContext } from "../context/ShopContext";
 import RoyalMailAddressNow from "./RoyalMailAddressNow";
 import { gtagEvent } from "../utils/gtag";
@@ -23,7 +24,7 @@ const normaliseUKPostcode = (value = "") => {
   return `${pc.slice(0, pc.length - 3)} ${pc.slice(-3)}`;
 };
 
-const SearchBar = () => {
+const SearchBar = ({ embedded = false }) => {
   const {
     selectedAddress,
     setSelectedAddress,
@@ -128,18 +129,36 @@ const SearchBar = () => {
   };
 
   return (
-    <div className="w-full px-4 py-6 mx-auto max-w-6xl mt-6">
-      <div className="rounded-[32px] border border-gray-200 bg-white shadow-sm px-5 py-6 md:px-8 md:py-8">
-        <div className="text-center mb-6 md:mb-8">
-          <div className="text-3xl mb-3">
+    <div className={embedded ? "w-full mt-6" : "w-full px-4 py-6 mx-auto max-w-6xl mt-6"}>
+      <div
+        className={
+          embedded
+            ? "rounded-[28px] border border-gray-200 bg-white shadow-sm px-4 py-5"
+            : "rounded-[32px] border border-gray-200 bg-white shadow-sm px-5 py-6 md:px-8 md:py-8"
+        }
+      >
+        <div className={embedded ? "text-left mb-4" : "text-center mb-6 md:mb-8"}>
+          <div className={embedded ? "text-2xl mb-2" : "text-3xl mb-3"}>
             <Title text1="QUICK" text2="SEARCH" />
           </div>
-          <p className="text-sm md:text-base text-gray-600 max-w-2xl mx-auto">
+          <p
+            className={
+              embedded
+                ? "text-sm text-gray-600 max-w-xl"
+                : "text-sm md:text-base text-gray-600 max-w-2xl mx-auto"
+            }
+          >
             Enter your event date and venue so we can show relevant acts and calculate travel.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-4 items-end">
+        <div
+          className={
+            embedded
+              ? "grid grid-cols-1 gap-3"
+              : "grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-4 items-end"
+          }
+        >
           <div className="flex flex-col text-left">
             <label className="font-medium text-sm text-gray-700 mb-2">DATE</label>
             <input
@@ -168,10 +187,12 @@ const SearchBar = () => {
           </div>
 
           <div className="flex flex-col">
-            <div className="hidden md:block h-[28px]" aria-hidden="true" />
+            {!embedded && (
+              <div className="hidden md:block h-[28px]" aria-hidden="true" />
+            )}
             <button
               type="button"
-              className={`w-full md:w-auto rounded-full px-6 py-3 text-sm font-medium text-white transition ${
+              className={`w-full ${embedded ? "" : "md:w-auto"} rounded-full px-6 py-3 text-sm font-medium text-white transition ${
                 searchDisabled
                   ? "bg-gray-300 cursor-not-allowed"
                   : "bg-[#ff6667] hover:bg-[#ff4d4f]"
@@ -186,6 +207,10 @@ const SearchBar = () => {
       </div>
     </div>
   );
+};
+
+SearchBar.propTypes = {
+  embedded: PropTypes.bool,
 };
 
 export default SearchBar;

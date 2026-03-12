@@ -30,7 +30,7 @@ const Hero = () => {
       {/* Hero Right Side */}
       <div className="w-full sm:w-1/2">
         <img
-          className="w-full h-[180px] sm:h-full object-cover"
+          className="w-full h-[240px] sm:h-full object-cover"
           src={assets.hero_img}
           alt="Live wedding and event band performing"
         />

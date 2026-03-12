@@ -84,7 +84,6 @@ const FeaturedBlogSection = () => {
 const Home = () => {
   const [showSearch, setShowSearch] = useState(false);
 
-  // On first mount
   useEffect(() => {
     group('Initial mount', () => {
       log('component mounted');
@@ -95,7 +94,6 @@ const Home = () => {
     return () => log('component unmounted');
   }, []);
 
-  // Mount the SearchBar on idle (or after a brief timeout) to avoid blocking FCP
   useEffect(() => {
     const hasRIC =
       typeof window !== 'undefined' && 'requestIdleCallback' in window;
@@ -129,27 +127,23 @@ const Home = () => {
 
   return (
     <div>
-      <Hero />
+      <Hero>
+        <Suspense fallback={<Fallback label="SearchBar" className="h-32" />}>
+          {showSearch ? (
+            <LogMount label="SearchBar">
+              <SearchBar embedded />
+            </LogMount>
+          ) : null}
+        </Suspense>
+      </Hero>
 
-      {/* SearchBar: lazy + idle-mounted */}
-      <Suspense fallback={<Fallback label="SearchBar" className={null} />}>
-        {showSearch ? (
-          <LogMount label="SearchBar">
-            <SearchBar />
-          </LogMount>
-        ) : null}
-      </Suspense>
-
-     
-
-      {/* Below-the-fold sections: lazy + lightweight fallbacks */}
       <Suspense fallback={<Fallback label="NewActs" className="h-64 animate-pulse" />}>
         <LogMount label="NewActs">
           <NewActs />
         </LogMount>
       </Suspense>
 
-            <Suspense fallback={<Fallback label="OurPolicy" className="h-40 animate-pulse" />}>
+      <Suspense fallback={<Fallback label="OurPolicy" className="h-40 animate-pulse" />}>
         <LogMount label="OurPolicy">
           <OurPolicy />
         </LogMount>
@@ -161,9 +155,7 @@ const Home = () => {
         </LogMount>
       </Suspense>
 
-
-
- <FeaturedBlogSection />
+      <FeaturedBlogSection />
 
       <Suspense fallback={<Fallback label="NewsletterBox" className="h-40 animate-pulse" />}>
         <LogMount label="NewsletterBox">
