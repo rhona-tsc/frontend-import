@@ -24,7 +24,7 @@ const Hero = ({ children }) => {
             seamless booking experience.
           </p>
 
-          <div className="flex items-center gap-2 mt-5">
+          <div className="flex items-center gap-2 mt-5 mb-5">
             <p className="font-semibold text-sm md:text-base">
               LET&apos;S GET THIS PARTY STARTED
             </p>
