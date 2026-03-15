@@ -10,26 +10,45 @@
   framework = "vite"
   autoLaunch = false
 
+[build.environment]
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
 # ✅ SEO 301: old act URLs → new act URLs
 [[redirects]]
-from = "/bandsforhire/*"
-to = "/act/:splat"
-status = 301
-force = true
+  from = "/bandsforhire/*"
+  to = "/act/:splat"
+  status = 301
+  force = true
 
 # 🔒 Redirect any accidental ngrok traffic to your live backend
 [[redirects]]
-from = "/*"
-to = "https://tsc-backend-v2.onrender.com/:splat"
-status = 301
-conditions = { Host = ["*.ngrok-free.app", "*.ngrok.io"] }
-
+  from = "/*"
+  to = "https://tsc-backend-v2.onrender.com/:splat"
+  status = 301
+  conditions = { Host = ["*.ngrok-free.app", "*.ngrok.io"] }
 
 # 🧠 Helpful debug header
 [[headers]]
-for = "/*"
+  for = "/*"
   [headers.values]
-  X-Backend-Policy = "Redirected from ngrok → Render backend only"
+    X-Backend-Policy = "Redirected from ngrok → Render backend only"
 
-[build.environment]
-  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+# ✅ Security-ish defaults (fine to keep)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# ✅ index.html should NOT be cached (prevents stale HTML referencing old hashed assets)
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# ✅ hashed build assets can be cached long-term
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
