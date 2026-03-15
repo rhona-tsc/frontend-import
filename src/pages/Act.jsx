@@ -15,6 +15,7 @@ import CustomToast from "../components/CustomToast";
 import ActHero from "../components/ActHero";
 import ReviewCard from "../components/ReviewCard";
 import Title from "../components/Title";
+import { Helmet } from "react-helmet-async";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import { gtagEvent } from "../utils/gtag";
 import { priceCache, makePriceKey } from "./utils/priceCache";
@@ -1039,6 +1040,10 @@ const avgRating = React.useMemo(() => {
     : actData?._id
       ? `/act/${actData._id}`
       : `${location.pathname}${location.search || ""}`;
+  const canonicalSlug = String(actData?.slug || "").trim() || String(key || "").trim();
+  const canonicalUrl = canonicalSlug
+    ? `https://www.thesupremecollective.co.uk/act/${encodeURIComponent(canonicalSlug)}`
+    : "https://www.thesupremecollective.co.uk/acts";
   console.log("[Act] counts", {
     reviews: reviews.length,
     songs: selectedSongs.length,
@@ -1085,6 +1090,9 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
 
   return (
     <div className="p-4">
+      <Helmet>
+        <link rel="canonical" href={canonicalUrl} />
+      </Helmet>
       {/* Top Navigation */}
       <div className="flex justify-between items-center mb-4">
         {/* Back Button */}
