@@ -12,10 +12,8 @@ export default function Blog() {
           name="description"
           content="Read wedding entertainment inspiration, live music ideas, and planning tips from The Supreme Collective."
         />
-        <link
-          rel="canonical"
-          href="https://www.thesupremecollective.co.uk/blog"
-        />
+        <link rel="canonical" href="https://thesupremecollective.co.uk/blog" />
+        <meta property="og:url" content="https://thesupremecollective.co.uk/blog" />
       </Helmet>
 
       <div className="px-4 py-12 max-w-6xl mx-auto">

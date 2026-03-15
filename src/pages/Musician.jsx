@@ -4,6 +4,7 @@ import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import calculateActPricing from "./utils/pricing";
 import "react-toastify/dist/ReactToastify.css";
+import { Helmet } from "react-helmet-async";
 
 import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
@@ -30,6 +31,11 @@ const Musician = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const location = useLocation();
   const navigate = useNavigate();
+  const CANONICAL_ORIGIN = "https://thesupremecollective.co.uk";
+  const canonicalForPath = (p = "/") => {
+    const path = String(p || "/");
+    return `${CANONICAL_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
+  };
 
   // Extract YouTube video ID from a full URL or return as-is if already an ID
   const extractVideoId = (url) => {
@@ -560,6 +566,10 @@ const content = React.useMemo(() => {
 
   return (
   <div className="p-4">
+    <Helmet>
+      <link rel="canonical" href={canonicalForPath(location.pathname)} />
+      <meta property="og:url" content={canonicalForPath(location.pathname)} />
+    </Helmet>
     {/* Top Navigation */}
     <div className="flex justify-between items-center mb-4">
       <button onClick={() => navigate(-1)} className="text-gray-600 hover:text-black">

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import Hero from '../components/Hero';
 
 // 🪵 Debug helpers
@@ -18,6 +19,15 @@ const BestSeller = lazy(() => import('../components/BestSeller'));
 const OurPolicy = lazy(() => import('../components/OurPolicy'));
 const NewsletterBox = lazy(() => import('../components/NewsletterBox'));
 
+// 🔗 Canonical URL helper (non-www)
+const canonicalForPath = (pathname = '/') => {
+  const base = 'https://thesupremecollective.co.uk';
+  const p = String(pathname || '/');
+  // normalize: ensure leading slash, remove trailing slash (except root)
+  const withSlash = p.startsWith('/') ? p : `/${p}`;
+  const normalized = withSlash !== '/' ? withSlash.replace(/\/+$/, '') : '/';
+  return `${base}${normalized}`;
+};
 // 🔍 Small helpers to log Suspense fallback usage and child mounts
 const Fallback = ({ label, className }) => {
   useEffect(() => {
@@ -82,6 +92,8 @@ const FeaturedBlogSection = () => {
 };
 
 const Home = () => {
+  const location = useLocation();
+  const canonicalUrl = canonicalForPath(location.pathname);
   const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
@@ -127,6 +139,16 @@ const Home = () => {
 
   return (
     <div>
+      <Helmet>
+        <title>The Supreme Collective | Luxury Wedding & Event Bands</title>
+        <meta
+          name="description"
+          content="Luxury wedding and event bands for hire across the UK. Explore our acts, get accurate quotes with date & location, and book live music with confidence."
+        />
+        <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:url" content={canonicalUrl} />
+      </Helmet>
+
       <Hero>
         <Suspense fallback={<Fallback label="SearchBar" className="h-32" />}>
           {showSearch ? (

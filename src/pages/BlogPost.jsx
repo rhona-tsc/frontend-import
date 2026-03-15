@@ -26,11 +26,30 @@ export default function BlogPost() {
     <article className="px-4 py-12 max-w-4xl mx-auto">
       <Helmet>
         <title>{post.metaTitle || post.title}</title>
-        <meta name="description" content={post.metaDescription || post.excerpt} />
+        <meta
+          name="description"
+          content={post.metaDescription || post.excerpt}
+        />
+
+        {/* ✅ Canonical + OG should use the preferred non-www host */}
         <link
           rel="canonical"
-          href={`https://www.thesupremecollective.co.uk/blog/${post.slug}`}
+          href={`https://thesupremecollective.co.uk/blog/${post.slug}`}
         />
+        <meta
+          property="og:url"
+          content={`https://thesupremecollective.co.uk/blog/${post.slug}`}
+        />
+
+        {/* Optional but helpful for sharing */}
+        <meta property="og:title" content={post.metaTitle || post.title} />
+        <meta
+          property="og:description"
+          content={post.metaDescription || post.excerpt}
+        />
+        {post.heroImage ? (
+          <meta property="og:image" content={post.heroImage} />
+        ) : null}
       </Helmet>
 
       <div className="mb-8">

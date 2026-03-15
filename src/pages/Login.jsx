@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom"; // ✅ add useLocat
 import { toast } from 'react-toastify';
 import axios from 'axios'; 
 import CustomToast from "../components/CustomToast";
+import { Helmet } from "react-helmet-async";
 
 const Login = () => {
   const navigate = useNavigate(); 
@@ -125,11 +126,6 @@ if (typeof fetchShortlistedActs === "function") {
 const onSubmitHandler = async (event) => {
   event.preventDefault();
 
-  // ✅ Only count this “lead” when signup happened because they were gating through shortlist
-  // (i.e. they tried to shortlist while logged out)
-  const pendingActId = sessionStorage.getItem("pendingShortlistActId");
-  const pendingActName = sessionStorage.getItem("pendingShortlistActName");
-
   try {
     if (currentState === "Sign Up") {
       const response = await axios.post(`${backendUrl}/api/user/register`, {
@@ -244,10 +240,18 @@ window.gtag("event", "conversion", {
   }, []);
 
   return (
-    <form
-      onSubmit={onSubmitHandler}
-      className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-14 gap-4 text-gray-800"
-    >
+    <>
+      <Helmet>
+        <title>Login | The Supreme Collective</title>
+        <meta name="robots" content="noindex, nofollow" />
+        <link rel="canonical" href="https://thesupremecollective.co.uk/login" />
+        <meta property="og:url" content="https://thesupremecollective.co.uk/login" />
+      </Helmet>
+
+      <form
+        onSubmit={onSubmitHandler}
+        className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-14 gap-4 text-gray-800"
+      >
       <div className="inline-flex items-center gap-2 mb-2 mt-10">
         <p className="prata-regular text-3xl">{currentState}</p>
         <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
@@ -333,7 +337,8 @@ window.gtag("event", "conversion", {
       <button className="bg-black text-white font-light px-8 py-2 mt-4">
         {currentState === "Login" ? "Sign In" : "Sign Up"}
       </button>
-    </form>
+      </form>
+    </>
   );
 };
 

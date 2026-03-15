@@ -1035,15 +1035,22 @@ const avgRating = React.useMemo(() => {
 
   // use a safe local reference everywhere you read selectedLineup
   const safeSelectedLineup = selectedLineup || actData.lineups?.[0] || null;
-  const actPath = actData?.slug
-    ? `/act/${encodeURIComponent(actData.slug)}`
-    : actData?._id
-      ? `/act/${actData._id}`
-      : `${location.pathname}${location.search || ""}`;
-  const canonicalSlug = String(actData?.slug || "").trim() || String(key || "").trim();
-  const canonicalUrl = canonicalSlug
-    ? `https://www.thesupremecollective.co.uk/act/${encodeURIComponent(canonicalSlug)}`
-    : "https://www.thesupremecollective.co.uk/acts";
+  // ✅ Preferred, stable canonical URL (keep host + path consistent with your sitemap)
+  const SITE_ORIGIN = "https://thesupremecollective.co.uk"; // canonicalize to apex (non-www)
+
+  // Prefer an explicit slug from actData; only fall back to the route key if it's clearly a slug (not an ObjectId)
+  const canonicalSlug =
+    String(actData?.slug || actData?.tscSlug || actData?.routeSlug || "").trim() ||
+    (!isObjectId ? String(key || "").trim() : "");
+
+  const canonicalPath = canonicalSlug
+    ? `/act/${encodeURIComponent(canonicalSlug)}`
+    : "/acts";
+
+  const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
+
+  // Use this when we need a relative path in app flows (e.g. post-login return)
+  const actPath = canonicalPath;
   console.log("[Act] counts", {
     reviews: reviews.length,
     songs: selectedSongs.length,
@@ -1092,6 +1099,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
     <div className="p-4">
       <Helmet>
         <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:url" content={canonicalUrl} />
       </Helmet>
       {/* Top Navigation */}
       <div className="flex justify-between items-center mb-4">

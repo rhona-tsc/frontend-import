@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { ShopContext } from '../context/ShopContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Helmet } from "react-helmet-async";
 import ShortlistItem from './ShortlistItem';
 import ShortlistPreviewPanel from './ShortlistPreviewPanel';
 import Title from '../components/Title';
@@ -73,17 +74,24 @@ const Shortlist = () => {
 
   const navigate = useNavigate();
 
+  const location = useLocation();
 
+  // Canonical helper (forces non-www)
+  const canonicalForPath = (pathname = "/") => {
+    const p = String(pathname || "/");
+    const clean = p.startsWith("/") ? p : `/${p}`;
+    return `https://thesupremecollective.co.uk${clean}`;
+  };
 
-    // Jump to the top synchronously before paint
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname]);
 
   const [hoveredAct, setHoveredAct] = useState(null);
   // Track items currently animating out so we can keep them in the DOM until the fade completes
   const [removingIds, setRemovingIds] = useState(new Set());
   const isShortlisted = (actId) => shortlistIds.includes(actId);
-  const [sortType, setSortType] = useState('relavent');
+  const [sortType, setSortType] = useState('relevant');
   const storedPlace = sessionStorage.getItem('selectedPlace') || '';
 
   // 🔹 Purge any stale shortlist caches when this page mounts (once)
@@ -152,6 +160,11 @@ const Shortlist = () => {
 
   return (
     <div>
+      <Helmet>
+        <title>Shortlist | The Supreme Collective</title>
+        <link rel="canonical" href={canonicalForPath(location.pathname)} />
+        <meta property="og:url" content={canonicalForPath(location.pathname)} />
+      </Helmet>
       <div className="flex-1">
         <div className="flex justify-left text-base justify-between sm:text-2xl mb-4 mt-10 pt-10">
           <Title text1={'YOUR'} text2={'SHORTLIST'} />
@@ -161,7 +174,7 @@ const Shortlist = () => {
               onChange={(e) => setSortType(e.target.value)}
               value={sortType}
             >
-              <option value="relevent">Sort by: Relevant</option>
+              <option value="relevant">Sort by: Relevant</option>
               <option value="low-high">Sort by: Low to High</option>
               <option value="high-low">Sort by: High to Low</option>
             </select>

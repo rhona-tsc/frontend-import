@@ -1,10 +1,25 @@
-import React, { useState } from 'react'
-import Title from '../components/Title'
-import { assets } from '../assets/assets'
-import NewsletterBox from '../components/NewsletterBox'
-import ActSubmissionForm from '../components/ActSubmissionForm';
+import React, { useState } from "react";
+import { useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import Title from "../components/Title";
+import { assets } from "../assets/assets";
+import NewsletterBox from "../components/NewsletterBox";
+import ActSubmissionForm from "../components/ActSubmissionForm";
 
 const Contact = () => {
+  const location = useLocation();
+
+  const canonicalForPath = (path = "/") => {
+    const base = "https://thesupremecollective.co.uk"; // ✅ non-www canonical
+    const p = String(path || "/").split("?")[0].split("#")[0];
+    // ensure leading slash
+    const clean = p.startsWith("/") ? p : `/${p}`;
+    // avoid trailing slash except root
+    const normalized = clean.length > 1 ? clean.replace(/\/+$/, "") : "/";
+    return `${base}${normalized}`;
+  };
+
+  const canonicalUrl = canonicalForPath(location.pathname);
   const [showActForm, setShowActForm] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
@@ -60,6 +75,15 @@ const Contact = () => {
 
   return (
     <div>
+      <Helmet>
+        <title>Contact | The Supreme Collective</title>
+        <meta
+          name="description"
+          content="Contact The Supreme Collective for wedding and event band enquiries, bookings, and roster submissions."
+        />
+        <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:url" content={canonicalUrl} />
+      </Helmet>
 
       <div className='text-center text-2xl pt-10 border-t'>
         <Title text1={'CONTACT'} text2={'US'} />

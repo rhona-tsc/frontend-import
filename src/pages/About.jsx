@@ -1,15 +1,30 @@
 import React, { useEffect } from 'react'
+import { Helmet } from 'react-helmet-async'
+import { useLocation } from 'react-router-dom'
 import Title from '../components/Title'
 import { assets } from '../assets/assets'
 import NewsletterBox from '../components/NewsletterBox'
 
+const SITE_ORIGIN = 'https://thesupremecollective.co.uk';
+const canonicalForPath = (path = '/') => {
+  const p = String(path || '/');
+  return `${SITE_ORIGIN}${p.startsWith('/') ? p : `/${p}`}`;
+};
+
 const About = () => {
+  const location = useLocation();
     useEffect(() => {
     window.scrollTo(0, 0);
   }, []); // runs once when component mounts
 
   return (
-    <div><div className='text-2xl text-center pt-8 border-t'>
+    <>
+      <Helmet>
+        <link rel="canonical" href={canonicalForPath(location.pathname)} />
+        <meta property="og:url" content={canonicalForPath(location.pathname)} />
+      </Helmet>
+
+      <div><div className='text-2xl text-center pt-8 border-t'>
       <Title text1={'ABOUT'} text2={'US'}/>
       
     </div>
@@ -50,6 +65,8 @@ const About = () => {
       <NewsletterBox />
 
     </div>
+
+    </>
   )
 }
 

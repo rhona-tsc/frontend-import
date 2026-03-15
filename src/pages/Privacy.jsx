@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { Helmet } from "react-helmet-async";
+import { useLocation } from "react-router-dom";
 import Title from '../components/Title';
 import { assets } from '../assets/assets';
 import NewsletterBox from '../components/NewsletterBox';
@@ -8,10 +10,24 @@ const Privacy = () => {
     window.scrollTo(0, 0);
   }, []);
 
+  const location = useLocation();
+
+  const SITE_ORIGIN = "https://thesupremecollective.co.uk"; // ✅ non-www canonical
+  const canonicalForPath = (pathname = "/") => {
+    const p = String(pathname || "/").split("?")[0].split("#")[0];
+    const clean = p.startsWith("/") ? p : `/${p}`;
+    return `${SITE_ORIGIN}${clean}`;
+  };
+
   const effectiveDate = '03 October 2025'; // update when you materially change the policy
 
   return (
     <div>
+      <Helmet>
+        <title>Privacy Policy | The Supreme Collective</title>
+        <link rel="canonical" href={canonicalForPath(location.pathname)} />
+        <meta property="og:url" content={canonicalForPath(location.pathname)} />
+      </Helmet>
       <div className="text-2xl text-center pt-8 border-t">
         <Title text1="PRIVACY" text2="POLICY" />
       </div>

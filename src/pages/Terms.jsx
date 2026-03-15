@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import Title from '../components/Title';
 import { assets } from '../assets/assets';
 import NewsletterBox from '../components/NewsletterBox';
@@ -9,6 +10,17 @@ const Terms = () => {
   }, []); // runs once when component mounts
 
   return (
+    <>
+      <Helmet>
+        <title>Terms &amp; Conditions | The Supreme Collective</title>
+        <meta
+          name="description"
+          content="Read the Terms & Conditions for using The Supreme Collective website and booking live music services."
+        />
+        <link rel="canonical" href="https://thesupremecollective.co.uk/terms" />
+        <meta property="og:url" content="https://thesupremecollective.co.uk/terms" />
+      </Helmet>
+
     <div>
       <div className="text-2xl text-center pt-8 border-t">
         <Title text1="TERMS &" text2="CONDITIONS" />
@@ -18,7 +30,7 @@ const Terms = () => {
         <img
           className="w-full md:w-auto md:max-w-[450px] h-auto object-cover"
           src={assets.Funk_Royale}
-          alt=""
+          alt="The Supreme Collective live band"
         />
         <div className="flex flex-col justify-center gap-6 md:w-2/4 text-gray-600">
           <h2 className="text-xl font-semibold mt-4">Introduction</h2>
@@ -249,6 +261,7 @@ const Terms = () => {
 
       <NewsletterBox />
     </div>
+    </>
   );
 };
 

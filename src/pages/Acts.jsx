@@ -1,8 +1,8 @@
 import { useContext, useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ShopContext } from "../context/ShopContext.jsx";
-import { useSearchParams, useParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-
+import { Helmet } from "react-helmet-async";
 import Title from "../components/Title";
 import CardFilterItem from "../components/CardFilterItem";
 import { assets } from "../assets/assets";
@@ -122,6 +122,16 @@ const Acts = ({ userRole, email }) => {
   const [searchParams] = useSearchParams();
   const appliedOnceRef = useRef(false);
 const [priceMap, setPriceMap] = useState({}); // { [actId]: number }
+
+const location = useLocation();
+
+const CANONICAL_ORIGIN = "https://thesupremecollective.co.uk";
+
+const canonicalForPath = (pathname = "/") => {
+  const p = String(pathname || "/");
+  const clean = p !== "/" ? p.replace(/\/+$/, "") : "/";
+  return `${CANONICAL_ORIGIN}${clean}`;
+};
 
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
@@ -2579,7 +2589,13 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [filterKey]);
 
-  return (
+return (
+  <>
+    <Helmet>
+      <link rel="canonical" href={canonicalForPath(location.pathname)} />
+      <meta property="og:url" content={canonicalForPath(location.pathname)} />
+    </Helmet>
+
     <div className="my-10 max-w-7xl mx-auto px-4">
       {/* Two-column layout */}
       <div className="grid grid-cols-12 gap-6">
@@ -4225,8 +4241,9 @@ useEffect(() => {
           </div>
         </main>
       </div>
-    </div>
-  );
+       </div>
+  </>
+);
 };
 
 export default Acts;
