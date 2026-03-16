@@ -43,7 +43,9 @@ const Musician = () => {
     const match = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
     return match ? match[1] : url;
   };
-  const { musicianId } = useParams();
+  // Route param can be named differently depending on router (e.g. /musician/:key)
+  const params = useParams();
+  const musicianId = params.musicianId || params.key || params.id || params.slug;
   const {
     acts,
     addToCart,
@@ -345,7 +347,7 @@ useEffect(() => {
 
   if (!Array.isArray(acts) || acts.length === 0) return;
 
-  console.log("🔍 Looking for musicianId:", musicianId);
+  console.log("🔍 Looking for musicianId:", musicianId, "route params:", params);
   const foundAct = acts.find(
     (item) =>
       String(item?._id) === String(musicianId) ||
