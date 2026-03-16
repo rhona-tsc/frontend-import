@@ -17,7 +17,6 @@ import BlogPost from "./pages/BlogPost";
   import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
-  import Musician_Login from "./pages/Musician_Login";
   import Musician from "./pages/Musician";
   import PlaceBooking from "./pages/PlaceBooking";
   import Shortlist from "./pages/Shortlist";
@@ -183,7 +182,6 @@ import { Helmet } from "react-helmet-async";
 <Route path="/musician/:key" element={<Musician />} />            
               <Route path="/booking-success" element={<BookingSuccess />} />
     <Route path="/booking-cancelled" element={<BookingCancelled />} />
-              <Route path="/musician-login" element={<Musician_Login />} />
               <Route path="/place-booking" element={<PlaceBooking />} />
               <Route path="/shortlist" element={<Shortlist />} />
             </Routes>
