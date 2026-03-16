@@ -5,5 +5,8 @@
 # ✅ API proxy
 /api/*  https://tsc-backend-v2.onrender.com/api/:splat  200
 
+# 🚫 IMPORTANT: Missing build assets must 404 (never serve index.html)
+/assets/*  /__assets_404__  404!
+
 # ✅ SPA fallback (keep LAST)
  /*      /index.html  200
