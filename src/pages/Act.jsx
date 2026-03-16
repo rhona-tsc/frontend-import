@@ -1147,6 +1147,23 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
         <meta name="twitter:title" content={meta.title} />
         <meta name="twitter:description" content={meta.description} />
         {ogImage ? <meta name="twitter:image" content={ogImage} /> : null}
+
+        {/* JSON-LD */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "MusicGroup",
+              name: actData?.tscName || actData?.name || "Wedding Band",
+              url: canonicalUrl,
+              genre: Array.isArray(actData?.genres)
+                ? actData.genres.filter(Boolean)
+                : undefined,
+              image: ogImage || undefined,
+            }),
+          }}
+        />
       </Helmet>
       {/* Top Navigation */}
       <div className="flex justify-between items-center mb-4">
