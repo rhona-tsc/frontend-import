@@ -37,6 +37,20 @@ import { logBadges } from "../utils/logger";
 import { readCachedAct, writeCachedAct } from "../utils/actCache";
 import axios from "axios";
 
+// ✅ SEO helper: build meta title/description from act data
+export const buildActMeta = (act) => {
+  const name = act?.tscName || act?.name || "Wedding Band";
+  const genres = Array.isArray(act?.genres)
+    ? act.genres.slice(0, 2).filter(Boolean).join(", ")
+    : "";
+  const loc = act?.baseCounty || act?.address?.county || "the UK";
+
+  return {
+    title: `${name} | Wedding Band for Hire | The Supreme Collective`,
+    description: `Book ${name} — premium live music for weddings & events. ${genres ? `Styles: ${genres}. ` : ""}Available across ${loc}. View videos & get an instant quote.`,
+  };
+};
+
 const Act = () => {
 const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 const params = useParams();
@@ -1030,7 +1044,19 @@ const avgRating = React.useMemo(() => {
 
   // ✅ new: render as soon as actData exists; handle "no lineup" gracefully
   if (!actData) {
-    return <div className="p-4 text-gray-500">Loading act details...</div>;
+    return (
+      <div className="p-4 text-gray-500">
+        <Helmet>
+          <title>Act | The Supreme Collective</title>
+          <meta
+            name="description"
+            content="Browse premium wedding and event bands across the UK. Watch videos and get an instant quote with The Supreme Collective."
+          />
+          <link rel="canonical" href="https://thesupremecollective.co.uk/acts" />
+        </Helmet>
+        Loading act details...
+      </div>
+    );
   }
 
   // use a safe local reference everywhere you read selectedLineup
@@ -1048,6 +1074,13 @@ const avgRating = React.useMemo(() => {
     : "/acts";
 
   const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
+
+  // SEO meta tags for this act
+  const meta = buildActMeta(actData);
+
+  // Prefer a visible hero image for social sharing (fallback to placeholder if missing)
+  const ogImage =
+    heroUrlHigh || heroUrl || actData?.profileImage?.[0]?.url || actData?.images?.[0]?.url || "";
 
   // Use this when we need a relative path in app flows (e.g. post-login return)
   const actPath = canonicalPath;
@@ -1094,12 +1127,26 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
 
 
 
-
   return (
     <div className="p-4">
       <Helmet>
+        <title>{meta.title}</title>
+        <meta name="description" content={meta.description} />
+
         <link rel="canonical" href={canonicalUrl} />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
         <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:title" content={meta.title} />
+        <meta property="og:description" content={meta.description} />
+        {ogImage ? <meta property="og:image" content={ogImage} /> : null}
+
+        {/* Twitter */}
+        <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+        <meta name="twitter:title" content={meta.title} />
+        <meta name="twitter:description" content={meta.description} />
+        {ogImage ? <meta name="twitter:image" content={ogImage} /> : null}
       </Helmet>
       {/* Top Navigation */}
       <div className="flex justify-between items-center mb-4">

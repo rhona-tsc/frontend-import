@@ -27,25 +27,22 @@
   status = 301
   conditions = { Host = ["*.ngrok-free.app", "*.ngrok.io"] }
 
-# 🧠 Helpful debug header
+# 🧠 Helpful debug header + security + HTML no-cache (prevents stale HTML referencing old hashed assets)
 [[headers]]
   for = "/*"
   [headers.values]
     X-Backend-Policy = "Redirected from ngrok → Render backend only"
 
-# ✅ Security-ish defaults (fine to keep)
-[[headers]]
-  for = "/*"
-  [headers.values]
+    # ✅ Security-ish defaults
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# ✅ index.html should NOT be cached (prevents stale HTML referencing old hashed assets)
-[[headers]]
-  for = "/index.html"
-  [headers.values]
-    Cache-Control = "no-cache"
+    # ✅ Do not cache HTML in browsers
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+    # ✅ Do not cache HTML at the Netlify Edge
+    Netlify-CDN-Cache-Control = "no-store"
 
 # ✅ hashed build assets can be cached long-term
 [[headers]]

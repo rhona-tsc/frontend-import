@@ -29,6 +29,7 @@ import ResetPassword from "./pages/ResetPassword";
   import { useState, useEffect   } from "react";
 import AuthGateModal from "./components/AuthGateModal";
 import ScrollToTop from "./components/ScrollToTop";
+import { Helmet } from "react-helmet-async";
 
   // 👇 helper to decode token once
   function parseToken(t) {
@@ -98,6 +99,39 @@ import ScrollToTop from "./components/ScrollToTop";
 
     return (
       <>
+        <Helmet>
+          {/* Global SEO defaults (individual pages can override with their own <Helmet>) */}
+          <title>The Supreme Collective | Luxury Wedding & Event Bands</title>
+          <meta
+            name="description"
+            content="Luxury wedding and event bands across the UK. Browse acts, compare lineups, and get an instant quote with travel."
+          />
+
+          {/* Social defaults */}
+          <meta property="og:site_name" content="The Supreme Collective" />
+          <meta property="og:type" content="website" />
+          <meta
+            property="og:title"
+            content="The Supreme Collective | Luxury Wedding & Event Bands"
+          />
+          <meta
+            property="og:description"
+            content="Luxury wedding and event bands across the UK. Browse acts, compare lineups, and get an instant quote with travel."
+          />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta
+            name="twitter:title"
+            content="The Supreme Collective | Luxury Wedding & Event Bands"
+          />
+          <meta
+            name="twitter:description"
+            content="Luxury wedding and event bands across the UK. Browse acts, compare lineups, and get an instant quote with travel."
+          />
+
+          {/* Optional: set an absolute default OG image if you have one */}
+          {/* <meta property="og:image" content="https://thesupremecollective.co.uk/og-default.jpg" /> */}
+          {/* <meta name="twitter:image" content="https://thesupremecollective.co.uk/og-default.jpg" /> */}
+        </Helmet>
         <ToastContainer
           position="top-right"
           autoClose={2000}

@@ -17,6 +17,7 @@ const MusicianEquipment = lazy(() => import("../components/MusicianEquipment"));
 const getStoredUserId = () =>
   sessionStorage.getItem("userId") || localStorage.getItem("userId") || null;
 
+
 // Calculate average rating from reviews, rounded to nearest 0.5
 const calculateAverageRating = (reviews) => {
   if (!reviews || reviews.length === 0) return 0;
@@ -25,6 +26,69 @@ const calculateAverageRating = (reviews) => {
     0
   );
   return Math.round((sum / reviews.length) * 2) / 2; // round to nearest 0.5
+};
+
+const pickFirstImageUrl = (data) => {
+  // Try common shapes: string, {url}, arrays of either
+  const pickFrom = (v) => {
+    if (!v) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "object" && typeof v.url === "string") return v.url;
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        const u = pickFrom(item);
+        if (u) return u;
+      }
+    }
+    return "";
+  };
+
+  return (
+    pickFrom(data?.heroImage) ||
+    pickFrom(data?.profileImage) ||
+    pickFrom(data?.coverImage) ||
+    pickFrom(data?.images) ||
+    pickFrom(data?.digitalWardrobeBlackTie) ||
+    pickFrom(data?.digitalWardrobeFormal) ||
+    pickFrom(data?.digitalWardrobeSmartCasual) ||
+    pickFrom(data?.digitalWardrobeSessionAllBlack) ||
+    pickFrom(data?.additionalImages) ||
+    ""
+  );
+};
+
+export const buildMusicianMeta = (musician) => {
+  const firstName = musician?.firstName || "";
+  const lastName = musician?.lastName || "";
+  const stageName = musician?.tscName || musician?.name || "";
+
+  const name = (stageName || `${firstName} ${lastName}`.trim() || "Musician").trim();
+
+  const instruments = Array.isArray(musician?.instrumentation)
+    ? musician.instrumentation
+        .map((x) => x?.instrument)
+        .filter(Boolean)
+        .slice(0, 3)
+        .join(", ")
+    : "";
+
+  const vocals = Array.isArray(musician?.vocals?.type)
+    ? musician.vocals.type.filter(Boolean).slice(0, 2).join(", ")
+    : "";
+
+  const county = musician?.address?.county || musician?.baseCounty || "the UK";
+
+  const descriptorBits = [
+    instruments ? `Instruments: ${instruments}.` : "",
+    vocals ? `Vocals: ${vocals}.` : "",
+  ].filter(Boolean);
+
+  const description = `View ${name}'s profile on The Supreme Collective. ${descriptorBits.length ? descriptorBits.join(" ") + " " : ""}Based in ${county}. Videos, photos, skills, repertoire and availability.`.trim();
+
+  return {
+    title: `${name} | Musician Profile | The Supreme Collective`,
+    description,
+  };
 };
 
 const Musician = () => {
@@ -568,10 +632,31 @@ const content = React.useMemo(() => {
 
   return (
   <div className="p-4">
-    <Helmet>
-      <link rel="canonical" href={canonicalForPath(location.pathname)} />
-      <meta property="og:url" content={canonicalForPath(location.pathname)} />
-    </Helmet>
+    {(() => {
+      const meta = buildMusicianMeta(actData);
+      const canonicalUrl = canonicalForPath(location.pathname);
+      const socialImage = pickFirstImageUrl(actData);
+
+      return (
+        <Helmet>
+          <title>{meta.title}</title>
+          <meta name="description" content={meta.description} />
+
+          <link rel="canonical" href={canonicalUrl} />
+
+          <meta property="og:type" content="profile" />
+          <meta property="og:url" content={canonicalUrl} />
+          <meta property="og:title" content={meta.title} />
+          <meta property="og:description" content={meta.description} />
+          {socialImage ? <meta property="og:image" content={socialImage} /> : null}
+
+          <meta name="twitter:card" content={socialImage ? "summary_large_image" : "summary"} />
+          <meta name="twitter:title" content={meta.title} />
+          <meta name="twitter:description" content={meta.description} />
+          {socialImage ? <meta name="twitter:image" content={socialImage} /> : null}
+        </Helmet>
+      );
+    })()}
     {/* Top Navigation */}
     <div className="flex justify-between items-center mb-4">
       <button onClick={() => navigate(-1)} className="text-gray-600 hover:text-black">
