@@ -19,6 +19,7 @@
   from = "/assets/*"
   to = "/404.html"
   status = 404
+  force = true
 
 # ✅ SEO 301: old act URLs → new act URLs
 [[redirects]]
