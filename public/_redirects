@@ -59,3 +59,16 @@
   [headers.values]
     Cache-Control = "no-store, max-age=0"
     Netlify-CDN-Cache-Control = "no-store"
+# ✅ Old URLs → new URLs (must be ABOVE the SPA catch-all)
+/bandsforhire        /act            301!
+/bandsforhire/*      /act/:splat     301!
+
+# ✅ API proxy
+/api/*  https://tsc-backend-v2.onrender.com/api/:splat  200
+
+# 🚫 IMPORTANT: ensure /assets/* never falls through to SPA index.html
+# This preserves normal asset serving, but missing assets will 404 (instead of returning index.html).
+/assets/*  /assets/:splat  200
+
+# ✅ SPA fallback (keep LAST)
+/*      /index.html  200
