@@ -17,9 +17,8 @@
 # Prevents “refresh fixes it” issues where HTML references assets that don't exist yet.
 [[redirects]]
   from = "/assets/*"
-  to = "/assets/:splat"
+  to = "/404.html"
   status = 404
-  force = true
 
 # ✅ SEO 301: old act URLs → new act URLs
 [[redirects]]
@@ -47,7 +46,7 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
 
     # ✅ Do not cache HTML in browsers
-    Cache-Control = "no-cache"
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
 
     # ✅ Do not cache HTML at the Netlify Edge
     Netlify-CDN-Cache-Control = "no-store"
