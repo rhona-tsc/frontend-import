@@ -1,15 +1,61 @@
-# ✅ Old URLs → new URLs (must be ABOVE the SPA catch-all)
- /bandsforhire        /act            301!
- /bandsforhire/*      /act/:splat     301!
+[build]
+  publish = "dist"
 
-# ✅ API proxy
-/api/*  https://tsc-backend-v2.onrender.com/api/:splat  200
+# ✅ JS/CSS build assets can be cached long-term
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
 
-# ✅ Assets must NOT hit the SPA fallback.
-# Rewriting to itself means:
-#  - existing files in /assets/* are served normally
-#  - missing files correctly return 404 (instead of /index.html)
-/assets/*  /assets/:splat  200
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
 
-# ✅ SPA fallback (keep LAST)
- /*      /index.html  200
+# ✅ Fonts can be cached long-term
+[[headers]]
+  for = "/assets/*.woff2"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
+
+# ✅ Images can be cached long-term (adjust if you prefer)
+[[headers]]
+  for = "/assets/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.jpeg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
+
+# 🚫 IMPORTANT: prevent caching of 404 HTML responses under /assets/*
+# This ensures a missing asset doesn't get cached for a year.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "no-store, max-age=0"
+    Netlify-CDN-Cache-Control = "no-store"
