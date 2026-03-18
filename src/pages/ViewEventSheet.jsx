@@ -10,7 +10,6 @@ import { assets } from "../assets/assets";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { ShopContext } from "../context/ShopContext";
-import debounce from "lodash.debounce";
 import CustomTimePicker from "../components/CustomTimePicker";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
@@ -148,6 +147,7 @@ const formatFixedScheduleTime = (value) => {
   return `${H}:${M}`;
 };
 
+
 function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false }) {
   const seededRef = React.useRef(false);
   const dragRowIdRef = React.useRef(null);
@@ -208,20 +208,26 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
   }, [booking?._id]);
 
   const finishOffset = Number(answers.schedule_simple_finish_dayOffset || 0);
-
   const rows = Array.isArray(answers.schedule_simple_rows)
     ? answers.schedule_simple_rows
     : [];
 
   const setRows = useCallback(
-    (next) => handleAnswer("schedule_simple_rows", next),
-    [handleAnswer]
+    (updater) => {
+      const prevRows = Array.isArray(answers.schedule_simple_rows)
+        ? answers.schedule_simple_rows
+        : [];
+      const nextRows =
+        typeof updater === "function" ? updater(prevRows) : updater;
+      handleAnswer("schedule_simple_rows", nextRows);
+    },
+    [answers.schedule_simple_rows, handleAnswer]
   );
 
   const addRow = useCallback(
     (slot = 3) => {
-      setRows([
-        ...rows,
+      setRows((prevRows) => [
+        ...prevRows,
         {
           id: `row_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
           label: "",
@@ -231,21 +237,23 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
         },
       ]);
     },
-    [rows, setRows]
+    [setRows]
   );
 
   const updateRowById = useCallback(
     (id, patch) => {
-      setRows(rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+      setRows((prevRows) =>
+        prevRows.map((row) => (row.id === id ? { ...row, ...patch } : row))
+      );
     },
-    [rows, setRows]
+    [setRows]
   );
 
   const removeRowById = useCallback(
     (id) => {
-      setRows(rows.filter((row) => row.id !== id));
+      setRows((prevRows) => prevRows.filter((row) => row.id !== id));
     },
-    [rows, setRows]
+    [setRows]
   );
 
   const SLOT_TITLES = [
@@ -296,7 +304,7 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
     e.dataTransfer.dropEffect = "move";
   }, []);
 
-  const TimeBox = ({ value, onChange, disabled }) => (
+    const TimeBox = ({ value, onChange, disabled }) => (
     <input
       type="text"
       inputMode="numeric"
@@ -402,6 +410,7 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
       <RowsInSlot slot={slot} />
     </div>
   );
+
 
   return (
     <div className="space-y-4">
@@ -1028,21 +1037,6 @@ const handleAnswer = useCallback((key, value) => {
   }, [enrichedItems]);
 
 
-const addOnsPostBooking = useMemo(() => {
-  return enrichedItems.reduce((sum, item) => {
-    const extrasTotal = Array.isArray(item?.extras)
-      ? item.extras.reduce(
-          (extraSum, extra) =>
-            extraSum +
-            ((Number(extra?.price || 0) || 0) *
-              (Number(extra?.quantity || 1) || 1)),
-          0
-        )
-      : 0;
-
-    return sum + extrasTotal;
-  }, 0);
-}, [enrichedItems]);
 
 const remainingAmount = Math.max(
   0,
@@ -4926,11 +4920,12 @@ const peopleSection = isWedding
       key: "schedule_simple",
       type: "custom",
       render: () => (
-        <SimpleScheduleEditor
-          booking={booking}
-          answers={answers}
-          handleAnswer={handleAnswer}
-        />
+      <SimpleScheduleEditor
+  booking={booking}
+  answers={answers}
+  handleAnswer={handleAnswer}
+  readOnly={READ_ONLY}
+/>
       ),
     },
   ],
