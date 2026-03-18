@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useRef } from "react";
+import { useEffect, useMemo, useCallback, useRef } from "react";
 
 const normalizeScheduleTimeLike = (raw) => {
   if (!raw) return null;
@@ -7,7 +7,7 @@ const normalizeScheduleTimeLike = (raw) => {
   if (s === "midnight") return { hhmm: "00:00", dayOffset: 1 };
   if (s === "noon") return { hhmm: "12:00", dayOffset: 0 };
 
-  s = s.replace(/[.\-]/g, ":").replace(/\s+/g, "");
+  s = s.replace(/[.-]/g, ":").replace(/\s+/g, "");
 
   const ampm = (s.match(/(am|pm)$/) || [])[1] || null;
   if (ampm) s = s.replace(/(am|pm)$/i, "");
@@ -82,6 +82,10 @@ export default function SimpleScheduleEditor({
   const seededRef = useRef(false);
   const dragRowIdRef = useRef(null);
 
+  useEffect(() => {
+    seededRef.current = false;
+  }, [booking?._id]);
+
   const perf = useMemo(() => {
     if (typeof getPerformanceTimesFromBooking === "function") {
       return getPerformanceTimesFromBooking(booking) || {};
@@ -135,7 +139,14 @@ export default function SimpleScheduleEditor({
     }
 
     seededRef.current = true;
-  }, [booking?._id, answers, perf, handleAnswer]);
+  }, [
+    booking?._id,
+    perf.arrivalTime,
+    perf.startTime,
+    perf.finishTime,
+    perf.finishDayOffset,
+    handleAnswer,
+  ]);
 
   const finishOffset = Number(answers.schedule_simple_finish_dayOffset || 0);
 
@@ -235,98 +246,104 @@ export default function SimpleScheduleEditor({
     e.dataTransfer.dropEffect = "move";
   }, []);
 
-  const RowsInSlot = ({ slot }) => (
-    <div className="space-y-2">
-      {rows
-        .filter((row) => (row.slot ?? 3) === slot)
-        .map((row) => (
-          <div
-            key={row.id}
-            className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm"
-            draggable={!readOnly}
-            onDragStart={onDragStartRow(row.id)}
-            title="Drag to another position"
-          >
-            <input
-              type="text"
-              className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
-              placeholder="Label (e.g. First Dance, Toasts)"
-              value={row.label || ""}
-              onChange={(e) => updateRowById(row.id, { label: e.target.value })}
-              disabled={readOnly}
-            />
-            <div className="md:col-span-3">
-              <TimeBox
-                value={row.time || ""}
-                onChange={(value) => updateRowById(row.id, { time: value })}
+  const renderRowsInSlot = useCallback(
+    (slot) => (
+      <div className="space-y-2">
+        {rows
+          .filter((row) => (row.slot ?? 3) === slot)
+          .map((row) => (
+            <div
+              key={row.id}
+              className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm"
+              draggable={!readOnly}
+              onDragStart={onDragStartRow(row.id)}
+              title="Drag to another position"
+            >
+              <input
+                type="text"
+                className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
+                placeholder="Label (e.g. First Dance, Toasts)"
+                value={row.label || ""}
+                onChange={(e) => updateRowById(row.id, { label: e.target.value })}
                 disabled={readOnly}
               />
+              <div className="md:col-span-3">
+                <TimeBox
+                  value={row.time || ""}
+                  onChange={(value) => updateRowById(row.id, { time: value })}
+                  disabled={readOnly}
+                />
+              </div>
+              <textarea
+                rows={2}
+                className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
+                placeholder="Notes (optional)"
+                value={row.notes || ""}
+                onChange={(e) => updateRowById(row.id, { notes: e.target.value })}
+                disabled={readOnly}
+              />
+              <div className="md:col-span-1 flex items-center justify-end gap-1">
+                {!readOnly && (
+                  <>
+                    <button
+                      type="button"
+                      className="border rounded px-2 py-1 text-xs"
+                      onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) - 1)}
+                      title="Move to previous slot"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="border rounded px-2 py-1 text-xs"
+                      onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) + 1)}
+                      title="Move to next slot"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="border rounded px-2 py-1 text-xs"
+                      onClick={() => removeRowById(row.id)}
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-            <textarea
-              rows={2}
-              className="md:col-span-4 border rounded px-2 py-1 text-sm text-gray-800"
-              placeholder="Notes (optional)"
-              value={row.notes || ""}
-              onChange={(e) => updateRowById(row.id, { notes: e.target.value })}
-              disabled={readOnly}
-            />
-            <div className="md:col-span-1 flex items-center justify-end gap-1">
-              {!readOnly && (
-                <>
-                  <button
-                    type="button"
-                    className="border rounded px-2 py-1 text-xs"
-                    onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) - 1)}
-                    title="Move to previous slot"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className="border rounded px-2 py-1 text-xs"
-                    onClick={() => moveRowToSlot(row.id, (row.slot ?? 3) + 1)}
-                    title="Move to next slot"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className="border rounded px-2 py-1 text-xs"
-                    onClick={() => removeRowById(row.id)}
-                    title="Remove"
-                  >
-                    ✕
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-    </div>
+          ))}
+      </div>
+    ),
+    [rows, readOnly, onDragStartRow, updateRowById, moveRowToSlot, removeRowById]
   );
 
-  const DropZone = ({ slot }) => (
-    <div
-      className="my-2 border-2 border-dashed rounded px-3 py-2 bg-white/50"
-      onDragOver={allowDrop}
-      onDrop={onDropToSlot(slot)}
-      aria-label={`Drop additional rows here (${SLOT_TITLES[slot]})`}
-      title={SLOT_TITLES[slot]}
-    >
-      <div className="flex items-center justify-between mb-1">
-        <div className="text-xs text-gray-600">{SLOT_TITLES[slot]}</div>
-        {!readOnly && (
-          <button
-            type="button"
-            className="border rounded px-2 py-0.5 text-xs"
-            onClick={() => addRow(slot)}
-          >
-            + Add item
-          </button>
-        )}
+  const renderDropZone = useCallback(
+    (slot) => (
+      <div
+        className="my-2 border-2 border-dashed rounded px-3 py-2 bg-white/50"
+        onDragOver={allowDrop}
+        onDrop={onDropToSlot(slot)}
+        aria-label={`Drop additional rows here (${SLOT_TITLES[slot]})`}
+        title={SLOT_TITLES[slot]}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-xs text-gray-600">{SLOT_TITLES[slot]}</div>
+          {!readOnly && (
+            <button
+              type="button"
+              className="border rounded px-2 py-0.5 text-xs"
+              onClick={() => addRow(slot)}
+            >
+              + Add item
+            </button>
+          )}
+        </div>
+        {renderRowsInSlot(slot)}
       </div>
-      <RowsInSlot slot={slot} />
-    </div>
+    ),
+    [allowDrop, onDropToSlot, SLOT_TITLES, readOnly, addRow, renderRowsInSlot]
   );
 
   return (
@@ -343,7 +360,7 @@ export default function SimpleScheduleEditor({
         </div>
       )}
 
-      <DropZone slot={0} />
+      {renderDropZone(0)}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
         <div className="md:col-span-4 text-sm font-medium text-gray-800">Arrival Time</div>
@@ -364,7 +381,7 @@ export default function SimpleScheduleEditor({
         </div>
       </div>
 
-      <DropZone slot={1} />
+      {renderDropZone(1)}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
         <div className="md:col-span-4 text-sm font-medium text-gray-800">Setup</div>
@@ -387,7 +404,7 @@ export default function SimpleScheduleEditor({
         </div>
       </div>
 
-      <DropZone slot={2} />
+      {renderDropZone(2)}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
         <div className="md:col-span-4 text-sm font-medium text-gray-800">Soundcheck</div>
@@ -410,7 +427,7 @@ export default function SimpleScheduleEditor({
         </div>
       </div>
 
-      <DropZone slot={3} />
+      {renderDropZone(3)}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
         <div className="md:col-span-4 text-sm font-medium text-gray-800">Start Time</div>
@@ -433,7 +450,7 @@ export default function SimpleScheduleEditor({
         </div>
       </div>
 
-      <DropZone slot={4} />
+      {renderDropZone(4)}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
         <div className="md:col-span-4 text-sm font-medium text-gray-800">1st Live Set</div>
@@ -456,7 +473,7 @@ export default function SimpleScheduleEditor({
         </div>
       </div>
 
-      <DropZone slot={5} />
+      {renderDropZone(5)}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
         <div className="md:col-span-4 text-sm font-medium text-gray-800">Intermission</div>
@@ -479,7 +496,7 @@ export default function SimpleScheduleEditor({
         </div>
       </div>
 
-      <DropZone slot={6} />
+      {renderDropZone(6)}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
         <div className="md:col-span-4 text-sm font-medium text-gray-800">2nd Live Set</div>
@@ -502,7 +519,7 @@ export default function SimpleScheduleEditor({
         </div>
       </div>
 
-      <DropZone slot={7} />
+      {renderDropZone(7)}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded px-3 py-2 bg-white shadow-sm">
         <div className="md:col-span-4 text-sm font-medium text-gray-800">Finish Time</div>
@@ -526,7 +543,7 @@ export default function SimpleScheduleEditor({
         </div>
       </div>
 
-      <DropZone slot={8} />
+      {renderDropZone(8)}
     </div>
   );
 }
