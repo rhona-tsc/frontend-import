@@ -647,56 +647,6 @@ const userHasEditedRef = React.useRef(false);
     completeRef.current = complete;
   }, [complete]);
 
-  React.useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        let b = null;
-
-        if (routeId) {
-          try {
-            const r = await axios.get(
-              `${backendUrl}/api/booking/by-ref/${routeId}`
-            );
-            b =
-              r?.data?.booking ||
-              (Array.isArray(r?.data) ? r.data[0] : r?.data) ||
-              null;
-          } catch {}
-
-          if (!b && /^[0-9a-f]{24}$/i.test(routeId)) {
-            try {
-              const r = await axios.get(
-                `${backendUrl}/api/booking/booking/${routeId}`
-              );
-              b = r?.data || null;
-            } catch {}
-          }
-
-          setBooking(b || null);
-          setLoading(false);
-          return;
-        }
-
-        let newest = null;
-        const raw = localStorage.getItem("user");
-        const uid = raw ? JSON.parse(raw)?._id : null;
-        if (uid) {
-          try {
-            const r = await axios.get(`${backendUrl}/api/booking/user/${uid}`);
-            const list = Array.isArray(r?.data) ? r.data : [];
-            newest = list[0] || null;
-          } catch {}
-        }
-        setBooking(newest || null);
-      } catch (e) {
-        console.error("[EventSheet] fetch booking failed", e);
-        setBooking(null);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [routeId, backendUrl]);
 
   // Prefer user from context; fallback to localStorage `user` object
   const resolvedUserId =
@@ -872,30 +822,32 @@ const userHasEditedRef = React.useRef(false);
     };
   }, []);
 
-  const handleAnswer = useCallback((key, value) => {
-    if (READ_ONLY) {
-      esDebug("handleAnswer ignored (read-only mode)", { key });
-      return;
+const handleAnswer = useCallback((key, value) => {
+  if (READ_ONLY) {
+    esDebug("handleAnswer ignored (read-only mode)", { key });
+    return;
+  }
+
+  userHasEditedRef.current = true;
+
+  setAnswers((prev) => {
+    const updated = { ...prev, [key]: value };
+    answersRef.current = updated;
+
+    esDebug("✏️ handleAnswer", {
+      key,
+      previewValue: typeof value === "string" ? value.slice(0, 80) : value,
+    });
+
+    if (!suppressAutosaveRef.current) {
+      saveEventSheet(updated, completeRef.current);
+    } else {
+      esDebug("✏️ handleAnswer (autosave suppressed)");
     }
 
-    setAnswers((prev) => {
-      const updated = { ...prev, [key]: value };
-      answersRef.current = updated;
-
-      esDebug("✏️ handleAnswer", {
-        key,
-        previewValue: typeof value === "string" ? value.slice(0, 80) : value,
-      });
-
-      if (!suppressAutosaveRef.current) {
-        saveEventSheet(updated, completeRef.current);
-      } else {
-        esDebug("✏️ handleAnswer (autosave suppressed)");
-      }
-
-      return updated;
-    });
-  }, [READ_ONLY, booking, backendUrl]);
+    return updated;
+  });
+}, [READ_ONLY]);
 
   useEffect(() => {
     const val = answers?.parking_checkout_status;
@@ -1075,11 +1027,30 @@ const userHasEditedRef = React.useRef(false);
     }, 0);
   }, [enrichedItems]);
 
-  const baseBookingTotal = Math.max(0, fullAmount - addOnsPostBooking);
-  const remainingAmount = Math.max(0, baseBookingTotal - depositAmount + addOnsPostBooking);
 
-  const isPaidInFull =
-    Number(fullAmount || 0) > 0 && remainingAmount <= 0.01;
+const addOnsPostBooking = useMemo(() => {
+  return enrichedItems.reduce((sum, item) => {
+    const extrasTotal = Array.isArray(item?.extras)
+      ? item.extras.reduce(
+          (extraSum, extra) =>
+            extraSum +
+            ((Number(extra?.price || 0) || 0) *
+              (Number(extra?.quantity || 1) || 1)),
+          0
+        )
+      : 0;
+
+    return sum + extrasTotal;
+  }, 0);
+}, [enrichedItems]);
+
+const remainingAmount = Math.max(
+  0,
+  Number(fullAmount || 0) - Number(depositAmount || 0) + Number(addOnsPostBooking || 0)
+);
+
+const isPaidInFull =
+  Number(fullAmount || 0) > 0 && remainingAmount <= 0.01;
 
   // Pro-rate deposit across items for a per-item view
   const detailedItems = useMemo(() => {
@@ -1425,48 +1396,61 @@ const userHasEditedRef = React.useRef(false);
           }
         }
 
-        console.log("✅ Selected booking:", match);
-        setBooking(match || null);
+      console.log("✅ Selected booking:", match);
+setBooking(match || null);
 
-        if (match) {
-          const key = lsKey(match.bookingId || match._id);
-          const raw = localStorage.getItem(key);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            setAnswers(parsed.answers || {});
-            setComplete(parsed.complete || {});
-          } else if (match.eventSheet) {
-            setAnswers(match.eventSheet.answers || {});
-            setComplete(match.eventSheet.complete || {});
-          } else {
-            const src = Array.isArray(match.actsSummary)
-              ? match.actsSummary
-              : Array.isArray(match.items)
-                ? match.items
-                : [];
+if (match) {
+  const hydrateKey = String(match.bookingId || match._id || "");
 
-            const suggestions = src.flatMap((it) =>
-              Array.isArray(it.songSuggestions) ? it.songSuggestions : []
-            );
+  // only hydrate once per booking, so user typing doesn't get overwritten
+  if (hydratedRef.current !== hydrateKey) {
+    const key = lsKey(hydrateKey);
 
-            const suggestionsText = suggestions
-              .map((s) => {
-                const t = (s.title || "").trim();
-                const a = (s.artist || "").trim();
-                if (t && a) return `${t} – ${a}`;
-                return t || a;
-              })
-              .filter(Boolean)
-              .join("\n");
+    try {
+      const raw = localStorage.getItem(key);
 
-            const seeded = suggestionsText
-              ? { song_suggestions: suggestionsText }
-              : {};
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setAnswers(parsed.answers || {});
+        setComplete(parsed.complete || {});
+      } else if (match.eventSheet) {
+        setAnswers(match.eventSheet.answers || {});
+        setComplete(match.eventSheet.complete || {});
+      } else {
+        const src = Array.isArray(match.actsSummary)
+          ? match.actsSummary
+          : Array.isArray(match.items)
+            ? match.items
+            : [];
 
-            setAnswers(seeded);
-            setComplete({});
-          }
-        }
+        const suggestions = src.flatMap((it) =>
+          Array.isArray(it.songSuggestions) ? it.songSuggestions : []
+        );
+
+        const suggestionsText = suggestions
+          .map((s) => {
+            const t = (s.title || "").trim();
+            const a = (s.artist || "").trim();
+            if (t && a) return `${t} – ${a}`;
+            return t || a;
+          })
+          .filter(Boolean)
+          .join("\n");
+
+        const seeded = suggestionsText
+          ? { song_suggestions: suggestionsText }
+          : {};
+
+        setAnswers(seeded);
+        setComplete({});
+      }
+    } catch (err) {
+      console.warn("Hydration failed:", err);
+    }
+
+    hydratedRef.current = hydrateKey;
+  }
+}
       } catch (e) {
         console.error("Error fetching booking:", e);
         setBooking(null);
@@ -1478,36 +1462,59 @@ const userHasEditedRef = React.useRef(false);
 
   // after `setBooking(match || null);` (i.e., once a booking is in state)
   // add a new effect:
-  useEffect(() => {
-    if (!booking) return;
+useEffect(() => {
+  if (!booking?._id) return;
 
-    const hasNum = !!(
-      booking.eventSheet?.emergencyContact?.number ||
-      booking.contactRouting?.proxyNumber
-    );
-    const hasCode = !!(
-      booking.eventSheet?.emergencyContact?.ivrCode ||
-      booking.contactRouting?.ivrCode
-    );
-    if (hasNum && hasCode) return;
+  const hasNum = !!(
+    booking.eventSheet?.emergencyContact?.number ||
+    booking.contactRouting?.proxyNumber
+  );
+  const hasCode = !!(
+    booking.eventSheet?.emergencyContact?.ivrCode ||
+    booking.contactRouting?.ivrCode
+  );
 
-    const idOrRef = booking.bookingId || booking._id;
-    if (!idOrRef) return;
+  if (hasNum && hasCode) return;
 
-    (async () => {
-      try {
-        const resp = await axios.post(
-          `${backendUrl}/api/booking/${encodeURIComponent(idOrRef)}/ensure-emergency-contact`
-        );
-        const updated = resp?.data?.booking;
-        if (updated?._id) {
-          setBooking(updated); // refresh local copy so the read-only inputs fill in
-        }
-      } catch (e) {
-        console.warn("ensure-emergency-contact failed:", e?.message || e);
+  const idOrRef = booking.bookingId || booking._id;
+
+  (async () => {
+    try {
+      const resp = await axios.post(
+        `${backendUrl}/api/booking/${encodeURIComponent(idOrRef)}/ensure-emergency-contact`
+      );
+      const updated = resp?.data?.booking;
+
+      if (updated?._id) {
+        setBooking((prev) => {
+          if (!prev) return updated;
+
+          const prevNum =
+            prev.eventSheet?.emergencyContact?.number ||
+            prev.contactRouting?.proxyNumber;
+          const prevCode =
+            prev.eventSheet?.emergencyContact?.ivrCode ||
+            prev.contactRouting?.ivrCode;
+
+          const nextNum =
+            updated.eventSheet?.emergencyContact?.number ||
+            updated.contactRouting?.proxyNumber;
+          const nextCode =
+            updated.eventSheet?.emergencyContact?.ivrCode ||
+            updated.contactRouting?.ivrCode;
+
+          if (prevNum === nextNum && prevCode === nextCode) {
+            return prev;
+          }
+
+          return updated;
+        });
       }
-    })();
-  }, [booking, backendUrl]);
+    } catch (e) {
+      console.warn("ensure-emergency-contact failed:", e?.message || e);
+    }
+  })();
+}, [booking?._id, booking?.bookingId, backendUrl]);
 
   // On return from Stripe (?parkingPaid=1 or ?parkingCanceled=1),
   // merge status into whatever was last saved (localStorage or state)
