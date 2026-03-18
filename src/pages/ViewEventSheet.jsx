@@ -198,22 +198,6 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
 
     if (!Array.isArray(answers.schedule_simple_rows)) {
       patches.schedule_simple_rows = [];
-    } else {
-      let changed = false;
-      const withMeta = answers.schedule_simple_rows.map((row, index) => {
-        const nextRow = { ...row };
-        if (!nextRow.id) {
-          nextRow.id = `row_${Date.now()}_${index}`;
-          changed = true;
-        }
-        if (nextRow.slot == null) {
-          nextRow.slot = 3;
-          changed = true;
-        }
-        return nextRow;
-      });
-
-      if (changed) patches.schedule_simple_rows = withMeta;
     }
 
     if (Object.keys(patches).length) {
@@ -221,7 +205,7 @@ function SimpleScheduleEditor({ booking, answers, handleAnswer, readOnly = false
     }
 
     seededRef.current = true;
-  }, [booking?._id, perf, answers, handleAnswer]);
+  }, [booking?._id]);
 
   const finishOffset = Number(answers.schedule_simple_finish_dayOffset || 0);
 
@@ -646,12 +630,22 @@ const ViewEventSheet = () => {
   const [notifying, setNotifying] = useState(false);
   const [answers, setAnswers] = useState({});
   const [complete, setComplete] = useState({});
+    const answersRef = useRef({});
+  const completeRef = useRef({});
 const searchParams = new URLSearchParams(window.location.search);
 const isReadOnlyParam = searchParams.get("ro") === "1" || searchParams.get("readonly") === "1";
 const isReadOnlyRoute = /readonly/i.test(String(params?.mode || params?.view || ""));
 const READ_ONLY = isReadOnlyParam || isReadOnlyRoute;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 const userHasEditedRef = React.useRef(false);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    completeRef.current = complete;
+  }, [complete]);
 
   React.useEffect(() => {
     (async () => {
@@ -788,12 +782,12 @@ const userHasEditedRef = React.useRef(false);
 
     const mergedAnswers = {
       ...(disk?.answers || {}),
-      ...(answers || {}), // current state
-      ...(nextAnswers || {}), // latest changes
+      ...(answersRef.current || {}),
+      ...(nextAnswers || {}),
     };
     const mergedComplete = {
       ...(disk?.complete || {}),
-      ...(complete || {}),
+      ...(completeRef.current || {}),
       ...(nextComplete || {}),
     };
 
@@ -878,30 +872,30 @@ const userHasEditedRef = React.useRef(false);
     };
   }, []);
 
-  // --- Fix: use `key` param and autosave with the updated object ---
-  const handleAnswer = (key, value) => {
+  const handleAnswer = useCallback((key, value) => {
+    if (READ_ONLY) {
+      esDebug("handleAnswer ignored (read-only mode)", { key });
+      return;
+    }
 
-    // inside handleAnswer(key, value)
-if (READ_ONLY) {
-  esDebug("handleAnswer ignored (read-only mode)", { key });
-  return;
-}
     setAnswers((prev) => {
       const updated = { ...prev, [key]: value };
+      answersRef.current = updated;
+
       esDebug("✏️ handleAnswer", {
         key,
         previewValue: typeof value === "string" ? value.slice(0, 80) : value,
       });
 
       if (!suppressAutosaveRef.current) {
-        saveEventSheet(updated, complete);
+        saveEventSheet(updated, completeRef.current);
       } else {
         esDebug("✏️ handleAnswer (autosave suppressed)");
       }
 
       return updated;
     });
-  };
+  }, [READ_ONLY, booking, backendUrl]);
 
   useEffect(() => {
     const val = answers?.parking_checkout_status;
@@ -1066,19 +1060,26 @@ if (READ_ONLY) {
 
   const depositAmount = Number(booking?.totals?.depositAmount ?? 0);
 
-const chargedAmount = Number(
-  booking?.totals?.chargedAmount ??
-    booking?.totals?.paidAmount ??
-    booking?.totals?.amountPaid ??
-    0
-);
+  const addOnsPostBooking = useMemo(() => {
+    return enrichedItems.reduce((sum, item) => {
+      const extrasTotal = Array.isArray(item?.extras)
+        ? item.extras.reduce(
+            (extraSum, extra) =>
+              extraSum +
+              ((Number(extra?.price || 0) || 0) * (Number(extra?.quantity || 1) || 1)),
+            0
+          )
+        : 0;
 
-const amountPaidSoFar = Math.max(0, chargedAmount || depositAmount || 0);
-const remainingAmount = Math.max(0, fullAmount - amountPaidSoFar);
+      return sum + extrasTotal;
+    }, 0);
+  }, [enrichedItems]);
 
-const isPaidInFull =
-  Number(fullAmount || 0) > 0 && amountPaidSoFar >= Number(fullAmount || 0) - 0.01;
+  const baseBookingTotal = Math.max(0, fullAmount - addOnsPostBooking);
+  const remainingAmount = Math.max(0, baseBookingTotal - depositAmount + addOnsPostBooking);
 
+  const isPaidInFull =
+    Number(fullAmount || 0) > 0 && remainingAmount <= 0.01;
 
   // Pro-rate deposit across items for a per-item view
   const detailedItems = useMemo(() => {
@@ -5386,33 +5387,27 @@ const peopleSection = isWedding
     </span>
   </div>
 
-  <div className="flex justify-between">
+   <div className="flex justify-between">
     <span>Deposit paid</span>
     <span>
-      {isPaidInFull ? (
-        <span className="text-gray-700">N/A</span>
-      ) : (
-        <>
-          {currencySymbol(booking?.currency)}
-          {Number(depositAmount || 0).toFixed(2)}
-        </>
-      )}
+      {currencySymbol(booking?.currency)}
+      {Number(depositAmount || 0).toFixed(2)}
     </span>
   </div>
 
   <div className="flex justify-between">
-  <span>Amount paid so far</span>
-  <span>
-    {currencySymbol(booking?.currency)}
-    {Number(amountPaidSoFar || 0).toFixed(2)}
-  </span>
-</div>
+    <span>Add Ons Post Booking</span>
+    <span>
+      {currencySymbol(booking?.currency)}
+      {Number(addOnsPostBooking || 0).toFixed(2)}
+    </span>
+  </div>
 
   <div className="flex justify-between font-bold mt-4">
     <p>Outstanding Balance</p>
     <p>
       {currencySymbol(booking?.currency)}
-      {(isPaidInFull ? 0 : Number(remainingAmount || 0)).toFixed(2)}
+      {Number(remainingAmount || 0).toFixed(2)}
     </p>
   </div>
 
