@@ -1,6 +1,10 @@
-# ✅ Old URLs → new URLs (must be ABOVE the SPA catch-all)
-/bandsforhire        /act            301!
-/bandsforhire/*      /act/:splat     301!
+# ✅ Old filtered URLs that no longer exist on the new site
+# Return a real 404 instead of redirecting them to /act, which can look like a soft 404 to Google.
+/bandsforhire                               genres=:genres                            /404  404
+/bandsforhire                               tag=:tag                                  /404  404
+/bandsforhire/*                             genres=:genres                            /404  404
+/bandsforhire/*                             tag=:tag                                  /404  404
+
 
 # ✅ API proxy
 /api/*  https://tsc-backend-v2.onrender.com/api/:splat  200
