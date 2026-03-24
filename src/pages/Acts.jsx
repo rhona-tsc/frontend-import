@@ -1937,21 +1937,39 @@ console.log("🧪 actsCopy len after filters:", actsCopy.length);
         String(s || "")
           .trim()
           .toLowerCase();
-      const isManagerLike = (m) => {
-        if (m?.isManager === true) return true;
-        const fields = [
-          m?.role,
-          m?.position,
-          m?.instrument,
-          m?.title,
-          ...(Array.isArray(m?.additionalRoles)
-            ? m.additionalRoles.map((r) => r?.customRole || r?.role)
-            : []),
-        ]
-          .filter(Boolean)
-          .map(normalizeWord);
-        return fields.some((f) => f.includes("manager"));
-      };
+      const isManagerLike = (m = {}) => {
+  const norm = (s = "") => String(s || "").trim().toLowerCase();
+
+  const instr = norm(m.instrument);
+  const title = norm(m.title);
+  const roles = (Array.isArray(m.additionalRoles) ? m.additionalRoles : []).map(
+    (r) => norm(r?.role)
+  );
+
+  const isNonPerformerText = (value = "") => {
+    return (
+      value.includes("manager") ||
+      value.includes("management") ||
+      value.includes("admin") ||
+      value.includes("sound engineer") ||
+      value.includes("sound tech") ||
+      value.includes("sound technician") ||
+      value.includes("audio engineer") ||
+      value.includes("audio tech") ||
+      value.includes("audio technician") ||
+      value.includes("foh") ||
+      value.includes("front of house")
+    );
+  };
+
+  return (
+    m.isManager === true ||
+    m.isNonPerformer === true ||
+    isNonPerformerText(instr) ||
+    isNonPerformerText(title) ||
+    roles.some(isNonPerformerText)
+  );
+};
 
       let travelFee = 0;
 

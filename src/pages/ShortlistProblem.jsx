@@ -398,15 +398,51 @@ useEffect(() => {
 }, [hoveredAct]);
 
 const generateDescription = (lineup) => {
-  if (!lineup || !Array.isArray(lineup.bandMembers)) return "Add a Lineup";
+  const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
 
-  const count = lineup.actSize || lineup.bandMembers.length;
+  const norm = (s = "") => String(s || "").trim();
+  const lower = (s = "") => norm(s).toLowerCase();
 
-  const instruments = lineup.bandMembers
-    .filter((m) => m.isEssential)
-    .map((m) => m.instrument)
+  const isNonPerformerLikeInstrument = (instrument = "") => {
+    const v = lower(instrument);
+    return (
+      v === "manager" ||
+      v === "admin" ||
+      v.includes("band manager") ||
+      v.includes("management") ||
+      v.includes("sound engineer") ||
+      v.includes("sound tech") ||
+      v.includes("sound technician") ||
+      v.includes("audio engineer") ||
+      v.includes("audio tech") ||
+      v.includes("audio technician") ||
+      v.includes("foh") ||
+      v.includes("front of house")
+    );
+  };
+
+  // Count performers (exclude manager/admin/sound tech/non-performer/blank instrument rows)
+  const performerMembers = members.filter((m) => {
+    if (!m?.isEssential) return false;
+    const inst = norm(m?.instrument);
+    if (!inst) return false;
+    if (m?.isManager === true || m?.isNonPerformer === true) return false;
+    if (isNonPerformerLikeInstrument(inst)) return false;
+    return true;
+  });
+
+  // Label prefix: prefer actSize if provided ("6-Piece"), otherwise build it
+  const actSizeLabel = norm(lineup?.actSize);
+  const countLabel = actSizeLabel
+    ? actSizeLabel
+    : `${performerMembers.length}-Piece`;
+
+  // Build instrument list (essential only, excluding non-performer roles / blank)
+  let instruments = performerMembers
+    .map((m) => norm(m?.instrument))
     .filter(Boolean);
 
+  // Sort (vocals first, drums last)
   instruments.sort((a, b) => {
     const aLower = a.toLowerCase();
     const bLower = b.toLowerCase();
@@ -420,28 +456,68 @@ const generateDescription = (lineup) => {
     return 0;
   });
 
-  const formatWithAnd = (arr) => {
-    const unique = [...new Set(arr)];
-    if (unique.length === 0) return "";
-    if (unique.length === 1) return unique[0];
-    if (unique.length === 2) return `${unique[0]} & ${unique[1]}`;
-    return `${unique.slice(0, -1).join(", ")} & ${unique[unique.length - 1]}`;
+  // Turn duplicates into "x N" while keeping first-seen order
+  const withCountsInOrder = (arr) => {
+    const out = [];
+    const counts = new Map();
+    for (const item of arr) {
+      counts.set(item, (counts.get(item) || 0) + 1);
+      if (!out.includes(item)) out.push(item);
+    }
+    return out.map((item) => {
+      const n = counts.get(item) || 1;
+      return n > 1 ? `${item} x ${n}` : item;
+    });
   };
 
-  const roles = lineup.bandMembers.flatMap((member) =>
-    (member.additionalRoles || [])
-      .filter((r) => r.isEssential)
-      .map((r) => r.role || "Unnamed Service")
+  const instrumentsDisplayArr = withCountsInOrder(instruments);
+
+  // Roles: all essential additionalRoles (NO de-dupe)
+  const rolesRaw = members.flatMap((member) =>
+    (Array.isArray(member?.additionalRoles) ? member.additionalRoles : [])
+      .filter((r) => r?.isEssential)
+      .map((r) => norm(r?.role || "Unnamed Service"))
+      .filter(Boolean)
   );
 
-  if (count === 0) return "Add a Lineup";
+  const rolesNormalized = rolesRaw.map((r) => {
+    const rLower = lower(r);
 
-  const instrumentsStr = formatWithAnd(instruments);
-  const rolesStr = roles.length
-    ? ` (including ${formatWithAnd(roles)} services)`
+    if (rLower.includes("band manager")) return "Band Management";
+    if (
+      rLower.includes("sound engineer") ||
+      rLower.includes("sound tech") ||
+      rLower.includes("sound technician") ||
+      rLower.includes("audio engineer") ||
+      rLower.includes("audio tech") ||
+      rLower.includes("audio technician") ||
+      rLower.includes("foh") ||
+      rLower.includes("front of house")
+    ) {
+      return "Sound Engineering";
+    }
+
+    return r;
+  });
+
+  const rolesDisplayArr = withCountsInOrder(rolesNormalized);
+
+  const formatWithAnd = (arr) => {
+    const items = Array.isArray(arr) ? arr : [];
+    if (items.length === 0) return "";
+    if (items.length === 1) return items[0];
+    if (items.length === 2) return `${items[0]} & ${items[1]}`;
+    return `${items.slice(0, -1).join(", ")} & ${items[items.length - 1]}`;
+  };
+
+  const instrumentsStr = formatWithAnd(instrumentsDisplayArr);
+  const rolesStr = rolesDisplayArr.length
+    ? ` (including ${formatWithAnd(rolesDisplayArr)} services)`
     : "";
 
-  return `${count}: ${instrumentsStr}${rolesStr}`;
+  if (!countLabel || performerMembers.length === 0) return "Add a Lineup";
+
+  return `${countLabel}: ${instrumentsStr}${rolesStr}`;
 };
 
       const numberToWords = (num) => {

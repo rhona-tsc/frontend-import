@@ -71,16 +71,37 @@ const displayExtras = liveSelectedExtras;
 
 // Helpers to exclude managers / non-performers from per-member time charges
 const isManagerLike = (m = {}) => {
-  const hasManagerWord = (s = "") => /\b(manager|management)\b/i.test(String(s));
+  const norm = (s = "") => String(s || "").trim().toLowerCase();
 
-  if (m.isManager === true || m.isNonPerformer === true) return true;
+  const instr = norm(m.instrument);
+  const title = norm(m.title);
+  const roles = (Array.isArray(m.additionalRoles) ? m.additionalRoles : []).map(
+    (r) => norm(r?.role)
+  );
 
-  if (hasManagerWord(m.instrument) || hasManagerWord(m.title)) return true;
+  const isNonPerformerText = (value = "") => {
+    return (
+      value.includes("manager") ||
+      value.includes("management") ||
+      value.includes("admin") ||
+      value.includes("sound engineer") ||
+      value.includes("sound tech") ||
+      value.includes("sound technician") ||
+      value.includes("audio engineer") ||
+      value.includes("audio tech") ||
+      value.includes("audio technician") ||
+      value.includes("foh") ||
+      value.includes("front of house")
+    );
+  };
 
-  const rolesArr = Array.isArray(m.additionalRoles) ? m.additionalRoles : [];
-  if (rolesArr.some((r) => hasManagerWord(r?.role) || hasManagerWord(r?.title))) return true;
-
-  return false;
+  return (
+    m.isManager === true ||
+    m.isNonPerformer === true ||
+    isNonPerformerText(instr) ||
+    isNonPerformerText(title) ||
+    roles.some(isNonPerformerText)
+  );
 };
 
 

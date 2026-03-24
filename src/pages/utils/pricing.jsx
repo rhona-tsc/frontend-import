@@ -33,13 +33,39 @@ const normalizeCounty = (c) =>
     .replace(/\s+/g, " ")
     .trim();
 
-  const isManagerLike = (m = {}) => {
-    const has = (s = "") => /\b(manager|management)\b/i.test(String(s));
-    if (m.isManager === true || m.isNonPerformer === true) return true;
-    if (has(m.instrument) || has(m.title)) return true;
-    const rolesArr = Array.isArray(m.additionalRoles) ? m.additionalRoles : [];
-    return rolesArr.some((r) => has(r?.role) || has(r?.title));
+const isManagerLike = (m = {}) => {
+  const norm = (s = "") => String(s || "").trim().toLowerCase();
+
+  const instr = norm(m.instrument);
+  const title = norm(m.title);
+  const roles = (Array.isArray(m.additionalRoles) ? m.additionalRoles : []).map(
+    (r) => norm(r?.role)
+  );
+
+  const isNonPerformerText = (value = "") => {
+    return (
+      value.includes("manager") ||
+      value.includes("management") ||
+      value.includes("admin") ||
+      value.includes("sound engineer") ||
+      value.includes("sound tech") ||
+      value.includes("sound technician") ||
+      value.includes("audio engineer") ||
+      value.includes("audio tech") ||
+      value.includes("audio technician") ||
+      value.includes("foh") ||
+      value.includes("front of house")
+    );
   };
+
+  return (
+    m.isManager === true ||
+    m.isNonPerformer === true ||
+    isNonPerformerText(instr) ||
+    isNonPerformerText(title) ||
+    roles.some(isNonPerformerText)
+  );
+};
 
 const getCountyFeeFromMap = (feesMap, countyName) => {
   if (!feesMap) return undefined;

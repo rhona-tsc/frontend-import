@@ -51,17 +51,31 @@ export const generateDescription = (lineup) => {
   const norm = (s = "") => String(s || "").trim();
   const lower = (s = "") => norm(s).toLowerCase();
 
-  const isManagerLikeInstrument = (instrument = "") => {
+  const isNonPerformerLikeInstrument = (instrument = "") => {
     const v = lower(instrument);
-    return v === "manager" || v === "admin" || v.includes("band manager");
+    return (
+      v === "manager" ||
+      v === "admin" ||
+      v.includes("band manager") ||
+      v.includes("management") ||
+      v.includes("sound engineer") ||
+      v.includes("sound tech") ||
+      v.includes("sound technician") ||
+      v.includes("audio engineer") ||
+      v.includes("audio tech") ||
+      v.includes("audio technician") ||
+      v.includes("foh") ||
+      v.includes("front of house")
+    );
   };
 
-  // Count performers (exclude manager/admin/blank instrument rows)
+  // Count performers (exclude manager/admin/sound tech/non-performer/blank instrument rows)
   const performerMembers = members.filter((m) => {
     if (!m?.isEssential) return false;
     const inst = norm(m?.instrument);
     if (!inst) return false;
-    if (isManagerLikeInstrument(inst)) return false;
+    if (m?.isManager === true || m?.isNonPerformer === true) return false;
+    if (isNonPerformerLikeInstrument(inst)) return false;
     return true;
   });
 
@@ -71,12 +85,12 @@ export const generateDescription = (lineup) => {
     ? actSizeLabel
     : `${performerMembers.length}-Piece`;
 
-  // Build instrument list (essential only, excluding manager/admin/blank)
+  // Build instrument list (essential only, excluding non-performer roles / blank)
   let instruments = performerMembers
     .map((m) => norm(m?.instrument))
     .filter(Boolean);
 
-  // Sort (vocals first, drums last) — same rule as your original
+  // Sort (vocals first, drums last)
   instruments.sort((a, b) => {
     const aLower = a.toLowerCase();
     const bLower = b.toLowerCase();
@@ -90,7 +104,6 @@ export const generateDescription = (lineup) => {
     return 0;
   });
 
-  // Turn duplicates into "x N" while keeping the first-seen order
   const withCountsInOrder = (arr) => {
     const out = [];
     const counts = new Map();
@@ -106,7 +119,6 @@ export const generateDescription = (lineup) => {
 
   const instrumentsDisplayArr = withCountsInOrder(instruments);
 
-  // Roles: all essential additionalRoles (NO de-dupe)
   const rolesRaw = members.flatMap((member) =>
     (Array.isArray(member?.additionalRoles) ? member.additionalRoles : [])
       .filter((r) => r?.isEssential)
@@ -114,12 +126,25 @@ export const generateDescription = (lineup) => {
       .filter(Boolean)
   );
 
-  // If "Band Manager" is present, display it as "Band Management"
-  // (covers: role: "Band Manager", instrument: "", etc.)
-  const hasBandManagerRole = rolesRaw.some((r) => lower(r).includes("band manager"));
-  const rolesNormalized = rolesRaw.map((r) =>
-    lower(r).includes("band manager") ? "Band Management" : r
-  );
+  const rolesNormalized = rolesRaw.map((r) => {
+    const rLower = lower(r);
+
+    if (rLower.includes("band manager")) return "Band Management";
+    if (
+      rLower.includes("sound engineer") ||
+      rLower.includes("sound tech") ||
+      rLower.includes("sound technician") ||
+      rLower.includes("audio engineer") ||
+      rLower.includes("audio tech") ||
+      rLower.includes("audio technician") ||
+      rLower.includes("foh") ||
+      rLower.includes("front of house")
+    ) {
+      return "Sound Engineering";
+    }
+
+    return r;
+  });
 
   const rolesDisplayArr = withCountsInOrder(rolesNormalized);
 

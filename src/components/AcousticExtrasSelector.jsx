@@ -33,19 +33,36 @@ const AcousticExtrasSelector = ({
 
   // Helpers: exclude managers / non-performers from time-based per-member counts
 const isManagerLike = (m = {}) => {
-  const instr = (m.instrument || "").toLowerCase();
-  const title = (m.title || "").toLowerCase();
-  const roles = (Array.isArray(m.additionalRoles) ? m.additionalRoles : [])
-    .map(r => (r?.role || "").toLowerCase());
+  const norm = (s = "") => String(s || "").trim().toLowerCase();
+
+  const instr = norm(m.instrument);
+  const title = norm(m.title);
+  const roles = (Array.isArray(m.additionalRoles) ? m.additionalRoles : []).map(
+    (r) => norm(r?.role)
+  );
+
+  const isNonPerformerText = (value = "") => {
+    return (
+      value.includes("manager") ||
+      value.includes("management") ||
+      value.includes("admin") ||
+      value.includes("sound engineer") ||
+      value.includes("sound tech") ||
+      value.includes("sound technician") ||
+      value.includes("audio engineer") ||
+      value.includes("audio tech") ||
+      value.includes("audio technician") ||
+      value.includes("foh") ||
+      value.includes("front of house")
+    );
+  };
 
   return (
     m.isManager === true ||
     m.isNonPerformer === true ||
-    instr.includes("manager") ||
-    title.includes("manager") ||
-    roles.includes("band manager") ||
-    roles.includes("manager") ||
-    roles.includes("management")
+    isNonPerformerText(instr) ||
+    isNonPerformerText(title) ||
+    roles.some(isNonPerformerText)
   );
 };
 
