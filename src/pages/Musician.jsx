@@ -170,10 +170,11 @@ const Musician = () => {
 
           if (m) {
             setActData(m);
-            console.log("📝 Bio fields:", {
-              tscApprovedBio: m?.tscApprovedBio,
-              bio: m?.bio,
-            });
+           console.log("📝 Bio fields:", {
+  tscApprovedBio: m?.tscApprovedBio,
+  tscBio: m?.tscBio,
+  bio: m?.bio,
+});
 
             // pick a default video from approved links if present
             const vids = [
@@ -503,8 +504,8 @@ useEffect(() => {
     return Boolean(v);
   };
 
-  const pickBioText = (data) => {
-    const preferred = data?.tscApprovedBio ?? data?.bio ?? "";
+const pickBioText = (data) => {
+  const preferred = data?.tscApprovedBio ?? data?.tscBio ?? data?.bio ?? "";
     if (preferred == null) return "";
     if (typeof preferred === "string") return preferred.trim();
     if (Array.isArray(preferred)) {
