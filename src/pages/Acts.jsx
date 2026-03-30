@@ -1155,6 +1155,44 @@ const hasStoredLocation = () => {
         .replace(/\s+/g, " ")
         .trim();
 
+    const getEffectiveCounty = () =>
+      String(
+        selectedCounty ||
+          sessionStorage.getItem("selectedCounty") ||
+          localStorage.getItem("selectedCounty") ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const readCountyFlag = (source, countyKey) => {
+      if (!source || !countyKey) return undefined;
+
+      if (source instanceof Map) {
+        return source.get(countyKey);
+      }
+
+      if (typeof source === "object") {
+        return source[countyKey];
+      }
+
+      return undefined;
+    };
+
+    const readCountyFee = (source, countyKey) => {
+      if (!source || !countyKey) return undefined;
+
+      if (source instanceof Map) {
+        return source.get(countyKey);
+      }
+
+      if (typeof source === "object") {
+        return source[countyKey];
+      }
+
+      return undefined;
+    };
+
     const selectedGenres = Array.isArray(genre) ? genre : [];
     const selectedNorm = selectedGenres.map(NORM);
 
@@ -1520,6 +1558,10 @@ actsCopy = actsCopy.map((act) => {
       : (card?.lineupSizes || []),
     instruments: act.instruments ?? card?.instruments ?? [],
     pliAmount: act.pliAmount ?? card?.pliAmount ?? 0,
+    useCountyTravelFee: act.useCountyTravelFee ?? card?.useCountyTravelFee ?? false,
+    countyFees: act.countyFees ?? card?.countyFees ?? {},
+    countyTravelAvailability:
+      act.countyTravelAvailability ?? card?.countyTravelAvailability ?? {},
   };
 });
 
@@ -1528,6 +1570,37 @@ console.log("🧪 actsCopy len after filters:", actsCopy.length);
     ACTS_DBG("actsCopy after card reattach", {
       len: Array.isArray(actsCopy) ? actsCopy.length : 0,
     });
+
+    const effectiveCounty = getEffectiveCounty();
+
+    if (effectiveCounty) {
+      const beforeCountyTravelFilter = actsCopy.length;
+
+      actsCopy = actsCopy.filter((act) => {
+        if (!act?.useCountyTravelFee) return true;
+
+        const availabilitySource = act?.countyTravelAvailability;
+        const feeSource = act?.countyFees;
+
+        const explicitAvailability = readCountyFlag(
+          availabilitySource,
+          effectiveCounty
+        );
+
+        if (typeof explicitAvailability !== "undefined") {
+          return explicitAvailability === true;
+        }
+
+        const legacyFee = readCountyFee(feeSource, effectiveCounty);
+        return legacyFee !== undefined && legacyFee !== null && String(legacyFee) !== "";
+      });
+
+      ACTS_DBG("after county travel filter", {
+        effectiveCounty,
+        before: beforeCountyTravelFilter,
+        remain: actsCopy.length,
+      });
+    }
 
     // ───────────────────────────────────────────────────────────────────────────────
     // 🎚️ GENRE FILTER (single source of truth)
@@ -2097,7 +2170,16 @@ console.log("🧪 actsCopy len after filters:", actsCopy.length);
 
       if (act.useCountyTravelFee && act.countyFees) {
         const countyKey = String(selectedCounty || "").toLowerCase();
-        const feePerMember = Number(act.countyFees[countyKey]) || 0;
+        const availabilityFlag = readCountyFlag(
+          act.countyTravelAvailability,
+          countyKey
+        );
+
+        if (typeof availabilityFlag !== "undefined" && availabilityFlag !== true) {
+          return null;
+        }
+
+        const feePerMember = Number(readCountyFee(act.countyFees, countyKey)) || 0;
         travelFee = feePerMember * memberPostcodes.length;
       } else if (Number(act.costPerMile) > 0) {
         for (const postCode of memberPostcodes) {

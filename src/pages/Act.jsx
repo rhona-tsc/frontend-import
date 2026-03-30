@@ -52,59 +52,61 @@ export const buildActMeta = (act) => {
 };
 
 const Act = () => {
-const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
-const params = useParams();
+  const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(
+    /\/+$/,
+    "",
+  );
+  const params = useParams();
 
-const location = useLocation();
+  const location = useLocation();
 
-// supports /act/:actId OR /act/:slug OR /act/:key OR /act/:id
-const key = params.actId || params.slug || params.key || params.id;
+  // supports /act/:actId OR /act/:slug OR /act/:key OR /act/:id
+  const key = params.actId || params.slug || params.key || params.id;
 
-const isObjectId = /^[0-9a-fA-F]{24}$/.test(String(key || ""));
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(String(key || ""));
+  const [travelUnavailableMessage, setTravelUnavailableMessage] = useState("");
+  const [isTravelAvailableForSelection, setIsTravelAvailableForSelection] =
+    useState(true);
+  const [actData, setActData] = useState(null);
+  const [loadingAct, setLoadingAct] = useState(true);
+  const [actError, setActError] = useState("");
 
-const [actData, setActData] = useState(null);
-const [loadingAct, setLoadingAct] = useState(true);
-const [actError, setActError] = useState("");
+  const actFetchUrl = React.useMemo(() => {
+    if (!key) return "";
+    return `${backendUrl}/api/act/${encodeURIComponent(key)}`;
+  }, [backendUrl, key]);
 
-const actFetchUrl = React.useMemo(() => {
-  if (!key) return "";
-  return `${backendUrl}/api/act/${encodeURIComponent(key)}`;
-}, [backendUrl, key]);
+  useEffect(() => {
+    if (!actFetchUrl) return;
 
+    let cancelled = false;
 
-useEffect(() => {
-  if (!actFetchUrl) return;
+    (async () => {
+      try {
+        setLoadingAct(true);
+        setActError("");
 
-  let cancelled = false;
+        console.log("🧪 fetching act:", { params, key, actFetchUrl });
 
-  (async () => {
-    try {
-      setLoadingAct(true);
-      setActError("");
+        const { data } = await axios.get(actFetchUrl);
+        if (!data?.success || !data?.act) throw new Error("Bad payload");
 
-      console.log("🧪 fetching act:", { params, key, actFetchUrl });
-
-      const { data } = await axios.get(actFetchUrl);
-      if (!data?.success || !data?.act) throw new Error("Bad payload");
-
-      if (!cancelled) setActData(data.act);
-    } catch (e) {
-      console.error("❌ fetchAct failed:", e?.response?.data || e);
-      if (!cancelled) {
-        setActData(null);
-        setActError(e?.response?.data?.message || "Failed to load act");
+        if (!cancelled) setActData(data.act);
+      } catch (e) {
+        console.error("❌ fetchAct failed:", e?.response?.data || e);
+        if (!cancelled) {
+          setActData(null);
+          setActError(e?.response?.data?.message || "Failed to load act");
+        }
+      } finally {
+        if (!cancelled) setLoadingAct(false);
       }
-    } finally {
-      if (!cancelled) setLoadingAct(false);
-    }
-  })();
+    })();
 
-  return () => {
-    cancelled = true;
-  };
-}, [actFetchUrl]);
-
-
+    return () => {
+      cancelled = true;
+    };
+  }, [actFetchUrl]);
 
   const {
     acts,
@@ -125,9 +127,9 @@ useEffect(() => {
   } = useContext(ShopContext);
 
   // ✅ Effective act id used everywhere else
-const actId = React.useMemo(() => {
-  return isObjectId ? key : actData?._id;
-}, [isObjectId, key, actData?._id]);
+  const actId = React.useMemo(() => {
+    return isObjectId ? key : actData?._id;
+  }, [isObjectId, key, actData?._id]);
 
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
   const [selectedLineup, setSelectedLineup] = useState("");
@@ -164,7 +166,7 @@ const actId = React.useMemo(() => {
       typeof actData.repertoireByYear === "object"
     ) {
       return Object.entries(actData.repertoireByYear).flatMap(([year, arr]) =>
-        (arr || []).map((s) => ({ ...s, year }))
+        (arr || []).map((s) => ({ ...s, year })),
       );
     }
     if (Array.isArray(actData?.repertoire) && actData.repertoire.length)
@@ -183,13 +185,13 @@ const actId = React.useMemo(() => {
 
   // at top of Act.jsx
   const RepertoireSectionLazy = React.lazy(
-    () => import("../components/RepertoireSection")
+    () => import("../components/RepertoireSection"),
   );
   const AcousticExtrasSelectorLazy = React.lazy(
-    () => import("../components/AcousticExtrasSelector")
+    () => import("../components/AcousticExtrasSelector"),
   );
   const ActPerformanceOverviewLazy = React.lazy(
-    () => import("../components/ActPerformanceOverview")
+    () => import("../components/ActPerformanceOverview"),
   );
   const RelatedActsLazy = React.lazy(() => import("../components/RelatedActs"));
   const DEBUG = import.meta?.env?.DEV ?? false; // on in dev
@@ -198,68 +200,73 @@ const actId = React.useMemo(() => {
   };
 
   // 🎯 Lead role (compound) used by RelatedActs to find truly similar acts
-// IMPORTANT: must be called on EVERY render (even when actData is null) to avoid Hook order crashes.
-const leadRole = React.useMemo(() => {
-  try {
-    if (!actData) return "";
+  // IMPORTANT: must be called on EVERY render (even when actData is null) to avoid Hook order crashes.
+  const leadRole = React.useMemo(() => {
+    try {
+      if (!actData) return "";
 
-    // 1) Prefer explicit fields if you have them
-    const explicit =
-      (typeof actData?.leadRole === "string" && actData.leadRole.trim()) ||
-      (typeof actData?.leadVocalist === "string" && actData.leadVocalist.trim()) ||
-      (typeof actData?.vocalist === "string" && actData.vocalist.trim()) ||
-      "";
+      // 1) Prefer explicit fields if you have them
+      const explicit =
+        (typeof actData?.leadRole === "string" && actData.leadRole.trim()) ||
+        (typeof actData?.leadVocalist === "string" &&
+          actData.leadVocalist.trim()) ||
+        (typeof actData?.vocalist === "string" && actData.vocalist.trim()) ||
+        "";
 
-    if (explicit) return explicit;
+      if (explicit) return explicit;
 
-    // 2) Derive from the smallest lineup
-    const lineups = Array.isArray(actData?.lineups) ? actData.lineups : [];
-    if (!lineups.length) return "";
+      // 2) Derive from the smallest lineup
+      const lineups = Array.isArray(actData?.lineups) ? actData.lineups : [];
+      if (!lineups.length) return "";
 
-    const sizeOf = (l) => {
-      const raw = l?.actSize ?? l?.bandMembers?.length ?? 999;
-      const n = Number(String(raw).match(/\d+/)?.[0] || raw);
-      return Number.isFinite(n) ? n : 999;
-    };
+      const sizeOf = (l) => {
+        const raw = l?.actSize ?? l?.bandMembers?.length ?? 999;
+        const n = Number(String(raw).match(/\d+/)?.[0] || raw);
+        return Number.isFinite(n) ? n : 999;
+      };
 
-    const smallest = [...lineups].sort((a, b) => sizeOf(a) - sizeOf(b))[0];
-    const members = Array.isArray(smallest?.bandMembers) ? smallest.bandMembers : [];
-    if (!members.length) return "";
+      const smallest = [...lineups].sort((a, b) => sizeOf(a) - sizeOf(b))[0];
+      const members = Array.isArray(smallest?.bandMembers)
+        ? smallest.bandMembers
+        : [];
+      if (!members.length) return "";
 
-    const roleOf = (m) =>
-      String(
-        m?.customRole ||
-          m?.role ||
-          m?.instrument ||
-          m?.mainInstrument ||
-          m?.primaryInstrument ||
-          ""
-      ).trim();
+      const roleOf = (m) =>
+        String(
+          m?.customRole ||
+            m?.role ||
+            m?.instrument ||
+            m?.mainInstrument ||
+            m?.primaryInstrument ||
+            "",
+        ).trim();
 
-    const isVocal = (m) => /vocal|singer/i.test(roleOf(m));
-    const isCompound = (m) =>
-      /guitar|keys|keyboard|piano|dj|sax|trumpet|violin|bongos|perc/i.test(roleOf(m));
+      const isVocal = (m) => /vocal|singer/i.test(roleOf(m));
+      const isCompound = (m) =>
+        /guitar|keys|keyboard|piano|dj|sax|trumpet|violin|bongos|perc/i.test(
+          roleOf(m),
+        );
 
-    const vocalists = members.filter(isVocal);
-    const best =
-      vocalists.find(isCompound) ||
-      vocalists[0] ||
-      members.find(isCompound) ||
-      members[0] ||
-      null;
+      const vocalists = members.filter(isVocal);
+      const best =
+        vocalists.find(isCompound) ||
+        vocalists[0] ||
+        members.find(isCompound) ||
+        members[0] ||
+        null;
 
-    return best ? roleOf(best) : "";
-  } catch {
-    return "";
-  }
-}, [
-  // keep deps stable + safe even when actData is null
-  actData?._id,
-  actData?.leadRole,
-  actData?.leadVocalist,
-  actData?.vocalist,
-  actData?.lineups,
-]);
+      return best ? roleOf(best) : "";
+    } catch {
+      return "";
+    }
+  }, [
+    // keep deps stable + safe even when actData is null
+    actData?._id,
+    actData?.leadRole,
+    actData?.leadVocalist,
+    actData?.vocalist,
+    actData?.lineups,
+  ]);
 
   useRenderTracker("Act", {
     actId,
@@ -270,8 +277,6 @@ const leadRole = React.useMemo(() => {
     badgeKeys: Object.keys(actData?.availabilityBadges || {}).length,
   });
 
-
-
   const cld = (
     url,
     {
@@ -279,7 +284,7 @@ const leadRole = React.useMemo(() => {
       ar = "3:1", // hero banner aspect
       fill = true, // crop to aspect
       q = "auto:good", // good quality at small size
-    } = {}
+    } = {},
   ) => {
     if (!url || !url.includes("/upload/")) return url || "";
     const t = [
@@ -303,11 +308,11 @@ const leadRole = React.useMemo(() => {
   const heroSizes =
     "(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1280px";
 
-// ✅ Pre-compute hero URL for high-priority preload/render (MUST match heroUrl/srcSet base)
-const heroUrlHigh = React.useMemo(() => {
-  if (!rawHero) return "";
-  return cld(rawHero, { w: 900, ar: "3:1", fill: true });
-}, [rawHero]);
+  // ✅ Pre-compute hero URL for high-priority preload/render (MUST match heroUrl/srcSet base)
+  const heroUrlHigh = React.useMemo(() => {
+    if (!rawHero) return "";
+    return cld(rawHero, { w: 900, ar: "3:1", fill: true });
+  }, [rawHero]);
 
   // Gallery Carousel logic
   const galleryRef = useRef(null);
@@ -350,7 +355,7 @@ const heroUrlHigh = React.useMemo(() => {
             if (once) io.disconnect();
           }
         },
-        { rootMargin }
+        { rootMargin },
       );
 
       io.observe(el);
@@ -390,7 +395,7 @@ const heroUrlHigh = React.useMemo(() => {
         hasCountyTable ? selectedCounty : null,
         selectedAddress,
         selectedDate,
-        lineup
+        lineup,
       );
 
       if (priceReqKey.current !== key) return; // stale result
@@ -451,20 +456,20 @@ const heroUrlHigh = React.useMemo(() => {
       el.rel = rel;
       el.setAttribute("data-auto", "act-hero");
       Object.entries(attrs).forEach(
-        ([k, v]) => v != null && el.setAttribute(k, String(v))
+        ([k, v]) => v != null && el.setAttribute(k, String(v)),
       );
       document.head.appendChild(el);
     };
     if (
       !document.head.querySelector(
-        'link[rel="preconnect"][href="https://res.cloudinary.com"]'
+        'link[rel="preconnect"][href="https://res.cloudinary.com"]',
       )
     ) {
       add("preconnect", { href: host, crossOrigin: "" });
     }
     if (
       !document.head.querySelector(
-        'link[rel="dns-prefetch"][href="https://res.cloudinary.com"]'
+        'link[rel="dns-prefetch"][href="https://res.cloudinary.com"]',
       )
     ) {
       add("dns-prefetch", { href: host });
@@ -476,7 +481,7 @@ const heroUrlHigh = React.useMemo(() => {
     if (!heroUrlHigh) return;
     // Avoid duplicates
     const existing = document.head.querySelector(
-      `link[rel="preload"][as="image"][href="${heroUrlHigh}"]`
+      `link[rel="preload"][as="image"][href="${heroUrlHigh}"]`,
     );
     if (existing) return;
     const l = document.createElement("link");
@@ -496,7 +501,7 @@ const heroUrlHigh = React.useMemo(() => {
   const promptLogin = (
     msg = "Please log in to save acts to your shortlist.",
     actId = null,
-    redirectPath = null
+    redirectPath = null,
   ) => {
     try {
       toast(<CustomToast type="info" message={msg} />);
@@ -514,7 +519,7 @@ const heroUrlHigh = React.useMemo(() => {
     }
 
     window.dispatchEvent(
-      new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } })
+      new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } }),
     );
   };
 
@@ -618,7 +623,7 @@ const heroUrlHigh = React.useMemo(() => {
 
         const base = (import.meta.env.VITE_BACKEND_URL || "").replace(
           /\/+$/,
-          ""
+          "",
         );
         const dateISO = new Date(selectedDate).toISOString().slice(0, 10);
         const u = new URL(`${base}/api/v2/availability/acts-by-dateV2`);
@@ -641,7 +646,7 @@ const heroUrlHigh = React.useMemo(() => {
           // tolerate different shapes; prefer explicit latestReply
           const latest = j?.latestReply || j?.latest || j?.reply || null;
           setIsYesForSelectedDate(
-            latest === "yes" ? true : latest === "no" ? false : null
+            latest === "yes" ? true : latest === "no" ? false : null,
           );
         }
       } catch (e) {
@@ -716,29 +721,78 @@ const heroUrlHigh = React.useMemo(() => {
     };
   }, []);
 
+  const findActInList = React.useCallback(
+    (k) => {
+      if (!Array.isArray(acts) || !k) return null;
 
-const findActInList = React.useCallback(
-  (k) => {
-    if (!Array.isArray(acts) || !k) return null;
+      // If it's an ObjectId, match by _id
+      if (/^[0-9a-fA-F]{24}$/.test(k)) {
+        return acts.find((a) => String(a?._id) === String(k)) || null;
+      }
 
-    // If it's an ObjectId, match by _id
-    if (/^[0-9a-fA-F]{24}$/.test(k)) {
-      return acts.find((a) => String(a?._id) === String(k)) || null;
+      // Otherwise try common slug fields (adjust if yours is different)
+      const kk = String(k).trim().toLowerCase();
+      return (
+        acts.find((a) => String(a?.slug || "").toLowerCase() === kk) ||
+        acts.find((a) => String(a?.tscSlug || "").toLowerCase() === kk) ||
+        acts.find((a) => String(a?.routeSlug || "").toLowerCase() === kk) ||
+        null
+      );
+    },
+    [acts],
+  );
+
+  const normalizeCountyKey = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  const getMapValue = (mapLike, key) => {
+    if (!mapLike || !key) return undefined;
+    if (typeof mapLike?.get === "function") return mapLike.get(key);
+    return mapLike[key];
+  };
+
+  const toTitleCase = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const checkActTravelsToCounty = (act, countyValue, placeLabel = "") => {
+    if (!act?.useCountyTravelFee) {
+      return { allowed: true, message: "" };
     }
 
-    // Otherwise try common slug fields (adjust if yours is different)
-    const kk = String(k).trim().toLowerCase();
-    return (
-      acts.find((a) => String(a?.slug || "").toLowerCase() === kk) ||
-      acts.find((a) => String(a?.tscSlug || "").toLowerCase() === kk) ||
-      acts.find((a) => String(a?.routeSlug || "").toLowerCase() === kk) ||
-      null
+    const countyKey = normalizeCountyKey(countyValue);
+    if (!countyKey) {
+      return { allowed: true, message: "" };
+    }
+
+    const availabilityValue = getMapValue(
+      act?.countyTravelAvailability,
+      countyKey,
     );
-  },
-  [acts]
-);
+    if (availabilityValue === true || availabilityValue === "true") {
+      return { allowed: true, message: "" };
+    }
 
+    const feeValue = getMapValue(act?.countyFees, countyKey);
+    const hasFee =
+      feeValue !== undefined &&
+      feeValue !== null &&
+      String(feeValue).trim() !== "" &&
+      Number.isFinite(Number(feeValue));
 
+    if (hasFee) {
+      return { allowed: true, message: "" };
+    }
+
+    const countyLabel = placeLabel || toTitleCase(countyValue);
+    return {
+      allowed: false,
+      message: `This act does not travel to ${countyLabel}.`,
+    };
+  };
 
   const [shouldFetchPrice, setShouldFetchPrice] = useState(true);
 
@@ -788,6 +842,24 @@ const findActInList = React.useCallback(
       actData.countyFees &&
       Object.keys(actData.countyFees).length > 0;
 
+    const countyTravelCheck = checkActTravelsToCounty(
+      actData,
+      selectedCounty,
+      storedPlace,
+    );
+
+    if (selectedAddress && !countyTravelCheck.allowed) {
+      setPrice(null);
+      setFinalTravelPrice(null);
+      setTravelUnavailableMessage(countyTravelCheck.message);
+      setIsTravelAvailableForSelection(false);
+      setIsPriceLoading(false);
+      return;
+    }
+
+    setTravelUnavailableMessage("");
+    setIsTravelAvailableForSelection(true);
+
     const lineup = actData.lineups[0];
 
     const key = makePriceKey({
@@ -813,7 +885,7 @@ const findActInList = React.useCallback(
           hasCountyTable ? selectedCounty : null,
           selectedAddress,
           selectedDate,
-          lineup
+          lineup,
         );
 
         const base =
@@ -937,10 +1009,10 @@ const findActInList = React.useCallback(
 
       // Try common endpoints in order; succeed-fast, fail-silent
       const endpoints = [
-        "/api/availability/request",              // primary (matches ActItem.jsx)
-        "/api/availability/trigger-request",      // legacy
-        "/api/v2/availability/trigger-request",   // v2
-        "/api/availability/trigger",              // fallback
+        "/api/availability/request", // primary (matches ActItem.jsx)
+        "/api/availability/trigger-request", // legacy
+        "/api/v2/availability/trigger-request", // v2
+        "/api/availability/trigger", // fallback
       ];
 
       for (const path of endpoints) {
@@ -955,7 +1027,9 @@ const findActInList = React.useCallback(
           });
           if (resp.ok) {
             setTimeout(() => {
-              try { refreshBadgeFor(dateISO); } catch {}
+              try {
+                refreshBadgeFor(dateISO);
+              } catch {}
             }, 250);
             console.log(`✅ Availability request ok via ${path}`);
             return;
@@ -1004,43 +1078,43 @@ const findActInList = React.useCallback(
       ? shortlistedActs.includes(actData._id)
       : false;
 
-// ✅ Prefer tscVideos (your DB field), fall back to videos for older docs
-const videos = React.useMemo(() => {
-  const raw = actData?.tscVideos ?? [];
-  const arr = Array.isArray(raw) ? raw : [raw];
+  // ✅ Prefer tscVideos (your DB field), fall back to videos for older docs
+  const videos = React.useMemo(() => {
+    const raw = actData?.tscVideos ?? [];
+    const arr = Array.isArray(raw) ? raw : [raw];
 
-  return arr
-    .map((v) => {
-      if (typeof v === "string") return { url: v, title: "" };
-      if (v && typeof v === "object") return { url: v.url || "", title: v.title || "" };
-      return { url: "", title: "" };
-    })
-    .filter((v) => typeof v.url === "string" && v.url.trim().length);
-}, [actData?.tscVideos]);
+    return arr
+      .map((v) => {
+        if (typeof v === "string") return { url: v, title: "" };
+        if (v && typeof v === "object")
+          return { url: v.url || "", title: v.title || "" };
+        return { url: "", title: "" };
+      })
+      .filter((v) => typeof v.url === "string" && v.url.trim().length);
+  }, [actData?.tscVideos]);
 
-// ✅ Ensure we always have a correct selected video for THIS act
-useEffect(() => {
-  if (!videos.length) {
-    setVideo("");
+  // ✅ Ensure we always have a correct selected video for THIS act
+  useEffect(() => {
+    if (!videos.length) {
+      setVideo("");
+      setPlaying(false);
+      return;
+    }
+
     setPlaying(false);
-    return;
-  }
 
-  setPlaying(false);
+    setVideo((prev) => {
+      const prevClean = String(prev || "").trim();
 
-  setVideo((prev) => {
-    const prevClean = String(prev || "").trim();
+      // keep previous ONLY if it exists in this act's videos list
+      const stillValid = prevClean && videos.some((v) => v.url === prevClean);
+      return stillValid ? prevClean : videos[0].url;
+    });
+  }, [key, videos]); // 👈 key changes when route changes (slug/id)
 
-    // keep previous ONLY if it exists in this act's videos list
-    const stillValid = prevClean && videos.some((v) => v.url === prevClean);
-    return stillValid ? prevClean : videos[0].url;
-  });
-}, [key, videos]); // 👈 key changes when route changes (slug/id)
-
-const avgRating = React.useMemo(() => {
-  return calculateAverageRating(reviews);
-}, [reviews]);
-
+  const avgRating = React.useMemo(() => {
+    return calculateAverageRating(reviews);
+  }, [reviews]);
 
   // ✅ new: render as soon as actData exists; handle "no lineup" gracefully
   if (!actData) {
@@ -1052,7 +1126,10 @@ const avgRating = React.useMemo(() => {
             name="description"
             content="Browse premium wedding and event bands across the UK. Watch videos and get an instant quote with The Supreme Collective."
           />
-          <link rel="canonical" href="https://thesupremecollective.co.uk/acts" />
+          <link
+            rel="canonical"
+            href="https://thesupremecollective.co.uk/acts"
+          />
         </Helmet>
         Loading act details...
       </div>
@@ -1066,8 +1143,9 @@ const avgRating = React.useMemo(() => {
 
   // Prefer an explicit slug from actData; only fall back to the route key if it's clearly a slug (not an ObjectId)
   const canonicalSlug =
-    String(actData?.slug || actData?.tscSlug || actData?.routeSlug || "").trim() ||
-    (!isObjectId ? String(key || "").trim() : "");
+    String(
+      actData?.slug || actData?.tscSlug || actData?.routeSlug || "",
+    ).trim() || (!isObjectId ? String(key || "").trim() : "");
 
   const canonicalPath = canonicalSlug
     ? `/act/${encodeURIComponent(canonicalSlug)}`
@@ -1080,7 +1158,11 @@ const avgRating = React.useMemo(() => {
 
   // Prefer a visible hero image for social sharing (fallback to placeholder if missing)
   const ogImage =
-    heroUrlHigh || heroUrl || actData?.profileImage?.[0]?.url || actData?.images?.[0]?.url || "";
+    heroUrlHigh ||
+    heroUrl ||
+    actData?.profileImage?.[0]?.url ||
+    actData?.images?.[0]?.url ||
+    "";
 
   // Use this when we need a relative path in app flows (e.g. post-login return)
   const actPath = canonicalPath;
@@ -1089,43 +1171,40 @@ const avgRating = React.useMemo(() => {
     songs: selectedSongs.length,
   });
 
+  // ✅ Better YouTube ID extractor (supports youtu.be, watch?v=, embed, shorts)
+  const extractVideoId = (input) => {
+    if (!input) return "";
+    const s = String(input).trim();
 
-// ✅ Better YouTube ID extractor (supports youtu.be, watch?v=, embed, shorts)
-const extractVideoId = (input) => {
-  if (!input) return "";
-  const s = String(input).trim();
+    // already an id?
+    if (/^[0-9A-Za-z_-]{11}$/.test(s)) return s;
 
-  // already an id?
-  if (/^[0-9A-Za-z_-]{11}$/.test(s)) return s;
+    const m = s.match(
+      /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([0-9A-Za-z_-]{11})/,
+    );
+    return m ? m[1] : "";
+  };
 
-  const m = s.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([0-9A-Za-z_-]{11})/
-  );
-  return m ? m[1] : "";
-};
+  // 🖼️ Cloudinary helper for gallery images: NEVER crop (preserve full image)
+  // Uses c_limit so the full image is shown, regardless of landscape/portrait.
+  const cldGallery = (url, w = 1200) => {
+    const u = String(url || "").trim();
+    if (!u) return "";
 
-// 🖼️ Cloudinary helper for gallery images: NEVER crop (preserve full image)
-// Uses c_limit so the full image is shown, regardless of landscape/portrait.
-const cldGallery = (url, w = 1200) => {
-  const u = String(url || "").trim();
-  if (!u) return "";
+    // If this isn't a Cloudinary delivery URL, return as-is
+    if (!u.includes("/image/upload/")) return u;
 
-  // If this isn't a Cloudinary delivery URL, return as-is
-  if (!u.includes("/image/upload/")) return u;
+    // Insert transformations right after /upload/
+    // c_limit preserves aspect ratio and avoids center-cropping
+    const transform = `c_limit,w_${Math.round(w)},q_auto,f_auto`;
 
-  // Insert transformations right after /upload/
-  // c_limit preserves aspect ratio and avoids center-cropping
-  const transform = `c_limit,w_${Math.round(w)},q_auto,f_auto`;
+    // If URL already has transformations after /upload/, we still prefer our safe ones.
+    // Strategy: always insert ours immediately after /upload/.
+    return u.replace("/image/upload/", `/image/upload/${transform}/`);
+  };
 
-  // If URL already has transformations after /upload/, we still prefer our safe ones.
-  // Strategy: always insert ours immediately after /upload/.
-  return u.replace("/image/upload/", `/image/upload/${transform}/`);
-};
-
-const selectedVideoUrl = video || videos?.[0]?.url || "";
-const selectedVideoId = extractVideoId(selectedVideoUrl);
-
-
+  const selectedVideoUrl = video || videos?.[0]?.url || "";
+  const selectedVideoId = extractVideoId(selectedVideoUrl);
 
   return (
     <div className="p-4">
@@ -1143,7 +1222,10 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
         {ogImage ? <meta property="og:image" content={ogImage} /> : null}
 
         {/* Twitter */}
-        <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+        <meta
+          name="twitter:card"
+          content={ogImage ? "summary_large_image" : "summary"}
+        />
         <meta name="twitter:title" content={meta.title} />
         <meta name="twitter:description" content={meta.description} />
         {ogImage ? <meta name="twitter:image" content={ogImage} /> : null}
@@ -1250,83 +1332,88 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                   text2="VIDEOS"
                 />
               </div>
-            {!videos.length ? (
-  <p className="text-sm text-gray-400">No videos available.</p>
-) : !selectedVideoId ? (
-  <p className="text-sm text-gray-400">Video link is invalid.</p>
-) : (
-  <div className="relative aspect-video rounded overflow-hidden">
-    {!playing ? (
-      <button
-        type="button"
-        className="group w-full h-full relative"
-        onClick={() => {
-  gtagEvent("video_play", {
-    event_category: "Act",
-    event_label: actData?.tscName || actData?.name || "",
-    act_id: actData?._id || "",
-    video_id: selectedVideoId || "",
-    video_url: selectedVideoUrl || "",
-  });
+              {!videos.length ? (
+                <p className="text-sm text-gray-400">No videos available.</p>
+              ) : !selectedVideoId ? (
+                <p className="text-sm text-gray-400">Video link is invalid.</p>
+              ) : (
+                <div className="relative aspect-video rounded overflow-hidden">
+                  {!playing ? (
+                    <button
+                      type="button"
+                      className="group w-full h-full relative"
+                      onClick={() => {
+                        gtagEvent("video_play", {
+                          event_category: "Act",
+                          event_label: actData?.tscName || actData?.name || "",
+                          act_id: actData?._id || "",
+                          video_id: selectedVideoId || "",
+                          video_url: selectedVideoUrl || "",
+                        });
 
-  setPlaying(true);
-}}
-        aria-label="Play video"
-      >
-        <img
-          src={`https://img.youtube.com/vi/${selectedVideoId}/hqdefault.jpg`}
-          alt="Video thumbnail"
-          className="w-full h-full object-cover"
-        />
-        <span className="absolute inset-0 grid place-items-center">
-          <span className="rounded-full p-4 bg-black/50 group-hover:bg-black/70 transition">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="#fff">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </span>
-        </span>
-      </button>
-    ) : (
-      <iframe
-        key={selectedVideoId}
-        className="w-full h-full"
-        src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1&modestbranding=1&rel=0&controls=1`}
-        title="YouTube player"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-      />
-    )}
-  </div>
-)}
+                        setPlaying(true);
+                      }}
+                      aria-label="Play video"
+                    >
+                      <img
+                        src={`https://img.youtube.com/vi/${selectedVideoId}/hqdefault.jpg`}
+                        alt="Video thumbnail"
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute inset-0 grid place-items-center">
+                        <span className="rounded-full p-4 bg-black/50 group-hover:bg-black/70 transition">
+                          <svg
+                            width="36"
+                            height="36"
+                            viewBox="0 0 24 24"
+                            fill="#fff"
+                          >
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </span>
+                      </span>
+                    </button>
+                  ) : (
+                    <iframe
+                      key={selectedVideoId}
+                      className="w-full h-full"
+                      src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1&modestbranding=1&rel=0&controls=1`}
+                      title="YouTube player"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  )}
+                </div>
+              )}
             </div>
             {/* Video thumbnails */}
-           <div className="flex gap-2 overflow-x-auto pb-2 mt-2">
-  {videos.map((v, index) => {
-    const vid = extractVideoId(v.url);
-    return (
-      <img
-        key={`${vid}-${index}`}
-        onClick={() => {
-  const vid = extractVideoId(v.url);
+            <div className="flex gap-2 overflow-x-auto pb-2 mt-2">
+              {videos.map((v, index) => {
+                const vid = extractVideoId(v.url);
+                return (
+                  <img
+                    key={`${vid}-${index}`}
+                    onClick={() => {
+                      const vid = extractVideoId(v.url);
 
-  gtagEvent("video_thumbnail_click", {
-    event_category: "Act",
-    event_label: actData?.tscName || actData?.name || "",
-    act_id: actData?._id || "",
-    video_id: vid || "",
-    video_index: index,
-  });
+                      gtagEvent("video_thumbnail_click", {
+                        event_category: "Act",
+                        event_label: actData?.tscName || actData?.name || "",
+                        act_id: actData?._id || "",
+                        video_id: vid || "",
+                        video_index: index,
+                      });
 
-  setVideo(v.url);
-  setPlaying(false);
-}}
-        className="w-[80px] h-[56px] object-cover cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded"
-        src={`https://img.youtube.com/vi/${vid}/0.jpg`}
-        alt={v.title || `Video ${index + 1}`}
-      />
-    );
-  })}
-</div>
+                      setVideo(v.url);
+                      setPlaying(false);
+                    }}
+                    className="w-[80px] h-[56px] object-cover cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded"
+                    src={`https://img.youtube.com/vi/${vid}/0.jpg`}
+                    alt={v.title || `Video ${index + 1}`}
+                  />
+                );
+              })}
+            </div>
 
             {/* Inclusions (mobile only) */}
             <div className="block sm:hidden" id="included">
@@ -1336,23 +1423,23 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                   text2="INCLUSIONS"
                 />
               </div>
-           <div className="flex items-center gap-1 mt-2 pl-3">
-  {[1, 2, 3, 4, 5].map((i) => (
-    <img
-      key={i}
-      className="w-3.5"
-      src={
-        avgRating >= i
-          ? assets.star_icon
-          : avgRating >= i - 0.5
-          ? assets.star_half_icon
-          : assets.star_dull_icon
-      }
-      alt={`Star ${i}`}
-    />
-  ))}
-  <p className="pl-2">({reviews?.length || 0})</p>
-</div>
+              <div className="flex items-center gap-1 mt-2 pl-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <img
+                    key={i}
+                    className="w-3.5"
+                    src={
+                      avgRating >= i
+                        ? assets.star_icon
+                        : avgRating >= i - 0.5
+                          ? assets.star_half_icon
+                          : assets.star_dull_icon
+                    }
+                    alt={`Star ${i}`}
+                  />
+                ))}
+                <p className="pl-2">({reviews?.length || 0})</p>
+              </div>
               {/* ✅ Sticky bar only on mobile */}
               {actData && (
                 <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3 z-[9999]">
@@ -1394,7 +1481,11 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                   <button
                     onClick={async () => {
                       try {
-                        await addToShortlist(actData._id, safeSelectedLineup, actPath);
+                        await addToShortlist(
+                          actData._id,
+                          safeSelectedLineup,
+                          actPath,
+                        );
 
                         if (!userId) return;
 
@@ -1410,7 +1501,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                           {
                             position: "top-right",
                             autoClose: 1600,
-                          }
+                          },
                         );
                       } catch (e) {
                         console.error("❌ Shortlist toggle failed", e);
@@ -1422,7 +1513,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                           {
                             position: "top-right",
                             autoClose: 1600,
-                          }
+                          },
                         );
                       }
                     }}
@@ -1441,8 +1532,20 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                     onClick={async () => {
                       if (!safeSelectedLineup) {
                         console.warn(
-                          "⚠️ No lineup selected before adding to cart"
+                          "⚠️ No lineup selected before adding to cart",
                         );
+                        if (!isTravelAvailableForSelection) {
+  toast(
+    <CustomToast
+      type="error"
+      message={
+        travelUnavailableMessage || "This act does not travel to the selected location."
+      }
+    />,
+    { position: "top-right", autoClose: 2200 }
+  );
+  return;
+}
                         return;
                       }
 
@@ -1453,27 +1556,27 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                           try {
                             sessionStorage.setItem(
                               "pendingCartActId",
-                              String(actData._id)
+                              String(actData._id),
                             );
                             sessionStorage.setItem(
                               "pendingCartLineupId",
                               String(
                                 safeSelectedLineup._id ||
                                   safeSelectedLineup.lineupId ||
-                                  ""
-                              )
+                                  "",
+                              ),
                             );
                           } catch {}
                           promptLogin(
                             "Please log in to add acts to your cart and receive availability updates.",
-                            actData._id
+                            actData._id,
                           );
                           return; // 🚫 no toast here
                         }
 
                         addToCart(
                           actData._id,
-                          safeSelectedLineup._id || safeSelectedLineup.lineupId
+                          safeSelectedLineup._id || safeSelectedLineup.lineupId,
                         );
 
                         // 🔔 NEW: trigger availability request on cart add (mobile)
@@ -1486,35 +1589,35 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                             type="success"
                             message="Added to cart!"
                           />,
-                          { position: "top-right", autoClose: 1600 }
+                          { position: "top-right", autoClose: 1600 },
                         );
                         return;
                       }
 
                       if (isSameLineupAsCart) {
                         const lineupIds = Object.keys(
-                          cartItems[actData._id] || {}
+                          cartItems[actData._id] || {},
                         );
                         lineupIds.forEach((lineupId) =>
-                          removeFromCart(actData._id, lineupId)
+                          removeFromCart(actData._id, lineupId),
                         );
                         toast(
                           <CustomToast
                             type="success"
                             message="Removed from cart."
                           />,
-                          { position: "top-right", autoClose: 1600 }
+                          { position: "top-right", autoClose: 1600 },
                         );
                       } else {
                         const lineupIds = Object.keys(
-                          cartItems[actData._id] || {}
+                          cartItems[actData._id] || {},
                         );
                         lineupIds.forEach((lineupId) =>
-                          removeFromCart(actData._id, lineupId)
+                          removeFromCart(actData._id, lineupId),
                         );
                         addToCart(
                           actData._id,
-                          safeSelectedLineup._id || safeSelectedLineup.lineupId
+                          safeSelectedLineup._id || safeSelectedLineup.lineupId,
                         );
 
                         // 🔔 NEW: trigger availability request on lineup update (mobile)
@@ -1527,7 +1630,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                             type="success"
                             message="Lineup updated in cart!"
                           />,
-                          { position: "top-right", autoClose: 1600 }
+                          { position: "top-right", autoClose: 1600 },
                         );
                       }
                     }}
@@ -1574,16 +1677,17 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                       <button
                         key={index}
                         onClick={() => {
-  gtagEvent("lineup_select", {
-    event_category: "Act",
-    event_label: actData?.tscName || actData?.name || "",
-    act_id: actData?._id || "",
-    lineup_id: item?._id || item?.lineupId || "",
-    lineup_size: item?.actSize || "",
-  });
+                          gtagEvent("lineup_select", {
+                            event_category: "Act",
+                            event_label:
+                              actData?.tscName || actData?.name || "",
+                            act_id: actData?._id || "",
+                            lineup_id: item?._id || item?.lineupId || "",
+                            lineup_size: item?.actSize || "",
+                          });
 
-  handleLineupChange(item);
-}}
+                          handleLineupChange(item);
+                        }}
                         className={`border py-2 px-4 rounded text-sm transition-colors duration-200 ${
                           isSelected
                             ? "bg-black text-white border-black"
@@ -1616,7 +1720,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                         {lightMap[actData.lightingSystem]} lighting system to
                         light up your stage
                         {["mediumLight", "largeLight"].includes(
-                          actData.lightingSystem
+                          actData.lightingSystem,
                         ) && " and dancefloor"}
                       </>
                     )}
@@ -1629,7 +1733,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                     .filter(
                       ([_, value]) =>
                         typeof value === "object" &&
-                        value.complimentary === true
+                        value.complimentary === true,
                     )
                     .map(([key]) => {
                       const formattedLabel = key
@@ -1662,9 +1766,9 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                       requests — a truly personalised music experience
                     </li>
                   )}
-                  {finalTravelPrice && selectedAddress?.trim() && (
-                    <li>& travel to {selectedAddress}</li>
-                  )}
+                  {isTravelAvailableForSelection && finalTravelPrice && selectedAddress?.trim() && (
+  <li>& travel to {selectedAddress}</li>
+)}
                 </ul>
               </div>
 
@@ -1682,7 +1786,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                   const cleanDate = selectedDate.slice(0, 10);
 
                   const matchedKey = Object.keys(allBadges).find((k) =>
-                    k.includes(cleanDate)
+                    k.includes(cleanDate),
                   );
 
                   if (!matchedKey) {
@@ -1804,29 +1908,30 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
               />
             </div>
             {/* Star rating with full, half, and empty stars */}
-           <div className="flex items-center gap-1 mt-2 pl-3">
-  {[1, 2, 3, 4, 5].map((i) => (
-    <img
-      key={i}
-      className="w-3.5"
-      src={
-        avgRating >= i
-          ? assets.star_icon
-          : avgRating >= i - 0.5
-          ? assets.star_half_icon
-          : assets.star_dull_icon
-      }
-      alt={`Star ${i}`}
-    />
-  ))}
-  <p className="pl-2">({reviews?.length || 0})</p>
-</div>
+            <div className="flex items-center gap-1 mt-2 pl-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <img
+                  key={i}
+                  className="w-3.5"
+                  src={
+                    avgRating >= i
+                      ? assets.star_icon
+                      : avgRating >= i - 0.5
+                        ? assets.star_half_icon
+                        : assets.star_dull_icon
+                  }
+                  alt={`Star ${i}`}
+                />
+              ))}
+              <p className="pl-2">({reviews?.length || 0})</p>
+            </div>
 
             <p className="mt-5 text-3xl font-medium p-3">
               {(() => {
                 // If we don't have an address (e.g. nothing persisted in localStorage), show the act's min display price
                 const hasAddress =
-                  typeof selectedAddress === "string" && selectedAddress.trim().length > 0;
+                  typeof selectedAddress === "string" &&
+                  selectedAddress.trim().length > 0;
 
                 if (!hasAddress) {
                   const rawMin =
@@ -1848,6 +1953,14 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                   return "Add date & location for an accurate price";
                 }
 
+                if (travelUnavailableMessage) {
+  return (
+    <span className="text-base font-medium text-red-600">
+      {travelUnavailableMessage}
+    </span>
+  );
+}
+
                 const rawTotal =
                   price?.total ??
                   formattedPrice ??
@@ -1859,16 +1972,18 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                     ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ""))
                     : null;
 
-              const displayTotal =
-  cleanTotal != null && !Number.isNaN(cleanTotal)
-    ? Math.round(cleanTotal)
-    : null;
+                const displayTotal =
+                  cleanTotal != null && !Number.isNaN(cleanTotal)
+                    ? Math.round(cleanTotal)
+                    : null;
 
                 const travelCalculated =
                   price?.travelCalculated || finalTravelPrice?.travelCalculated;
 
                 if (displayTotal != null) {
-                  return travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`;
+                  return travelCalculated
+                    ? `£${displayTotal}`
+                    : `from £${displayTotal}`;
                 }
 
                 return "Loading price...";
@@ -1919,7 +2034,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                       {lightMap[actData?.lightingSystem]} lighting system to
                       light up your stage
                       {["mediumLight", "largeLight"].includes(
-                        actData?.lightingSystem
+                        actData?.lightingSystem,
                       ) && " and dancefloor"}
                     </>
                   )}
@@ -1931,7 +2046,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                 {Object.entries(actData.extras || {})
                   .filter(
                     ([_, value]) =>
-                      typeof value === "object" && value.complimentary === true
+                      typeof value === "object" && value.complimentary === true,
                   )
                   .map(([key]) => {
                     const formattedLabel = key
@@ -1965,9 +2080,9 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                     requests — a truly personalised music experience
                   </li>
                 )}
-                {finalTravelPrice && selectedAddress?.trim() && (
-                  <li>& travel to {selectedAddress}</li>
-                )}
+                {isTravelAvailableForSelection && finalTravelPrice && selectedAddress?.trim() && (
+  <li>& travel to {selectedAddress}</li>
+)}
               </ul>
             </div>
             {/* move this block ABOVE or BELOW the .block sm:hidden */}
@@ -1978,7 +2093,7 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
 
                 const cleanDate = selectedDate.slice(0, 10);
                 const badgeKey = Object.keys(allBadges).find((k) =>
-                  k.includes(cleanDate)
+                  k.includes(cleanDate),
                 );
                 if (!badgeKey) return null;
 
@@ -2005,7 +2120,9 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                 };
 
                 const resolveSlotCandidates = (slot) => {
-                  const deps = Array.isArray(slot.deputies) ? slot.deputies : [];
+                  const deps = Array.isArray(slot.deputies)
+                    ? slot.deputies
+                    : [];
 
                   // Lead first (if yes + photo)
                   const leadIsAvailable = slot?.state === "yes";
@@ -2031,23 +2148,28 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                     slot.primary.musicianId
                       ? (() => {
                           const match = deps.find(
-                            (d) => String(d.musicianId) === String(slot.primary.musicianId)
+                            (d) =>
+                              String(d.musicianId) ===
+                              String(slot.primary.musicianId),
                           );
                           return {
                             ...slot.primary,
                             isDeputy: true,
-                            vocalistName: match?.vocalistName || match?.name || "",
+                            vocalistName:
+                              match?.vocalistName || match?.name || "",
                           };
                         })()
                       : null;
 
                   // YES deputies
                   const yesDeps = deps
-                    .filter((d) => isYes(d) && isHttp(d?.photoUrl) && d?.musicianId)
+                    .filter(
+                      (d) => isYes(d) && isHttp(d?.photoUrl) && d?.musicianId,
+                    )
                     .sort(
                       (a, b) =>
                         new Date(b.repliedAt || b.setAt || 0) -
-                        new Date(a.repliedAt || a.setAt || 0)
+                        new Date(a.repliedAt || a.setAt || 0),
                     )
                     .map((d) => ({ ...d, isDeputy: true }));
 
@@ -2057,7 +2179,8 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                     ...(primaryDep ? [primaryDep] : []),
                     ...yesDeps.filter(
                       (d) =>
-                        !primaryDep || String(d.musicianId) !== String(primaryDep.musicianId)
+                        !primaryDep ||
+                        String(d.musicianId) !== String(primaryDep.musicianId),
                     ),
                   ];
 
@@ -2072,80 +2195,81 @@ const selectedVideoId = extractVideoId(selectedVideoUrl);
                   return bLead - aLead; // any slot with a lead-YES comes first
                 });
 
-// 🏷 Short-name helper (no dot after the initial)
-const shortName = (full = "") => {
-  const cleaned = String(full)
-    .trim()
-    .replace(/\s+/g, " ");
-  if (!cleaned) return "";
-  const parts = cleaned.split(" ");
-  if (parts.length === 1) return parts[0];
-  const first = parts[0];
-  const last = parts[parts.length - 1].replace(/[^A-Za-zÀ-ÿ'-]/g, "");
-  const initial = last ? last[0].toUpperCase() : "";
-  return initial ? `${first} ${initial}` : first;
-};
+                // 🏷 Short-name helper (no dot after the initial)
+                const shortName = (full = "") => {
+                  const cleaned = String(full).trim().replace(/\s+/g, " ");
+                  if (!cleaned) return "";
+                  const parts = cleaned.split(" ");
+                  if (parts.length === 1) return parts[0];
+                  const first = parts[0];
+                  const last = parts[parts.length - 1].replace(
+                    /[^A-Za-zÀ-ÿ'-]/g,
+                    "",
+                  );
+                  const initial = last ? last[0].toUpperCase() : "";
+                  return initial ? `${first} ${initial}` : first;
+                };
 
-const seen = new Set();
-const flat = [];
+                const seen = new Set();
+                const flat = [];
 
-for (const slot of sortedSlots) {
-  const candidates = resolveSlotCandidates(slot);
+                for (const slot of sortedSlots) {
+                  const candidates = resolveSlotCandidates(slot);
 
-  for (const item of candidates) {
-    const id = String(item?.musicianId || "");
-    if (!id || seen.has(id)) continue;     // ✅ THIS removes duplicate across slots
-    seen.add(id);
-    flat.push({ ...item, _slot: slot });   // keep slot ref for cacheBuster fallback
-  }
-}
+                  for (const item of candidates) {
+                    const id = String(item?.musicianId || "");
+                    if (!id || seen.has(id)) continue; // ✅ THIS removes duplicate across slots
+                    seen.add(id);
+                    flat.push({ ...item, _slot: slot }); // keep slot ref for cacheBuster fallback
+                  }
+                }
 
-// show up to 9 unique badges total (adjust if you want more)
-const finalList = flat.slice(0, 9);
+                // show up to 9 unique badges total (adjust if you want more)
+                const finalList = flat.slice(0, 9);
 
-if (!finalList.length) return null;
+                if (!finalList.length) return null;
 
-return (
-  <div className="flex items-center gap-3 mt-2 flex-wrap">
-    {finalList.map((item, idx) => {
-      const slot = item._slot || {};
-      const cache =
-        item.setAt || slot.setAt || badgeForDate.setAt || "";
+                return (
+                  <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    {finalList.map((item, idx) => {
+                      const slot = item._slot || {};
+                      const cache =
+                        item.setAt || slot.setAt || badgeForDate.setAt || "";
 
-      const prof =
-        item.profileUrl ||
-        (item.musicianId
-          ? `${PUBLIC_SITE_BASE}/musician/${encodeURIComponent(item.musicianId)}`
-          : "");
+                      const prof =
+                        item.profileUrl ||
+                        (item.musicianId
+                          ? `${PUBLIC_SITE_BASE}/musician/${encodeURIComponent(item.musicianId)}`
+                          : "");
 
-      // your existing name resolution → shortName(...)
-      const label =
-        item.displayName ||
-        item.vocalistName ||
-        item.preferredName ||
-        item.depName ||
-        item.deputyName ||
-        item.musicianName ||
-        (!item.isDeputy ? (slot.vocalistName || "") : "");
+                      // your existing name resolution → shortName(...)
+                      const label =
+                        item.displayName ||
+                        item.vocalistName ||
+                        item.preferredName ||
+                        item.depName ||
+                        item.deputyName ||
+                        item.musicianName ||
+                        (!item.isDeputy ? slot.vocalistName || "" : "");
 
-      const displayName = shortName(label || "");
+                      const displayName = shortName(label || "");
 
-      return (
-        <FeaturedVocalistBadge
-          key={`${badgeKey}_flat_${String(item.musicianId || idx)}`}
-          imageUrl={item.photoUrl}
-          size={140}
-          cacheBuster={cache}
-          className="mt-2"
-          musicianId={String(item.musicianId || "")}
-          profileUrl={prof}
-          variant={item.isDeputy ? "deputy" : "lead"}
-          displayName={displayName}
-        />
-      );
-    })}
-  </div>
-);
+                      return (
+                        <FeaturedVocalistBadge
+                          key={`${badgeKey}_flat_${String(item.musicianId || idx)}`}
+                          imageUrl={item.photoUrl}
+                          size={140}
+                          cacheBuster={cache}
+                          className="mt-2"
+                          musicianId={String(item.musicianId || "")}
+                          profileUrl={prof}
+                          variant={item.isDeputy ? "deputy" : "lead"}
+                          displayName={displayName}
+                        />
+                      );
+                    })}
+                  </div>
+                );
               })()}
             </div>
 
@@ -2154,7 +2278,11 @@ return (
               <button
                 onClick={async () => {
                   try {
-                    await addToShortlist(actData._id, safeSelectedLineup, actPath);
+                    await addToShortlist(
+                      actData._id,
+                      safeSelectedLineup,
+                      actPath,
+                    );
 
                     if (!userId) return;
 
@@ -2170,7 +2298,7 @@ return (
                       {
                         position: "top-right",
                         autoClose: 1600,
-                      }
+                      },
                     );
                   } catch (e) {
                     console.error("❌ Shortlist toggle failed", e);
@@ -2182,7 +2310,7 @@ return (
                       {
                         position: "top-right",
                         autoClose: 1600,
-                      }
+                      },
                     );
                   }
                 }}
@@ -2202,25 +2330,42 @@ return (
                     console.warn("⚠️ No lineup selected before adding to cart");
                     return;
                   }
+                  if (!isTravelAvailableForSelection) {
+  toast(
+    <CustomToast
+      type="error"
+      message={
+        travelUnavailableMessage || "This act does not travel to the selected location."
+      }
+    />,
+    { position: "top-right", autoClose: 2200 }
+  );
+  return;
+}
                   // 🔒 Require login before adding/removing cart items
                   if (!userId) {
                     try {
                       const pending = {
                         actId: String(actData._id),
                         lineupId: String(
-                          safeSelectedLineup._id || safeSelectedLineup.lineupId || ""
+                          safeSelectedLineup._id ||
+                            safeSelectedLineup.lineupId ||
+                            "",
                         ),
                         selectedExtras: [],
                         selectedAfternoonSets: [],
                         songSuggestions: [],
                       };
                       // ShopContext looks for this exact key after login
-                      sessionStorage.setItem("pendingCartPayload", JSON.stringify(pending));
+                      sessionStorage.setItem(
+                        "pendingCartPayload",
+                        JSON.stringify(pending),
+                      );
                     } catch {}
                     // IMPORTANT: pass null so promptLogin does NOT set pendingShortlistActId
                     promptLogin(
                       "Please log in to add acts to your cart and receive availability updates.",
-                      null
+                      null,
                     );
                     return;
                   }
@@ -2229,7 +2374,7 @@ return (
                     // remove all lineups for this act
                     const lineupIds = Object.keys(cartItems[actData._id] || {});
                     lineupIds.forEach((lineupId) =>
-                      removeFromCart(actData._id, lineupId)
+                      removeFromCart(actData._id, lineupId),
                     );
 
                     toast(
@@ -2237,13 +2382,13 @@ return (
                         type="success"
                         message="Removed from cart."
                       />,
-                      { position: "top-right", autoClose: 1600 }
+                      { position: "top-right", autoClose: 1600 },
                     );
                   } else {
                     // add selected lineup
                     addToCart(
                       actData._id,
-                      safeSelectedLineup._id || safeSelectedLineup.lineupId
+                      safeSelectedLineup._id || safeSelectedLineup.lineupId,
                     );
 
                     // 🔔 NEW: trigger availability request on cart add (desktop)
@@ -2253,7 +2398,7 @@ return (
 
                     toast(
                       <CustomToast type="success" message="Added to cart!" />,
-                      { position: "top-right", autoClose: 1600 }
+                      { position: "top-right", autoClose: 1600 },
                     );
                   }
                 }}
@@ -2288,28 +2433,28 @@ return (
                     className="w-6 h-6 md:w-8 md:h-8"
                   />
                 </button>
-               <div
-  ref={galleryRef}
-  className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory"
-  style={{ scrollBehavior: "smooth" }}
->
-  {(actData.images || []).map((imgObj, index) => (
-    <div
-      key={index}
-      className="w-[600px] h-[400px] bg-gray-100 rounded shadow-sm flex-shrink-0 snap-start overflow-hidden flex items-center justify-center"
-    >
-      <img
-        src={cldGallery(imgObj?.url, 1200)}
-        loading="lazy"
-        decoding="async"
-        width={900}
-        height={600}
-        className="w-full h-full object-contain"
-        alt={`Gallery image ${index + 1}`}
-      />
-    </div>
-  ))}
-</div>
+                <div
+                  ref={galleryRef}
+                  className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory"
+                  style={{ scrollBehavior: "smooth" }}
+                >
+                  {(actData.images || []).map((imgObj, index) => (
+                    <div
+                      key={index}
+                      className="w-[600px] h-[400px] bg-gray-100 rounded shadow-sm flex-shrink-0 snap-start overflow-hidden flex items-center justify-center"
+                    >
+                      <img
+                        src={cldGallery(imgObj?.url, 1200)}
+                        loading="lazy"
+                        decoding="async"
+                        width={900}
+                        height={600}
+                        className="w-full h-full object-contain"
+                        alt={`Gallery image ${index + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
                 <button
                   onClick={() => scrollGallery("right")}
                   className="absolute -right-6 top-1/2 transform -translate-y-1/2 z-10 text-3xl text-gray-800 hover:text-black transition-colors"
@@ -2468,19 +2613,19 @@ return (
                   {actData.extras &&
                     Object.entries(actData.extras).map(([key, value]) => {
                       const normalizedExtraKey = String(key || "")
-  .toLowerCase()
-  .replace(/[\s\-]+/g, "_")
-  .replace(/_+/g, "_")
-  .replace(/^_+|_+$/g, "");
+                        .toLowerCase()
+                        .replace(/[\s\-]+/g, "_")
+                        .replace(/_+/g, "_")
+                        .replace(/^_+|_+$/g, "");
 
-const hiddenExtras = new Set([
-  "max_dj_hours",
-  "max_dj_hour",
-  "dj_max_hours",
-  "maximum_dj_hours",
-]);
+                      const hiddenExtras = new Set([
+                        "max_dj_hours",
+                        "max_dj_hour",
+                        "dj_max_hours",
+                        "maximum_dj_hours",
+                      ]);
 
-if (hiddenExtras.has(normalizedExtraKey)) return null;
+                      if (hiddenExtras.has(normalizedExtraKey)) return null;
 
                       // Only render extras that contain a numeric value.price
                       const price =
@@ -2494,7 +2639,7 @@ if (hiddenExtras.has(normalizedExtraKey)) return null;
                       const selectedLineupSize = parseInt(
                         safeSelectedLineup?.actSize ||
                           safeSelectedLineup?.bandMembers?.length ||
-                          0
+                          0,
                       );
                       const name = actData.name || "this act";
 
@@ -2516,9 +2661,9 @@ if (hiddenExtras.has(normalizedExtraKey)) return null;
                             : fee;
 
                       const finalFee =
-  rawFinalFee !== null && !isNaN(rawFinalFee)
-    ? Math.ceil(rawFinalFee * 1.33)
-    : null;
+                        rawFinalFee !== null && !isNaN(rawFinalFee)
+                          ? Math.ceil(rawFinalFee * 1.33)
+                          : null;
 
                       if (finalFee === null || isNaN(finalFee)) return null;
 
@@ -2575,13 +2720,13 @@ if (hiddenExtras.has(normalizedExtraKey)) return null;
                         Object.entries(labelsMap).map(([key, label]) => [
                           normalizeKey(key),
                           label,
-                        ])
+                        ]),
                       );
 
                       // Normalize both map keys and input key for reliable matching
                       const label =
                         Object.entries(normalizedLabelsMap).find(([mapKey]) =>
-                          normalizeKey(key).startsWith(mapKey)
+                          normalizeKey(key).startsWith(mapKey),
                         )?.[1] || fallbackLabel;
                       // --- PATCH: grid-based layout for extras row ---
                       return (
@@ -2623,7 +2768,7 @@ if (hiddenExtras.has(normalizedExtraKey)) return null;
                                 {
                                   position: "top-right",
                                   autoClose: 2000,
-                                }
+                                },
                               );
                             }}
                           />
@@ -2657,14 +2802,16 @@ if (hiddenExtras.has(normalizedExtraKey)) return null;
 
         <Suspense fallback={null}>
           <VisibleOnScroll>
-           <RelatedActsLazy
-  genres={actData.genre || actData.genres || []}
-  instruments={actData.instruments || actData.instrumentation || []}
-  vocalist={actData.vocalist || ""}
-  leadRole={leadRole || ""}
-  currentActId={actData._id}
-  currentActSlug={actData.slug || actData.tscSlug || actData.routeSlug || ""}
-/>
+            <RelatedActsLazy
+              genres={actData.genre || actData.genres || []}
+              instruments={actData.instruments || actData.instrumentation || []}
+              vocalist={actData.vocalist || ""}
+              leadRole={leadRole || ""}
+              currentActId={actData._id}
+              currentActSlug={
+                actData.slug || actData.tscSlug || actData.routeSlug || ""
+              }
+            />
           </VisibleOnScroll>
         </Suspense>
       </div>
