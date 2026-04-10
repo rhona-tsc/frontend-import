@@ -1003,7 +1003,9 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
       (
         (Array.isArray(m?.academic_credentials) && m.academic_credentials.length > 0) ||
         (Array.isArray(m?.awards) && m.awards.length > 0) ||
-        (Array.isArray(m?.function_bands_performed_with) && m.function_bands_performed_with.length > 0) ||
+        (isPrivileged &&
+          Array.isArray(m?.function_bands_performed_with) &&
+          m.function_bands_performed_with.length > 0) ||
         (Array.isArray(m?.original_bands_performed_with) && m.original_bands_performed_with.length > 0) ||
         (Array.isArray(m?.sessions) && m.sessions.length > 0)
       )
@@ -1058,19 +1060,20 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
         </div>
       ) : null}
 
-      {Array.isArray(m?.function_bands_performed_with) &&
-      m.function_bands_performed_with.length > 0 ? (
-        <div>
-          <h4 className="font-semibold text-gray-900 mb-2">Function Projects</h4>
-          <ul className="list-disc pl-5 space-y-1">
-            {m.function_bands_performed_with
-              .filter((b) => b?.function_band_name)
-              .map((b, idx) => (
-                <li key={`funcband-${idx}`}>{b.function_band_name}</li>
-              ))}
-          </ul>
-        </div>
-      ) : null}
+  {isPrivileged &&
+Array.isArray(m?.function_bands_performed_with) &&
+m.function_bands_performed_with.length > 0 ? (
+  <div>
+    <h4 className="font-semibold text-gray-900 mb-2">Function Projects</h4>
+    <ul className="list-disc pl-5 space-y-1">
+      {m.function_bands_performed_with
+        .filter((b) => b?.function_band_name)
+        .map((b, idx) => (
+          <li key={`funcband-${idx}`}>{b.function_band_name}</li>
+        ))}
+    </ul>
+  </div>
+) : null}
 
       {Array.isArray(m?.original_bands_performed_with) &&
       m.original_bands_performed_with.length > 0 ? (
