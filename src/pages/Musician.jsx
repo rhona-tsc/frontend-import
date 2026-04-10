@@ -596,13 +596,47 @@ const content = React.useMemo(() => {
   const hasRepertoire =
     Array.isArray(actData?.selectedSongs) && actData.selectedSongs.length > 0;
 
+const hasNonEmptyArrayRows = (arr, keys = ["name", "quantity", "wattage", "length"]) =>
+  Array.isArray(arr) &&
+  arr.some((item) =>
+    keys.some((key) => {
+      const value = item?.[key];
+      return value !== null && value !== undefined && String(value).trim() !== "" && String(value) !== "0";
+    })
+  );
+
+const hasNonEmptyObjectValues = (obj) =>
+  obj &&
+  typeof obj === "object" &&
+  Object.values(obj).some(
+    (value) =>
+      value !== null &&
+      value !== undefined &&
+      String(value).trim() !== "" &&
+      String(value) !== "0" &&
+      String(value).toLowerCase() !== "false"
+  );
+
   const hasEquipment =
-    hasContent(actData?.equipment_spec) ||
-    hasContent(actData?.pa_equipment) ||
-    hasContent(actData?.iem) ||
-    hasContent(actData?.dj_gear) ||
-    hasContent(actData?.lighting) ||
-    hasContent(actData?.additional_gear);
+  hasNonEmptyArrayRows(actData?.paSpeakerSpecs) ||
+  hasNonEmptyArrayRows(actData?.mixingDesk) ||
+  hasNonEmptyArrayRows(actData?.floorMonitorSpecs) ||
+  hasNonEmptyArrayRows(actData?.backline) ||
+  hasNonEmptyArrayRows(actData?.instrumentSpecs, ["name", "wattage"]) ||
+  hasNonEmptyArrayRows(actData?.djEquipment) ||
+  hasNonEmptyArrayRows(actData?.djGearRequired) ||
+  hasNonEmptyArrayRows(actData?.uplights, ["quantity", "wattage"]) ||
+  hasNonEmptyArrayRows(actData?.tbars, ["quantity", "wattage"]) ||
+  hasNonEmptyArrayRows(actData?.lightBars, ["quantity", "wattage"]) ||
+  hasNonEmptyArrayRows(actData?.discoBall, ["quantity", "wattage"]) ||
+  hasNonEmptyArrayRows(actData?.otherLighting) ||
+  hasNonEmptyArrayRows(actData?.cableLogistics, ["length", "quantity"]) ||
+  hasNonEmptyArrayRows(actData?.extensionCableLogistics, ["length", "quantity"]) ||
+  hasNonEmptyObjectValues(actData?.vocalMics) ||
+  hasNonEmptyObjectValues(actData?.inEarMonitoring) ||
+  hasNonEmptyObjectValues(actData?.instrumentMics) ||
+  hasNonEmptyObjectValues(actData?.speechMics) ||
+  hasNonEmptyObjectValues(actData?.additionalEquipment);
 
   const hasSnapshot = hasInstrumentation || hasVocals || hasLocation || hasAnySkills;
 
@@ -864,6 +898,17 @@ const content = React.useMemo(() => {
               </ul>
             </Section>
 
+            <Section when={Array.isArray(m?.academic_credentials) && m.academic_credentials.length > 0}>
+  <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
+    <h4 className="font-semibold text-gray-900 mb-2">Highlights</h4>
+    {m.academic_credentials.slice(0, 2).map((cred, idx) => (
+      <li key={`highlight-cred-${idx}`}>
+        {[cred?.education_level, cred?.course, cred?.institution].filter(Boolean).join(" — ")}
+      </li>
+    ))}
+  </ul>
+</Section>
+
             {/* Skills categories */}
             <Section when={content.hasAnySkills}>
               {(() => {
@@ -952,109 +997,112 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
       {/* ===== GALLERY (full width) ===== */}
       {/*  Academics & Achievements */}
 
-<Section when={Boolean(
-  isPrivileged &&
-  m &&
-  (
-    (Array.isArray(m?.academic_credentials) && m.academic_credentials.length > 0) ||
-    (Array.isArray(m?.function_bands_performed_with) && m.function_bands_performed_with.length > 0) ||
-    (Array.isArray(m?.original_bands_performed_with) && m.original_bands_performed_with.length > 0) ||
-    (Array.isArray(m?.sessions) && m.sessions.length > 0)
-  )
-)}>
-        <div className="lg:col-span-7">
-          <div className="text-2xl mb-2">
-            <Title text1={getPossessiveTitleCase(`${actData?.firstName || ""}`)} text2="ACADEMICS, ACHIEVEMENTS & BANDS" />
-          </div>
-          <div className="border rounded px-4 py-6 text-m text-gray-700 w-full my-2 sm:px-6 sm:py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* 🎓 Academic Credentials */}
-            <div>
-              {Array.isArray(actData?.academic_credentials) &&
-                actData.academic_credentials.length > 0 && (
-                  <>
-                    <h4 className="font-semibold text-gray-900 mb-2">Education & Achievements</h4>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {m.academic_credentials.map((cred, idx) => {
-                        const level = cred?.education_level ? `${cred.education_level} — ` : "";
-                        const course = cred?.course || "";
-                        const inst = cred?.institution ? ` @ ${cred.institution}` : "";
-                        const years = cred?.years ? ` (${cred.years})` : "";
-                        const line = `${level}${course}${inst}${years}`.trim();
-                        return line ? <li key={`cred-${idx}`}>{line}</li> : null;
-                      })}
-                    </ul>
-                    {Array.isArray(actData?.awards) && actData.awards.length > 0 && (
-                      <>
-                        <ul className="list-disc pl-5 space-y-1">
-                          {actData.awards.map((a, idx) => {
-                            const desc = a?.description || "";
-                            const years = a?.years ? ` (${a.years})` : "";
-                            const line = `${desc}${years}`.trim();
-                            return line ? <li key={`award-${idx}`}>{line}</li> : null;
-                          })}
-                        </ul>
-                      </>
-                    )}
-                  </>
-                )}
-            </div>
-            {/* 🎸 Function Bands Performed With */}
-            <div>
-              {Array.isArray(actData?.function_bands_performed_with) &&
-                actData.function_bands_performed_with.length > 0 && (
-                  <>
-                    <h4 className="font-semibold text-gray-900 mb-2">Function Projects</h4>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {m.function_bands_performed_with?.map((b, idx) => {
-                        const name = b?.function_band_name || "";
-                        return name ? (
-                          <li key={`funcband-${idx}`}>
-                            {name}
-                          </li>
-                        ) : null;
-                      })}
-                    </ul>
-                  </>
-                )}
-            </div>
-            {/* 🎤 Original Bands Performed With */}
-            <div>
-              {Array.isArray(actData?.original_bands_performed_with) &&
-                m.original_bands_performed_with.length > 0 && (
-                  <>
-                    <h4 className="font-semibold text-gray-900 mb-2">Original Projects</h4>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {actData.original_bands_performed_with.map((b, idx) => {
-                        const name = b?.original_band_name || "";
-                        return name ? (
-                          <li key={`origband-${idx}`}>
-                            {name}
-                          </li>
-                        ) : null;
-                      })}
-                    </ul>
-                  </>
-                )}
-            </div>
-            {/* 🎚️ Sessions */}
-            <div>
-              {Array.isArray(actData?.sessions) && actData.sessions.length > 0 && (
-                <>
-                  <h4 className="font-semibold text-gray-900 mb-2">Sessions</h4>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {m.sessions.map((s, idx) => {
-                      const artist = s?.artist || "";
-                      const stype = s?.session_type ? `, ${s.session_type}` : "";
-                      const line = `${artist}${stype}`.trim();
-                      return line ? <li key={`session-${idx}`}>{line}</li> : null;
-                    })}
-                  </ul>
-                </>
-              )}
-            </div>
-          </div>
+<Section
+  when={Boolean(
+    m &&
+      (
+        (Array.isArray(m?.academic_credentials) && m.academic_credentials.length > 0) ||
+        (Array.isArray(m?.awards) && m.awards.length > 0) ||
+        (Array.isArray(m?.function_bands_performed_with) && m.function_bands_performed_with.length > 0) ||
+        (Array.isArray(m?.original_bands_performed_with) && m.original_bands_performed_with.length > 0) ||
+        (Array.isArray(m?.sessions) && m.sessions.length > 0)
+      )
+  )}
+>
+  <div className="lg:col-span-12 mt-12">
+    <div className="text-2xl mb-2">
+      <Title
+        text1={getPossessiveTitleCase(displayShortName(m))}
+        text2="ACADEMICS, ACHIEVEMENTS & CREDITS"
+      />
+    </div>
+
+    <div className="border rounded px-4 py-6 text-m text-gray-700 w-full my-2 sm:px-6 sm:py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {(Array.isArray(m?.academic_credentials) && m.academic_credentials.length > 0) ||
+      (Array.isArray(m?.awards) && m.awards.length > 0) ? (
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-2">Education & Awards</h4>
+
+          {Array.isArray(m?.academic_credentials) && m.academic_credentials.length > 0 && (
+            <ul className="list-disc pl-5 space-y-1 mb-4">
+              {m.academic_credentials
+                .filter(
+                  (cred) =>
+                    cred?.course || cred?.institution || cred?.years || cred?.education_level
+                )
+                .map((cred, idx) => {
+                  const parts = [
+                    cred?.education_level,
+                    cred?.course,
+                    cred?.institution ? `@ ${cred.institution}` : "",
+                    cred?.years ? `(${cred.years})` : "",
+                  ].filter(Boolean);
+
+                  return <li key={`cred-${idx}`}>{parts.join(" ")}</li>;
+                })}
+            </ul>
+          )}
+
+          {Array.isArray(m?.awards) && m.awards.length > 0 && (
+            <ul className="list-disc pl-5 space-y-1">
+              {m.awards
+                .filter((award) => award?.description || award?.years)
+                .map((award, idx) => (
+                  <li key={`award-${idx}`}>
+                    {award.description}
+                    {award.years ? ` (${award.years})` : ""}
+                  </li>
+                ))}
+            </ul>
+          )}
         </div>
-      </Section>
+      ) : null}
+
+      {Array.isArray(m?.function_bands_performed_with) &&
+      m.function_bands_performed_with.length > 0 ? (
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-2">Function Projects</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            {m.function_bands_performed_with
+              .filter((b) => b?.function_band_name)
+              .map((b, idx) => (
+                <li key={`funcband-${idx}`}>{b.function_band_name}</li>
+              ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {Array.isArray(m?.original_bands_performed_with) &&
+      m.original_bands_performed_with.length > 0 ? (
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-2">Original Projects</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            {m.original_bands_performed_with
+              .filter((b) => b?.original_band_name)
+              .map((b, idx) => (
+                <li key={`origband-${idx}`}>{b.original_band_name}</li>
+              ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {Array.isArray(m?.sessions) && m.sessions.length > 0 ? (
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-2">Sessions</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            {m.sessions
+              .filter((s) => s?.artist || s?.session_type)
+              .map((s, idx) => (
+                <li key={`session-${idx}`}>
+                  {[s?.artist, s?.session_type].filter(Boolean).join(" — ")}
+                </li>
+              ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  </div>
+</Section>
 
       {/* GALLERY */}
       <Section when={content.hasGallery}>
