@@ -409,13 +409,13 @@ if (!hasLineups) {
         }}
         className="block text-gray-700"
       >
-        <div className="overflow-hidden aspect-[4/3] w-full bg-gray-100">
-  <img
-    className="block h-full w-full object-cover hover:scale-110 transition ease-in-out"
-    src={resolvedImage}
-    alt={getTitle(actData)}
-  />
-</div>
+        <div className="overflow-hidden aspect-[524/636] w-full bg-gray-100">
+          <img
+            className="block h-full w-full object-cover hover:scale-110 transition ease-in-out"
+            src={resolvedImage}
+            alt={getTitle(actData)}
+          />
+        </div>
 
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
