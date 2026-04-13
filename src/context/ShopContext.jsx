@@ -1396,16 +1396,17 @@ setActsFilterPageCards(filtered);
 
           if (arr.length) {
             const cards = arr.map(buildFilterCardFromAct);
-            // ⬇ if this function is meant to hydrate the *filter* cards for the Acts page, prefer:
-            // setActsFilterPageCards(cards);
-            // ⬇ if you intentionally want to hydrate the generic cards used by Home, keep:
             const allowTestActs = getAllowTestActs();
             const filtered = (cards || []).filter((a) =>
               shouldIncludeActItem(a, { allowTestActs })
             );
-            setActCards(filtered);
+
+            setActsFilterPageCards(filtered);
+            setActsFilterCards(filtered);
+
             try {
-              window.__TSC_ACTS__ = cards;
+              window.__TSC_FILTER_ACTS_RAW__ = cards;
+              window.__TSC_FILTER_ACTS__ = filtered;
             } catch {}
             return;
           }
@@ -1417,7 +1418,8 @@ setActsFilterPageCards(filtered);
         }
       }
       // if all fallbacks fail
-      setActCards([]);
+      setActsFilterPageCards([]);
+      setActsFilterCards([]);
     };
 
     try {
@@ -1469,10 +1471,10 @@ setActsFilterPageCards(filtered);
             c.isTest === 1 ||
             c.isTest === "1",
           images: c.images || c.coverImages || null,
-leadRole: c.leadRole || "",
-vocalist: c.vocalist || "",
-timesShortlisted: Number(c.timesShortlisted) || 0,
-numberOfShortlistsIn: Number(c.numberOfShortlistsIn) || 0,
+          leadRole: c.leadRole || "",
+          vocalist: c.vocalist || "",
+          timesShortlisted: Number(c.timesShortlisted) || 0,
+          numberOfShortlistsIn: Number(c.numberOfShortlistsIn) || 0,
         };
       });
 
@@ -1482,13 +1484,16 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn) || 0,
       }
 
       const allowTestActs = getAllowTestActs();
-const filtered = (cards || []).filter((a) =>
-  shouldIncludeActItem(a, { allowTestActs })
-);
-setActCards(filtered);
+      const filtered = (cards || []).filter((a) =>
+        shouldIncludeActItem(a, { allowTestActs })
+      );
+
+      setActsFilterPageCards(filtered);
+      setActsFilterCards(filtered);
+
       try {
-        window.__TSC_ACTS_RAW__ = cards; // raw
-        window.__TSC_ACTS__ = filtered; // what UI uses
+        window.__TSC_FILTER_ACTS_RAW__ = cards; // raw
+        window.__TSC_FILTER_ACTS__ = filtered; // acts-page filter cards
       } catch {}
     } catch (err) {
       console.warn(
@@ -1505,7 +1510,8 @@ setActCards(filtered);
       console.warn(
         "⚠️[CardFilterShopContext] VITE_BACKEND_URL is missing; cannot fetch acts"
       );
-      setActCards([]);
+      setActsFilterPageCards([]);
+      setActsFilterCards([]);
       return;
     }
     // 👉 Fast cards for listing UIs
