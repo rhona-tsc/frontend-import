@@ -700,10 +700,8 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
 
     const fallbackFromActs = async () => {
       const candidates = [
-        `/api/v2/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        `/api/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+        `/api/act/cards?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
         `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        "/api/acts",
       ];
       for (const path of candidates) {
         try {
@@ -806,10 +804,9 @@ numberOfShortlistsIn: Number(a.numberOfShortlistsIn || 0) || 0,
     // --- fallback: if /cards is missing or empty, build cards from the full acts list ---
     const fallbackFromActs = async () => {
       const candidates = [
-        `/api/v2/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        `/api/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+       `/api/act/cards?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
         `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        "/api/acts",
+        
       ];
 
       for (const path of candidates) {
@@ -1129,10 +1126,9 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
 
     const fallbackFromActs = async () => {
       const candidates = [
-        `/api/v2/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        `/api/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+        `/api/act/cards?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
         `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        "/api/acts",
+        
       ];
       for (const path of candidates) {
         try {
@@ -1372,10 +1368,9 @@ setActsFilterPageCards(filtered);
     // --- fallback: if /cards is missing or empty, build cards from the full acts list ---
     const fallbackFromActs = async () => {
       const candidates = [
-        `/api/v2/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        `/api/acts/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+         `/api/act/cards?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
         `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        "/api/acts",
+        
       ];
 
       for (const path of candidates) {
