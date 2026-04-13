@@ -59,23 +59,20 @@ const BestSeller = () => {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
           {bestSeller.map((item) => (
-            <div
-              key={String(item.actId || item._id)}
-              style={{ contentVisibility: "auto", containIntrinsicSize: "320px 420px" }}
-            >
-              <ActItem 
-                           actData={{
-                                  ...item,
-                      
-                                    loveCount: Number(
-                item.loveCount ??
-                item.timesShortlisted ??
-                item.numberOfShortlistsIn ??
-                item.shortlistCount ??
-                0
-              ) || 0,
-                                  }}
-                           />
+            <div key={String(item.actId || item._id)} className="h-full">
+              <ActItem
+                actData={{
+                  ...item,
+                  loveCount:
+                    Number(
+                      item.loveCount ??
+                        item.timesShortlisted ??
+                        item.numberOfShortlistsIn ??
+                        item.shortlistCount ??
+                        0
+                    ) || 0,
+                }}
+              />
             </div>
           ))}
         </div>

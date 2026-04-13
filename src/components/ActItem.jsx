@@ -71,19 +71,40 @@ const getImageUrl = (src) => {
 const getBadge = (src) => src?.availabilityBadge || null;
 
 const getBasePrice = (src) => {
-  if (src?.basePrice != null) return Number(String(src.basePrice).replace(/[^0-9.+-]/g, ""));
-  const lineup = src?.lineups?.[0] || null;
-  const base = src?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
-  return base != null ? Number(String(base).replace(/[^0-9.+-]/g, "")) : null;
+  const candidates = [
+    src?.basePrice,
+    src?.minDisplayPrice,
+    src?.formattedPrice?.total,
+    src?.formattedPrice?.from,
+  ]
+    .map((v) =>
+      v == null ? null : Number(String(v).replace(/[^0-9.+-]/g, ""))
+    )
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  if (candidates.length) return candidates[0];
+
+  const lineups = Array.isArray(src?.lineups) ? src.lineups : [];
+  const lineupTotals = lineups
+    .flatMap((lineup) => {
+      const fees = Array.isArray(lineup?.base_fee) ? lineup.base_fee : [];
+      return fees.map((f) =>
+        Number(String(f?.total_fee ?? "").replace(/[^0-9.+-]/g, ""))
+      );
+    })
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  return lineupTotals.length ? Math.min(...lineupTotals) : null;
 };
 
 const getLove = (src, fallback) => {
   const n =
+    src?.loveCount ??
     src?.timesShortlisted ??
-    src?.loveCount ?? // legacy alias
-    fallback ?? // prop fallback
-    src?.shortlistCount ?? // legacy alias
-    src?.metrics?.shortlists ?? // legacy alias
+    src?.numberOfShortlistsIn ??
+    fallback ??
+    src?.shortlistCount ??
+    src?.metrics?.shortlists ??
     0;
 
   return Math.max(0, Number(n) || 0);
@@ -256,7 +277,7 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
     selectedCounty,
     selectedAddress,
     selectedDate,
-    getCardPriceWithTravel,
+    addToShortlist,
   } = ctx;
 
   const [isAnimating, setIsAnimating] = useState(false);
@@ -264,11 +285,6 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
   const [price, setPrice] = useState(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
 
-  // keep latest handlers/inputs in refs so pricing effect can depend ONLY on a primitive key
-  const getCardPriceWithTravelRef = useRef(getCardPriceWithTravel);
-  useEffect(() => {
-    getCardPriceWithTravelRef.current = getCardPriceWithTravel;
-  }, [getCardPriceWithTravel]);
 
   const actDataRef = useRef(actData);
   useEffect(() => {
@@ -402,22 +418,22 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
           return;
         }
 
-        // 3) We have when/where, but a lightweight card without lineups → try helper
+        // 3) No lineups → use the card payload only.
+        // Avoid calling ShopContext helpers here because they can fall back to
+        // endpoints that do not exist on this backend.
         if (!hasLineups) {
-          const fn = getCardPriceWithTravelRef.current;
-          if (typeof fn === "function") {
-            try {
-              const totalNet = await fn(actId);
-              if (!cancelled && Number.isFinite(totalNet)) {
-                safeSetPrice({ total: applyMargin(totalNet), travelCalculated: true });
-                return;
-              }
-            } catch (err) {
-              dlog("card travel-aware pricing failed", err?.message || err);
-            }
+          const derived = computeBaseFromSmallestLineup(a);
+          if (!cancelled && derived != null) {
+            safeSetPrice({ total: applyMargin(derived), travelCalculated: false });
+            return;
           }
 
-          if (!cancelled && baseOnly != null) safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+          if (!cancelled && baseOnly != null) {
+            safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+            return;
+          }
+
+          if (!cancelled) safeSetPrice(null);
           return;
         }
 
@@ -526,17 +542,20 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
         return isShortlistedNow ? Math.max(0, safe - 1) : safe + 1;
       });
 
-      // Preserve the act page to return to after login/auth-gate flow
-      try {
-        sessionStorage.setItem("pendingShortlistReturnTo", getActUrl(actData));
-      } catch {}
+      const actPath = getActUrl(actData);
 
-      // Let ShopContext handle guest/local vs authed/server
-      shortlistAct?.(userId || null, actId);
+      if (typeof addToShortlist === "function") {
+        addToShortlist(actId, null, actPath);
+      } else {
+        try {
+          sessionStorage.setItem("pendingShortlistReturnTo", actPath);
+        } catch {}
+        shortlistAct?.(userId || null, actId);
+      }
 
       setTimeout(() => setIsAnimating(false), 300);
     },
-    [standalone, shortlistedActs, shortlistAct, userId, actId]
+    [standalone, shortlistedActs, shortlistAct, addToShortlist, userId, actId, actData]
   );
 
   const formatLoveCount = (count) => {
@@ -565,9 +584,9 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
         }}
         className="block text-gray-700"
       >
-        <div className="overflow-hidden h-full w-full">
+        <div className="overflow-hidden aspect-[524/636] w-full bg-gray-100">
           <img
-            className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
+            className="block h-full w-full object-cover hover:scale-110 transition ease-in-out"
             src={resolvedImage}
             alt={getTitle(actData)}
           />
