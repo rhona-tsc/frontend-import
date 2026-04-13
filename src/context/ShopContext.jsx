@@ -24,7 +24,7 @@ const ShopProvider = (props) => {
   const navigate = useNavigate();
   const location = useLocation();
   const providerInstanceIdRef = useRef(
-    `shopctx_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
+    `shopctx_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`,
   );
 
   useEffect(() => {
@@ -58,42 +58,46 @@ const ShopProvider = (props) => {
     String(CARD_STATUSES || "")
       .split(",")
       .map((s) => s.trim())
-      .filter(Boolean)
+      .filter(Boolean),
   );
-// ✅ guest shortlist gate
-const GUEST_SHORTLIST_LIMIT = 2; // change to 3 if you want
-const [authGate, setAuthGate] = useState({
-  open: false,
-  kind: null, // "save_shortlist"
-  count: 0,
-  justAddedActName: "",
-});
-
-const closeAuthGate = () =>
-  setAuthGate({ open: false, kind: null, count: 0, justAddedActName: "" });
-
-const openSaveShortlistGate = ({ count, actName }) => {
-  console.log("🧱[AuthGate] openSaveShortlistGate", {
-    count: Number(count) || 0,
-    actName: actName || "",
-    pathname: String(location?.pathname || ""),
+  // ✅ guest shortlist gate
+  const GUEST_SHORTLIST_LIMIT = 2; // change to 3 if you want
+  const [authGate, setAuthGate] = useState({
+    open: false,
+    kind: null, // "save_shortlist"
+    count: 0,
+    justAddedActName: "",
   });
 
-  setAuthGate({
-    open: true,
-    kind: "save_shortlist",
-    count: Number(count) || 0,
-    justAddedActName: actName || "",
-  });
-};
+  const closeAuthGate = () =>
+    setAuthGate({ open: false, kind: null, count: 0, justAddedActName: "" });
 
-// Helper to resolve act name for nicer copy
-const resolveActNameById = (idStr) => {
-  const a =
-    (Array.isArray(acts) ? acts.find(x => String(x?._id || x?.actId) === idStr) : null) ||
-    (Array.isArray(actCards) ? actCards.find(x => String(x?.actId || x?._id) === idStr) : null);
-  return a?.tscName || a?.name || "Act";
-};
+  const openSaveShortlistGate = ({ count, actName }) => {
+    console.log("🧱[AuthGate] openSaveShortlistGate", {
+      count: Number(count) || 0,
+      actName: actName || "",
+      pathname: String(location?.pathname || ""),
+    });
+
+    setAuthGate({
+      open: true,
+      kind: "save_shortlist",
+      count: Number(count) || 0,
+      justAddedActName: actName || "",
+    });
+  };
+
+  // Helper to resolve act name for nicer copy
+  const resolveActNameById = (idStr) => {
+    const a =
+      (Array.isArray(acts)
+        ? acts.find((x) => String(x?._id || x?.actId) === idStr)
+        : null) ||
+      (Array.isArray(actCards)
+        ? actCards.find((x) => String(x?.actId || x?._id) === idStr)
+        : null);
+    return a?.tscName || a?.name || "Act";
+  };
   // Be conservative: match common “test” prefixes without blocking legit names
   const TEST_NAME_RE = /^(test|demo)\b|^\s*(test|demo)\s*[-–—]/i;
 
@@ -150,72 +154,72 @@ const resolveActNameById = (idStr) => {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
-
   // ✅ numberOfShortlistsIn can go up/down
-const updateNumberOfShortlistsInEverywhere = (actId, newCount) => {
-  const idStr = String(actId);
-  const n = Math.max(0, Number(newCount) || 0);
+  const updateNumberOfShortlistsInEverywhere = (actId, newCount) => {
+    const idStr = String(actId);
+    const n = Math.max(0, Number(newCount) || 0);
 
-  const patch = (x) => {
-    const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
-    if (xid !== idStr) return x;
-    return { ...x, numberOfShortlistsIn: n };
+    const patch = (x) => {
+      const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
+      if (xid !== idStr) return x;
+      return { ...x, numberOfShortlistsIn: n };
+    };
+
+    setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActs((p) => (Array.isArray(p) ? p.map(patch) : p));
   };
 
-  setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActs((p) => (Array.isArray(p) ? p.map(patch) : p));
-};
+  // ✅ timesShortlisted is cumulative (never decrease)
+  const updateTimesShortlistedEverywhere = (actId, newCount) => {
+    const idStr = String(actId);
+    const n = Math.max(0, Number(newCount) || 0);
 
-// ✅ timesShortlisted is cumulative (never decrease)
-const updateTimesShortlistedEverywhere = (actId, newCount) => {
-  const idStr = String(actId);
-  const n = Math.max(0, Number(newCount) || 0);
+    const patch = (x) => {
+      const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
+      if (xid !== idStr) return x;
+      const prev = Math.max(0, Number(x?.timesShortlisted) || 0);
+      return { ...x, timesShortlisted: Math.max(prev, n) };
+    };
 
-  const patch = (x) => {
-    const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
-    if (xid !== idStr) return x;
-    const prev = Math.max(0, Number(x?.timesShortlisted) || 0);
-    return { ...x, timesShortlisted: Math.max(prev, n) };
+    setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+    setActs((p) => (Array.isArray(p) ? p.map(patch) : p));
   };
 
-  setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-  setActs((p) => (Array.isArray(p) ? p.map(patch) : p));
-};
+  useEffect(() => {
+    const pathname = String(location?.pathname || "");
+    const onActsPage = pathname.startsWith("/acts");
 
+    console.log("🔎[ShopContext] route->showSearch sync", {
+      pathname,
+      onActsPage,
+      prevShowSearch: showSearch,
+      prevSearch: search,
+    });
 
-useEffect(() => {
-  const pathname = String(location?.pathname || "");
-  const onActsPage = pathname.startsWith("/acts");
+    // ✅ ONLY handle leaving /acts: close + clear.
+    // 🚫 Do NOT auto-open on entering /acts (let the page decide).
+    if (!onActsPage) {
+      if (showSearch) {
+        console.log("🔎[ShopContext] leaving /acts -> closing search");
+        setShowSearch(false);
+      }
 
-  console.log("🔎[ShopContext] route->showSearch sync", {
-    pathname,
-    onActsPage,
-    prevShowSearch: showSearch,
-    prevSearch: search,
-  });
-
-  // ✅ ONLY handle leaving /acts: close + clear.
-  // 🚫 Do NOT auto-open on entering /acts (let the page decide).
-  if (!onActsPage) {
-    if (showSearch) {
-      console.log("🔎[ShopContext] leaving /acts -> closing search");
-      setShowSearch(false);
+      if (search) {
+        console.log("🔎[ShopContext] leaving /acts -> clearing search", {
+          from: search,
+        });
+        setSearch("");
+      }
     }
-
-    if (search) {
-      console.log("🔎[ShopContext] leaving /acts -> clearing search", { from: search });
-      setSearch("");
-    }
-  }
-}, [location?.pathname]); // keep your deps as-is
+  }, [location?.pathname]); // keep your deps as-is
 
   // 🔍 Debug: confirm when showSearch/search actually changes
   useEffect(() => {
@@ -251,7 +255,7 @@ useEffect(() => {
 
     console.log(
       "🧪[ShopContext] actFilterCards changed:",
-      snap(actFilterCards)
+      snap(actFilterCards),
     );
     try {
       window.__ACT_FILTER_CARDS__ = actFilterCards;
@@ -267,7 +271,7 @@ useEffect(() => {
 
     console.log(
       "🧪[ShopContext] actsFilterCards changed:",
-      snap(actsFilterCards)
+      snap(actsFilterCards),
     );
     try {
       window.__ACTS_FILTER_CARDS__ = actsFilterCards;
@@ -280,7 +284,7 @@ useEffect(() => {
       Array.isArray(actFilterCards) && actFilterCards.length
         ? actFilterCards
         : actsPageCards,
-    [actFilterCards, actsPageCards]
+    [actFilterCards, actsPageCards],
   );
 
   // Prefer filtered results; otherwise use Acts-page cards
@@ -289,7 +293,7 @@ useEffect(() => {
       Array.isArray(actsFilterCards) && actsFilterCards.length
         ? actsFilterCards
         : actsFilterPageCards,
-    [actsFilterCards, actsFilterPageCards]
+    [actsFilterCards, actsFilterPageCards],
   );
 
   // --- Persist cart to localStorage whenever it changes ---
@@ -331,43 +335,50 @@ useEffect(() => {
   });
 
   const guestToggleShortlist = (actId) => {
-  const idStr = String(actId || "");
-  if (!idStr) return;
+    const idStr = String(actId || "");
+    if (!idStr) return;
 
-  const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
-  const isIn = prev.includes(idStr);
- console.log("👤[GuestShortlist] toggle", {
-  actId: idStr,
-  beforeLen: Array.isArray(shortlistedActs) ? shortlistedActs.length : "non-array",
-  limit: GUEST_SHORTLIST_LIMIT,
-  pathname: String(location?.pathname || ""),
-});
+    const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
+    const isIn = prev.includes(idStr);
+    console.log("👤[GuestShortlist] toggle", {
+      actId: idStr,
+      beforeLen: Array.isArray(shortlistedActs)
+        ? shortlistedActs.length
+        : "non-array",
+      limit: GUEST_SHORTLIST_LIMIT,
+      pathname: String(location?.pathname || ""),
+    });
 
-  const next = isIn ? prev.filter((x) => x !== idStr) : [...new Set([...prev, idStr])];
-console.log("👤[GuestShortlist] computed", { isIn, afterLen: next.length, ids: next });
+    const next = isIn
+      ? prev.filter((x) => x !== idStr)
+      : [...new Set([...prev, idStr])];
+    console.log("👤[GuestShortlist] computed", {
+      isIn,
+      afterLen: next.length,
+      ids: next,
+    });
 
-  setShortlistedActs(next);
-  setShortlistItems(next);
+    setShortlistedActs(next);
+    setShortlistItems(next);
 
- 
-try {
-  localStorage.setItem("shortlistItems", JSON.stringify(next));
-  localStorage.setItem("guestShortlistItems", JSON.stringify(next));
-  localStorage.setItem("guestShortlistDirty", "1");
-} catch {}
-console.log("👤[GuestShortlist] hitting limit -> opening gate", {
-  afterLen: next.length,
-  limit: GUEST_SHORTLIST_LIMIT,
-  actName: resolveActNameById(idStr),
-});
-  // only gate when ADDING (not removing)
-  if (!isIn && next.length >= GUEST_SHORTLIST_LIMIT) {
-    openSaveShortlistGate({
-      count: next.length,
+    try {
+      localStorage.setItem("shortlistItems", JSON.stringify(next));
+      localStorage.setItem("guestShortlistItems", JSON.stringify(next));
+      localStorage.setItem("guestShortlistDirty", "1");
+    } catch {}
+    console.log("👤[GuestShortlist] hitting limit -> opening gate", {
+      afterLen: next.length,
+      limit: GUEST_SHORTLIST_LIMIT,
       actName: resolveActNameById(idStr),
     });
-  }
-};
+    // only gate when ADDING (not removing)
+    if (!isIn && next.length >= GUEST_SHORTLIST_LIMIT) {
+      openSaveShortlistGate({
+        count: next.length,
+        actName: resolveActNameById(idStr),
+      });
+    }
+  };
 
   // Assumes you have actFilterCards in scope (from context or props) <--- This one is for the Home page
   useEffect(() => {
@@ -380,60 +391,75 @@ console.log("👤[GuestShortlist] hitting limit -> opening gate", {
     if (!noActsYet) return;
     if (!hasCards && !hasFilter) return;
 
-   const asArray = (v) =>
-  Array.isArray(v) ? v.filter(Boolean)
-  : typeof v === "string" ? v.split(",").map(s => s.trim()).filter(Boolean)
-  : [];
+    const asArray = (v) =>
+      Array.isArray(v)
+        ? v.filter(Boolean)
+        : typeof v === "string"
+          ? v
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
 
-const asStr = (v) => (typeof v === "string" ? v : v == null ? "" : String(v));
+    const asStr = (v) =>
+      typeof v === "string" ? v : v == null ? "" : String(v);
 
-const normalize = (srcItem = {}, fallbackCard = {}) => {
-  // ✅ merge so fallback fields (genres/instruments/leadRole/vocalist) survive
-  const merged = { ...fallbackCard, ...srcItem };
+    const normalize = (srcItem = {}, fallbackCard = {}) => {
+      // ✅ merge so fallback fields (genres/instruments/leadRole/vocalist) survive
+      const merged = { ...fallbackCard, ...srcItem };
 
-  const id = String(merged?.actId ?? merged?._id ?? merged?.id ?? "");
+      const id = String(merged?.actId ?? merged?._id ?? merged?.id ?? "");
 
-  const imageUrl =
-    merged?.imageUrl ||
-    merged?._imageUrl ||
-    merged?.images?.[0]?.url ||
-    "";
+      const imageUrl =
+        merged?.imageUrl || merged?._imageUrl || merged?.images?.[0]?.url || "";
 
-  return {
-    ...merged,
-
-    // ensure consistent identifiers
-    _id: id,
-    actId: id,
-
-    // display fields
-    tscName: merged?.tscName ?? merged?.name ?? "",
-    name: merged?.name ?? merged?.tscName ?? "",
-    slug: merged?.slug ?? "",
-
-    // ensure image shapes are consistent
-    imageUrl,
-    images: imageUrl ? [{ url: imageUrl }] : (Array.isArray(merged?.images) ? merged.images : []),
-
-    // ✅ force types so RelatedActs can score reliably
-    genres: asArray(merged?.genres ?? merged?.genre),
-    instruments: asArray(merged?.instruments),
-    leadRole: asStr(merged?.leadRole),
-    vocalist: asStr(merged?.vocalist),
-    timesShortlisted: Number(merged?.timesShortlisted ) || 0,
-    numberOfShortlistsIn: Number(merged?.numberOfShortlistsIn) || 0,
-
-  };
-};
+      return {
+        _id: id,
+        actId: id,
+        tscName:
+          srcItem?.tscName ??
+          srcItem?.name ??
+          fallbackCard?.tscName ??
+          fallbackCard?.name ??
+          "",
+        name:
+          srcItem?.name ??
+          srcItem?.tscName ??
+          fallbackCard?.name ??
+          fallbackCard?.tscName ??
+          "",
+        slug: srcItem?.slug ?? fallbackCard?.slug ?? "",
+        images:
+          Array.isArray(srcItem?.images) && srcItem.images.length
+            ? srcItem.images
+            : Array.isArray(fallbackCard?.images) && fallbackCard.images.length
+              ? fallbackCard.images
+              : image
+                ? [{ url: image }]
+                : [],
+        status: srcItem?.status ?? fallbackCard?.status ?? "",
+        lineups: Array.isArray(srcItem?.lineups) ? srcItem.lineups : [],
+        hasLineups:
+          typeof srcItem?.hasLineups === "boolean"
+            ? srcItem.hasLineups
+            : Array.isArray(srcItem?.lineups) && srcItem.lineups.length > 0,
+        basePrice: srcItem?.basePrice ?? fallbackCard?.basePrice ?? null,
+        baseOnly: srcItem?.baseOnly ?? fallbackCard?.baseOnly ?? null,
+        hasAnyLocation: Boolean(
+          srcItem?.hasAnyLocation ?? fallbackCard?.hasAnyLocation,
+        ),
+        ...srcItem,
+      };
+    };
 
     if (hasFilter) {
       const byId = new Map(
-        (actCards || []).map((c) => [String(c.actId ?? c._id ?? ""), c])
+        (actCards || []).map((c) => [String(c.actId ?? c._id ?? ""), c]),
       );
       setActs(
         filterCards.map((f) =>
-          normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {})
-        )
+          normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {}),
+        ),
       );
       return;
     }
@@ -455,9 +481,9 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
             baseOnly: c.baseOnly ?? null,
             hasAnyLocation: !!c.hasAnyLocation,
           },
-          c
-        )
-      )
+          c,
+        ),
+      ),
     );
   }, [filterCards, actCards, acts, location?.pathname]);
 
@@ -479,7 +505,7 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
           srcItem?._id ??
           fallbackCard?.actId ??
           fallbackCard?._id ??
-          ""
+          "",
       );
 
       const image =
@@ -514,7 +540,7 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
         basePrice: srcItem?.basePrice ?? fallbackCard?.basePrice ?? null,
         baseOnly: srcItem?.baseOnly ?? fallbackCard?.baseOnly ?? null,
         hasAnyLocation: Boolean(
-          srcItem?.hasAnyLocation ?? fallbackCard?.hasAnyLocation
+          srcItem?.hasAnyLocation ?? fallbackCard?.hasAnyLocation,
         ),
         ...srcItem,
       };
@@ -522,12 +548,12 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
 
     if (hasFilter) {
       const byId = new Map(
-        (actCards || []).map((c) => [String(c.actId ?? c._id ?? ""), c])
+        (actCards || []).map((c) => [String(c.actId ?? c._id ?? ""), c]),
       );
       setActs(
         filterActsCards.map((f) =>
-          normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {})
-        )
+          normalize(f, byId.get(String(f.actId ?? f._id ?? "")) || {}),
+        ),
       );
       return;
     }
@@ -549,9 +575,9 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
             baseOnly: c.baseOnly ?? null,
             hasAnyLocation: !!c.hasAnyLocation,
           },
-          c
-        )
-      )
+          c,
+        ),
+      ),
     );
   }, [filterActsCards, actCards, acts, location?.pathname]);
 
@@ -574,7 +600,7 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
         const cards = Array.isArray(data?.cards) ? data.cards : [];
         const allowTestActs = getAllowTestActs();
         const filtered = (cards || []).filter((a) =>
-          shouldIncludeActItem(a, { allowTestActs })
+          shouldIncludeActItem(a, { allowTestActs }),
         );
         try {
           window.__ACTS_FILTER_CARDS__ = filtered;
@@ -588,7 +614,7 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
         return [];
       }
     },
-    [shouldIncludeActItem]
+    [shouldIncludeActItem],
   );
 
   // In ShopContext (new helper; do NOT change existing functions)
@@ -610,7 +636,7 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
         const cards = Array.isArray(data?.cards) ? data.cards : [];
         const allowTestActs = getAllowTestActs();
         const filtered = (cards || []).filter((a) =>
-          shouldIncludeActItem(a, { allowTestActs })
+          shouldIncludeActItem(a, { allowTestActs }),
         );
         try {
           window.__ACT_FILTER_CARDS__ = filtered;
@@ -624,7 +650,7 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
         return [];
       }
     },
-    [shouldIncludeActItem]
+    [shouldIncludeActItem],
   );
 
   // ⬇️ add this function (standalone; does NOT touch actCards)
@@ -635,12 +661,27 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
     // card normalizer ONLY for the Acts page
     const normalize = (c = {}) => {
       const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+
+      const imageUrl =
+        c.imageUrl ||
+        (Array.isArray(c?.coverImage) && c.coverImage[0]?.url) ||
+        (Array.isArray(c?.images) && c.images[0]?.url) ||
+        (Array.isArray(c?.profileImage) && c.profileImage[0]?.url) ||
+        c.img ||
+        "";
+
       return {
         actId: String(c.actId || c._id || c.id || ""),
         tscName: c.tscName || c.name || c.n || "",
         name: c.name || c.tscName || c.n || "",
         slug: c.slug || c.s || "",
-        imageUrl: c.imageUrl || c.img || "",
+        imageUrl,
+        images:
+          Array.isArray(c.images) && c.images.length
+            ? c.images
+            : imageUrl
+              ? [{ url: imageUrl }]
+              : [],
         basePrice: num(c.basePrice ?? c.p),
         availabilityBadge: c.availabilityBadge || c.badge || null,
         status: c.status || c.st || "",
@@ -649,11 +690,11 @@ const normalize = (srcItem = {}, fallbackCard = {}) => {
         updatedAt: c.updatedAt || null,
         bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
         genres: Array.isArray(c.genres) ? c.genres : [],
-instruments: Array.isArray(c.instruments) ? c.instruments : [],
-leadRole: c.leadRole || "",
-vocalist: c.vocalist || "",
-timesShortlisted: Number(c.timesShortlisted || 0) || 0, 
-numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
+        instruments: Array.isArray(c.instruments) ? c.instruments : [],
+        leadRole: c.leadRole || "",
+        vocalist: c.vocalist || "",
+        timesShortlisted: Number(c.timesShortlisted || 0) || 0,
+        numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
       };
     };
 
@@ -688,7 +729,7 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
         slug: a?.slug || "",
         imageUrl: pickImage(a),
         basePrice,
-        timesShortlisted: Number(a?.timesShortlisted || 0) || 0,  
+        timesShortlisted: Number(a?.timesShortlisted || 0) || 0,
         numberOfShortlistsIn: Number(a?.numberOfShortlistsIn || 0) || 0,
         availabilityBadge: null,
         status: a?.status || "",
@@ -720,7 +761,7 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
             const mapped = arr.map(buildCardFromAct);
             const allowTestActs = getAllowTestActs();
             const filtered = (mapped || []).filter((a) =>
-              shouldIncludeActItem(a, { allowTestActs })
+              shouldIncludeActItem(a, { allowTestActs }),
             );
             setActsPageCards(filtered);
             return;
@@ -739,7 +780,7 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
       const mapped = raw.map(normalize);
       const allowTestActs = getAllowTestActs();
       const filtered = (mapped || []).filter((a) =>
-        shouldIncludeActItem(a, { allowTestActs })
+        shouldIncludeActItem(a, { allowTestActs }),
       );
       setActsPageCards(filtered);
     } catch {
@@ -793,20 +834,19 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
         availabilityBadge: null,
         status: a?.status || "",
         genres: Array.isArray(a.genres) ? a.genres : [],
-instruments: Array.isArray(a.instruments) ? a.instruments : [],
-leadRole: a.leadRole || "",
-vocalist: a.vocalist || "",
-timesShortlisted: Number(a.timesShortlisted || 0) || 0,
-numberOfShortlistsIn: Number(a.numberOfShortlistsIn || 0) || 0,
+        instruments: Array.isArray(a.instruments) ? a.instruments : [],
+        leadRole: a.leadRole || "",
+        vocalist: a.vocalist || "",
+        timesShortlisted: Number(a.timesShortlisted || 0) || 0,
+        numberOfShortlistsIn: Number(a.numberOfShortlistsIn || 0) || 0,
       };
     };
 
     // --- fallback: if /cards is missing or empty, build cards from the full acts list ---
     const fallbackFromActs = async () => {
       const candidates = [
-       `/api/act/cards?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+        `/api/act/cards?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
         `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        
       ];
 
       for (const path of candidates) {
@@ -829,7 +869,7 @@ numberOfShortlistsIn: Number(a.numberOfShortlistsIn || 0) || 0,
             const cards = arr.map(buildCardFromAct);
             const allowTestActs = getAllowTestActs();
             const filtered = (cards || []).filter((a) =>
-              shouldIncludeActItem(a, { allowTestActs })
+              shouldIncludeActItem(a, { allowTestActs }),
             );
             setActCards(filtered);
             try {
@@ -855,29 +895,43 @@ numberOfShortlistsIn: Number(a.numberOfShortlistsIn || 0) || 0,
       });
       const arr = Array.isArray(res?.data?.acts) ? res.data.acts : [];
 
-      const cards = arr.map((c) => ({
-        actId: String(c.actId || c._id || ""),
-        tscName: c.tscName || c.name || "",
-        name: c.name || "",
-        slug: c.slug || "",
-        imageUrl: c.imageUrl || "",
-        basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
-        availabilityBadge: c.availabilityBadge || null,
-        status: c.status || "",
-genres: Array.isArray(c.genres) ? c.genres : [],
-instruments: Array.isArray(c.instruments) ? c.instruments : [],
-leadRole: c.leadRole || "",
-vocalist: c.vocalist || "",
-timesShortlisted: Number(c.timesShortlisted || 0) || 0,
-numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
-        // ✅ needed by NewActs + BestSeller
-        createdAt: c.createdAt || null,
-        minDisplayPrice: Number.isFinite(c.minDisplayPrice)
-          ? Number(c.minDisplayPrice)
-          : null,
-        updatedAt: c.updatedAt || null,
-        bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
-      }));
+      const cards = arr.map((c) => {
+        const imageUrl =
+          c.imageUrl ||
+          (Array.isArray(c?.coverImage) && c.coverImage[0]?.url) ||
+          (Array.isArray(c?.images) && c.images[0]?.url) ||
+          (Array.isArray(c?.profileImage) && c.profileImage[0]?.url) ||
+          "";
+
+        return {
+          actId: String(c.actId || c._id || ""),
+          tscName: c.tscName || c.name || "",
+          name: c.name || "",
+          slug: c.slug || "",
+          imageUrl,
+          images:
+            Array.isArray(c.images) && c.images.length
+              ? c.images
+              : imageUrl
+                ? [{ url: imageUrl }]
+                : [],
+          basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
+          availabilityBadge: c.availabilityBadge || null,
+          status: c.status || "",
+          genres: Array.isArray(c.genres) ? c.genres : [],
+          instruments: Array.isArray(c.instruments) ? c.instruments : [],
+          leadRole: c.leadRole || "",
+          vocalist: c.vocalist || "",
+          timesShortlisted: Number(c.timesShortlisted || 0) || 0,
+          numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
+          createdAt: c.createdAt || null,
+          minDisplayPrice: Number.isFinite(c.minDisplayPrice)
+            ? Number(c.minDisplayPrice)
+            : null,
+          updatedAt: c.updatedAt || null,
+          bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
+        };
+      });
 
       if (cards.length === 0) {
         // 🚑 If the /cards endpoint is empty, fall back to deriving from full acts
@@ -887,7 +941,7 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
 
       const allowTestActs = getAllowTestActs();
       const filtered = (cards || []).filter((a) =>
-        shouldIncludeActItem(a, { allowTestActs })
+        shouldIncludeActItem(a, { allowTestActs }),
       );
       setActCards(filtered);
       try {
@@ -904,16 +958,21 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
     console.log("🛒[ShopContext] Mount — backendUrl:", backendUrl);
     if (!backendUrl) {
       console.warn(
-        "⚠️[ShopContext] VITE_BACKEND_URL is missing; cannot fetch acts"
+        "⚠️[ShopContext] VITE_BACKEND_URL is missing; cannot fetch acts",
       );
       setActCards([]);
       return;
     }
+
     // 👉 Fast cards for listing UIs
     getActCardsData().catch((e) =>
-      console.error("❌[ShopContext] getActCardsData threw:", e)
+      console.error("❌[ShopContext] getActCardsData threw:", e),
     );
-    // ⛔ Do not call getActsData() here; it will overwrite cards in grids.
+
+    // 👉 Full acts for pricing / lineups
+    getActsData().catch((e) =>
+      console.error("❌[ShopContext] getActsData threw:", e),
+    );
   }, [backendUrl]);
 
   // ⬇️ add this function (standalone; does NOT touch actCards)
@@ -924,22 +983,36 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
     // card normalizer ONLY for the Acts page
     const normalize = (c = {}) => {
       const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+
+      const imageUrl =
+        c.imageUrl ||
+        (Array.isArray(c?.coverImage) && c.coverImage[0]?.url) ||
+        (Array.isArray(c?.images) && c.images[0]?.url) ||
+        (Array.isArray(c?.profileImage) && c.profileImage[0]?.url) ||
+        c.img ||
+        "";
+
       return {
         actId: String(c.actId || c._id || c.id || ""),
         tscName: c.tscName || c.name || c.n || "",
         name: c.name || c.tscName || c.n || "",
         slug: c.slug || c.s || "",
-        imageUrl: c.imageUrl || c.img || "",
+        imageUrl,
+        images:
+          Array.isArray(c.images) && c.images.length
+            ? c.images
+            : imageUrl
+              ? [{ url: imageUrl }]
+              : [],
         basePrice: num(c.basePrice ?? c.p),
         availabilityBadge: c.availabilityBadge || c.badge || null,
         status: c.status || c.st || "",
         genres: Array.isArray(c.genres) ? c.genres : [],
-instruments: Array.isArray(c.instruments) ? c.instruments : [],
-leadRole: c.leadRole || "",
-vocalist: c.vocalist || "",
-timesShortlisted: Number(c.timesShortlisted || 0) || 0,
-numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
-
+        instruments: Array.isArray(c.instruments) ? c.instruments : [],
+        leadRole: c.leadRole || "",
+        vocalist: c.vocalist || "",
+        timesShortlisted: Number(c.timesShortlisted || 0) || 0,
+        numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
       };
     };
 
@@ -1013,8 +1086,8 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
               m?.canDJ ||
               m?.haveMixingConsoleOrDecks ||
               m?.hasDjTable ||
-              m?.haveBooth
-          )
+              m?.haveBooth,
+          ),
       );
 
       // --- instruments (deduped) ---
@@ -1022,11 +1095,11 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
         new Set(
           lineups
             .flatMap((l) =>
-              Array.isArray(l?.bandMembers) ? l.bandMembers : []
+              Array.isArray(l?.bandMembers) ? l.bandMembers : [],
             )
             .map((m) => (m?.instrument || "").trim())
-            .filter(Boolean)
-        )
+            .filter(Boolean),
+        ),
       );
 
       // --- ceremony sets available? ---
@@ -1128,7 +1201,6 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
       const candidates = [
         `/api/act/cards?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
         `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        
       ];
       for (const path of candidates) {
         try {
@@ -1145,11 +1217,11 @@ numberOfShortlistsIn: Number(c.numberOfShortlistsIn || 0) || 0,
                 : [];
           if (arr.length) {
             const mapped = arr.map(buildFilterCardFromAct);
-const allowTestActs = getAllowTestActs();
-const filtered = (mapped || []).filter((a) =>
-  shouldIncludeActItem(a, { allowTestActs })
-);
-setActsFilterPageCards(filtered);
+            const allowTestActs = getAllowTestActs();
+            const filtered = (mapped || []).filter((a) =>
+              shouldIncludeActItem(a, { allowTestActs }),
+            );
+            setActsFilterPageCards(filtered);
 
             return;
           }
@@ -1165,11 +1237,11 @@ setActsFilterPageCards(filtered);
       const raw = Array.isArray(res?.data?.acts) ? res.data.acts : [];
       if (!raw.length) return void (await fallbackFromActs());
       const mapped = raw.map(normalize);
-const allowTestActs = getAllowTestActs();
-const filtered = (mapped || []).filter((a) =>
-  shouldIncludeActItem(a, { allowTestActs })
-);
-setActsFilterPageCards(filtered);
+      const allowTestActs = getAllowTestActs();
+      const filtered = (mapped || []).filter((a) =>
+        shouldIncludeActItem(a, { allowTestActs }),
+      );
+      setActsFilterPageCards(filtered);
     } catch {
       await fallbackFromActs();
     }
@@ -1182,7 +1254,7 @@ setActsFilterPageCards(filtered);
 
     console.log(
       "🛒[CardFilterShopContext] fetchFilterCardActsForGrid:",
-      urlCards
+      urlCards,
     );
 
     // --- helper: derive a minimal card from a full act document ---
@@ -1262,8 +1334,8 @@ setActsFilterPageCards(filtered);
               m?.canDJ ||
               m?.haveMixingConsoleOrDecks ||
               m?.hasDjTable ||
-              m?.haveBooth
-          )
+              m?.haveBooth,
+          ),
       );
 
       // --- instruments (deduped) ---
@@ -1271,11 +1343,11 @@ setActsFilterPageCards(filtered);
         new Set(
           lineups
             .flatMap((l) =>
-              Array.isArray(l?.bandMembers) ? l.bandMembers : []
+              Array.isArray(l?.bandMembers) ? l.bandMembers : [],
             )
             .map((m) => (m?.instrument || "").trim())
-            .filter(Boolean)
-        )
+            .filter(Boolean),
+        ),
       );
 
       // --- ceremony sets available? ---
@@ -1361,16 +1433,14 @@ setActsFilterPageCards(filtered);
         extras,
         availabilityBadge,
         availabilitySummary,
-        
       };
     };
 
     // --- fallback: if /cards is missing or empty, build cards from the full acts list ---
     const fallbackFromActs = async () => {
       const candidates = [
-         `/api/act/cards?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
+        `/api/act/cards?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
         `/api/act/list?status=${CARD_STATUSES}&limit=200&sort=-createdAt`,
-        
       ];
 
       for (const path of candidates) {
@@ -1393,7 +1463,7 @@ setActsFilterPageCards(filtered);
             const cards = arr.map(buildFilterCardFromAct);
             const allowTestActs = getAllowTestActs();
             const filtered = (cards || []).filter((a) =>
-              shouldIncludeActItem(a, { allowTestActs })
+              shouldIncludeActItem(a, { allowTestActs }),
             );
 
             setActsFilterPageCards(filtered);
@@ -1408,7 +1478,7 @@ setActsFilterPageCards(filtered);
         } catch (err) {
           console.warn(
             "⚠️[CardFilterShopContext] Fallback acts fetch failed:",
-            { url, msg: err?.message }
+            { url, msg: err?.message },
           );
         }
       }
@@ -1438,6 +1508,12 @@ setActsFilterPageCards(filtered);
           name: c.name || "",
           slug: c.slug || "",
           imageUrl: pickImage(c),
+          images:
+            Array.isArray(c.images) && c.images.length
+              ? c.images
+              : pickImage(c)
+                ? [{ url: pickImage(c) }]
+                : [],
           basePrice: Number.isFinite(c.basePrice) ? Number(c.basePrice) : null,
           availabilityBadge: c.availabilityBadge || null,
           status: c.status || "",
@@ -1480,7 +1556,7 @@ setActsFilterPageCards(filtered);
 
       const allowTestActs = getAllowTestActs();
       const filtered = (cards || []).filter((a) =>
-        shouldIncludeActItem(a, { allowTestActs })
+        shouldIncludeActItem(a, { allowTestActs }),
       );
 
       setActsFilterPageCards(filtered);
@@ -1493,7 +1569,7 @@ setActsFilterPageCards(filtered);
     } catch (err) {
       console.warn(
         "⚠️[CardFilterShopContext] fetchFilterCardActsForGrid failed:",
-        err?.message
+        err?.message,
       );
       await fallbackFromActs();
     }
@@ -1503,7 +1579,7 @@ setActsFilterPageCards(filtered);
     console.log("🛒[CardFilterShopContext] Mount — backendUrl:", backendUrl);
     if (!backendUrl) {
       console.warn(
-        "⚠️[CardFilterShopContext] VITE_BACKEND_URL is missing; cannot fetch acts"
+        "⚠️[CardFilterShopContext] VITE_BACKEND_URL is missing; cannot fetch acts",
       );
       setActsFilterPageCards([]);
       setActsFilterCards([]);
@@ -1513,8 +1589,8 @@ setActsFilterPageCards(filtered);
     fetchFilterCardActsForGrid().catch((e) =>
       console.error(
         "❌[CardFilterShopContext] fetchFilterCardActsForGrid threw:",
-        e
-      )
+        e,
+      ),
     );
     // ⛔ Do not call getActsData() here; it will overwrite cards in grids.
   }, [backendUrl]);
@@ -1526,10 +1602,10 @@ setActsFilterPageCards(filtered);
 
   // --- Location / date (synced with sessionStorage) ---
   const [selectedAddress, setSelectedAddress] = useState(
-    sessionStorage.getItem("selectedAddress") || ""
+    sessionStorage.getItem("selectedAddress") || "",
   );
   const [selectedDate, setSelectedDate] = useState(
-    sessionStorage.getItem("selectedDate") || ""
+    sessionStorage.getItem("selectedDate") || "",
   );
 
   // Always build absolute API URLs
@@ -1564,26 +1640,59 @@ setActsFilterPageCards(filtered);
 
   const getActById = async (actId) => {
     if (!actId) return null;
+
+    const idStr = String(actId);
     const base = String(backendUrl || "").replace(/\/+$/, "");
-    const candidates = [
-      `${base}/api/act/${actId}`,
-      `${base}/api/v2/acts/${actId}`,
+
+    // 1) Prefer anything already in memory, especially full acts with lineups
+    const inMemoryCandidates = [
+      ...(Array.isArray(acts) ? acts : []),
+      ...(Array.isArray(actsFilterPageCards) ? actsFilterPageCards : []),
+      ...(Array.isArray(actsPageCards) ? actsPageCards : []),
+      ...(Array.isArray(actCards) ? actCards : []),
+      ...(Array.isArray(actFilterCards) ? actFilterCards : []),
+      ...(Array.isArray(actsFilterCards) ? actsFilterCards : []),
     ];
 
-    for (const url of candidates) {
+    const fullInMemory = inMemoryCandidates.find(
+      (a) =>
+        String(a?._id || a?.actId || a?.id || "") === idStr &&
+        Array.isArray(a?.lineups) &&
+        a.lineups.length > 0,
+    );
+    if (fullInMemory) return fullInMemory;
+
+    // 2) Public-safe fallbacks only
+    const listCandidates = [
+      `${base}/api/act`,
+      `${base}/api/act/cards?status=${CARD_STATUSES}&sort=-createdAt&limit=200`,
+    ];
+
+    for (const url of listCandidates) {
       try {
         const res = await axios.get(url, {
           headers: { accept: "application/json" },
         });
-        const data = res?.data;
-        const act = data?.act || data?.data || data?.result || data;
-        if (act && typeof act === "object" && act._id) {
-          return act;
-        }
-      } catch (err) {
-        // try next
+        const data = res?.data || {};
+        const arr = Array.isArray(data?.acts)
+          ? data.acts
+          : Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(data?.data)
+              ? data.data
+              : Array.isArray(data)
+                ? data
+                : [];
+
+        const act = arr.find(
+          (a) => String(a?._id || a?.actId || a?.id || "") === idStr,
+        );
+        if (act) return act;
+      } catch {
+        // try next candidate
       }
     }
+
     console.warn("⚠️ getActById: no act found via any endpoint", { actId });
     return null;
   };
@@ -1635,7 +1744,7 @@ setActsFilterPageCards(filtered);
     try {
       // 2) Try the canonical acts-by-date endpoint
       const url1 = api(
-        `api/v2/availability/acts-by-dateV2?date=${encodeURIComponent(d)}`
+        `api/v2/availability/acts-by-dateV2?date=${encodeURIComponent(d)}`,
       );
       let res = await fetch(url1, { headers: { accept: "application/json" } });
       let text = await res.text();
@@ -1648,7 +1757,7 @@ setActsFilterPageCards(filtered);
       if (!res.ok) {
         if (res.status === 404) {
           const url2 = api(
-            `api/availability/acts-available?date=${encodeURIComponent(d)}`
+            `api/availability/acts-available?date=${encodeURIComponent(d)}`,
           );
           res = await fetch(url2, { headers: { accept: "application/json" } });
           text = await res.text();
@@ -1779,7 +1888,7 @@ setActsFilterPageCards(filtered);
       // expose as dedicated cards state
       const allowTestActs = getAllowTestActs();
       const filtered = (arr || []).filter((a) =>
-        shouldIncludeActItem(a, { allowTestActs })
+        shouldIncludeActItem(a, { allowTestActs }),
       );
       setActCards(filtered);
 
@@ -1812,16 +1921,15 @@ setActsFilterPageCards(filtered);
         county,
         selectedAddress,
         selectedDate,
-        lineup
+        lineup,
       );
 
       const total = Number(result?.total);
-return Number.isFinite(total) ? total : null;
-
+      return Number.isFinite(total) ? total : null;
     } catch (e) {
       console.warn(
         "⚠️[ShopContext] getCardPriceWithTravel failed:",
-        e?.message || e
+        e?.message || e,
       );
       return null;
     }
@@ -1850,7 +1958,7 @@ return Number.isFinite(total) ? total : null;
         // Log keys for shape discovery
         console.log(
           "🛒[ShopContext] Raw list payload keys:",
-          Object.keys(data || {})
+          Object.keys(data || {}),
         );
 
         const actsArr = coerceActsArray(data);
@@ -1883,7 +1991,7 @@ return Number.isFinite(total) ? total : null;
           });
           const allowTestActs = getAllowTestActs();
           const filtered = (sorted || []).filter((a) =>
-            shouldIncludeActItem(a, { allowTestActs })
+            shouldIncludeActItem(a, { allowTestActs }),
           );
           setActs(filtered);
           try {
@@ -1899,7 +2007,7 @@ return Number.isFinite(total) ? total : null;
             window.__TSC_ACTS_RAW__ = data;
           } catch {}
           console.warn(
-            "⚠️[ShopContext] list response hinted non-zero total but no parsed acts; trying next endpoint"
+            "⚠️[ShopContext] list response hinted non-zero total but no parsed acts; trying next endpoint",
           );
         }
       } catch (err) {
@@ -1918,7 +2026,7 @@ return Number.isFinite(total) ? total : null;
     // If all candidates fail or return empty
     console.error(
       "❌[ShopContext] Could not load acts from any known endpoint.",
-      { backendUrl }
+      { backendUrl },
     );
     try {
       window.__TSC_ACTS_FAILED__ = { backendUrl };
@@ -1979,7 +2087,7 @@ return Number.isFinite(total) ? total : null;
         setActs((prev) => {
           const idx = Array.isArray(prev)
             ? prev.findIndex(
-                (a) => String(a?._id || a?.actId) === String(actId)
+                (a) => String(a?._id || a?.actId) === String(actId),
               )
             : -1;
           if (idx >= 0) {
@@ -2011,7 +2119,7 @@ return Number.isFinite(total) ? total : null;
         if (storedUser?._id) {
           setUserId(storedUser._id);
           const res = await axios.get(
-            `${backendUrl}/api/availability/user/${storedUser._id}/shortlisted`
+            `${backendUrl}/api/availability/user/${storedUser._id}/shortlisted`,
           );
           const ids = (res.data?.acts || []).map((a) => String(a._id));
           setShortlistedActs(ids);
@@ -2058,12 +2166,12 @@ return Number.isFinite(total) ? total : null;
           p.lineupId,
           Array.isArray(p.selectedExtras) ? p.selectedExtras : [],
           Array.isArray(p.selectedAfternoonSets) ? p.selectedAfternoonSets : [],
-          Array.isArray(p.songSuggestions) ? p.songSuggestions : []
+          Array.isArray(p.songSuggestions) ? p.songSuggestions : [],
         );
 
         try {
           toast(
-            <CustomToast type="success" message="Act added to your cart." />
+            <CustomToast type="success" message="Act added to your cart." />,
           );
         } catch {}
       } catch {}
@@ -2120,8 +2228,6 @@ return Number.isFinite(total) ? total : null;
     return ALLOWED_ACT_NAMES.has(name);
   };
 
-
-
   // Deduped availability trigger
   const requestVocalistAvailability = (() => {
     // Persistent cache across renders
@@ -2164,7 +2270,7 @@ return Number.isFinite(total) ? total : null;
       } catch (err) {
         console.warn(
           "⚠️ requestVocalistAvailability failed:",
-          err?.message || err
+          err?.message || err,
         );
       }
     };
@@ -2196,9 +2302,9 @@ return Number.isFinite(total) ? total : null;
             // ✅ Skip if already YES recorded (call absolute backend URL)
             const res = await fetch(
               api(
-                `api/availability/check-latest?actId=${encodeURIComponent(actId)}&dateISO=${encodeURIComponent(dateISO)}`
+                `api/availability/check-latest?actId=${encodeURIComponent(actId)}&dateISO=${encodeURIComponent(dateISO)}`,
               ),
-              { headers: { accept: "application/json" } }
+              { headers: { accept: "application/json" } },
             );
             const text = await res.text();
             let j = {};
@@ -2219,35 +2325,36 @@ return Number.isFinite(total) ? total : null;
   }, [selectedDate, selectedAddress, shortlistedActs, backendUrl]);
 
   // ✅ After login, auto-add any pending shortlist act we saved pre-login
-useEffect(() => {
-  (async () => {
-    try {
-      const storedUserRaw = localStorage.getItem("user");
-      const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-      const uid = storedUser?._id || userId;
-      if (!uid) return;
-
-      const pendingActId = sessionStorage.getItem("pendingShortlistActId");
-      const pendingActName = sessionStorage.getItem("pendingShortlistActName") || "Act";
-      if (!pendingActId) return;
-
-      // Clear first to avoid loops
-      sessionStorage.removeItem("pendingShortlistActId");
-      sessionStorage.removeItem("pendingShortlistActName");
-
-      await shortlistAct(uid, pendingActId);
-
+  useEffect(() => {
+    (async () => {
       try {
-        toast(
-          <CustomToast
-            type="success"
-            message={`${pendingActName} has been saved to your shortlist.`}
-          />
-        );
+        const storedUserRaw = localStorage.getItem("user");
+        const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+        const uid = storedUser?._id || userId;
+        if (!uid) return;
+
+        const pendingActId = sessionStorage.getItem("pendingShortlistActId");
+        const pendingActName =
+          sessionStorage.getItem("pendingShortlistActName") || "Act";
+        if (!pendingActId) return;
+
+        // Clear first to avoid loops
+        sessionStorage.removeItem("pendingShortlistActId");
+        sessionStorage.removeItem("pendingShortlistActName");
+
+        await shortlistAct(uid, pendingActId);
+
+        try {
+          toast(
+            <CustomToast
+              type="success"
+              message={`${pendingActName} has been saved to your shortlist.`}
+            />,
+          );
+        } catch {}
       } catch {}
-    } catch {}
-  })();
-}, [userId]); // or [userId, shortlistedActs] if you prefer 
+    })();
+  }, [userId]); // or [userId, shortlistedActs] if you prefer
 
   // 🔌 SSE subscription: update toast + force-refresh act to pull fresh badge/photo
   useEffect(() => {
@@ -2340,7 +2447,7 @@ useEffect(() => {
 
           // ✅ Check if ANY slot contains a real singer before doing anything
           const slotHasValidSinger = badge?.slots?.some(
-            (s) => s.musicianId && s.photoUrl?.startsWith("http")
+            (s) => s.musicianId && s.photoUrl?.startsWith("http"),
           );
 
           if (!slotHasValidSinger) {
@@ -2352,7 +2459,7 @@ useEffect(() => {
             badge.slots.forEach((s) => {});
           } else {
             console.warn(
-              "🧹 [SSE] ❌ No slots[] array found in badge broadcast"
+              "🧹 [SSE] ❌ No slots[] array found in badge broadcast",
             );
           }
 
@@ -2462,7 +2569,7 @@ useEffect(() => {
           dateISO,
           selectedAddress,
           userId,
-        }
+        },
       );
 
       await fetch(`${backendUrl}/api/shortlist/update`, {
@@ -2492,60 +2599,65 @@ useEffect(() => {
   // ============ Shortlist helpers ============
 
   // Public helper to refresh shortlist from backend
-const fetchShortlistedActs = async (uid, explicitToken = null, fallbackIds = []) => {
-  try {
-    const u = uid || userId;
-    const authToken = explicitToken || token || localStorage.getItem("token") || "";
-    if (!u) return Array.isArray(fallbackIds) ? fallbackIds : [];
+  const fetchShortlistedActs = async (
+    uid,
+    explicitToken = null,
+    fallbackIds = [],
+  ) => {
+    try {
+      const u = uid || userId;
+      const authToken =
+        explicitToken || token || localStorage.getItem("token") || "";
+      if (!u) return Array.isArray(fallbackIds) ? fallbackIds : [];
 
-    const res = await axios.get(
-      `${backendUrl}/api/availability/user/${u}/shortlisted`,
-      {
-        headers: authToken
-          ? {
-              Authorization: `Bearer ${authToken}`,
-              token: authToken,
-            }
-          : {},
-        withCredentials: true,
+      const res = await axios.get(
+        `${backendUrl}/api/availability/user/${u}/shortlisted`,
+        {
+          headers: authToken
+            ? {
+                Authorization: `Bearer ${authToken}`,
+                token: authToken,
+              }
+            : {},
+          withCredentials: true,
+        },
+      );
+
+      let ids = (res.data?.acts || res.data?.items || res.data?.data || [])
+        .map((a) => String(a._id || a.actId || a.id))
+        .filter(Boolean);
+
+      // If the read endpoint is briefly stale right after auth/merge,
+      // keep any known-good ids so the shortlist UI stays correct.
+      if (Array.isArray(fallbackIds) && fallbackIds.length) {
+        ids = Array.from(new Set([...(ids || []), ...fallbackIds.map(String)]));
       }
-    );
 
-    let ids = (res.data?.acts || res.data?.items || res.data?.data || [])
-      .map((a) => String(a._id || a.actId || a.id))
-      .filter(Boolean);
+      setShortlistedActs(ids);
+      setShortlistItems(ids);
+      localStorage.setItem("shortlistItems", JSON.stringify(ids));
 
-    // If the read endpoint is briefly stale right after auth/merge,
-    // keep any known-good ids so the shortlist UI stays correct.
-    if (Array.isArray(fallbackIds) && fallbackIds.length) {
-      ids = Array.from(new Set([...(ids || []), ...fallbackIds.map(String)]));
+      return ids;
+    } catch (err) {
+      const fallback = Array.isArray(fallbackIds)
+        ? Array.from(new Set(fallbackIds.map(String).filter(Boolean)))
+        : [];
+
+      if (fallback.length) {
+        setShortlistedActs(fallback);
+        setShortlistItems(fallback);
+        localStorage.setItem("shortlistItems", JSON.stringify(fallback));
+      }
+
+      return fallback;
     }
-
-    setShortlistedActs(ids);
-    setShortlistItems(ids);
-    localStorage.setItem("shortlistItems", JSON.stringify(ids));
-
-    return ids;
-  } catch (err) {
-    const fallback = Array.isArray(fallbackIds)
-      ? Array.from(new Set(fallbackIds.map(String).filter(Boolean)))
-      : [];
-
-    if (fallback.length) {
-      setShortlistedActs(fallback);
-      setShortlistItems(fallback);
-      localStorage.setItem("shortlistItems", JSON.stringify(fallback));
-    }
-
-    return fallback;
-  }
-};
+  };
 
   // Small helper: nudge user to log in and remember where they were
   const promptLogin = (
     msg = "Please log in to save acts to your shortlist.",
     actId = null,
-    redirectPath = null
+    redirectPath = null,
   ) => {
     try {
       toast(<CustomToast type="info" message={msg} />);
@@ -2565,252 +2677,273 @@ const fetchShortlistedActs = async (uid, explicitToken = null, fallbackIds = [])
     }
 
     window.dispatchEvent(
-      new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } })
+      new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } }),
     );
   };
 
   // Add to shortlist (uses toggle route + triggers availability if date/address present)
-const addToShortlist = async (itemId, selectedLineup, redirectPath = null) => {
-  const storedUserRaw = localStorage.getItem("user");
-  const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-  const u = storedUser?._id || userId;
+  const addToShortlist = async (
+    itemId,
+    selectedLineup,
+    redirectPath = null,
+  ) => {
+    const storedUserRaw = localStorage.getItem("user");
+    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+    const u = storedUser?._id || userId;
 
-  const idStr = String(itemId);
+    const idStr = String(itemId);
 
-  const act =
-    (Array.isArray(acts) ? acts.find(a => String(a?._id || a?.actId) === idStr) : null) ||
-    (Array.isArray(actCards) ? actCards.find(a => String(a?.actId || a?._id) === idStr) : null);
+    const act =
+      (Array.isArray(acts)
+        ? acts.find((a) => String(a?._id || a?.actId) === idStr)
+        : null) ||
+      (Array.isArray(actCards)
+        ? actCards.find((a) => String(a?.actId || a?._id) === idStr)
+        : null);
 
-  const actName = act?.tscName || act?.name || "Act";
+    const actName = act?.tscName || act?.name || "Act";
 
-  if (!u) {
-    promptLogin(
-      "Please log in to save acts to your shortlist.",
-      idStr,
-      redirectPath
-    );
-    return;
-  }
-
-  await shortlistAct(u, idStr);
-};
-
-
-  const reportShortlistConversion = ({ actId, value = 1.0, currency = "GBP" } = {}) => {
-  try {
-    // prevent double-firing for the same act in the same session
-    if (actId) {
-      const k = `conv_shortlist_${String(actId)}`;
-      if (sessionStorage.getItem(k) === "1") return;
-      sessionStorage.setItem(k, "1");
+    if (!u) {
+      promptLogin(
+        "Please log in to save acts to your shortlist.",
+        idStr,
+        redirectPath,
+      );
+      return;
     }
 
-    if (typeof window === "undefined") return;
-    if (typeof window.gtag !== "function") return;
-
-    window.gtag("event", "conversion", {
-      send_to: "AW-17648722186/0VAvCMrt1t8bEIrCyN9B",
-      value,
-      currency,
-      // event_callback is optional in SPA; keep it lightweight
-      event_callback: () => {},
-    });
-  } catch (e) {
-    // never block UX if tracking fails
-    console.warn("⚠️ conversion tracking failed", e);
-  }
-};
-
-// ✅ Toggle shortlist via PATCH routes with optimistic UI
-const shortlistAct = async (uid, actId) => {
-  console.log("❤️[shortlistAct] called", {
-  uid,
-  actId,
-  pathname: String(window?.location?.pathname || ""),
-  tokenPresent: !!token,
-  storedUserPresent: !!localStorage.getItem("user"),
-});
-  if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
-
- const storedUserRaw = localStorage.getItem("user");
-const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
-
-const resolvedUserId = uid || storedUser?._id;
-const isLoggedIn = Boolean(resolvedUserId && token);
-
-console.log("❤️[shortlistAct] auth resolved", {
-  resolvedUserId: resolvedUserId || null,
-  isLoggedIn,
-  tokenPresent: !!token,
-});
-
-// ✅ Guest behaviour
-if (!isLoggedIn) {
-  guestToggleShortlist(actId);
-  return;
-}
-
-
-  // ✅ Only consider date/address if user actually provided BOTH (no placeholders)
-  const hasDate = !!selectedDate;
-  const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
-
-  const selectedDateFinal = hasDate
-    ? new Date(selectedDate).toISOString().slice(0, 10)
-    : null;
-  const selectedAddressFinal = hasAddress ? String(selectedAddress).trim() : null;
-
-  // Build payload WITHOUT placeholder date/address to avoid accidental availability triggers
-  const clientPayload = {
-    userId: resolvedUserId,
-    clientEmail: storedUser?.email || "",
-    clientName:
-      storedUser?.firstName || storedUser?.name || storedUser?.surname || "",
+    await shortlistAct(u, idStr);
   };
 
-  if (selectedDateFinal && selectedAddressFinal) {
-    clientPayload.selectedDate = selectedDateFinal;
-    clientPayload.selectedAddress = selectedAddressFinal;
-  }
-
-  const idStr = String(actId);
-  const isShortlistedNow =
-    Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
-
-  // ✅ Keep these helpers BEFORE use (avoid temporal dead zone)
-  const updateTimesShortlistedEverywhere = (actId, newCount) => {
-    const targetId = String(actId);
-    const n = Math.max(0, Number(newCount) || 0);
-
-    const patch = (x) => {
-      const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
-      if (xid !== targetId) return x;
-      return { ...x, timesShortlisted: n };
-    };
-
-    setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-
-    setActs((p) =>
-      Array.isArray(p)
-        ? p.map((a) => {
-            const aid = String(a?._id ?? a?.actId ?? "");
-            return aid === targetId ? { ...a, timesShortlisted: n } : a;
-          })
-        : p
-    );
-  };
-
-  const updateNumberOfShortlistsInEverywhere = (actId, newCount) => {
-    const targetId = String(actId);
-    const n = Math.max(0, Number(newCount) || 0);
-
-    const patch = (x) => {
-      const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
-      if (xid !== targetId) return x;
-      return { ...x, numberOfShortlistsIn: n };
-    };
-
-    setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-
-    setActs((p) =>
-      Array.isArray(p)
-        ? p.map((a) => {
-            const aid = String(a?._id ?? a?.actId ?? "");
-            return aid === targetId ? { ...a, numberOfShortlistsIn: n } : a;
-          })
-        : p
-    );
-  };
-
-  // ⚡ Optimistic shortlist list update
-  const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
-  const next = isShortlistedNow
-    ? prev.filter((id) => id !== idStr)
-    : [...new Set([...prev, idStr])];
-
-  setShortlistedActs(next);
-  setShortlistItems(next);
-  try {
-    localStorage.setItem("shortlistItems", JSON.stringify(next));
-  } catch {}
-
-  try {
-    let res;
-
-    if (isShortlistedNow) {
-      // 🔵 Removing from shortlist
-      res = await axios.patch(
-        `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
-        clientPayload
-      );
-    } else {
-      // 🟢 Adding to shortlist
-      res = await axios.patch(
-        `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
-        clientPayload
-      );
-
-      // ✅ Google Ads conversion: only fire on successful ADD
-      reportShortlistConversion({ actId: idStr, value: 1.0, currency: "GBP" });
-
-      // 🩵 Only sync date/address (and any downstream availability) when BOTH are present
-      if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
-        await axios.patch(`${backendUrl}/api/shortlist/update`, {
-          actId: idStr,
-          dateISO: selectedDateFinal,
-          formattedAddress: selectedAddressFinal,
-          ...clientPayload,
-        });
+  const reportShortlistConversion = ({
+    actId,
+    value = 1.0,
+    currency = "GBP",
+  } = {}) => {
+    try {
+      // prevent double-firing for the same act in the same session
+      if (actId) {
+        const k = `conv_shortlist_${String(actId)}`;
+        if (sessionStorage.getItem(k) === "1") return;
+        sessionStorage.setItem(k, "1");
       }
+
+      if (typeof window === "undefined") return;
+      if (typeof window.gtag !== "function") return;
+
+      window.gtag("event", "conversion", {
+        send_to: "AW-17648722186/0VAvCMrt1t8bEIrCyN9B",
+        value,
+        currency,
+        // event_callback is optional in SPA; keep it lightweight
+        event_callback: () => {},
+      });
+    } catch (e) {
+      // never block UX if tracking fails
+      console.warn("⚠️ conversion tracking failed", e);
+    }
+  };
+
+  // ✅ Toggle shortlist via PATCH routes with optimistic UI
+  const shortlistAct = async (uid, actId) => {
+    console.log("❤️[shortlistAct] called", {
+      uid,
+      actId,
+      pathname: String(window?.location?.pathname || ""),
+      tokenPresent: !!token,
+      storedUserPresent: !!localStorage.getItem("user"),
+    });
+    if (window.location.pathname.includes("/login")) return; // 🧠 Prevents login-loop
+
+    const storedUserRaw = localStorage.getItem("user");
+    const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+
+    const resolvedUserId = uid || storedUser?._id;
+    const isLoggedIn = Boolean(resolvedUserId && token);
+
+    console.log("❤️[shortlistAct] auth resolved", {
+      resolvedUserId: resolvedUserId || null,
+      isLoggedIn,
+      tokenPresent: !!token,
+    });
+
+    // ✅ Guest behaviour
+    if (!isLoggedIn) {
+      guestToggleShortlist(actId);
+      return;
     }
 
-    // Prefer new field names; keep backwards-compat fallbacks
-    const numberOfShortlistsInFromServer =
-      res?.data?.numberOfShortlistsIn ??
-      res?.data?.shortlistsIn ??
-      res?.data?.loveCount;
+    // ✅ Only consider date/address if user actually provided BOTH (no placeholders)
+    const hasDate = !!selectedDate;
+    const hasAddress = !!(selectedAddress && String(selectedAddress).trim());
 
-    const timesShortlistedFromServer =
-      res?.data?.timesShortlisted ??
-      res?.data?.totalTimesShortlisted ??
-      res?.data?.timesShortlistedTotal;
+    const selectedDateFinal = hasDate
+      ? new Date(selectedDate).toISOString().slice(0, 10)
+      : null;
+    const selectedAddressFinal = hasAddress
+      ? String(selectedAddress).trim()
+      : null;
 
-    // ✅ update BOTH counters everywhere
-    if (numberOfShortlistsInFromServer != null) {
-      updateNumberOfShortlistsInEverywhere(idStr, numberOfShortlistsInFromServer);
+    // Build payload WITHOUT placeholder date/address to avoid accidental availability triggers
+    const clientPayload = {
+      userId: resolvedUserId,
+      clientEmail: storedUser?.email || "",
+      clientName:
+        storedUser?.firstName || storedUser?.name || storedUser?.surname || "",
+    };
+
+    if (selectedDateFinal && selectedAddressFinal) {
+      clientPayload.selectedDate = selectedDateFinal;
+      clientPayload.selectedAddress = selectedAddressFinal;
     }
-    if (timesShortlistedFromServer != null) {
-      updateTimesShortlistedEverywhere(idStr, timesShortlistedFromServer);
-    }
-  } catch (err) {
-    console.error("❌ shortlistAct error:", err?.message || err);
 
-    // 🔁 Revert on failure
-    setShortlistedActs(prev);
-    setShortlistItems(prev);
+    const idStr = String(actId);
+    const isShortlistedNow =
+      Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
+
+    // ✅ Keep these helpers BEFORE use (avoid temporal dead zone)
+    const updateTimesShortlistedEverywhere = (actId, newCount) => {
+      const targetId = String(actId);
+      const n = Math.max(0, Number(newCount) || 0);
+
+      const patch = (x) => {
+        const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
+        if (xid !== targetId) return x;
+        return { ...x, timesShortlisted: n };
+      };
+
+      setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+      setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+      setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+      setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+      setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+
+      setActs((p) =>
+        Array.isArray(p)
+          ? p.map((a) => {
+              const aid = String(a?._id ?? a?.actId ?? "");
+              return aid === targetId ? { ...a, timesShortlisted: n } : a;
+            })
+          : p,
+      );
+    };
+
+    const updateNumberOfShortlistsInEverywhere = (actId, newCount) => {
+      const targetId = String(actId);
+      const n = Math.max(0, Number(newCount) || 0);
+
+      const patch = (x) => {
+        const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
+        if (xid !== targetId) return x;
+        return { ...x, numberOfShortlistsIn: n };
+      };
+
+      setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+      setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+      setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+      setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+      setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+
+      setActs((p) =>
+        Array.isArray(p)
+          ? p.map((a) => {
+              const aid = String(a?._id ?? a?.actId ?? "");
+              return aid === targetId ? { ...a, numberOfShortlistsIn: n } : a;
+            })
+          : p,
+      );
+    };
+
+    // ⚡ Optimistic shortlist list update
+    const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
+    const next = isShortlistedNow
+      ? prev.filter((id) => id !== idStr)
+      : [...new Set([...prev, idStr])];
+
+    setShortlistedActs(next);
+    setShortlistItems(next);
     try {
-      localStorage.setItem("shortlistItems", JSON.stringify(prev));
+      localStorage.setItem("shortlistItems", JSON.stringify(next));
     } catch {}
+
     try {
-      toast(<CustomToast type="error" message="Could not update shortlist." />);
-    } catch {}
-  }
-};
+      let res;
+
+      if (isShortlistedNow) {
+        // 🔵 Removing from shortlist
+        res = await axios.patch(
+          `${backendUrl}/api/availability/act/${idStr}/decrement-shortlist`,
+          clientPayload,
+        );
+      } else {
+        // 🟢 Adding to shortlist
+        res = await axios.patch(
+          `${backendUrl}/api/availability/act/${idStr}/increment-shortlist`,
+          clientPayload,
+        );
+
+        // ✅ Google Ads conversion: only fire on successful ADD
+        reportShortlistConversion({
+          actId: idStr,
+          value: 1.0,
+          currency: "GBP",
+        });
+
+        // 🩵 Only sync date/address (and any downstream availability) when BOTH are present
+        if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
+          await axios.patch(`${backendUrl}/api/shortlist/update`, {
+            actId: idStr,
+            dateISO: selectedDateFinal,
+            formattedAddress: selectedAddressFinal,
+            ...clientPayload,
+          });
+        }
+      }
+
+      // Prefer new field names; keep backwards-compat fallbacks
+      const numberOfShortlistsInFromServer =
+        res?.data?.numberOfShortlistsIn ??
+        res?.data?.shortlistsIn ??
+        res?.data?.loveCount;
+
+      const timesShortlistedFromServer =
+        res?.data?.timesShortlisted ??
+        res?.data?.totalTimesShortlisted ??
+        res?.data?.timesShortlistedTotal;
+
+      // ✅ update BOTH counters everywhere
+      if (numberOfShortlistsInFromServer != null) {
+        updateNumberOfShortlistsInEverywhere(
+          idStr,
+          numberOfShortlistsInFromServer,
+        );
+      }
+      if (timesShortlistedFromServer != null) {
+        updateTimesShortlistedEverywhere(idStr, timesShortlistedFromServer);
+      }
+    } catch (err) {
+      console.error("❌ shortlistAct error:", err?.message || err);
+
+      // 🔁 Revert on failure
+      setShortlistedActs(prev);
+      setShortlistItems(prev);
+      try {
+        localStorage.setItem("shortlistItems", JSON.stringify(prev));
+      } catch {}
+      try {
+        toast(
+          <CustomToast type="error" message="Could not update shortlist." />,
+        );
+      } catch {}
+    }
+  };
 
   // ============ Invoicing helpers ============
   const computeBalanceDueDate = (eventISO) => {
     try {
       if (!eventISO) return null;
       const d = new Date(eventISO);
-      if (Number.isNaN(d.getTime())) return null; 
+      if (Number.isNaN(d.getTime())) return null;
       d.setDate(d.getDate() - 14);
       // Normalise to 00:00 local time
       d.setHours(0, 0, 0, 0);
@@ -2855,7 +2988,7 @@ if (!isLoggedIn) {
 
       const res = await axios.post(
         `${backendUrl}/api/invoices/schedule-balance`,
-        payload
+        payload,
       );
       return res.data || { success: true };
     } catch (err) {
@@ -2878,103 +3011,111 @@ if (!isLoggedIn) {
     setCartItems(updated);
   };
 
-const ADS_ADD_TO_CART_SEND_TO = "AW-17648722186/zqrJCOKgtd4bEIrCyN9B";
+  const ADS_ADD_TO_CART_SEND_TO = "AW-17648722186/zqrJCOKgtd4bEIrCyN9B";
 
-const trackAdsAddToCart = ({ value, currency = "GBP" } = {}) => {
-  if (typeof window === "undefined") return;
-  if (typeof window.gtag !== "function") return;
+  const trackAdsAddToCart = ({ value, currency = "GBP" } = {}) => {
+    if (typeof window === "undefined") return;
+    if (typeof window.gtag !== "function") return;
 
-  // If you selected "Don't use a value" in Google Ads, you can omit value entirely.
-  const payload = { send_to: ADS_ADD_TO_CART_SEND_TO, currency };
+    // If you selected "Don't use a value" in Google Ads, you can omit value entirely.
+    const payload = { send_to: ADS_ADD_TO_CART_SEND_TO, currency };
 
-  // Only include value if it's a valid number
-  const n = Number(value);
-  if (Number.isFinite(n) && n > 0) payload.value = n;
+    // Only include value if it's a valid number
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) payload.value = n;
 
-  window.gtag("event", "conversion", payload);
-};
+    window.gtag("event", "conversion", payload);
+  };
 
   // Accepts: actId, lineupId, selectedExtras, selectedAfternoonSets, songSuggestions
-const addToCart = async (
-  actId,
-  lineupId,
-  selectedExtras = [],
-  selectedAfternoonSets = [],
-  songSuggestions = []
-) => {
-  if (!actId) return;
+  const addToCart = async (
+    actId,
+    lineupId,
+    selectedExtras = [],
+    selectedAfternoonSets = [],
+    songSuggestions = [],
+  ) => {
+    if (!actId) return;
 
-  const actKey = String(actId);
-  const providedLineupKey = lineupId ? String(lineupId) : "";
+    const actKey = String(actId);
+    const providedLineupKey = lineupId ? String(lineupId) : "";
 
-  let actFull = null;
+    let actFull = null;
 
-  // 1) cache
-  try {
-    const cached = localStorage.getItem(`act:${actKey}:v2`);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      actFull = parsed?.act || parsed;
-    }
-  } catch {}
-
-  // 2) fetch if missing lineups
-  if (!Array.isArray(actFull?.lineups) || actFull.lineups.length === 0) {
+    // 1) cache
     try {
-      const res = await axios.get(`${backendUrl}/api/act/${actKey}`);
-      actFull = res.data?.act || res.data;
-    } catch (e) {
-      console.warn("🛒 addToCart: could not fetch full act", actKey, e);
+      const cached = localStorage.getItem(`act:${actKey}:v2`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        actFull = parsed?.act || parsed;
+      }
+    } catch {}
+
+    // 2) fetch if missing lineups
+    if (!Array.isArray(actFull?.lineups) || actFull.lineups.length === 0) {
+      try {
+        const res = await axios.get(`${backendUrl}/api/act/${actKey}`);
+        actFull = res.data?.act || res.data;
+      } catch (e) {
+        console.warn("🛒 addToCart: could not fetch full act", actKey, e);
+      }
     }
-  }
 
-  const available = (actFull?.lineups || []).map((l) => String(l?._id || l?.lineupId));
-  const lineupKey = available.includes(providedLineupKey)
-    ? providedLineupKey
-    : available[0] || providedLineupKey;
+    const available = (actFull?.lineups || []).map((l) =>
+      String(l?._id || l?.lineupId),
+    );
+    const lineupKey = available.includes(providedLineupKey)
+      ? providedLineupKey
+      : available[0] || providedLineupKey;
 
-  let shouldFire = false;
+    let shouldFire = false;
 
-  setCartItems((prev) => {
-    const prevForAct = prev?.[actKey];
-    const alreadyHadAct = !!(prevForAct && Object.keys(prevForAct).length > 0);
-    shouldFire = !alreadyHadAct; // ✅ true only for a real first add
+    setCartItems((prev) => {
+      const prevForAct = prev?.[actKey];
+      const alreadyHadAct = !!(
+        prevForAct && Object.keys(prevForAct).length > 0
+      );
+      shouldFire = !alreadyHadAct; // ✅ true only for a real first add
 
-    const next = structuredClone(prev || {});
-    next[actKey] = {
-      [lineupKey]: {
-        quantity: 1,
-        selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
-        selectedAfternoonSets: Array.isArray(selectedAfternoonSets) ? selectedAfternoonSets : [],
-        songSuggestions: Array.isArray(songSuggestions) ? songSuggestions : [],
-        dismissedExtras: [],
-        performance: {
-          arrivalTime: "",
-          setupAndSoundcheckedBy: "",
-          startTime: "",
-          finishTime: "",
-          finishDayOffset: 0,
-          paLightsFinishTime: "",
-          paLightsFinishDayOffset: 0,
+      const next = structuredClone(prev || {});
+      next[actKey] = {
+        [lineupKey]: {
+          quantity: 1,
+          selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
+          selectedAfternoonSets: Array.isArray(selectedAfternoonSets)
+            ? selectedAfternoonSets
+            : [],
+          songSuggestions: Array.isArray(songSuggestions)
+            ? songSuggestions
+            : [],
+          dismissedExtras: [],
+          performance: {
+            arrivalTime: "",
+            setupAndSoundcheckedBy: "",
+            startTime: "",
+            finishTime: "",
+            finishDayOffset: 0,
+            paLightsFinishTime: "",
+            paLightsFinishDayOffset: 0,
+          },
         },
-      },
-    };
-    return next;
-  });
+      };
+      return next;
+    });
 
-  if (shouldFire) {
-    const baseVal =
-      Number(actFull?.formattedPrice?.total) ||
-      Number(actFull?.minDisplayPrice) ||
-      0;
+    if (shouldFire) {
+      const baseVal =
+        Number(actFull?.formattedPrice?.total) ||
+        Number(actFull?.minDisplayPrice) ||
+        0;
 
-    const extrasVal = Array.isArray(selectedExtras)
-      ? selectedExtras.reduce((sum, x) => sum + (Number(x?.price) || 0), 0)
-      : 0;
+      const extrasVal = Array.isArray(selectedExtras)
+        ? selectedExtras.reduce((sum, x) => sum + (Number(x?.price) || 0), 0)
+        : 0;
 
-    trackAdsAddToCart({ value: baseVal + extrasVal, currency: "GBP" });
-  }
-};
+      trackAdsAddToCart({ value: baseVal + extrasVal, currency: "GBP" });
+    }
+  };
 
   const getCartCount = () => {
     return Object.values(cartItems).reduce((total, act) => {
@@ -2982,7 +3123,7 @@ const addToCart = async (
         total +
         Object.values(act).reduce(
           (sum, lineup) => sum + (lineup.quantity || 0),
-          0
+          0,
         )
       );
     }, 0);
@@ -3040,14 +3181,14 @@ const addToCart = async (
         // remove
         if (newExtra.quantity === 0) {
           updated[actId][lineupId].selectedExtras = extras.filter(
-            (e) => e.key !== newExtra.key
+            (e) => e.key !== newExtra.key,
           );
         } else {
           // update
           updated[actId][lineupId].selectedExtras = extras.map((e) =>
             e.key === newExtra.key
               ? { ...e, price: newExtra.price, quantity: newExtra.quantity }
-              : e
+              : e,
           );
         }
       } else {
@@ -3069,7 +3210,7 @@ const addToCart = async (
               quantity: updated[actId][lineupId].quantity,
               selectedExtras: updated[actId][lineupId].selectedExtras,
             },
-            { headers: { token } }
+            { headers: { token } },
           );
         } catch (err) {}
       }
@@ -3101,7 +3242,7 @@ const addToCart = async (
 
         const lineup =
           actData.lineups.find(
-            (l) => String(l.lineupId) === String(lineupId)
+            (l) => String(l.lineupId) === String(lineupId),
           ) || actData.lineups.find((l) => String(l._id) === String(lineupId));
         if (!lineup) continue;
 
@@ -3110,7 +3251,7 @@ const addToCart = async (
           selectedAddress?.split(",").slice(-2)[0]?.trim() || "",
           selectedAddress,
           selectedDate,
-          lineup
+          lineup,
         );
 
         const basePrice = Number(result?.total || 0);
@@ -3149,7 +3290,7 @@ const addToCart = async (
   const debouncedRequestVocalistAvailability = debounce(
     (params) => requestVocalistAvailability(params),
     500, // wait 500ms before allowing another
-    { leading: true, trailing: false }
+    { leading: true, trailing: false },
   );
 
   // ============ Simple helpers ============
@@ -3289,16 +3430,17 @@ const addToCart = async (
   };
 
   return (
-<ShopContext.Provider value={value}>
-  {props.children}
+    <ShopContext.Provider value={value}>
+      {props.children}
 
-  <AuthGateModal
-  open={authGate.open}
-  msg={authGate.msg}
-  kind={authGate.kind}
-  onClose={() => setAuthGate((p) => ({ ...p, open: false }))}
- />
-</ShopContext.Provider>  );
+      <AuthGateModal
+        open={authGate.open}
+        msg={authGate.msg}
+        kind={authGate.kind}
+        onClose={() => setAuthGate((p) => ({ ...p, open: false }))}
+      />
+    </ShopContext.Provider>
+  );
 };
 
 export default ShopProvider;
