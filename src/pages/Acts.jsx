@@ -1155,15 +1155,21 @@ const hasStoredLocation = () => {
         .replace(/\s+/g, " ")
         .trim();
 
-    const getEffectiveCounty = () =>
-      String(
-        selectedCounty ||
-          sessionStorage.getItem("selectedCounty") ||
-          localStorage.getItem("selectedCounty") ||
-          ""
-      )
-        .trim()
-        .toLowerCase();
+ const getEffectiveCounty = () => {
+  const liveCounty = String(selectedCounty || "").trim().toLowerCase();
+  const storedCounty = String(getStored("selectedCounty") || "")
+    .trim()
+    .toLowerCase();
+
+  return liveCounty || storedCounty || "";
+};
+
+const getEffectiveAddress = () =>
+  String(
+    (typeof selectedAddress === "string" && selectedAddress) ||
+      getStored("selectedAddress") ||
+      ""
+  ).trim();
 
     const readCountyFlag = (source, countyKey) => {
       if (!source || !countyKey) return undefined;
@@ -1571,36 +1577,55 @@ console.log("🧪 actsCopy len after filters:", actsCopy.length);
       len: Array.isArray(actsCopy) ? actsCopy.length : 0,
     });
 
-    const effectiveCounty = getEffectiveCounty();
+  const effectiveCounty = getEffectiveCounty();
+const effectiveAddress = getEffectiveAddress();
+const shouldApplyCountyTravelFilter = Boolean(effectiveCounty && effectiveAddress);
 
-    if (effectiveCounty) {
-      const beforeCountyTravelFilter = actsCopy.length;
+ACTS_DBG("county filter check", {
+  effectiveCounty,
+  effectiveAddress,
+  shouldApplyCountyTravelFilter,
+});
 
-      actsCopy = actsCopy.filter((act) => {
-        if (!act?.useCountyTravelFee) return true;
+if (shouldApplyCountyTravelFilter) {
+  const beforeCountyTravelFilter = actsCopy.length;
 
-        const availabilitySource = act?.countyTravelAvailability;
-        const feeSource = act?.countyFees;
+  actsCopy = actsCopy.filter((act) => {
+    if (!act?.useCountyTravelFee) return true;
 
-        const explicitAvailability = readCountyFlag(
-          availabilitySource,
-          effectiveCounty
-        );
+    const availabilitySource = act?.countyTravelAvailability;
+    const feeSource = act?.countyFees;
 
-        if (typeof explicitAvailability !== "undefined") {
-          return explicitAvailability === true;
-        }
+    const explicitAvailability = readCountyFlag(
+      availabilitySource,
+      effectiveCounty
+    );
 
-        const legacyFee = readCountyFee(feeSource, effectiveCounty);
-        return legacyFee !== undefined && legacyFee !== null && String(legacyFee) !== "";
-      });
-
-      ACTS_DBG("after county travel filter", {
-        effectiveCounty,
-        before: beforeCountyTravelFilter,
-        remain: actsCopy.length,
-      });
+    if (typeof explicitAvailability !== "undefined") {
+      return explicitAvailability === true;
     }
+
+    const legacyFee = readCountyFee(feeSource, effectiveCounty);
+    return (
+      legacyFee !== undefined &&
+      legacyFee !== null &&
+      String(legacyFee).trim() !== ""
+    );
+  });
+
+  ACTS_DBG("after county travel filter", {
+    effectiveCounty,
+    effectiveAddress,
+    before: beforeCountyTravelFilter,
+    remain: actsCopy.length,
+  });
+} else {
+  ACTS_DBG("county travel filter skipped", {
+    effectiveCounty,
+    effectiveAddress,
+    reason: "missing county or address",
+  });
+}
 
     // ───────────────────────────────────────────────────────────────────────────────
     // 🎚️ GENRE FILTER (single source of truth)
@@ -2669,7 +2694,7 @@ const filterKey = useMemo(() => {
 
 useEffect(() => {
   // don’t filter until we actually have cards
-  const cardsLen = Array.isArray(actsFilterPageCards) ? actsFilterPageCards.length : 0;
+const cardsLen = Array.isArray(cards) ? cards.length : 0;
   if (!cardsLen) return;
 
   // debounce to collapse rapid state-changes into one run
@@ -2687,7 +2712,7 @@ useEffect(() => {
     if (applyTimerRef.current) clearTimeout(applyTimerRef.current);
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [filterKey]);
+}, [filterKey, cards]);
 
 return (
   <>
@@ -4324,11 +4349,13 @@ return (
 
           {/* Map products / acts */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4 gap-y-6">
-            {results.length === 0 ? (
-              <div className="col-span-full text-center text-gray-500 py-10 text-lg font-semibold">
-                No matching records
-              </div>
-            ) : (
+         {results.length === 0 ? (
+  <div className="col-span-full text-center text-gray-500 py-10 text-lg font-semibold">
+    {Array.isArray(cards) && cards.length > 0
+      ? "No matching records"
+      : "Loading acts..."}
+  </div>
+) : (
               resultsWithPrice.map((item) => (
                <CardFilterItem
   key={item.actId || item._id}
