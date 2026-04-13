@@ -1567,7 +1567,6 @@ setActsFilterPageCards(filtered);
     const base = String(backendUrl || "").replace(/\/+$/, "");
     const candidates = [
       `${base}/api/act/${actId}`,
-      `${base}/api/acts/${actId}`,
       `${base}/api/v2/acts/${actId}`,
     ];
 
@@ -1836,7 +1835,7 @@ return Number.isFinite(total) ? total : null;
     const candidates = [
       // some backends expose un-paginated or different names
 
-      "/api/acts",
+      "/api/act",
     ];
 
     for (const path of candidates) {

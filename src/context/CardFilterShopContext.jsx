@@ -417,8 +417,7 @@ useEffect(() => {
     const base = String(backendUrl || "").replace(/\/+$/, "");
     const candidates = [
       `${base}/api/act/${actId}`,
-      `${base}/api/acts/${actId}`,
-      `${base}/api/v2/acts/${actId}`,
+  
     ];
 
     for (const url of candidates) {
@@ -666,15 +665,15 @@ const getActCardsData = async () => {
     // Try several endpoints & query variants
     const candidates = [
       "/api/act/list",
-      "/api/acts/list",
+      
       "/api/act/list?status=live",
-      "/api/acts/list?status=live",
+     
       "/api/v2/acts/list",
       "/api/actV2/list",
       "/api/v2/act/list",
       // some backends expose un-paginated or different names
       "/api/act/all",
-      "/api/acts",
+  
     ];
 
     for (const path of candidates) {
