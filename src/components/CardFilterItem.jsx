@@ -48,12 +48,30 @@ const getLove = (src, fallback) => {
 const getBadge = (src) => src?.availabilityBadge || null;
 
 const getBasePrice = (src) => {
-  if (src?.basePrice != null) {
-    return Number(String(src.basePrice).replace(/[^0-9.+-]/g, ""));
-  }
-  const lineup = src?.lineups?.[0] || null;
-  const base = src?.formattedPrice?.total ?? lineup?.base_fee?.[0]?.total_fee ?? null;
-  return base != null ? Number(String(base).replace(/[^0-9.+-]/g, "")) : null;
+  const candidates = [
+    src?.basePrice,
+    src?.minDisplayPrice,
+    src?.formattedPrice?.total,
+    src?.formattedPrice?.from,
+  ]
+    .map((v) =>
+      v == null ? null : Number(String(v).replace(/[^0-9.+-]/g, ""))
+    )
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  if (candidates.length) return candidates[0];
+
+  const lineups = Array.isArray(src?.lineups) ? src.lineups : [];
+  const lineupTotals = lineups
+    .flatMap((lineup) => {
+      const fees = Array.isArray(lineup?.base_fee) ? lineup.base_fee : [];
+      return fees.map((f) =>
+        Number(String(f?.total_fee ?? "").replace(/[^0-9.+-]/g, ""))
+      );
+    })
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  return lineupTotals.length ? Math.min(...lineupTotals) : null;
 };
 
 const getSlug = (src) => {
@@ -126,15 +144,14 @@ const PriceSkeleton = () => (
 const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPriceComputed }) => {
   const ctx = useContext(ShopContext) || {};
   const {
-    shortlistedActs,
-    shortlistAct,
-    addToShortlist,
-    userId,
-    selectedCounty,
-    selectedAddress,
-    selectedDate,
-    getCardPriceWithTravel,
-  } = ctx;
+  shortlistedActs,
+  shortlistAct,
+  addToShortlist,
+  userId,
+  selectedCounty,
+  selectedAddress,
+  selectedDate,
+} = ctx;
 
   const [isAnimating, setIsAnimating] = useState(false);
   const [loveCount, setLoveCount] = useState(() => getLove(actData, timesShortlisted));
@@ -146,11 +163,6 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
   useEffect(() => {
     onPriceComputedRef.current = onPriceComputed;
   }, [onPriceComputed]);
-
-  const getCardPriceWithTravelRef = useRef(getCardPriceWithTravel);
-  useEffect(() => {
-    getCardPriceWithTravelRef.current = getCardPriceWithTravel;
-  }, [getCardPriceWithTravel]);
 
   // keep latest act + context values in refs (so pricing effect can depend only on pricingKey)
   const actDataRef = useRef(actData);
@@ -249,26 +261,24 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
           return;
         }
 
-        // 3) No lineups → try context helper (if provided), else fallback to base
-        if (!hasLineups) {
-          const fn = getCardPriceWithTravelRef.current;
-          if (typeof fn === "function") {
-            try {
-              const totalNet = await fn(actId);
-              if (!cancelled && Number.isFinite(totalNet)) {
-                safeSetPrice({ total: applyMargin(totalNet), travelCalculated: true });
-                return;
-              }
-            } catch {
-              // swallow and fallback below
-            }
-          }
+        // 3) No lineups → use the card payload only.
+// Avoid calling ShopContext helpers here because they are currently
+// falling back to GET /api/act, which does not exist on this backend.
+if (!hasLineups) {
+  const derived = computeBaseFromSmallestLineup(a);
+  if (!cancelled && derived != null) {
+    safeSetPrice({ total: applyMargin(derived), travelCalculated: false });
+    return;
+  }
 
-          if (!cancelled && baseOnly != null) {
-            safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
-          }
-          return;
-        }
+  if (!cancelled && baseOnly != null) {
+    safeSetPrice({ total: applyMargin(baseOnly), travelCalculated: false });
+    return;
+  }
+
+  if (!cancelled) safeSetPrice(null);
+  return;
+}
 
         // 4) Full pricing with travel
         const hasCountyTable = !!(
@@ -399,13 +409,13 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
         }}
         className="block text-gray-700"
       >
-        <div className="overflow-hidden h-full w-full">
-          <img
-            className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
-            src={resolvedImage}
-            alt={getTitle(actData)}
-          />
-        </div>
+        <div className="overflow-hidden aspect-[4/3] w-full bg-gray-100">
+  <img
+    className="block h-full w-full object-cover hover:scale-110 transition ease-in-out"
+    src={resolvedImage}
+    alt={getTitle(actData)}
+  />
+</div>
 
         <div className="flex justify-between items-center pt-3 pb-1">
           <div className="min-h-[40px] flex flex-col justify-center">
