@@ -1110,139 +1110,147 @@ const m = actData?.act || actData?.musician || actData?.deputy || actData;
   </div>
 </Section>
 
-      {/* GALLERY */}
-      <Section when={content.hasGallery}>
-        <div className="text-2xl mt-12">
-          <Title text1={getPossessiveTitleCase(displayShortName(actData))} text2="GALLERY" />
-        </div>
-        {(() => { /* keep existing gallery code unchanged */ return (
-          <> 
-            {(() => {
-              const mediaGroups = [
-                {
-                  id: "blackTie",
-                  label: "Black Tie",
-                  items: Array.isArray(actData?.digitalWardrobeBlackTie)
-                    ? actData.digitalWardrobeBlackTie
-                    : [],
-                },
-                {
-                  id: "formal",
-                  label: "Formal",
-                  items: Array.isArray(actData?.digitalWardrobeFormal)
-                    ? actData.digitalWardrobeFormal
-                    : [],
-                },
-                {
-                  id: "smartCasual",
-                  label: "Smart Casual",
-                  items: Array.isArray(actData?.digitalWardrobeSmartCasual)
-                    ? actData.digitalWardrobeSmartCasual
-                    : [],
-                },
-                {
-                  id: "sessionAllBlack",
-                  label: "Session All Black",
-                  items: Array.isArray(actData?.digitalWardrobeSessionAllBlack)
-                    ? actData.digitalWardrobeSessionAllBlack
-                    : [],
-                },
-                {
-                  id: "additional",
-                  label: "Additional",
-                  items: Array.isArray(actData?.additionalImages)
-                    ? actData.additionalImages
-                    : [],
-                },
-              ];
+ {/* GALLERY */}
+{(() => {
+  const mediaGroups = [
+    {
+      id: "blackTie",
+      label: "Black Tie",
+      items: Array.isArray(actData?.digitalWardrobeBlackTie)
+        ? actData.digitalWardrobeBlackTie
+        : [],
+    },
+    {
+      id: "formal",
+      label: "Formal",
+      items: Array.isArray(actData?.digitalWardrobeFormal)
+        ? actData.digitalWardrobeFormal
+        : [],
+    },
+    {
+      id: "smartCasual",
+      label: "Smart Casual",
+      items: Array.isArray(actData?.digitalWardrobeSmartCasual)
+        ? actData.digitalWardrobeSmartCasual
+        : [],
+    },
+    {
+      id: "sessionAllBlack",
+      label: "Session All Black",
+      items: Array.isArray(actData?.digitalWardrobeSessionAllBlack)
+        ? actData.digitalWardrobeSessionAllBlack
+        : [],
+    },
+    {
+      id: "additional",
+      label: "Additional",
+      items: Array.isArray(actData?.additionalImages)
+        ? actData.additionalImages
+        : [],
+    },
+  ];
 
-              const activeGroup = mediaGroups.find((g) => g.id === activeMediaTab) || mediaGroups[0];
-              const images = (activeGroup?.items || [])
-                .map((item) => {
-                  if (typeof item === "string") return item;
-                  if (item && typeof item === "object" && item.url) return item.url;
-                  return null;
-                })
-                .filter(Boolean);
+  const nonEmptyMediaGroups = mediaGroups
+    .map((group) => ({
+      ...group,
+      items: (group.items || [])
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (item && typeof item === "object" && item.url) return item.url;
+          return null;
+        })
+        .filter(Boolean),
+    }))
+    .filter((group) => group.items.length > 0);
 
-              return (
-                <>
-                  {/* Tabs */}
-                  <div className="flex flex-wrap gap-2 mt-4 px-1">
-                    {mediaGroups.map((g) => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => setActiveMediaTab(g.id)}
-                        className={`px-3 py-1.5 rounded border text-sm transition-colors ${
-                          activeMediaTab === g.id
-                            ? "bg-black text-white border-black"
-                            : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-[#ff6667] hover:text-white hover:border-[#ff6667]"
-                        }`}
-                      >
-                        {g.label} ({g.items?.length || 0})
-                      </button>
-                    ))}
-                  </div>
+  if (nonEmptyMediaGroups.length === 0) return null;
 
-               {/* Carousel */}
-<div className="relative px-1 py-3">
-  {images.length > 0 ? (
-    <div className="relative">
-      <button
-        onClick={() => scrollGallery("left")}
-        className="absolute -left-6 top-1/2 -translate-y-1/2 z-10"
-        aria-label="Scroll left"
-        type="button"
-      >
-        <img
-          src={assets.scroll_left_icon}
-          alt="Scroll left"
-          className="w-8 h-8"
+  const activeGroup =
+    nonEmptyMediaGroups.find((g) => g.id === activeMediaTab) ||
+    nonEmptyMediaGroups[0];
+
+  const images = activeGroup.items;
+
+  return (
+    <Section when={true}>
+      <div className="text-2xl mt-12">
+        <Title
+          text1={getPossessiveTitleCase(displayShortName(actData))}
+          text2="GALLERY"
         />
-      </button>
+      </div>
 
-      <div
-        ref={galleryRef}
-        className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
-        style={{ scrollBehavior: "smooth" }}
-      >
-        {images.map((url, index) => (
-          <div
-            key={`${activeGroup.id}-${index}`}
-            className="w-[600px] h-[400px] bg-gray-100 rounded shadow-sm flex-shrink-0 snap-start overflow-hidden flex items-center justify-center"
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 mt-4 px-1">
+        {nonEmptyMediaGroups.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            onClick={() => setActiveMediaTab(g.id)}
+            className={`px-3 py-1.5 rounded border text-sm transition-colors ${
+              activeMediaTab === g.id
+                ? "bg-black text-white border-black"
+                : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-[#ff6667] hover:text-white hover:border-[#ff6667]"
+            }`}
           >
-            <img
-              src={url}
-              alt={`${activeGroup.label} image ${index + 1}`}
-              className="w-full h-full object-contain"
-              loading="lazy"
-            />
-          </div>
+            {g.label} ({g.items.length})
+          </button>
         ))}
       </div>
 
-      <button
-        onClick={() => scrollGallery("right")}
-        className="absolute -right-6 top-1/2 -translate-y-1/2 z-10"
-        aria-label="Scroll right"
-        type="button"
-      >
-        <img
-          src={assets.scroll_right_icon}
-          alt="Scroll right"
-          className="w-8 h-8"
-        />
-      </button>
-    </div>
-  ) : null}
-</div>
-                </>
-              );
-            })()}
-          </>
-        ); })()}
-      </Section>
+      {/* Carousel */}
+      <div className="relative px-1 py-3">
+        <div className="relative">
+          <button
+            onClick={() => scrollGallery("left")}
+            className="absolute -left-6 top-1/2 -translate-y-1/2 z-10"
+            aria-label="Scroll left"
+            type="button"
+          >
+            <img
+              src={assets.scroll_left_icon}
+              alt="Scroll left"
+              className="w-8 h-8"
+            />
+          </button>
+
+          <div
+            ref={galleryRef}
+            className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
+            style={{ scrollBehavior: "smooth" }}
+          >
+            {images.map((url, index) => (
+              <div
+                key={`${activeGroup.id}-${index}`}
+                className="w-[600px] h-[400px] bg-gray-100 rounded shadow-sm flex-shrink-0 snap-start overflow-hidden flex items-center justify-center"
+              >
+                <img
+                  src={url}
+                  alt={`${activeGroup.label} image ${index + 1}`}
+                  className="w-full h-full object-contain"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={() => scrollGallery("right")}
+            className="absolute -right-6 top-1/2 -translate-y-1/2 z-10"
+            aria-label="Scroll right"
+            type="button"
+          >
+            <img
+              src={assets.scroll_right_icon}
+              alt="Scroll right"
+              className="w-8 h-8"
+            />
+          </button>
+        </div>
+      </div>
+    </Section>
+  );
+})()}
 
       {/* ===== REPERTOIRE (full width) ===== */}
       <Section when={content.hasRepertoire}>
