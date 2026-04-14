@@ -2,10 +2,11 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { ShopContext } from '../context/ShopContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from "react-helmet-async";
-import ShortlistItem from '..components/ShortlistItem';
+
 import Title from '../components/Title';
 import axios from 'axios';
 import ShortlistPreviewPanel from '../components/ShortlistPreviewPanel';
+import ShortlistItem from '../components/ShortlistItem';
 
 // ✅ Race-safe list fetch hook for an array of IDs
 function useStableFetchList(ids, fetchById, options = {}) {

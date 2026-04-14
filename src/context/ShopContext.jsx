@@ -1579,7 +1579,6 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
             c.isTest === "true" ||
             c.isTest === 1 ||
             c.isTest === "1",
-          images: c.images || c.coverImages || null,
           leadRole: c.leadRole || "",
           vocalist: c.vocalist || "",
           timesShortlisted: Number(c.timesShortlisted) || 0,
