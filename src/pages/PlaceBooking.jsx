@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import calculateActPricing from "../pages/utils/pricing";
 import SignaturePad from "react-signature-canvas";
+import { Helmet } from "react-helmet-async";
 
 // Static booking ID generator: persists same ID for session
 const generateBookingId = (dateStr, lastName) => {
@@ -736,6 +737,12 @@ const depositAmount = roundToPennies(cartTotal * depositRate);
   }, [bookedActs, bookedActsRemote, cartItems, acts, actsSummaryState]);
 
   return (
+    <>
+  <Helmet
+  title="Place Booking | The Supreme Collective"
+  canonicalPath="/place-booking"
+  noindex={true}
+/>
     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t pb-24 sm:pb-0">
       {/* Left - User Address */}
       <div className="flex flex-col gap-4 w-full sm:max-w-[480px]">
@@ -1301,6 +1308,7 @@ const depositAmount = roundToPennies(cartTotal * depositRate);
         </div>
       </div>
     </div>
+    </>
   );
 };
 

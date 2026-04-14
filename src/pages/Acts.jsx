@@ -123,12 +123,12 @@ const Acts = ({ userRole, email }) => {
   const appliedOnceRef = useRef(false);
 const [priceMap, setPriceMap] = useState({}); // { [actId]: number }
 
-const location = useLocation();
+  const location = useLocation();
 
 const CANONICAL_ORIGIN = "https://thesupremecollective.co.uk";
 
 const canonicalForPath = (pathname = "/") => {
-  const p = String(pathname || "/");
+  const p = String(pathname || "/").split("?")[0].split("#")[0];
   const clean = p !== "/" ? p.replace(/\/+$/, "") : "/";
   return `${CANONICAL_ORIGIN}${clean}`;
 };

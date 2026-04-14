@@ -1,10 +1,13 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+
+
+
+import useOnScreen from '../hooks/useOnScreen';
 import { assets } from '../assets/assets';
 import { ShopContext } from '../context/ShopContext';
 import calculateActPricing from '../pages/utils/pricing';
-import useOnScreen from '../hooks/useOnScreen';
-import { priceCache, makePriceKey } from './utils/priceCache';
+import { priceCache, makePriceKey } from '../pages/utils/priceCache';
 
 const ShortlistItem = ({
   id,
@@ -245,6 +248,7 @@ setLoveCount((prev) => {
   const actPath = `/act/${encodeURIComponent(actSlug || actData?._id || "")}`;
 
 return (
+ 
 <div ref={cardRef} className={`relative group m-4 shrink-0 w-full max-w-[380px] sm:w-[320px] ${className ? className : ''}`}
  onMouseEnter={onMouseEnter}
  >

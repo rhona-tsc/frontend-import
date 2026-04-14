@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import CustomToast from "../components/CustomToast";
 import { ShopContext } from "../context/ShopContext";
 import { useContext } from "react";
+import { Helmet } from "react-helmet-async";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -60,6 +61,12 @@ const ResetPassword = () => {
   };
 
   return (
+    <>
+  <Helmet
+  title="Reset Password | The Supreme Collective"
+  canonicalPath="/reset-password"
+  noindex={true}
+/>
     <form
       onSubmit={onSubmit}
       className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-14 gap-4 text-gray-800"
@@ -108,6 +115,7 @@ const ResetPassword = () => {
         Back to login
       </p>
     </form>
+    </>
   );
 };
 

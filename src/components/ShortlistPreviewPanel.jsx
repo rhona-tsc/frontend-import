@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { assets } from "../assets/assets";
 import { toast } from "react-toastify";
-import calculateActPricing from "../pages/utils/pricing";
 
 import ActHero from "../components/ActHero";
 import CustomToast from "../components/CustomToast";
@@ -11,6 +10,7 @@ import PreviewPanelRepertoireSection from "../components/PreviewPanelRepertoireS
 import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
+import calculateActPricing from "../pages/utils/pricing";
 
 const ShortlistPreviewPanel = ({ hoveredAct, removeFromCart }) => {
 

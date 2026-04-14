@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
+import { Helmet } from "react-helmet-async";
 
 /** Helpers */
 const currencySymbol = (code) => {
@@ -159,6 +160,8 @@ const Bookings = () => {
         (itemTotals.length ? itemTotals.reduce((s, n) => s + (n || 0), 0) : 0);
 
       return {
+
+        
         _id: b._id || b.bookingId,
         bookingRef: b.bookingId || b._id,
         actName:
@@ -183,6 +186,7 @@ const Bookings = () => {
 
   if (loading) {
     return (
+      
       <div className="border-t pt-16">
         <div className="text-2xl">
           <Title text1={"MY"} text2={"BOOKINGS"} />
@@ -215,6 +219,12 @@ const Bookings = () => {
   }
 
   return (
+  
+      <><Helmet
+  title="Bookings | The Supreme Collective"
+  canonicalPath="/bookings"
+  noindex={true}
+/>
     <div className="border-t pt-16">
       <div className="text-2xl">
         <Title text1={"MY"} text2={"BOOKINGS"} />
@@ -294,6 +304,7 @@ const Bookings = () => {
         ))}
       </div>
     </div>
+    </>
   );
 };
 

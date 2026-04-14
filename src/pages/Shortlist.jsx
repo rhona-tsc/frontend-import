@@ -2,10 +2,10 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { ShopContext } from '../context/ShopContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from "react-helmet-async";
-import ShortlistItem from './ShortlistItem';
-import ShortlistPreviewPanel from './ShortlistPreviewPanel';
+import ShortlistItem from '..components/ShortlistItem';
 import Title from '../components/Title';
 import axios from 'axios';
+import ShortlistPreviewPanel from '../components/ShortlistPreviewPanel';
 
 // ✅ Race-safe list fetch hook for an array of IDs
 function useStableFetchList(ids, fetchById, options = {}) {
@@ -159,12 +159,13 @@ const Shortlist = () => {
   };
 
   return (
-    <div>
-      <Helmet>
-        <title>Shortlist | The Supreme Collective</title>
-        <link rel="canonical" href={canonicalForPath(location.pathname)} />
-        <meta property="og:url" content={canonicalForPath(location.pathname)} />
-      </Helmet>
+    <>
+        <Helmet
+        title="Shortlist | The Supreme Collective"
+        canonicalPath="/shortlist"
+        noindex={true}
+      /> <div>
+         
       <div className="flex-1">
         <div className="flex justify-left text-base justify-between sm:text-2xl mb-4 mt-10 pt-10">
           <Title text1={'YOUR'} text2={'SHORTLIST'} />
@@ -308,6 +309,7 @@ const Shortlist = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

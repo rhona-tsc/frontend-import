@@ -11,6 +11,7 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { ShopContext } from "../context/ShopContext";
 import SimpleScheduleEditor from "../components/eventSheet/SimpleScheduleEditor";
+import { Helmet } from "react-helmet-async";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 
@@ -3179,6 +3180,12 @@ const peopleSection = isWedding
   );
 
   return (
+    <>
+  <Helmet
+  title="Booking Cancelled | The Supreme Collective"
+  canonicalPath="/booking-cancelled"
+  noindex={true}
+/>
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -3531,6 +3538,7 @@ const peopleSection = isWedding
         </button>
       </div>
     </div>
+    </>
   );
 };
 

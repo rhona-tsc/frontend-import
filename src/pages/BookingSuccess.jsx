@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useContext } from "react";
 import { ShopContext } from "../context/ShopContext";
+import { Helmet } from 'react-helmet-async';
 
 
 const BookingSuccess = () => {
@@ -129,6 +130,12 @@ const BookingSuccess = () => {
   }, [location.state]);
 
   return (
+    <>
+  <Helmet
+  title="Booking Success | The Supreme Collective"
+  canonicalPath="/booking-success"
+  noindex={true}
+/>
     <div className="p-10 text-center max-w-2xl mx-auto">
       <h1 className="text-3xl font-bold mb-4">🎉 Booking Confirmed!</h1>
       <p className="mb-4">
@@ -166,6 +173,7 @@ const BookingSuccess = () => {
         Warmest wishes,<br/>The Supreme Collective
       </p>
     </div>
+    </>
   );
 };
 

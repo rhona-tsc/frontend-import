@@ -240,13 +240,12 @@ window.gtag("event", "conversion", {
   }, []);
 
   return (
-    <>
-      <Helmet>
-        <title>Login | The Supreme Collective</title>
-        <meta name="robots" content="noindex, nofollow" />
-        <link rel="canonical" href="https://thesupremecollective.co.uk/login" />
-        <meta property="og:url" content="https://thesupremecollective.co.uk/login" />
-      </Helmet>
+   <>
+   <Helmet
+   title="Login | The Supreme Collective"
+   canonicalPath="/login"
+   noindex={true}
+ />
 
       <form
         onSubmit={onSubmitHandler}

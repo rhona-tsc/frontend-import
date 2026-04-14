@@ -2,8 +2,15 @@ import { Helmet } from "react-helmet-async";
 
 const ORIGIN = "https://thesupremecollective.co.uk";
 
-export default function SEO({ title, description, path, image }) {
-  const url = `${ORIGIN}${path?.startsWith("/") ? path : `/${path || ""}`}`;
+export default function SEO({
+  title,
+  description,
+  path = "/",
+  image,
+  noindex = false,
+}) {
+  const normalizedPath = path?.startsWith("/") ? path : `/${path || ""}`;
+  const url = `${ORIGIN}${normalizedPath}`;
   const safeTitle = title?.trim() || "The Supreme Collective";
   const safeDesc =
     description?.trim() ||
@@ -14,6 +21,8 @@ export default function SEO({ title, description, path, image }) {
       <title>{safeTitle}</title>
       <meta name="description" content={safeDesc} />
       <link rel="canonical" href={url} />
+
+      {noindex && <meta name="robots" content="noindex,follow" />}
 
       <meta property="og:title" content={safeTitle} />
       <meta property="og:description" content={safeDesc} />

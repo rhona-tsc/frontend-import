@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 
 const Client_Dashboard = () => {
   const [bookings, setBookings] = useState([]);
@@ -22,8 +23,14 @@ const Client_Dashboard = () => {
   }, [userId]);
 
   return (
+    <>
+  <Helmet
+  title="Client Dashboard | The Supreme Collective"
+  canonicalPath="/client-dashboard"
+  noindex={true}
+/>
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">🎉 Booking Confirmed!</h1>
+      <h1 className="text-2xl font-bold mb-4">Client Dashboard!</h1>
       <p className="text-gray-700 mb-4">
         Thank you for your booking. You’ll find your confirmed acts and links to their event sheets below.
       </p>
@@ -37,6 +44,7 @@ const Client_Dashboard = () => {
         ))}
       </ul>
     </div>
+    </>
   );
 };
 

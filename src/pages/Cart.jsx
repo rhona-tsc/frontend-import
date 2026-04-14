@@ -24,6 +24,7 @@ import { calculateExtraPrice } from "./utils/pricing";
 import { addMinutesHHMM } from "./utils/time";
 import { FeaturedVocalistBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
 import {  fetchBadgeForActAndDate } from "./utils/helpersforAct";
+import { Helmet } from "react-helmet-async";
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
@@ -1874,6 +1875,12 @@ useEffect(() => {
 
 
   return (
+    <>
+  <Helmet
+  title="Cart | The Supreme Collective"
+  canonicalPath="/cart"
+  noindex={true}
+/>
     <div className="border-t pt-14">
       <div className="text-2xl mb-3">
         <Title text1={"BOOKING"} text2={"DETAILS"} />
@@ -3012,6 +3019,7 @@ const availableLineups = availableLineupsRaw.filter((l) => Boolean(normLineupId(
         </div>
       </div>
     </div>
+    </>
   );
 };
 
