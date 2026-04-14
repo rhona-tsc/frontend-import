@@ -173,25 +173,24 @@ const ShopProvider = (props) => {
     setActs((p) => (Array.isArray(p) ? p.map(patch) : p));
   };
 
-  // ✅ timesShortlisted is cumulative (never decrease)
-  const updateTimesShortlistedEverywhere = (actId, newCount) => {
-    const idStr = String(actId);
-    const n = Math.max(0, Number(newCount) || 0);
+ // ✅ loveCount is the card/UI counter we now display
+const updateLoveCountEverywhere = (actId, newCount) => {
+  const idStr = String(actId);
+  const n = Math.max(0, Number(newCount) || 0);
 
-    const patch = (x) => {
-      const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
-      if (xid !== idStr) return x;
-      const prev = Math.max(0, Number(x?.timesShortlisted) || 0);
-      return { ...x, timesShortlisted: Math.max(prev, n) };
-    };
-
-    setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-    setActs((p) => (Array.isArray(p) ? p.map(patch) : p));
+  const patch = (x) => {
+    const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
+    if (xid !== idStr) return x;
+    return { ...x, loveCount: n };
   };
+
+  setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
+  setActs((p) => (Array.isArray(p) ? p.map(patch) : p));
+};
 
   useEffect(() => {
     const pathname = String(location?.pathname || "");
@@ -695,7 +694,10 @@ const getActsPageCards = React.useCallback(async () => {
       instruments: Array.isArray(c?.instruments) ? c.instruments : [],
       leadRole: c?.leadRole || "",
       vocalist: c?.vocalist || "",
-      loveCount: Number(c?.loveCount ?? c?.numberOfShortlistsIn ?? 0) || 0,
+      loveCount:
+  Number(
+    c?.loveCount ?? c?.timesShortlisted ?? c?.numberOfShortlistsIn ?? 0,
+  ) || 0,
       timesShortlisted: Number(c?.timesShortlisted || 0) || 0,
       numberOfShortlistsIn: Number(c?.numberOfShortlistsIn || 0) || 0,
     };
@@ -738,7 +740,10 @@ const getActsPageCards = React.useCallback(async () => {
       imageUrl: pickImage(a),
       images: pickImage(a) ? [{ url: pickImage(a) }] : [],
       basePrice,
-      loveCount: Number(a?.loveCount ?? a?.numberOfShortlistsIn ?? 0) || 0,
+      loveCount:
+  Number(
+    a?.loveCount ?? a?.timesShortlisted ?? a?.numberOfShortlistsIn ?? 0,
+  ) || 0,
       timesShortlisted: Number(a?.timesShortlisted || 0) || 0,
       numberOfShortlistsIn: Number(a?.numberOfShortlistsIn || 0) || 0,
       availabilityBadge: null,
@@ -862,7 +867,7 @@ async function fetchActsForGrid() {
       instruments: Array.isArray(a?.instruments) ? a.instruments : [],
       leadRole: a?.leadRole || "",
       vocalist: a?.vocalist || "",
-      loveCount: Number(a?.loveCount ?? a?.numberOfShortlistsIn ?? 0) || 0,
+loveCount: Number(a?.loveCount ?? a?.numberOfShortlistsIn ?? 0) || 0,
       timesShortlisted: Number(a?.timesShortlisted || 0) || 0,
       numberOfShortlistsIn: Number(a?.numberOfShortlistsIn || 0) || 0,
     };
@@ -2870,58 +2875,7 @@ async function getActCardsData() {
     const isShortlistedNow =
       Array.isArray(shortlistedActs) && shortlistedActs.includes(idStr);
 
-    // ✅ Keep these helpers BEFORE use (avoid temporal dead zone)
-    const updateTimesShortlistedEverywhere = (actId, newCount) => {
-      const targetId = String(actId);
-      const n = Math.max(0, Number(newCount) || 0);
-
-      const patch = (x) => {
-        const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
-        if (xid !== targetId) return x;
-        return { ...x, timesShortlisted: n };
-      };
-
-      setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-      setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-      setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-      setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-      setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-
-      setActs((p) =>
-        Array.isArray(p)
-          ? p.map((a) => {
-              const aid = String(a?._id ?? a?.actId ?? "");
-              return aid === targetId ? { ...a, timesShortlisted: n } : a;
-            })
-          : p,
-      );
-    };
-
-    const updateNumberOfShortlistsInEverywhere = (actId, newCount) => {
-      const targetId = String(actId);
-      const n = Math.max(0, Number(newCount) || 0);
-
-      const patch = (x) => {
-        const xid = String(x?.actId ?? x?._id ?? x?.id ?? "");
-        if (xid !== targetId) return x;
-        return { ...x, numberOfShortlistsIn: n };
-      };
-
-      setActCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-      setActFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-      setActsFilterCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-      setActsPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-      setActsFilterPageCards((p) => (Array.isArray(p) ? p.map(patch) : p));
-
-      setActs((p) =>
-        Array.isArray(p)
-          ? p.map((a) => {
-              const aid = String(a?._id ?? a?.actId ?? "");
-              return aid === targetId ? { ...a, numberOfShortlistsIn: n } : a;
-            })
-          : p,
-      );
-    };
+   
 
     // ⚡ Optimistic shortlist list update
     const prev = Array.isArray(shortlistedActs) ? [...shortlistedActs] : [];
@@ -2970,26 +2924,39 @@ async function getActCardsData() {
       }
 
       // Prefer new field names; keep backwards-compat fallbacks
-      const numberOfShortlistsInFromServer =
-        res?.data?.numberOfShortlistsIn ??
-        res?.data?.shortlistsIn ??
-        res?.data?.loveCount;
+      const loveCountFromServer =
+  res?.data?.loveCount ??
+  res?.data?.act?.loveCount ??
+  res?.data?.numberOfShortlistsIn ??
+  res?.data?.act?.numberOfShortlistsIn ??
+  res?.data?.shortlistsIn;
 
-      const timesShortlistedFromServer =
-        res?.data?.timesShortlisted ??
-        res?.data?.totalTimesShortlisted ??
-        res?.data?.timesShortlistedTotal;
+const numberOfShortlistsInFromServer =
+  res?.data?.numberOfShortlistsIn ??
+  res?.data?.act?.numberOfShortlistsIn ??
+  res?.data?.shortlistsIn ??
+  res?.data?.loveCount ??
+  res?.data?.act?.loveCount;
+
+const timesShortlistedFromServer =
+  res?.data?.timesShortlisted ??
+  res?.data?.act?.timesShortlisted ??
+  res?.data?.totalTimesShortlisted ??
+  res?.data?.timesShortlistedTotal;
 
       // ✅ update BOTH counters everywhere
-      if (numberOfShortlistsInFromServer != null) {
-        updateNumberOfShortlistsInEverywhere(
-          idStr,
-          numberOfShortlistsInFromServer,
-        );
-      }
-      if (timesShortlistedFromServer != null) {
-        updateTimesShortlistedEverywhere(idStr, timesShortlistedFromServer);
-      }
+     if (loveCountFromServer != null) {
+  updateLoveCountEverywhere(idStr, loveCountFromServer);
+}
+if (numberOfShortlistsInFromServer != null) {
+  updateNumberOfShortlistsInEverywhere(
+    idStr,
+    numberOfShortlistsInFromServer,
+  );
+}
+if (timesShortlistedFromServer != null) {
+  updateTimesShortlistedEverywhere(idStr, timesShortlistedFromServer);
+}
     } catch (err) {
       console.error("❌ shortlistAct error:", err?.message || err);
 
