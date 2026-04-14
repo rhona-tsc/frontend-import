@@ -8,9 +8,9 @@ import CustomToast from "../components/CustomToast";
 import { ShopContext } from "../context/ShopContext";
 import PreviewPanelRepertoireSection from "../components/PreviewPanelRepertoireSection";
 import Title from "../components/Title";
-import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import { FeaturedVocalistBadge, VocalistFeaturedAvailable } from "../components/FeaturedVocalistBadge";
 import calculateActPricing from "../pages/utils/pricing";
+import { getPossessiveTitleCase } from "../pages/utils/getPossessiveTitleCase";
 
 const ShortlistPreviewPanel = ({ hoveredAct, removeFromCart }) => {
 
