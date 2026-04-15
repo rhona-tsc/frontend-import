@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
-import { Helmet } from "react-helmet-async";
+import SEO from "../components/SEO";
 
 /** Helpers */
 const currencySymbol = (code) => {
@@ -220,9 +220,11 @@ const Bookings = () => {
 
   return (
   
-      <><Helmet
+      <>
+      <SEO
   title="Bookings | The Supreme Collective"
-  canonicalPath="/bookings"
+  description="View your bookings with The Supreme Collective."
+  path="/bookings"
   noindex={true}
 />
     <div className="border-t pt-16">

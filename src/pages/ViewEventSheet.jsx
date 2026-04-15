@@ -11,7 +11,7 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { ShopContext } from "../context/ShopContext";
 import SimpleScheduleEditor from "../components/eventSheet/SimpleScheduleEditor";
-import { Helmet } from "react-helmet-async";
+import SEO from "../components/SEO";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 
@@ -3181,9 +3181,10 @@ const peopleSection = isWedding
 
   return (
     <>
-  <Helmet
-  title="Booking Cancelled | The Supreme Collective"
-  canonicalPath="/booking-cancelled"
+<SEO
+  title="Event Sheet | The Supreme Collective"
+  description="Manage your booking details and event information."
+path={`/event-sheet/${booking?.bookingId || booking?._id}`}
   noindex={true}
 />
     <div className="p-6 max-w-4xl mx-auto">

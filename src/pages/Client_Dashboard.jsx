@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
+import SEO from '../components/SEO';
 
 const Client_Dashboard = () => {
   const [bookings, setBookings] = useState([]);
@@ -24,9 +24,10 @@ const Client_Dashboard = () => {
 
   return (
     <>
-  <Helmet
+  <SEO
   title="Client Dashboard | The Supreme Collective"
-  canonicalPath="/client-dashboard"
+  description="Client dashboard."
+  path="/client-dashboard"
   noindex={true}
 />
     <div className="p-6">

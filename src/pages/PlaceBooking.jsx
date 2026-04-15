@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import calculateActPricing from "../pages/utils/pricing";
 import SignaturePad from "react-signature-canvas";
-import { Helmet } from "react-helmet-async";
+import SEO from "../components/SEO";
 
 // Static booking ID generator: persists same ID for session
 const generateBookingId = (dateStr, lastName) => {
@@ -738,9 +738,10 @@ const depositAmount = roundToPennies(cartTotal * depositRate);
 
   return (
     <>
-  <Helmet
+ <SEO
   title="Place Booking | The Supreme Collective"
-  canonicalPath="/place-booking"
+  description="Complete your booking."
+  path="/place-booking"
   noindex={true}
 />
     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t pb-24 sm:pb-0">

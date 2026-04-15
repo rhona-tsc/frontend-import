@@ -4,8 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useContext } from "react";
 import { ShopContext } from "../context/ShopContext";
-import { Helmet } from 'react-helmet-async';
-
+import SEO from "../components/SEO";
 
 const BookingSuccess = () => {
   const location = useLocation();
@@ -131,9 +130,10 @@ const BookingSuccess = () => {
 
   return (
     <>
-  <Helmet
+ <SEO
   title="Booking Success | The Supreme Collective"
-  canonicalPath="/booking-success"
+  description="Booking confirmed."
+  path="/booking-success"
   noindex={true}
 />
     <div className="p-10 text-center max-w-2xl mx-auto">

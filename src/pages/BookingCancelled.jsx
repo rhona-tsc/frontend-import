@@ -1,12 +1,13 @@
 // src/pages/BookingCancelled.jsx
 import React from 'react';
-import { Helmet } from 'react-helmet-async';
+import SEO from "../components/SEO";
 
 const BookingCancelled = () => (
 <>
-  <Helmet
+<SEO
   title="Booking Cancelled | The Supreme Collective"
-  canonicalPath="/booking-cancelled"
+  description="Booking cancelled."
+  path="/booking-cancelled"
   noindex={true}
 />
 

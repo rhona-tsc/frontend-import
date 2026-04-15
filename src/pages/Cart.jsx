@@ -24,7 +24,7 @@ import { calculateExtraPrice } from "./utils/pricing";
 import { addMinutesHHMM } from "./utils/time";
 import { FeaturedVocalistBadgeForCart } from "../components/FeaturedVocalistBadgeForCart";
 import {  fetchBadgeForActAndDate } from "./utils/helpersforAct";
-import { Helmet } from "react-helmet-async";
+import { SEO } from "../components/SEO";
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
@@ -1876,9 +1876,10 @@ useEffect(() => {
 
   return (
     <>
-  <Helmet
+ <SEO
   title="Cart | The Supreme Collective"
-  canonicalPath="/cart"
+  description="Your selected acts and booking details."
+  path="/cart"
   noindex={true}
 />
     <div className="border-t pt-14">

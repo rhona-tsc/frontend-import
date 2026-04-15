@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import CustomToast from "../components/CustomToast";
 import { ShopContext } from "../context/ShopContext";
 import { useContext } from "react";
-import { Helmet } from "react-helmet-async";
+import SEO from "../components/SEO";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -62,9 +62,10 @@ const ResetPassword = () => {
 
   return (
     <>
-  <Helmet
+ <SEO
   title="Reset Password | The Supreme Collective"
-  canonicalPath="/reset-password"
+  description="Reset your password."
+  path="/reset-password"
   noindex={true}
 />
     <form

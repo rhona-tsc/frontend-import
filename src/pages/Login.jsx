@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom"; // ✅ add useLocat
 import { toast } from 'react-toastify';
 import axios from 'axios'; 
 import CustomToast from "../components/CustomToast";
-import { Helmet } from "react-helmet-async";
+import SEO from '../components/SEO';
 
 const Login = () => {
   const navigate = useNavigate(); 
@@ -241,9 +241,10 @@ window.gtag("event", "conversion", {
 
   return (
    <>
-   <Helmet
+   <SEO
    title="Login | The Supreme Collective"
    canonicalPath="/login"
+   description="Login to your account."
    noindex={true}
  />
 
