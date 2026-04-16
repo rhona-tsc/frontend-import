@@ -26,6 +26,8 @@ export default function BlogPost() {
     <article className="px-4 py-12 max-w-4xl mx-auto">
       <Helmet>
         <title>{post.metaTitle || post.title}</title>
+        <meta property="og:type" content="article" />
+<meta name="twitter:card" content={post.heroImage ? "summary_large_image" : "summary"} />
         <meta
           name="description"
           content={post.metaDescription || post.excerpt}

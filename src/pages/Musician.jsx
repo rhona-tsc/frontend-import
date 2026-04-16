@@ -91,6 +91,44 @@ export const buildMusicianMeta = (musician) => {
   };
 };
 
+const shouldIndexMusician = (musician) => {
+  if (!musician) return false;
+
+  const bio = pickBioText(musician);
+  const hasBio = bio.trim().length >= 120;
+
+  const hasImage = Boolean(pickFirstImageUrl(musician));
+
+  const hasVideos = [
+    ...(Array.isArray(musician?.tscApprovedFunctionBandVideoLinks)
+      ? musician.tscApprovedFunctionBandVideoLinks
+      : []),
+    ...(Array.isArray(musician?.tscApprovedOriginalBandVideoLinks)
+      ? musician.tscApprovedOriginalBandVideoLinks
+      : []),
+  ].some((v) => v && v.url);
+
+  const hasInstrumentation =
+    Array.isArray(musician?.instrumentation) && musician.instrumentation.length > 0;
+
+  const hasVocals =
+    (Array.isArray(musician?.vocals?.type) && musician.vocals.type.length > 0) ||
+    Boolean(musician?.vocals?.range);
+
+  const hasRepertoire =
+    Array.isArray(musician?.selectedSongs) && musician.selectedSongs.length >= 8;
+
+  const qualitySignals = [
+    hasBio,
+    hasImage,
+    hasVideos,
+    hasInstrumentation || hasVocals,
+    hasRepertoire,
+  ].filter(Boolean).length;
+
+  return qualitySignals >= 3;
+};
+
 const Musician = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const location = useLocation();
@@ -671,6 +709,7 @@ const hasNonEmptyObjectValues = (obj) =>
       const meta = buildMusicianMeta(actData);
       const canonicalUrl = canonicalForPath(location.pathname);
       const socialImage = pickFirstImageUrl(actData);
+      const noindex = !shouldIndexMusician(actData);
 
       return (
         <Helmet>
@@ -678,6 +717,7 @@ const hasNonEmptyObjectValues = (obj) =>
           <meta name="description" content={meta.description} />
 
           <link rel="canonical" href={canonicalUrl} />
+          {noindex ? <meta name="robots" content="noindex,follow" /> : null}
 
           <meta property="og:type" content="profile" />
           <meta property="og:url" content={canonicalUrl} />

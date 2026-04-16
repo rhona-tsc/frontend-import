@@ -13,7 +13,18 @@ export default function Blog() {
           content="Read wedding entertainment inspiration, live music ideas, and planning tips from The Supreme Collective."
         />
         <link rel="canonical" href="https://thesupremecollective.co.uk/blog" />
-        <meta property="og:url" content="https://thesupremecollective.co.uk/blog" />
+        <meta property="og:type" content="website" />
+<meta property="og:title" content="Blog | The Supreme Collective" />
+<meta
+  property="og:description"
+  content="Read wedding entertainment inspiration, live music ideas, and planning tips from The Supreme Collective."
+/>
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Blog | The Supreme Collective" />
+<meta
+  name="twitter:description"
+  content="Read wedding entertainment inspiration, live music ideas, and planning tips from The Supreme Collective."
+/>
       </Helmet>
 
       <div className="px-4 py-12 max-w-6xl mx-auto">

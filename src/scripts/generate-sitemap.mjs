@@ -7,7 +7,16 @@ const API_URL =
   process.env.VITE_BACKEND_URL ||
   process.env.SITEMAP_API_URL ||
   "https://tsc-backend-v2.onrender.com";
-const CORE_PAGES = ["/", "/acts", "/about", "/contact"]; // edit to match your site
+
+const CORE_PAGES = [
+  { url: "/", changefreq: "weekly", priority: 1.0 },
+  { url: "/acts", changefreq: "weekly", priority: 0.9 },
+  { url: "/about", changefreq: "monthly", priority: 0.6 },
+  { url: "/contact", changefreq: "monthly", priority: 0.6 },
+  { url: "/blog", changefreq: "weekly", priority: 0.7 },
+  { url: "/privacy", changefreq: "yearly", priority: 0.3 },
+  { url: "/terms", changefreq: "yearly", priority: 0.3 },
+];
 
 async function fetchActSlugs() {
   const res = await fetch(`${API_URL}/api/sitemap/act-slugs`);
@@ -27,12 +36,10 @@ async function fetchActSlugs() {
 async function run() {
   const sm = new SitemapStream({ hostname: SITE_URL });
 
-  // Core pages
   for (const p of CORE_PAGES) {
-    sm.write({ url: p, changefreq: "weekly", priority: 0.8 });
+    sm.write(p);
   }
 
-  // Act pages: /act/:slugs
   const slugs = await fetchActSlugs();
   for (const slug of slugs) {
     sm.write({ url: `/act/${slug}`, changefreq: "weekly", priority: 0.7 });
