@@ -1,6 +1,6 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { SEO } from '../components/SEO';
+import { SEO } from '../components/SEO.jsx';
 import Hero from '../components/Hero';
 
 // 🪵 Debug helpers
