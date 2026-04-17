@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 
 const ORIGIN = "https://thesupremecollective.co.uk";
 
-export default function SEO({
+export function SEO({
   title,
   description,
   path = "/",
@@ -46,3 +46,5 @@ export default function SEO({
     </Helmet>
   );
 }
+
+export default SEO;
