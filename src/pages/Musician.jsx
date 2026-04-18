@@ -28,7 +28,6 @@ const calculateAverageRating = (reviews) => {
   return Math.round((sum / reviews.length) * 2) / 2; // round to nearest 0.5
 };
 
-const pickFirstImageUrl = (data) => {
 const pickBioText = (data) => {
   const preferred = data?.tscApprovedBio ?? data?.tscBio ?? data?.bio ?? "";
   if (preferred == null) return "";
@@ -52,7 +51,8 @@ const pickBioText = (data) => {
     return String(preferred || "");
   }
 };
-  // Try common shapes: string, {url}, arrays of either
+
+const pickFirstImageUrl = (data) => {
   const pickFrom = (v) => {
     if (!v) return "";
     if (typeof v === "string") return v;
@@ -281,7 +281,9 @@ const Musician = () => {
     addToShortlist,
   });
   const [actData, setActData] = useState(null);
+
 const userRole = sessionStorage.getItem("userRole") || localStorage.getItem("userRole") || "";
+const profileData = actData?.act || actData?.musician || actData?.deputy || actData || {};
 const isPrivileged = userRole === "musician" || userRole === "agent";
 
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
@@ -732,12 +734,13 @@ const hasNonEmptyObjectValues = (obj) =>
     })()}
     {/* Top Navigation */}
     <div className="flex justify-between items-center mb-4">
-      <button onClick={() => navigate(-1)} className="text-gray-600 hover:text-black">
+      <button
+        onClick={() => navigate(-1)}
+        className="text-gray-600 hover:text-black"
+        type="button"
+      >
         ← Back
       </button>
-
-      
-
       <div />
     </div>
 
@@ -936,10 +939,10 @@ const hasNonEmptyObjectValues = (obj) =>
               </ul>
             </Section>
 
-           <Section when={Array.isArray(m?.academic_credentials) && m?.academic_credentials?.length > 0}>
+           <Section when={Array.isArray(profileData?.academic_credentials) && profileData?.academic_credentials?.length > 0}>
   <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
     <h4 className="font-semibold text-gray-900 mb-2">Highlights</h4>
-    {m?.academic_credentials?.slice(0, 2).map((cred, idx) => (
+    {profileData?.academic_credentials?.slice(0, 2).map((cred, idx) => (
       <li key={`highlight-cred-${idx}`}>
         {[cred?.education_level, cred?.course, cred?.institution]
           .filter(Boolean)
@@ -1038,33 +1041,33 @@ const hasNonEmptyObjectValues = (obj) =>
 
 <Section
   when={Boolean(
-    (Array.isArray(m?.academic_credentials) && m?.academic_credentials?.length > 0) ||
-    (Array.isArray(m?.awards) && m?.awards?.length > 0) ||
+    (Array.isArray(profileData?.academic_credentials) && profileData?.academic_credentials?.length > 0) ||
+    (Array.isArray(profileData?.awards) && profileData?.awards?.length > 0) ||
     (isPrivileged &&
-      Array.isArray(m?.function_bands_performed_with) &&
-      m?.function_bands_performed_with?.length > 0) ||
-    (Array.isArray(m?.original_bands_performed_with) &&
-      m?.original_bands_performed_with?.length > 0) ||
-    (Array.isArray(m?.sessions) && m?.sessions?.length > 0)
+      Array.isArray(profileData?.function_bands_performed_with) &&
+      profileData?.function_bands_performed_with?.length > 0) ||
+    (Array.isArray(profileData?.original_bands_performed_with) &&
+      profileData?.original_bands_performed_with?.length > 0) ||
+    (Array.isArray(profileData?.sessions) && profileData?.sessions?.length > 0)
   )}
 >
   <div className="lg:col-span-12 mt-12">
     <div className="text-2xl mb-2">
       <Title
-        text1={getPossessiveTitleCase(displayShortName(m))}
+        text1={getPossessiveTitleCase(displayShortName(profileData))}
         text2="ACADEMICS, ACHIEVEMENTS & CREDITS"
       />
     </div>
 
     <div className="border rounded px-4 py-6 text-m text-gray-700 w-full my-2 sm:px-6 sm:py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {((Array.isArray(m?.academic_credentials) && m?.academic_credentials?.length > 0) ||
-        (Array.isArray(m?.awards) && m?.awards?.length > 0)) && (
+      {((Array.isArray(profileData?.academic_credentials) && profileData?.academic_credentials?.length > 0) ||
+        (Array.isArray(profileData?.awards) && profileData?.awards?.length > 0)) && (
         <div>
           <h4 className="font-semibold text-gray-900 mb-2">Education & Awards</h4>
 
-          {Array.isArray(m?.academic_credentials) && m?.academic_credentials?.length > 0 && (
+          {Array.isArray(profileData?.academic_credentials) && profileData?.academic_credentials?.length > 0 && (
             <ul className="list-disc pl-5 space-y-1 mb-4">
-              {m?.academic_credentials
+              {profileData?.academic_credentials
                 ?.filter(
                   (cred) =>
                     cred?.course ||
@@ -1085,9 +1088,9 @@ const hasNonEmptyObjectValues = (obj) =>
             </ul>
           )}
 
-          {Array.isArray(m?.awards) && m?.awards?.length > 0 && (
+          {Array.isArray(profileData?.awards) && profileData?.awards?.length > 0 && (
             <ul className="list-disc pl-5 space-y-1">
-              {m?.awards
+              {profileData?.awards
                 ?.filter((award) => award?.description || award?.years)
                 .map((award, idx) => (
                   <li key={`award-${idx}`}>
@@ -1101,12 +1104,12 @@ const hasNonEmptyObjectValues = (obj) =>
       )}
 
       {isPrivileged &&
-      Array.isArray(m?.function_bands_performed_with) &&
-      m?.function_bands_performed_with?.length > 0 && (
+      Array.isArray(profileData?.function_bands_performed_with) &&
+      profileData?.function_bands_performed_with?.length > 0 && (
         <div>
           <h4 className="font-semibold text-gray-900 mb-2">Function Projects</h4>
           <ul className="list-disc pl-5 space-y-1">
-            {m?.function_bands_performed_with
+            {profileData?.function_bands_performed_with
               ?.filter((b) => b?.function_band_name)
               .map((b, idx) => (
                 <li key={`funcband-${idx}`}>{b?.function_band_name}</li>
@@ -1115,12 +1118,12 @@ const hasNonEmptyObjectValues = (obj) =>
         </div>
       )}
 
-      {Array.isArray(m?.original_bands_performed_with) &&
-      m?.original_bands_performed_with?.length > 0 && (
+      {Array.isArray(profileData?.original_bands_performed_with) &&
+      profileData?.original_bands_performed_with?.length > 0 && (
         <div>
           <h4 className="font-semibold text-gray-900 mb-2">Original Projects</h4>
           <ul className="list-disc pl-5 space-y-1">
-            {m?.original_bands_performed_with
+            {profileData?.original_bands_performed_with
               ?.filter((b) => b?.original_band_name)
               .map((b, idx) => (
                 <li key={`origband-${idx}`}>{b?.original_band_name}</li>
@@ -1129,11 +1132,11 @@ const hasNonEmptyObjectValues = (obj) =>
         </div>
       )}
 
-      {Array.isArray(m?.sessions) && m?.sessions?.length > 0 && (
+      {Array.isArray(profileData?.sessions) && profileData?.sessions?.length > 0 && (
         <div>
           <h4 className="font-semibold text-gray-900 mb-2">Sessions</h4>
           <ul className="list-disc pl-5 space-y-1">
-            {m?.sessions
+            {profileData?.sessions
               ?.filter((s) => s?.artist || s?.session_type)
               .map((s, idx) => (
                 <li key={`session-${idx}`}>
