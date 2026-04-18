@@ -29,6 +29,29 @@ const calculateAverageRating = (reviews) => {
 };
 
 const pickFirstImageUrl = (data) => {
+const pickBioText = (data) => {
+  const preferred = data?.tscApprovedBio ?? data?.tscBio ?? data?.bio ?? "";
+  if (preferred == null) return "";
+  if (typeof preferred === "string") return preferred.trim();
+  if (Array.isArray(preferred)) {
+    try {
+      return preferred
+        .map((b) =>
+          typeof b === "string"
+            ? b
+            : b?.text || b?.children?.map?.((c) => c?.text).join("") || ""
+        )
+        .join("\n");
+    } catch {
+      return "";
+    }
+  }
+  try {
+    return JSON.stringify(preferred);
+  } catch {
+    return String(preferred || "");
+  }
+};
   // Try common shapes: string, {url}, arrays of either
   const pickFrom = (v) => {
     if (!v) return "";
@@ -58,30 +81,6 @@ const pickFirstImageUrl = (data) => {
 };
 
 export const buildMusicianMeta = (musician) => {
-// Helper to pick the best available bio text from data
-function pickBioText(data) {
-  const preferred = data?.tscApprovedBio ?? data?.tscBio ?? data?.bio ?? "";
-  if (preferred == null) return "";
-  if (typeof preferred === "string") return preferred.trim();
-  if (Array.isArray(preferred)) {
-    try {
-      return preferred
-        .map((b) =>
-          typeof b === "string"
-            ? b
-            : b?.text || b?.children?.map?.((c) => c?.text).join("") || ""
-        )
-        .join("\n");
-    } catch {
-      return "";
-    }
-  }
-  try {
-    return JSON.stringify(preferred);
-  } catch {
-    return String(preferred || "");
-  }
-}
   const firstName = musician?.firstName || "";
   const lastName = musician?.lastName || "";
   const stageName = musician?.tscName || musician?.name || "";
@@ -284,7 +283,6 @@ const Musician = () => {
   const [actData, setActData] = useState(null);
 const userRole = sessionStorage.getItem("userRole") || localStorage.getItem("userRole") || "";
 const isPrivileged = userRole === "musician" || userRole === "agent";
-const m = actData?.act || actData?.musician || actData?.deputy || actData || {};
 
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
 
@@ -981,7 +979,6 @@ const hasNonEmptyObjectValues = (obj) =>
                 const allCategorized = new Set([...liveSkills, ...studioSkills, ...prepSkills, ...otherSkills]);
                 const uncategorized = otherSkillsArr.filter((skill) => !allCategorized.has(skill));
                 const fullOtherSkills = [...otherSkills, ...uncategorized];
-const m = actData?.act || actData?.musician || actData?.deputy || actData;
 
                 return (
                   <>
