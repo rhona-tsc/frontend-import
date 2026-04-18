@@ -58,6 +58,30 @@ const pickFirstImageUrl = (data) => {
 };
 
 export const buildMusicianMeta = (musician) => {
+// Helper to pick the best available bio text from data
+function pickBioText(data) {
+  const preferred = data?.tscApprovedBio ?? data?.tscBio ?? data?.bio ?? "";
+  if (preferred == null) return "";
+  if (typeof preferred === "string") return preferred.trim();
+  if (Array.isArray(preferred)) {
+    try {
+      return preferred
+        .map((b) =>
+          typeof b === "string"
+            ? b
+            : b?.text || b?.children?.map?.((c) => c?.text).join("") || ""
+        )
+        .join("\n");
+    } catch {
+      return "";
+    }
+  }
+  try {
+    return JSON.stringify(preferred);
+  } catch {
+    return String(preferred || "");
+  }
+}
   const firstName = musician?.firstName || "";
   const lastName = musician?.lastName || "";
   const stageName = musician?.tscName || musician?.name || "";
@@ -540,30 +564,6 @@ useEffect(() => {
     if (Array.isArray(v)) return v.length > 0;
     if (typeof v === "object") return Object.keys(v).length > 0;
     return Boolean(v);
-  };
-
-const pickBioText = (data) => {
-  const preferred = data?.tscApprovedBio ?? data?.tscBio ?? data?.bio ?? "";
-    if (preferred == null) return "";
-    if (typeof preferred === "string") return preferred.trim();
-    if (Array.isArray(preferred)) {
-      try {
-        return preferred
-          .map((b) =>
-            typeof b === "string"
-              ? b
-              : b?.text || b?.children?.map?.((c) => c?.text).join("") || ""
-          )
-          .join("\n");
-      } catch {
-        return "";
-      }
-    }
-    try {
-      return JSON.stringify(preferred);
-    } catch {
-      return String(preferred || "");
-    }
   };
 
 const content = React.useMemo(() => {
