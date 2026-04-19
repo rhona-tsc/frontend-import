@@ -5,6 +5,8 @@ import MusicianSongSuggestions from "./MusicianSongSuggestions";
 const MusicianRepertoireSection = ({ selectedSongs, actData, addToCart }) => {
   const [favourites, setFavourites] = useState([]);
 
+  
+
   const toggleFavourite = (song) => {
     const exists = favourites.some(
       (fav) => fav.title === song.title && fav.artist === song.artist

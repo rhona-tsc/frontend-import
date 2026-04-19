@@ -208,12 +208,18 @@ const MusicianRepertoire = ({
   const showingLimit = 100;
   const visibleSongs = filteredSongs.slice(0, showingLimit);
 
+    const displayShortName = (act) => {
+    const first = act?.firstName || act?.tscName || act?.tscName || "Musician";
+    const lastInitial = act?.lastName ? ` ${act.lastName.charAt(0)}` : "";
+    return `${first}${lastInitial}`.trim();
+  };
+
   return (
     <div className="flex gap-6 items-start w-full">
       <div className="w-full">
         <div className="text-2xl">
           <Title
-            text1={getPossessiveTitleCase(musicianName)}
+                text1={getPossessiveTitleCase(displayShortName(actData))}
             text2="REPERTOIRE"
           />
         </div>
