@@ -755,7 +755,7 @@ const hasNonEmptyObjectValues = (obj) =>
     <div className="border-t-2 pt-10">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
         {/* LEFT: span 8 */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="order-2 lg:order-1 lg:col-span-8 space-y-4">
           {/* Videos */}
           <Section when={content.hasVideos}>
             <div className="aspect-video">
@@ -895,7 +895,7 @@ const hasNonEmptyObjectValues = (obj) =>
 
         {/* RIGHT: IN BRIEF span 4 */}
         <Section when={content.hasSnapshot}>
-          <div className="lg:col-span-4">
+         <div className="order-1 lg:order-2 lg:col-span-4">
             <div className="text-2xl" id="lineup-selector">
               <Title
                 text1={getPossessiveTitleCase(displayShortName(actData))}
