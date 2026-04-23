@@ -3450,7 +3450,7 @@ path={`/event-sheet/${booking?.bookingId || booking?._id}`}
               {Number(remainingAmount || 0).toFixed(2)}
             </p>
           </div>
-        </div>
+      
 
   {/* Pay button */}
   {!READ_ONLY && !isPaidInFull && Number(remainingAmount || 0) > 0.01 && (
