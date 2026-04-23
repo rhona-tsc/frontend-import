@@ -487,36 +487,77 @@ const handleAnswer = useCallback((key, value) => {
     });
   }, [booking]);
 
-  // Booking-level totals (fallback to sum of items if schema missing)
-  const fullAmount = useMemo(() => {
-    const modelTotal = Number(booking?.totals?.fullAmount ?? NaN);
+  // Booking-level totals
+  // Keep original booking total separate from post-booking add-ons
+  // so extras are not counted twice.
+  const bookingTotal = useMemo(() => {
+    const modelTotal = Number(
+      booking?.totals?.bookingTotal ??
+        booking?.totals?.contractTotal ??
+        booking?.totals?.fullAmount ??
+        NaN
+    );
+
     if (Number.isFinite(modelTotal) && modelTotal > 0) return modelTotal;
-    return enrichedItems.reduce((s, i) => s + (Number(i.total) || 0), 0);
+
+    return enrichedItems.reduce((sum, item) => {
+      const baseOnly =
+        Number(item?.basePrice ?? NaN) ||
+        Number(item?.price ?? NaN) ||
+        0;
+
+      return sum + baseOnly;
+    }, 0);
   }, [booking, enrichedItems]);
 
   const depositAmount = Number(booking?.totals?.depositAmount ?? 0);
 
   const addOnsPostBooking = useMemo(() => {
+    const modelAddOns = Number(
+      booking?.totals?.addOnsPostBooking ??
+        booking?.totals?.postBookingAddOns ??
+        booking?.totals?.extrasTotal ??
+        NaN
+    );
+
+    if (Number.isFinite(modelAddOns) && modelAddOns > 0) return modelAddOns;
+
     return enrichedItems.reduce((sum, item) => {
       const extrasTotal = Array.isArray(item?.extras)
         ? item.extras.reduce(
             (extraSum, extra) =>
               extraSum +
-              ((Number(extra?.price || 0) || 0) * (Number(extra?.quantity || 1) || 1)),
+              ((Number(extra?.price || 0) || 0) *
+                (Number(extra?.quantity || 1) || 1)),
             0
           )
         : 0;
 
       return sum + extrasTotal;
     }, 0);
-  }, [enrichedItems]);
+  }, [booking, enrichedItems]);
 
+  const fullAmount = useMemo(() => {
+    return Number(bookingTotal || 0) + Number(addOnsPostBooking || 0);
+  }, [bookingTotal, addOnsPostBooking]);
 
+  const remainingAmount = useMemo(() => {
+    const modelRemaining = Number(
+      booking?.totals?.remainingAmount ??
+        booking?.totals?.outstandingBalance ??
+        booking?.remainingAmount ??
+        NaN
+    );
 
-const remainingAmount = Math.max(
-  0,
-  Number(fullAmount || 0) - Number(depositAmount || 0) + Number(addOnsPostBooking || 0)
-);
+    if (Number.isFinite(modelRemaining) && modelRemaining >= 0) {
+      return modelRemaining;
+    }
+
+    return Math.max(
+      0,
+      Number(fullAmount || 0) - Number(depositAmount || 0)
+    );
+  }, [booking, fullAmount, depositAmount]);
 
 const isPaidInFull =
   Number(fullAmount || 0) > 0 && remainingAmount <= 0.01;
@@ -3366,40 +3407,50 @@ path={`/event-sheet/${booking?.bookingId || booking?._id}`}
               </div>
             ))}
 
-            <hr className="my-2" />
-           {/* Booking-level totals */}
-<div className="text-sm">
-  <div className="flex justify-between">
-    <span>Booking total</span>
-    <span>
-      {currencySymbol(booking?.currency)}
-      {Number(fullAmount || 0).toFixed(2)}
-    </span>
-  </div>
+                  <hr className="my-2" />
 
-   <div className="flex justify-between">
-    <span>Deposit paid</span>
-    <span>
-      {currencySymbol(booking?.currency)}
-      {Number(depositAmount || 0).toFixed(2)}
-    </span>
-  </div>
+        {/* Booking-level totals */}
+        <div className="text-sm space-y-1">
+          <div className="flex justify-between">
+            <span>Original booking total</span>
+            <span>
+              {currencySymbol(booking?.currency)}
+              {Number(bookingTotal || 0).toFixed(2)}
+            </span>
+          </div>
 
-  <div className="flex justify-between">
-    <span>Add Ons Post Booking</span>
-    <span>
-      {currencySymbol(booking?.currency)}
-      {Number(addOnsPostBooking || 0).toFixed(2)}
-    </span>
-  </div>
+          <div className="flex justify-between">
+            <span>Add-ons post booking</span>
+            <span>
+              {currencySymbol(booking?.currency)}
+              {Number(addOnsPostBooking || 0).toFixed(2)}
+            </span>
+          </div>
 
-  <div className="flex justify-between font-bold mt-4">
-    <p>Outstanding Balance</p>
-    <p>
-      {currencySymbol(booking?.currency)}
-      {Number(remainingAmount || 0).toFixed(2)}
-    </p>
-  </div>
+          <div className="flex justify-between font-medium">
+            <span>Updated booking total</span>
+            <span>
+              {currencySymbol(booking?.currency)}
+              {Number(fullAmount || 0).toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>Deposit paid</span>
+            <span>
+              {currencySymbol(booking?.currency)}
+              {Number(depositAmount || 0).toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex justify-between font-bold mt-4">
+            <p>Outstanding balance</p>
+            <p>
+              {currencySymbol(booking?.currency)}
+              {Number(remainingAmount || 0).toFixed(2)}
+            </p>
+          </div>
+        </div>
 
   {/* Pay button */}
   {!READ_ONLY && !isPaidInFull && Number(remainingAmount || 0) > 0.01 && (
