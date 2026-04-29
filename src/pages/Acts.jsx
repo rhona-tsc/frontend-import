@@ -2398,11 +2398,34 @@ if (shouldApplyCountyTravelFilter) {
 
     const AUTO_OPEN_KEY = "acts:autoOpenSearchDone";
 
+
 const getStoredLocation = () => ({
   storedAddress: getStored("selectedAddress"),
   storedCounty: getStored("selectedCounty"),
   storedPlace: getStored("selectedPlace"),
 });
+
+// ✅ Hydrate selectedDate / selectedAddress / selectedCounty from storage on first navigation
+// This prevents "Loading price..." on initial navigation when the context hasn’t been populated yet.
+useEffect(() => {
+  const storedDate = String(getStored("selectedDate") || "").trim();
+  const storedAddress = String(getStored("selectedAddress") || "").trim();
+  const storedCounty = String(getStored("selectedCounty") || "").trim().toLowerCase();
+
+  // Only backfill if context state is empty
+  if (!String(selectedAddress || "").trim() && storedAddress) {
+    setSelectedAddress(storedAddress);
+  }
+
+  if (!String(selectedDate || "").trim() && storedDate) {
+    setSelectedDate(storedDate);
+  }
+
+  if (!String(selectedCounty || "").trim() && storedCounty) {
+    setSelectedCounty(storedCounty);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
 const hasAnyLocation = () => {
   const { storedAddress, storedCounty, storedPlace } = getStoredLocation();
