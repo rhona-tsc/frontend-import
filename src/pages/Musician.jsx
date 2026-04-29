@@ -81,11 +81,12 @@ const pickFirstImageUrl = (data) => {
 };
 
 export const buildMusicianMeta = (musician) => {
-  const firstName = musician?.firstName || "";
-  const lastName = musician?.lastName || "";
-  const stageName = musician?.tscName || musician?.name || "";
+  const firstName = (musician?.firstName || "").trim();
+  const lastName = (musician?.lastName || "").trim();
 
-  const name = (stageName || `${firstName} ${lastName}`.trim() || "Musician").trim();
+  // Meta display name: First name + last initial (e.g., "Jake M.")
+  const lastInitial = lastName ? `${lastName.charAt(0).toUpperCase()}.` : "";
+  const name = ([firstName, lastInitial].filter(Boolean).join(" ") || "Musician").trim();
 
   const instruments = Array.isArray(musician?.instrumentation)
     ? musician.instrumentation

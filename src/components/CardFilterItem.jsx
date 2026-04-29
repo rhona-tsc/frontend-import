@@ -75,14 +75,25 @@ const getBasePrice = (src) => {
 };
 
 const getSlug = (src) => {
-  const s = src?.slug || src?.tscSlug || src?.routeSlug || src?.key || "";
-  return typeof s === "string" ? s.trim() : "";
+  const candidates = [
+    src?.slug,
+    src?.tscSlug,
+    src?.routeSlug,
+    src?.actSlug,
+    src?.tscName,
+    src?.key,
+  ];
+
+  const value = candidates.find(
+    (item) => typeof item === "string" && item.trim()
+  );
+
+  return value ? value.trim() : "";
 };
 
 const getActUrl = (src) => {
   const slug = getSlug(src);
-  const id = getActId(src);
-  return slug ? `/act/${encodeURIComponent(slug)}` : id ? `/act/${id}` : "/";
+  return slug ? `/act/${encodeURIComponent(slug)}` : "/";
 };
 
 // ——— helpers for fallback base calculation ———
