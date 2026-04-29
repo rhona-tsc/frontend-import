@@ -46,6 +46,16 @@ const isHttp = (s) => typeof s === "string" && /^https?:\/\//i.test(s);
 const getActId = (src) => src?.actId || src?._id || src?.id || "";
 const getTitle = (src) => src?.tscName || src?.name || "Act";
 
+const slugifyActValue = (value = "") =>
+  String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-+/g, "-");
+
 const normalizeAddrStrict = (s = "") =>
   String(s || "")
     .toLowerCase()
@@ -127,14 +137,27 @@ const getMinDisplayPrice = (src) => {
 };
 
 const getSlug = (src) => {
-  const s = src?.slug || src?.tscSlug || src?.routeSlug || src?.key || "";
-  return typeof s === "string" ? s.trim() : "";
+  const directSlug =
+    src?.slug ||
+    src?.tscSlug ||
+    src?.routeSlug ||
+    src?.actSlug ||
+    src?.seoSlug ||
+    src?.urlSlug ||
+    src?.key ||
+    "";
+
+  if (typeof directSlug === "string" && directSlug.trim()) {
+    return directSlug.trim();
+  }
+
+  const titleSlug = slugifyActValue(src?.tscName || src?.name || "");
+  return titleSlug || "";
 };
 
 const getActUrl = (src) => {
   const slug = getSlug(src);
-  const id = getActId(src);
-  return slug ? `/act/${encodeURIComponent(slug)}` : id ? `/act/${id}` : "/";
+  return slug ? `/act/${encodeURIComponent(slug)}` : "/act";
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
