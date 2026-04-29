@@ -74,26 +74,31 @@ const getBasePrice = (src) => {
   return lineupTotals.length ? Math.min(...lineupTotals) : null;
 };
 
+const slugify = (s = "") =>
+  String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
 const getSlug = (src) => {
-  const candidates = [
-    src?.slug,
-    src?.tscSlug,
-    src?.routeSlug,
-    src?.actSlug,
-    src?.tscName,
-    src?.key,
-  ];
+  // Prefer canonical slug fields
+  const candidates = [src?.slug, src?.tscSlug, src?.routeSlug, src?.actSlug, src?.key];
 
-  const value = candidates.find(
-    (item) => typeof item === "string" && item.trim()
-  );
+  const direct = candidates.find((item) => typeof item === "string" && item.trim());
+  if (direct) return direct.trim();
 
-  return value ? value.trim() : "";
+  // Fallback: derive from display name ONLY if slug fields are missing
+  const fallbackName = src?.tscName || src?.name || "";
+  return slugify(fallbackName);
 };
 
 const getActUrl = (src) => {
   const slug = getSlug(src);
-  return slug ? `/act/${encodeURIComponent(slug)}` : "/";
+  return slug ? `/act/${encodeURIComponent(slug)}` : "/acts";
 };
 
 // ——— helpers for fallback base calculation ———
