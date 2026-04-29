@@ -925,19 +925,27 @@ const hasNonEmptyObjectValues = (obj) =>
               </>
             )}
 
-            {/* Vocals */}
-            <Section when={content.hasVocals}>
-              <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
-                <h4 className="font-semibold text-gray-900 mb-2">Vocals</h4>
-                {Array.isArray(actData?.vocals?.type) && (actData?.vocals?.type?.length || 0) > 0 && (
-                  <li>
-                    {actData.vocals.type.join(", ")}
-                    {actData.vocals?.range ? ` (${actData.vocals.range})` : ""}
-                  </li>
-                )}
-                {(actData?.vocals?.rap === true || actData?.vocals?.rap === "true") && <li>Can rap / MC</li>}
-              </ul>
-            </Section>
+         {/* Vocals */}
+<Section when={content.hasVocals}>
+  <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
+    <h4 className="font-semibold text-gray-900 mb-2">Vocals</h4>
+
+    {Array.isArray(actData?.vocals?.type) &&
+      (actData?.vocals?.type?.length || 0) > 0 && (
+        <li>
+          {actData.vocals.type.join(", ")}
+          {actData.vocals?.range &&
+          actData.vocals.range.trim().toLowerCase() !== "not sure"
+            ? ` (${actData.vocals.range})`
+            : ""}
+        </li>
+      )}
+
+    {(actData?.vocals?.rap === true || actData?.vocals?.rap === "true") && (
+      <li>Can rap / MC</li>
+    )}
+  </ul>
+</Section>
 
            <Section when={Array.isArray(profileData?.academic_credentials) && profileData?.academic_credentials?.length > 0}>
   <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
