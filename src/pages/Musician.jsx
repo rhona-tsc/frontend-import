@@ -5,7 +5,6 @@ import { assets } from "../assets/assets";
 import calculateActPricing from "./utils/pricing";
 import "react-toastify/dist/ReactToastify.css";
 import { Helmet } from "react-helmet-async";
-
 import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import axios from "axios";
@@ -156,6 +155,7 @@ const shouldIndexMusician = (musician) => {
 const Musician = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const location = useLocation();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const CANONICAL_ORIGIN = "https://thesupremecollective.co.uk";
   const canonicalForPath = (p = "/") => {
@@ -282,6 +282,42 @@ const Musician = () => {
     addToShortlist,
   });
   const [actData, setActData] = useState(null);
+
+useEffect(() => {
+  const params = new URLSearchParams(location.search);
+  const jobId = params.get("jobId");
+  const presentationId = params.get("presentationId");
+
+  if (!backendUrl || !jobId || !presentationId || !slug) return;
+
+  let cancelled = false;
+
+  const trackView = async () => {
+    try {
+      await axios.post(
+        `${backendUrl}/api/deputy-jobs/track-presentation-view`,
+        {
+          jobId,
+          presentationId,
+          slug,
+        },
+        {
+          withCredentials: true,
+        }
+      );
+    } catch (error) {
+      if (!cancelled) {
+        console.error("❌ Failed to track deputy presentation view:", error);
+      }
+    }
+  };
+
+  trackView();
+
+  return () => {
+    cancelled = true;
+  };
+}, [backendUrl, location.search, slug]);
 
 const userRole = sessionStorage.getItem("userRole") || localStorage.getItem("userRole") || "";
 const profileData = actData?.act || actData?.musician || actData?.deputy || actData || {};

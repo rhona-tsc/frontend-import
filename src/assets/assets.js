@@ -59,6 +59,7 @@ import Featured_Vocalist_Available from "./Vocalist_Featured_Available.png";
 import Deputy_Vocalist_Available from "./Deputy_Vocalist_Available.png";
 import agent_icon from "./agent_icon.png";
 import custom_play_iconV2 from "./custom_play_iconV2.png";
+import Pat_And_Ella_Wedding_Bands_in_London from "./Pat_And_Ella_Wedding_Bands_in_London.jpg";
 
 
 export const assets = {
@@ -120,7 +121,8 @@ agent_icon,
 Funk_Royale,
 Band_Salsa,
 hero_no_logo: hero_img, 
-custom_play_iconV2,// temporary fallback until file exists
+custom_play_iconV2,
+Pat_And_Ella_Wedding_Bands_in_London,
 };
 
 export const musician = {
