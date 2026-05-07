@@ -5,7 +5,6 @@ import React, {
   useRef,
   lazy,
   Suspense,
-  useDeferredValue,
 } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
@@ -202,6 +201,7 @@ const Musician = () => {
     sessionStorage.getItem("selectedCounty") || "",
   );
   const [finalTravelPrice, setFinalTravelPrice] = useState(null);
+  const [actData, setActData] = useState(null);
 
   // Fetch musician/deputy profile for this page
   useEffect(() => {
@@ -297,7 +297,6 @@ const Musician = () => {
     addToCart,
     addToShortlist,
   });
-  const [actData, setActData] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -646,7 +645,7 @@ const Musician = () => {
   const content = React.useMemo(() => {
     if (!actData) {
       return {
-             hasVideos: false,
+        hasVideos: false,
         hasBio: false,
         hasInstrumentation: false,
         hasVocals: false,
