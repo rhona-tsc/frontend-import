@@ -646,21 +646,21 @@ const Musician = () => {
   const content = React.useMemo(() => {
     if (!actData) {
       return {
-        hasVideos: false,
-        hasBio: false,
-        hasInstrumentation: false,
-        hasVocals: false,
-        hasAnySkills: false,
-        hasLocation: false,
-        hasCredits: false,
-        hasGallery: false,
-        hasRepertoire: false,
-        hasEquipment: false,
-        hasSnapshot: false,
-        hasRelated: false,
-        hasMp3s: false,
-        audioTracks: [],
-        bio: "",
+        hasVideos,
+        hasBio,
+        hasInstrumentation,
+        hasVocals,
+        hasAnySkills,
+        hasLocation,
+        hasCredits,
+        hasGallery,
+        hasRepertoire,
+        hasEquipment,
+        hasSnapshot,
+        hasRelated,
+        hasMp3s,
+        audioTracks,
+        bio,
       };
     }
 
@@ -1231,37 +1231,41 @@ const Musician = () => {
                   )}
                 </ul>
               </Section>
-            </div>
-          </Section>
+
 
           <Section when={content.hasMp3s}>
-            <div className="w-full mt-12">
-              <div className="text-2xl mb-4">
-                <Title
-                  text1={getPossessiveTitleCase(displayShortName(actData))}
-                  text2="AUDIO"
-                />
-              </div>
+  <div className="w-full mt-12">
+    <div className="text-2xl mb-4">
+      <Title
+        text1={getPossessiveTitleCase(displayShortName(actData))}
+        text2="AUDIO"
+      />
+    </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {content.audioTracks.map((track, index) => (
-                  <div
-                    key={track?._id || `${track?.url}-${index}`}
-                    className="border rounded-lg p-4 bg-white shadow-sm"
-                  >
-                    <p className="font-semibold text-gray-900 mb-2">
-                      {track?.title?.trim() || `Audio ${index + 1}`}
-                    </p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {content.audioTracks.map((track, index) => (
+        <div
+          key={track?._id || `${track?.url}-${index}`}
+          className="border rounded-lg p-4 bg-white shadow-sm"
+        >
+          <p className="font-semibold text-gray-900 mb-2">
+            {track?.title?.trim() || `Audio ${index + 1}`}
+          </p>
 
-                    <audio controls preload="none" className="w-full">
-                      <source src={track.url} />
-                      Your browser does not support the audio element.
-                    </audio>
-                  </div>
-                ))}
-              </div>
+          <audio controls preload="none" className="w-full">
+            <source src={track.url} />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      ))}
+    </div>
+  </div>
+</Section>
             </div>
+
           </Section>
+
+
         </div>
 
         {/* ===== GALLERY (full width) ===== */}
