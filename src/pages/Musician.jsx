@@ -646,21 +646,21 @@ const Musician = () => {
   const content = React.useMemo(() => {
     if (!actData) {
       return {
-        hasVideos,
-        hasBio,
-        hasInstrumentation,
-        hasVocals,
-        hasAnySkills,
-        hasLocation,
-        hasCredits,
-        hasGallery,
-        hasRepertoire,
-        hasEquipment,
-        hasSnapshot,
-        hasRelated,
-        hasMp3s,
-        audioTracks,
-        bio,
+        hasVideos: false,
+        hasBio: false,
+        hasInstrumentation: false,
+        hasVocals: false,
+        hasAnySkills: false,
+        hasLocation: false,
+        hasCredits: false,
+        hasGallery: false,
+        hasRepertoire: false,
+        hasEquipment: false,
+        hasSnapshot: false,
+        hasRelated: false,
+        hasMp3s: false,
+        audioTracks: [],
+        bio: "",
       };
     }
 
@@ -801,6 +801,8 @@ const Musician = () => {
       hasEquipment,
       hasSnapshot,
       hasRelated,
+      hasMp3s,
+      audioTracks,
       bio,
     };
   }, [actData]);
