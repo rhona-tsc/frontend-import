@@ -1241,17 +1241,24 @@ const Musician = () => {
       />
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="flex flex-col gap-4">
       {content.audioTracks.map((track, index) => (
         <div
           key={track?._id || `${track?.url}-${index}`}
-          className="border rounded-lg p-4 bg-white shadow-sm"
+          className="border rounded-lg p-4 bg-white shadow-sm w-full"
         >
           <p className="font-semibold text-gray-900 mb-2">
             {track?.title?.trim() || `Audio ${index + 1}`}
           </p>
 
-          <audio controls preload="none" className="w-full">
+          <audio
+            controls
+            controlsList="nodownload noplaybackrate"
+            disableRemotePlayback
+            preload="metadata"
+            className="w-full min-w-0"
+            onContextMenu={(e) => e.preventDefault()}
+          >
             <source src={track.url} />
             Your browser does not support the audio element.
           </audio>
