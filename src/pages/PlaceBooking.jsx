@@ -40,7 +40,7 @@ const PlaceBooking = () => {
   const [signaturePreview, setSignaturePreview] = useState(null);
   const [bookingId, setBookingId] = useState("");
   const [paymentChoice, setPaymentChoice] = useState("deposit"); // "deposit" | "full"
-
+  const [invoiceRequested, setInvoiceRequested] = useState(true);
   // Always start at the top when this page mounts
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -142,7 +142,8 @@ const PlaceBooking = () => {
       const fromSummary = (actsSummaryState || []).find(
         (s) => String(s?.cartActKey ?? s?.actId) === String(cartActKey),
       );
-      if (fromSummary) return fromSummary?.tscName || fromSummary?.actName || "";
+      if (fromSummary)
+        return fromSummary?.tscName || fromSummary?.actName || "";
 
       return "";
     };
@@ -200,8 +201,9 @@ const PlaceBooking = () => {
             const stripped = name.replace(/^test\s+/i, "").trim();
             const real = actsArr.find(
               (a) =>
-                String(a?.tscName || "").trim().toLowerCase() ===
-                stripped.toLowerCase(),
+                String(a?.tscName || "")
+                  .trim()
+                  .toLowerCase() === stripped.toLowerCase(),
             );
             if (real?.tscName || real?.name) {
               name = real.tscName || real.name;
@@ -266,9 +268,7 @@ const PlaceBooking = () => {
       const matchByLineup = actsArr.find(
         (a) =>
           Array.isArray(a?.lineups) &&
-          a.lineups.some((l) =>
-            lineupIdSet.has(String(l?._id ?? l?.lineupId)),
-          ),
+          a.lineups.some((l) => lineupIdSet.has(String(l?._id ?? l?.lineupId))),
       );
 
       const fromSummary = (actsSummaryState || []).find(
@@ -544,7 +544,9 @@ const PlaceBooking = () => {
             finishDayOffset:
               perfSource.finishDayOffset ?? cartLine.finishDayOffset ?? 0,
             paLightsFinishTime:
-              perfSource.paLightsFinishTime ?? cartLine.paLightsFinishTime ?? "",
+              perfSource.paLightsFinishTime ??
+              cartLine.paLightsFinishTime ??
+              "",
             paLightsFinishDayOffset:
               perfSource.paLightsFinishDayOffset ??
               cartLine.paLightsFinishDayOffset ??
@@ -572,8 +574,7 @@ const PlaceBooking = () => {
               ? {
                   sets: Number(cartPerf.plan?.sets) || undefined,
                   length: Number(cartPerf.plan?.length) || undefined,
-                  minInterval:
-                    Number(cartPerf.plan?.minInterval) || undefined,
+                  minInterval: Number(cartPerf.plan?.minInterval) || undefined,
                 }
               : undefined,
 
@@ -753,7 +754,7 @@ const PlaceBooking = () => {
           selectedDate,
           currency: "GBP",
         },
-
+        invoiceRequested,
         bookingId,
         userId,
         userEmail,
@@ -882,7 +883,10 @@ const PlaceBooking = () => {
           </div>
 
           <div className="border border-gray-300 rounded max-h-[16rem] sm:max-h-[28rem] overflow-y-auto p-3 text-sm text-gray-700 bg-white contract-section">
-            <div aria-label="Booking contract terms" className="contract-section">
+            <div
+              aria-label="Booking contract terms"
+              className="contract-section"
+            >
               <p>
                 <strong>Key Points</strong>
               </p>
@@ -892,19 +896,20 @@ const PlaceBooking = () => {
                   Conditions.
                 </li>
                 <li>
-                  The Client must complete the Event Sheet four weeks prior to the
-                  event to ensure the finer details of the performance can be
-                  processed in a timely fashion.
+                  The Client must complete the Event Sheet four weeks prior to
+                  the event to ensure the finer details of the performance can
+                  be processed in a timely fashion.
                 </li>
                 <li>
-                  Point of contact numbers should be provided on the Event Sheet.
+                  Point of contact numbers should be provided on the Event
+                  Sheet.
                 </li>
                 <li>
-                  The Client must provide the Artist with a reasonable free supply
-                  of soft drinks, hot meal or hot buffet (for bookings when artist
-                  is on site for 3 hours or more), free parking for all vehicles,
-                  a secure changing area, and a safe, level, dry, covered
-                  performance area, unless otherwise noted.
+                  The Client must provide the Artist with a reasonable free
+                  supply of soft drinks, hot meal or hot buffet (for bookings
+                  when artist is on site for 3 hours or more), free parking for
+                  all vehicles, a secure changing area, and a safe, level, dry,
+                  covered performance area, unless otherwise noted.
                 </li>
               </ul>
 
@@ -914,8 +919,8 @@ const PlaceBooking = () => {
               <p>
                 By signing below, you confirm that you are the authorised
                 signatory for contract {bookingId || "TBC"}({bookedActsDisplay},{" "}
-                {formattedDate}) and agree to be bound by The Supreme Collective’s
-                Terms and Conditions of booking.
+                {formattedDate}) and agree to be bound by The Supreme
+                Collective’s Terms and Conditions of booking.
               </p>
 
               <p>
@@ -967,26 +972,26 @@ const PlaceBooking = () => {
               </p>
               <p>
                 The following definitions refer to the 'Contract' (The Supreme
-                Collective Booking Contract) and these 'Terms and Conditions'. The
-                Supreme Collective, Company No. 16883956, is the 'Agent', the
-                proposed entertainment booker is the 'Client' and the proposed
-                entertainment act is the 'Artist'.
+                Collective Booking Contract) and these 'Terms and Conditions'.
+                The Supreme Collective, Company No. 16883956, is the 'Agent',
+                the proposed entertainment booker is the 'Client' and the
+                proposed entertainment act is the 'Artist'.
               </p>
 
               <p>
                 <strong>1 | Introduction</strong>
               </p>
               <p>
-                This booking contract is provided by the Agent and is made between
-                the Client and Agent on behalf of the Artist. In issuing this
-                Contract, the Agent is acting as an employment agency for the
-                Artist, and is responsible for ensuring all band members are
+                This booking contract is provided by the Agent and is made
+                between the Client and Agent on behalf of the Artist. In issuing
+                this Contract, the Agent is acting as an employment agency for
+                the Artist, and is responsible for ensuring all band members are
                 allocated, and fully briefed in a timely manner in the run-up to
                 the event, and the Artist is responsible for all preparation for
                 the event, and performance on the day. Artist, Client, and Agent
-                responsibilities are detailed within this contract. Any breach of
-                contract can fall upon the Artist, or Client depending upon the
-                item being breached.
+                responsibilities are detailed within this contract. Any breach
+                of contract can fall upon the Artist, or Client depending upon
+                the item being breached.
               </p>
 
               <p>
@@ -999,9 +1004,9 @@ const PlaceBooking = () => {
                   is then confirmed.
                 </li>
                 <li>
-                  A copy of the contract will be shared with the Client. The Agent
-                  will file completed contracts and will store until 4 years after
-                  the contract completion date.
+                  A copy of the contract will be shared with the Client. The
+                  Agent will file completed contracts and will store until 4
+                  years after the contract completion date.
                 </li>
                 <li>
                   The Contract may be modified/changed upon agreement from both
@@ -1016,8 +1021,8 @@ const PlaceBooking = () => {
                   alterations agreed by both the Client and Artist.
                 </li>
                 <li>
-                  The Agent will act as negotiator until the date of the event and
-                  completion of the contract.
+                  The Agent will act as negotiator until the date of the event
+                  and completion of the contract.
                 </li>
               </ul>
 
@@ -1045,8 +1050,8 @@ const PlaceBooking = () => {
                   be subject to the cancellation fee specified in Clause 6.1.1.
                 </li>
                 <li>
-                  The Agent has the right to claim interest of 20% on the balance
-                  of any late payments.
+                  The Agent has the right to claim interest of 20% on the
+                  balance of any late payments.
                 </li>
                 <li>
                   Late payments will incur a £50 administration fee, payable by
@@ -1054,8 +1059,8 @@ const PlaceBooking = () => {
                 </li>
                 <li>
                   If full payment is not made within 14 days the debt may be
-                  passed to a Debt Recovery Firm by the Artist, possibly incurring
-                  additional costs.
+                  passed to a Debt Recovery Firm by the Artist, possibly
+                  incurring additional costs.
                 </li>
               </ul>
 
@@ -1097,13 +1102,15 @@ const PlaceBooking = () => {
                   </tr>
                   <tr>
                     <td>
-                      Less than 24 hours after confirmation (8+ days before event)
+                      Less than 24 hours after confirmation (8+ days before
+                      event)
                     </td>
                     <td>Nil</td>
                   </tr>
                   <tr>
                     <td>
-                      Less than 24 hours after confirmation within 7 days of event
+                      Less than 24 hours after confirmation within 7 days of
+                      event
                     </td>
                     <td>Full Fee</td>
                   </tr>
@@ -1127,8 +1134,8 @@ const PlaceBooking = () => {
               </p>
               <ul>
                 <li>
-                  The Agent cannot cancel on behalf of the Artist unless for Force
-                  Majeure.
+                  The Agent cannot cancel on behalf of the Artist unless for
+                  Force Majeure.
                 </li>
                 <li>
                   If Force Majeure applies, the Agent must present a replacement
@@ -1139,8 +1146,8 @@ const PlaceBooking = () => {
                   recourse against the Artist.
                 </li>
                 <li>
-                  If a replacement Artist is secured and accepted, the Deposit is
-                  not refunded but transferred to the new act.
+                  If a replacement Artist is secured and accepted, the Deposit
+                  is not refunded but transferred to the new act.
                 </li>
               </ul>
 
@@ -1164,7 +1171,8 @@ const PlaceBooking = () => {
               </p>
               <ul>
                 <li>
-                  Ensuring the venue provides safe, dry, and licensed conditions.
+                  Ensuring the venue provides safe, dry, and licensed
+                  conditions.
                 </li>
                 <li>
                   Provide refreshments and hot meals for the Artist if required,
@@ -1216,8 +1224,8 @@ const PlaceBooking = () => {
                 <strong>12 | Artist Equipment</strong>
               </p>
               <p>
-                Artist equipment must not be used by guests. Client is liable for
-                any damage caused.
+                Artist equipment must not be used by guests. Client is liable
+                for any damage caused.
               </p>
 
               <p>
@@ -1325,7 +1333,9 @@ const PlaceBooking = () => {
             </p>
 
             <div className="mt-4 space-y-2 rounded border border-gray-200 p-4 bg-white">
-              <p className="text-sm font-medium text-gray-800">Payment option</p>
+              <p className="text-sm font-medium text-gray-800">
+                Payment option
+              </p>
 
               {isWithin28Days ? (
                 <p className="text-sm text-gray-600">
@@ -1362,6 +1372,16 @@ const PlaceBooking = () => {
                   ? "The client will be charged the full booking amount now."
                   : "The client will be charged the deposit now, with the balance due later."}
               </p>
+
+              <label className="mt-3 flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={invoiceRequested}
+                  onChange={(e) => setInvoiceRequested(e.target.checked)}
+                  className="accent-[#ff6667] mt-1"
+                />
+                Email me an invoice/receipt for this payment.
+              </label>
             </div>
 
             <div className="hidden sm:block w-full text-end mt-8">

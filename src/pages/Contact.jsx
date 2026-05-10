@@ -93,7 +93,7 @@ const Contact = () => {
   <img className="w-full md:w-[480px] h-auto object-cover rounded" src={assets.contact_img} alt="" />
   <div className="flex flex-col justify-start items-start gap-6 w-full md:max-w-[560px]">
           <p className=' font-semibold text-xl text-gray-600'>Registered Address</p>
-          <p className=' text-gray-500'>Cramond, Reeves Lane <br /> Roydon, Essex, CM19 5LE</p>
+          <p className=' text-gray-500'>71-75, Shelton Street, Covent Garden,  <br /> London, WC2H 9JQ, United Kingdom</p>
           <p className=' text-gray-500'>WhatsApp:   <a 
     href="https://api.whatsapp.com/send/?phone=447594223200&text&type=phone_number&app_absent=0" 
     target="_blank" 
