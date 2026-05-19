@@ -344,11 +344,38 @@ const handleAnswer = useCallback((key, value) => {
     }
   }, [answers?.parking_checkout_status]);
 
+  useEffect(() => {
+    if (!booking) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const paid = params.get("parkingPaid") === "1";
+
+    if (paid) return;
+    if (String(answers?.parking_checkout_status || "").toLowerCase() !== "paid") {
+      return;
+    }
+
+    const hasStripePaidMarker =
+      booking?.eventSheet?.answers?.parking_checkout_status === "Paid" &&
+      window.location.search.includes("parkingPaid=1");
+
+    if (hasStripePaidMarker) return;
+
+    handleAnswer("parking_checkout_status", "Not paid");
+  }, [booking?._id, answers?.parking_checkout_status]);
+
   const handleGenerateParkingInvoice = async ({ amountPence }) => {
     if (!booking || !amountPence) return;
 
+    const nextAnswers = {
+      ...answers,
+      parking_checkout_status: "Invoice generated",
+    };
+    setAnswers(nextAnswers);
+    answersRef.current = nextAnswers;
+
     // ensure current state is saved before leaving the site
-    saveEventSheet(answers, complete);
+    saveEventSheet(nextAnswers, complete);
 
     try {
       const resp = await axios.post(
@@ -1656,7 +1683,7 @@ const peopleSection = isWedding
                   {(() => {
                     const raw = answers?.parking_checkout_status;
                     const label = typeof raw === "string" ? raw.trim() : "";
-                    const isPaid = /paid/i.test(label);
+                    const isPaid = /^paid$/i.test(label);
 
                     if (isPaid) {
                       return (
@@ -1693,19 +1720,28 @@ const peopleSection = isWedding
                 const file = e.target.files?.[0];
                 if (!file) return;
 
-                const url = URL.createObjectURL(file);
                 handleAnswer("parking_screenshot_name", file.name);
-                handleAnswer("parking_screenshot_url", url);
+
+                const reader = new FileReader();
+                reader.onload = () => {
+                  handleAnswer("parking_screenshot_url", reader.result);
+                };
+                reader.readAsDataURL(file);
               }}
             />
 
             {answers.parking_screenshot_url && (
-              <img
-                src={answers.parking_screenshot_url}
-                alt={answers.parking_screenshot_name || "Parking screenshot"}
-                className="mt-2 max-h-40 rounded border object-contain"
-                style={{ maxWidth: "100%", height: "auto" }}
-              />
+              <div className="mt-2 rounded border bg-gray-50 p-2">
+                <div className="text-xs font-semibold text-gray-700 mb-1">
+                  Parking screenshot for the band
+                </div>
+                <img
+                  src={answers.parking_screenshot_url}
+                  alt={answers.parking_screenshot_name || "Parking screenshot"}
+                  className="max-h-64 rounded border object-contain bg-white"
+                  style={{ maxWidth: "100%", height: "auto" }}
+                />
+              </div>
             )}
           </div>
         );
