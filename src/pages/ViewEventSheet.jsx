@@ -741,14 +741,6 @@ const isPaidInFull =
         cars = headerParsed;
     }
 
-    // Debug (handy while validating)
-    console.debug("[Parking] cars compute (plates first)", {
-      itemsCount: src.length,
-      carsFromPlates,
-      totalCars_byMembers,
-      cars_after_fallbacks: cars,
-    });
-
     const firstItem = src[0] || {};
     const resolved = resolveLineup(acts, firstItem) || firstItem.lineup || null;
 
@@ -1533,376 +1525,521 @@ const peopleSection = isWedding
           },
         ],
       },
-      {
-        id: "parking",
-        title: "Parking",
-        help: (
+{
+  id: "parking",
+  title: "Parking",
+  help: (
+    <>
+      Parking is required for all band vehicles. If you need the band’s car
+      registrations, tick the box below and we’ll email them to you.
+    </>
+  ),
+  fields: [
+    {
+      key: "parking_available",
+      label: "Is parking available on site for the band?",
+      type: "select",
+      options: ["Yes", "For some", "No"],
+    },
+
+    {
+      key: "parking_conditional",
+      type: "custom",
+      render: () => {
+        const availability = String(
+          answers.parking_available || ""
+        ).toLowerCase();
+
+        const isYes = availability === "yes";
+        const isForSome = availability === "for some";
+        const isNo = availability === "no";
+
+        const src = Array.isArray(booking?.actsSummary)
+          ? booking.actsSummary
+          : Array.isArray(booking?.items)
+            ? booking.items
+            : [];
+
+        const firstItem = src[0] || {};
+        const lineup =
+          resolveLineup(acts, firstItem) || firstItem.lineup || null;
+
+        const costPerCar = Number(answers.parking_cost_per_car ?? 0);
+        const totalBandCars = Number(defaultCars || answers.parking_num_cars || 0);
+        const spacesOnSite = Number(answers.parking_spaces_on_site ?? 0);
+
+        const paidParkingCars = isForSome
+          ? Math.max(
+              0,
+              totalBandCars - (Number.isFinite(spacesOnSite) ? spacesOnSite : 0)
+            )
+          : isNo
+            ? totalBandCars
+            : 0;
+
+        const totalCost =
+          Number.isFinite(costPerCar) && Number.isFinite(paidParkingCars)
+            ? Math.max(
+                0,
+                Math.round(costPerCar * paidParkingCars * 100) / 100
+              )
+            : 0;
+
+        const normalizePlate = (s = "") =>
+          String(s).replace(/\s+/g, "").toUpperCase();
+
+        const regRows = Array.isArray(lineup?.bandMembers)
+          ? lineup.bandMembers
+              .map((m) => {
+                const raw =
+                  (m.carRegistrationValue && m.carRegistrationValue.trim()) ||
+                  (m.carRegistration && m.carRegistration.trim()) ||
+                  "";
+
+                const plate = normalizePlate(raw);
+                if (!plate) return null;
+
+                const name =
+                  [m.firstName, m.lastName].filter(Boolean).join(" ").trim() ||
+                  "Band member";
+
+                return {
+                  name,
+                  instrument: m.instrument || "",
+                  plate,
+                };
+              })
+              .filter(Boolean)
+          : [];
+
+        const ParkingPaymentBlock = () => {
+          const totalPence = Math.round(totalCost * 100);
+
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+              <div className="md:col-span-2 flex flex-col">
+                <label className="text-sm text-gray-700 mb-1">
+                  Parking payment
+                </label>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleGenerateParkingInvoice({
+                        amountPence: totalPence,
+                      })
+                    }
+                    className="px-3 py-1.5 rounded bg-[#ff6667] text-white hover:opacity-90"
+                    disabled={!totalPence}
+                    title={
+                      !totalPence
+                        ? "Enter cost per paid parking space first"
+                        : "Open Stripe Checkout"
+                    }
+                  >
+                    Generate invoice
+                  </button>
+
+                  <div className="text-sm text-gray-700">
+                    Amount:&nbsp;
+                    <strong>£{totalCost.toFixed(2)}</strong>
+                    &nbsp;for {paidParkingCars} car
+                    {paidParkingCars === 1 ? "" : "s"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-700 mb-1">Status</label>
+                <div className="text-sm flex items-center gap-1">
+                  {(() => {
+                    const raw = answers?.parking_checkout_status;
+                    const label = typeof raw === "string" ? raw.trim() : "";
+                    const isPaid = /paid/i.test(label);
+
+                    if (isPaid) {
+                      return (
+                        <>
+                          Paid
+                          <img
+                            src={assets.tick}
+                            alt="paid"
+                            className="inline w-4 h-4 ml-0.5"
+                          />
+                        </>
+                      );
+                    }
+
+                    return label || "Not paid";
+                  })()}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const ParkingScreenshotUpload = () => (
+          <div className="flex flex-col">
+            <label className="text-sm text-gray-700 mb-1">
+              Upload a screenshot of the parking options as displayed on
+              Parkopedia (or similar):
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              className="text-sm"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                const url = URL.createObjectURL(file);
+                handleAnswer("parking_screenshot_name", file.name);
+                handleAnswer("parking_screenshot_url", url);
+              }}
+            />
+
+            {answers.parking_screenshot_url && (
+              <img
+                src={answers.parking_screenshot_url}
+                alt={answers.parking_screenshot_name || "Parking screenshot"}
+                className="mt-2 max-h-40 rounded border object-contain"
+                style={{ maxWidth: "100%", height: "auto" }}
+              />
+            )}
+          </div>
+        );
+
+        return (
           <>
-            Parking is required for all band vehicles. If you need the band’s
-            car registrations, tick the box below and we’ll email them to you.
-          </>
-        ),
-        fields: [
-          {
-            key: "parking_available",
-            label: "Is parking available on site for the band?",
-            type: "select",
-            options: ["Yes", "No"],
-          },
+            {isYes && (
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start md:col-span-2">
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Please provide a{" "}
+                      <a
+                        href="https://what3words.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#ff6667] underline hover:opacity-80"
+                      >
+                        What3Words
+                      </a>{" "}
+                      pin for the parking location:
+                    </label>
+                    <input
+                      type="text"
+                      className="border rounded px-2 py-1 text-sm text-gray-800"
+                      placeholder="e.g. ///word.word.word"
+                      value={answers.parking_pin || ""}
+                      onChange={(e) =>
+                        handleAnswer("parking_pin", e.target.value)
+                      }
+                    />
+                  </div>
 
-          // Everything below is rendered conditionally based on parking_available
-          {
-            key: "parking_conditional",
-            type: "custom",
-            render: () => {
-              const availability = String(
-                answers.parking_available || ""
-              ).toLowerCase();
-              const isYes = availability === "yes";
-              const isNo = availability === "no";
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Please specify any special parking instructions:
+                    </label>
+                    <textarea
+                      className="border rounded px-2 py-1 text-sm text-gray-800 min-h-[60px]"
+                      placeholder="Gates, codes, specific bays, ID required, on the grass, etc."
+                      value={answers.parking_notes || ""}
+                      onChange={(e) =>
+                        handleAnswer("parking_notes", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
 
-              // Find a sensible default car count from the selected lineup
-              const src = Array.isArray(booking?.actsSummary)
-                ? booking.actsSummary
-                : Array.isArray(booking?.items)
-                  ? booking.items
-                  : [];
-              const firstItem = src[0] || {};
-              const lineup =
-                resolveLineup(acts, firstItem) || firstItem.lineup || null;
+                <div className="gap-3 mt-3">
+                  <label className="text-sm text-gray-700 mb-2 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="accent-[#ff6667]"
+                      checked={!!answers.need_registrations}
+                      onChange={(e) =>
+                        handleAnswer("need_registrations", e.target.checked)
+                      }
+                    />
+                    Does your venue require the band's vehicle registration
+                    numbers?
+                  </label>
 
-              const costPerCar = Number(answers.parking_cost_per_car ?? 0);
-              const numCars = Number(answers.parking_num_cars ?? defaultCars);
-              const totalCost =
-                Number.isFinite(costPerCar) && Number.isFinite(numCars)
-                  ? Math.max(0, Math.round(costPerCar * numCars * 100) / 100)
-                  : 0;
+                  {answers.need_registrations && (
+                    <div className="mt-2 rounded border bg-gray-50 p-3">
+                      <div className="text-sm font-semibold mb-2">
+                        Band vehicle registrations
+                      </div>
 
-              const paid =
-                String(answers.parking_payment_status || "").toLowerCase() ===
-                "paid";
-
-              // --- put near the top of render() after you compute `lineup` ---
-              const normalizePlate = (s = "") =>
-                String(s).replace(/\s+/g, "").toUpperCase();
-
-              const regRows = Array.isArray(lineup?.bandMembers)
-                ? lineup.bandMembers
-                    .map((m) => {
-                      // Prefer the actual plate value if present, else whatever is in carRegistration
-                      const raw =
-                        (m.carRegistrationValue &&
-                          m.carRegistrationValue.trim()) ||
-                        (m.carRegistration && m.carRegistration.trim()) ||
-                        "";
-
-                      const plate = normalizePlate(raw);
-                      if (!plate) return null;
-
-                      const name =
-                        [m.firstName, m.lastName]
-                          .filter(Boolean)
-                          .join(" ")
-                          .trim() || "Band member";
-
-                      return {
-                        name,
-                        instrument: m.instrument || "",
-                        plate,
-                      };
-                    })
-                    .filter(Boolean)
-                : [];
-
-              return (
-                <>
-                  {/* WHEN PARKING IS AVAILABLE */}
-                  {isYes && (
-                    <div className="">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start md:col-span-2">
-                        {/* Left: What3Words parking pin */}
-                        <div className="flex flex-col">
-                          <label className="text-sm text-gray-700 mb-1">
-                            Please provide a{" "}
-                            <a
-                              href="https://what3words.com/"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[#ff6667] underline hover:opacity-80"
+                      {regRows.length > 0 ? (
+                        <ul className="text-sm text-gray-800 space-y-1">
+                          {regRows.map((r, i) => (
+                            <li
+                              key={`${r.plate}-${i}`}
+                              className="flex justify-between gap-3"
                             >
-                              What3Words
-                            </a>{" "}
-                            pin for the parking location:
-                          </label>
-                          <input
-                            type="text"
-                            className="border rounded px-2 py-1 text-sm text-gray-800"
-                            placeholder="e.g. ///word.word.word"
-                            value={answers.parking_pin || ""}
-                            onChange={(e) =>
-                              handleAnswer("parking_pin", e.target.value)
-                            }
-                          />
+                              <span className="truncate">
+                                {r.name}
+                                {r.instrument ? ` — ${r.instrument}` : ""}
+                              </span>
+                              <span className="font-mono">
+                                {r.plate === "NO_CAR"
+                                  ? "No vehicle"
+                                  : r.plate}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-sm text-gray-600">
+                          We don’t have registration plates on file for this
+                          lineup yet. We’ll email them to you shortly.
                         </div>
-
-                        {/* Right: need registrations + notes */}
-                        <div className="flex flex-col">
-                          <label className="text-sm text-gray-700 mb-1">
-                            Please specify any special parking instructions:
-                          </label>
-                          <textarea
-                            className="border rounded px-2 py-1 text-sm text-gray-800 min-h-[60px]"
-                            placeholder="Gates, codes, specific bays, ID required, on the grass, etc."
-                            value={answers.parking_notes || ""}
-                            onChange={(e) =>
-                              handleAnswer("parking_notes", e.target.value)
-                            }
-                          />
-                        </div>
-                      </div>
-                      <div className="gap-3 mt-3">
-                        <label className="text-sm text-gray-700 mb-2 flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="accent-[#ff6667]"
-                            checked={!!answers.need_registrations}
-                            onChange={(e) =>
-                              handleAnswer(
-                                "need_registrations",
-                                e.target.checked
-                              )
-                            }
-                          />
-                          Does your venue require the band's vehicle
-                          registration numbers?
-                        </label>
-
-                        {answers.need_registrations && (
-                          <div className="mt-2 rounded border bg-gray-50 p-3">
-                            <div className="text-sm font-semibold mb-2">
-                              Band vehicle registrations
-                            </div>
-
-                            {regRows.length > 0 ? (
-                              <ul className="text-sm text-gray-800 space-y-1">
-                                {regRows.map((r, i) => (
-                                  <li
-                                    key={`${r.plate}-${i}`}
-                                    className="flex justify-between gap-3"
-                                  >
-                                    <span className="truncate">
-                                      {r.name}
-                                      {r.instrument ? ` — ${r.instrument}` : ""}
-                                    </span>
-                                    <span className="font-mono">
-                                      {r.plate === "NO_CAR"
-                                        ? "No vehicle"
-                                        : r.plate}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <div className="text-sm text-gray-600">
-                                We don’t have registration plates on file for
-                                this lineup yet. We’ll email them to you
-                                shortly.
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   )}
+                </div>
+              </div>
+            )}
 
-                  {/* WHEN PARKING IS NOT AVAILABLE */}
-                  {isNo && (
-                    <div className="space-y-4 md:col-span-2">
-                      <div className="text-sm text-gray-700">
-                        Please find nearby parking for the band using{" "}
-                        <a
-                          href="https://www.parkopedia.com/"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#ff6667] underline hover:opacity-80"
-                        >
-                          Parkopedia
-                        </a>
-                        . Enter the event location and set the arrival time to{" "}
-                        <strong>30 minutes prior to band arrival</strong> and
-                        the finish time to{" "}
-                        <strong>
-                          1 hour after the band’s contracted finish
-                        </strong>
-                        . Then complete the details below.
-                      </div>
+            {isForSome && (
+              <div className="space-y-4 md:col-span-2">
+                <div className="text-sm text-gray-700">
+                  Please confirm how many band vehicles can park on site. Any
+                  remaining vehicles will need nearby paid parking.
+                </div>
 
-                      {/* Cost + cars + total */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
-                        <div className="flex flex-col">
-                          <label className="text-sm text-gray-700 mb-1">
-                            Cost per car (£)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            className="border rounded px-2 py-1 text-sm text-gray-800"
-                            value={answers.parking_cost_per_car ?? ""}
-                            onChange={(e) =>
-                              handleAnswer(
-                                "parking_cost_per_car",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Total band vehicles
+                    </label>
+                    <input
+                      type="number"
+                      className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                      value={totalBandCars || 0}
+                      readOnly
+                      disabled
+                    />
+                  </div>
 
-                        <div className="flex flex-col">
-                          <label className="text-sm text-gray-700 mb-1">
-                            Number of cars
-                          </label>
-                          <input
-                            type="number"
-                            className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
-                            value={defaultCars || 0}
-                            readOnly
-                            disabled
-                          />
-                        </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Spaces available on site
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={totalBandCars || undefined}
+                      className="border rounded px-2 py-1 text-sm text-gray-800"
+                      value={answers.parking_spaces_on_site ?? ""}
+                      onChange={(e) =>
+                        handleAnswer("parking_spaces_on_site", e.target.value)
+                      }
+                    />
+                  </div>
 
-                        <div className="flex flex-col">
-                          <label className="text-sm text-gray-700 mb-1">
-                            Total cost (£)
-                          </label>
-                          <input
-                            type="text"
-                            className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
-                            value={totalCost.toFixed(2)}
-                            readOnly
-                          />
-                        </div>
-                      </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Vehicles needing paid parking
+                    </label>
+                    <input
+                      type="number"
+                      className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                      value={paidParkingCars || 0}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+                </div>
 
-                      {/* Screenshot upload (simple) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Please provide a{" "}
+                      <a
+                        href="https://what3words.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#ff6667] underline hover:opacity-80"
+                      >
+                        What3Words
+                      </a>{" "}
+                      pin for the on-site parking location:
+                    </label>
+                    <input
+                      type="text"
+                      className="border rounded px-2 py-1 text-sm text-gray-800"
+                      placeholder="e.g. ///word.word.word"
+                      value={answers.parking_pin || ""}
+                      onChange={(e) =>
+                        handleAnswer("parking_pin", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Please specify any special parking instructions:
+                    </label>
+                    <textarea
+                      className="border rounded px-2 py-1 text-sm text-gray-800 min-h-[60px]"
+                      placeholder="Which vehicles can park on site, gates, codes, specific bays, ID required, etc."
+                      value={answers.parking_notes || ""}
+                      onChange={(e) =>
+                        handleAnswer("parking_notes", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+
+                {paidParkingCars > 0 && (
+                  <>
+                    <div className="text-sm text-gray-700">
+                      Please find nearby parking for the remaining vehicles
+                      using{" "}
+                      <a
+                        href="https://www.parkopedia.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#ff6667] underline hover:opacity-80"
+                      >
+                        Parkopedia
+                      </a>
+                      . Enter the event location and set the arrival time to{" "}
+                      <strong>30 minutes prior to band arrival</strong> and the
+                      finish time to{" "}
+                      <strong>1 hour after the band’s contracted finish</strong>.
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
                       <div className="flex flex-col">
                         <label className="text-sm text-gray-700 mb-1">
-                          Upload a screenshot of the parking options as
-                          displayed on Parkopedia (or similar):
+                          Cost per paid parking space (£)
                         </label>
                         <input
-                          type="file"
-                          accept="image/*"
-                          className="text-sm"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            // Store lightweight, serializable metadata + a temporary preview URL
-                            const url = URL.createObjectURL(file);
-                            handleAnswer("parking_screenshot_name", file.name);
-                            handleAnswer("parking_screenshot_url", url);
-                            handleAnswer("parking_checkout_status", "Paid");
-                          }}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="border rounded px-2 py-1 text-sm text-gray-800"
+                          value={answers.parking_cost_per_car ?? ""}
+                          onChange={(e) =>
+                            handleAnswer(
+                              "parking_cost_per_car",
+                              e.target.value
+                            )
+                          }
                         />
-                        {answers.parking_screenshot_url && (
-                          <img
-                            src={answers.parking_screenshot_url}
-                            alt={
-                              answers.parking_screenshot_name ||
-                              "Parking screenshot"
-                            }
-                            className="mt-2 max-h-40 rounded border object-contain"
-                            style={{ maxWidth: "100%", height: "auto" }}
-                          />
-                        )}
                       </div>
 
-                      {/* Parking payment (Stripe Checkout) */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
-                        <div className="md:col-span-2 flex flex-col">
-                          <label className="text-sm text-gray-700 mb-1">
-                            Parking payment
-                          </label>
+                      <div className="flex flex-col">
+                        <label className="text-sm text-gray-700 mb-1">
+                          Paid parking spaces required
+                        </label>
+                        <input
+                          type="number"
+                          className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                          value={paidParkingCars || 0}
+                          readOnly
+                          disabled
+                        />
+                      </div>
 
-                          {/* compute the amount based on your existing values */}
-                          {(() => {
-                            const costPerCar = Number(
-                              answers.parking_cost_per_car ?? 0
-                            );
-                            const numCars = Number(defaultCars || 0); // <- lock to computed cars
-                            const total = Math.max(
-                              0,
-                              Math.round(costPerCar * numCars * 100) / 100
-                            );
-                            const totalPence = Math.round(total * 100);
-
-                            return (
-                              <div className="flex flex-wrap items-center gap-3">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleGenerateParkingInvoice({
-                                      amountPence: totalPence,
-                                    })
-                                  }
-                                  className="px-3 py-1.5 rounded bg-[#ff6667] text-white hover:opacity-90"
-                                  disabled={!totalPence}
-                                  title={
-                                    !totalPence
-                                      ? "Enter cost per car and number of cars first"
-                                      : "Open Stripe Checkout"
-                                  }
-                                >
-                                  Generate invoice
-                                </button>
-
-                                <div className="text-sm text-gray-700">
-                                  Amount:&nbsp;
-                                  <strong>£{total.toFixed(2)}</strong>
-                                  &nbsp;for {numCars} car
-                                  {numCars === 1 ? "" : "s"}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-
-                        {/* Status display (optional) */}
-                        <div className="flex flex-col">
-                          <label className="text-sm text-gray-700 mb-1">
-                            Status
-                          </label>
-                          <div className="text-sm flex items-center gap-1">
-                            {(() => {
-                              const raw = answers?.parking_checkout_status;
-                              const label =
-                                typeof raw === "string" ? raw.trim() : "";
-                              const isPaid = /paid/i.test(label);
-                              if (isPaid) {
-                                return (
-                                  <>
-                                    Paid
-                                    <img
-                                      src={assets.tick}
-                                      alt="paid"
-                                      className="inline w-4 h-4 ml-0.5"
-                                    />
-                                  </>
-                                );
-                              }
-                              return label || "Not paid";
-                            })()}
-                          </div>
-                        </div>
+                      <div className="flex flex-col">
+                        <label className="text-sm text-gray-700 mb-1">
+                          Total cost (£)
+                        </label>
+                        <input
+                          type="text"
+                          className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                          value={totalCost.toFixed(2)}
+                          readOnly
+                        />
                       </div>
                     </div>
-                  )}
-                </>
-              );
-            },
-          },
-        ],
+
+                    <ParkingScreenshotUpload />
+                    <ParkingPaymentBlock />
+                  </>
+                )}
+              </div>
+            )}
+
+            {isNo && (
+              <div className="space-y-4 md:col-span-2">
+                <div className="text-sm text-gray-700">
+                  Please find nearby parking for the band using{" "}
+                  <a
+                    href="https://www.parkopedia.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#ff6667] underline hover:opacity-80"
+                  >
+                    Parkopedia
+                  </a>
+                  . Enter the event location and set the arrival time to{" "}
+                  <strong>30 minutes prior to band arrival</strong> and the
+                  finish time to{" "}
+                  <strong>1 hour after the band’s contracted finish</strong>.
+                  Then complete the details below.
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Cost per car (£)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="border rounded px-2 py-1 text-sm text-gray-800"
+                      value={answers.parking_cost_per_car ?? ""}
+                      onChange={(e) =>
+                        handleAnswer("parking_cost_per_car", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Vehicles needing paid parking
+                    </label>
+                    <input
+                      type="number"
+                      className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                      value={paidParkingCars || 0}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-700 mb-1">
+                      Total cost (£)
+                    </label>
+                    <input
+                      type="text"
+                      className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                      value={totalCost.toFixed(2)}
+                      readOnly
+                    />
+                  </div>
+                </div>
+
+                <ParkingScreenshotUpload />
+                <ParkingPaymentBlock />
+              </div>
+            )}
+          </>
+        );
       },
+    },
+  ],
+},
       {
         id: "room_area",
         title: "Room & Area",
