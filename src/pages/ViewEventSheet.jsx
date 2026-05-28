@@ -3654,7 +3654,7 @@ const ViewEventSheet = () => {
                   {saving ? "Saving…" : "Save Draft"}
                 </button>
                 <button
-                  onClick={notifyBand}
+                  onClick={() => notifyBand()}
                   disabled={notifying || completedCount !== totalSections}
                   className={`px-3 py-1.5 text-sm rounded ${
                     completedCount === totalSections
@@ -3958,7 +3958,7 @@ const ViewEventSheet = () => {
             {saving ? "Saving…" : "Save Draft"}
           </button>
           <button
-            onClick={notifyBand}
+            onClick={() => notifyBand()}
             disabled={notifying || completedCount !== totalSections}
             className={`px-4 py-2 rounded ${
               completedCount === totalSections
