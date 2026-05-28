@@ -568,26 +568,48 @@ const handleAnswer = useCallback((key, value) => {
     return Number(bookingTotal || 0) + Number(addOnsPostBooking || 0);
   }, [bookingTotal, addOnsPostBooking]);
 
+  const isBookingMarkedPaid = useMemo(() => {
+    const paymentStatus = String(booking?.paymentStatus || "").toLowerCase();
+    const balanceStatus = String(booking?.balanceStatus || "").toLowerCase();
+
+    return (
+      booking?.balancePaid === true ||
+      booking?.totals?.balancePaid === true ||
+      paymentStatus === "paid" ||
+      balanceStatus === "paid"
+    );
+  }, [booking]);
+
   const remainingAmount = useMemo(() => {
+    if (isBookingMarkedPaid) return 0;
+
     const modelRemaining = Number(
       booking?.totals?.remainingAmount ??
         booking?.totals?.outstandingBalance ??
         booking?.remainingAmount ??
-        NaN
+        booking?.balanceAmountPence != null
+          ? Number(booking?.balanceAmountPence) / 100
+          : NaN
     );
 
     if (Number.isFinite(modelRemaining) && modelRemaining >= 0) {
       return modelRemaining;
     }
 
+    const chargedAmount = Number(booking?.totals?.chargedAmount ?? NaN);
+
+    if (Number.isFinite(chargedAmount) && chargedAmount > 0) {
+      return Math.max(0, Number(fullAmount || 0) - chargedAmount);
+    }
+
     return Math.max(
       0,
       Number(fullAmount || 0) - Number(depositAmount || 0)
     );
-  }, [booking, fullAmount, depositAmount]);
+  }, [booking, fullAmount, depositAmount, isBookingMarkedPaid]);
 
 const isPaidInFull =
-  Number(fullAmount || 0) > 0 && remainingAmount <= 0.01;
+  isBookingMarkedPaid || (Number(fullAmount || 0) > 0 && remainingAmount <= 0.01);
 
   // Pro-rate deposit across items for a per-item view
   const detailedItems = useMemo(() => {
@@ -3150,14 +3172,22 @@ const peopleSection = isWedding
       key: "song_suggestions",
       type: "custom",
       render: () => {
-        // Derive a link to the first act's profile
+        // Derive a link to the first act's public profile using the SEO slug.
+        // Do not fall back to actId here because /act/:key expects the public slug.
         const first =
           (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]) ||
           null;
-        const profileUrl =
-          (first?.actSlug && `/act/${first.actSlug}`) ||
-          (first?.actId && `/act/${first.actId}`) ||
-          null;
+
+        const actSlug =
+          first?.actSlug ||
+          first?.slug ||
+          first?.act?.slug ||
+          first?.act?.actSlug ||
+          first?.act?.seoSlug ||
+          first?.seoSlug ||
+          "";
+
+        const profileUrl = actSlug ? `/act/${actSlug}` : null;
 
         return (
           <div>
