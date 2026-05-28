@@ -147,17 +147,70 @@ const userHasEditedRef = React.useRef(false);
   // --- helpers ---
   const lsKey = (bid) => `eventSheet:${bid || "unknown"}`;
 
-  async function notifyBand(payload) {
+  async function notifyBand(payload = {}) {
+    if (!backendUrl) {
+      alert("Backend URL is missing, so the band could not be notified.");
+      return null;
+    }
+
+    if (!booking?._id && !booking?.bookingId) {
+      alert("Booking has not loaded yet, so the band could not be notified.");
+      return null;
+    }
+
+    const bookingKey = booking.bookingId || booking._id;
+
+    const eventSheet = {
+      answers: sanitizeForSave(answersRef.current || answers || {}),
+      complete: sanitizeForSave(completeRef.current || complete || {}),
+      submitted: true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const safePayload = {
+      bookingId: bookingKey,
+      bookingMongoId: booking._id,
+      bookingRef: booking.bookingId,
+      eventSheet,
+      ...payload,
+    };
+
     try {
+      setNotifying(true);
+
+      // Save the latest event sheet first so the email pulls the newest data.
+      await axios.post(
+        `${backendUrl}/api/booking/update-event-sheet`,
+        { bookingId: bookingKey, eventSheet },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
       const res = await axios.post(
         `${backendUrl}/api/booking/notify-band`,
-        payload
+        safePayload,
+        { headers: { "Content-Type": "application/json" } }
       );
+
       console.log("✅ Band notified:", res.data);
+      alert("Band notified successfully.");
       return res.data;
     } catch (err) {
-      console.error("❌ notifyBand failed:", err);
+      console.error("❌ notifyBand failed:", {
+        status: err?.response?.status,
+        data: err?.response?.data,
+        message: err?.message,
+        payload: safePayload,
+      });
+
+      alert(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "The band could not be notified. Check the console/server logs for details."
+      );
+
       throw err;
+    } finally {
+      setNotifying(false);
     }
   }
   // --- Ensure we only send JSON-serializable, safe data ---
@@ -1241,28 +1294,85 @@ const handleOpenBalanceInvoice = async () => {
       const act = (actsList || []).find(
         (a) => String(a._id) === String(first.actId)
       );
+
       const lineup = act
-        ? (act.lineups || []).find(
-            (l) =>
-              String(l._id) === String(first.lineupId || first.lineup?.lineupId)
-          )
+        ? (act.lineups || []).find((l) => {
+            const bookedLineupId =
+              first.lineupId ||
+              first.lineup?._id ||
+              first.lineup?.lineupId ||
+              first.lineup?.id ||
+              "";
+
+            return (
+              String(l._id) === String(bookedLineupId) ||
+              String(l.lineupId) === String(bookedLineupId) ||
+              String(l.id) === String(bookedLineupId)
+            );
+          })
         : first.lineup || null;
 
       // Count performers (exclude managers/non-performers)
       const members = Array.isArray(lineup?.bandMembers)
         ? lineup.bandMembers
-        : [];
+        : Array.isArray(first?.lineup?.bandMembers)
+          ? first.lineup.bandMembers
+          : [];
       const performerCount = members.filter((m) => !isManagerLike(m)).length;
 
-      // Hot meal can come as a number or boolean. We’ll handle both.
-      const raw = lineup?.hotMeal ?? lineup?.hotMeals ?? lineup?.meals ?? null;
+      // Hot meal may be stored as a number, boolean, string, object, or under
+      // slightly different keys depending on which flow created the lineup.
+      const raw =
+        lineup?.hotMeal ??
+        lineup?.hotMeals ??
+        lineup?.meals ??
+        lineup?.hotMealRequired ??
+        lineup?.requiresHotMeal ??
+        lineup?.mealRequired ??
+        lineup?.mealRequirement ??
+        first?.lineup?.hotMeal ??
+        first?.lineup?.hotMeals ??
+        first?.lineup?.meals ??
+        first?.lineup?.hotMealRequired ??
+        first?.lineup?.requiresHotMeal ??
+        first?.hotMeal ??
+        first?.hotMeals ??
+        first?.meals ??
+        null;
 
       let count = 0;
+
       if (typeof raw === "number") {
         count = Math.max(0, raw);
       } else if (raw === true) {
-        // If it’s a boolean requirement, fall back to number of performers
-        count = performerCount || 1; // at least 1 if we don’t know
+        count = performerCount || 1;
+      } else if (typeof raw === "string") {
+        const normalized = raw.trim().toLowerCase();
+
+        if (/^\d+$/.test(normalized)) {
+          count = Number(normalized);
+        } else if (
+          ["yes", "true", "required", "require", "needed", "hot meal", "hot meals"].some(
+            (word) => normalized.includes(word)
+          ) &&
+          !["no", "false", "not required", "none", "n/a", "na"].includes(normalized)
+        ) {
+          count = performerCount || 1;
+        }
+      } else if (raw && typeof raw === "object") {
+        const objectCount = Number(
+          raw.count ?? raw.quantity ?? raw.number ?? raw.meals ?? raw.hotMeals ?? 0
+        );
+
+        if (Number.isFinite(objectCount) && objectCount > 0) {
+          count = objectCount;
+        } else if (
+          raw.required === true ||
+          raw.isRequired === true ||
+          raw.enabled === true
+        ) {
+          count = performerCount || 1;
+        }
       }
 
       return {
