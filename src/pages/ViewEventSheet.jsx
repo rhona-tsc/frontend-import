@@ -89,7 +89,6 @@ const getActEquipmentInfo = (actsList = [], booking) => {
   }
 };
 
-
 const ViewEventSheet = () => {
   const suppressAutosaveRef = React.useRef(false);
   const hydratedRef = React.useRef(null);
@@ -100,7 +99,7 @@ const ViewEventSheet = () => {
   // Derive act info once and reuse (must be inside the component)
   const actInfo = useMemo(
     () => getActEquipmentInfo(acts, booking),
-    [acts, booking]
+    [acts, booking],
   );
   const tscName = actInfo.tscName || "the band";
 
@@ -114,14 +113,17 @@ const ViewEventSheet = () => {
   const [notifying, setNotifying] = useState(false);
   const [answers, setAnswers] = useState({});
   const [complete, setComplete] = useState({});
-    const answersRef = useRef({});
+  const answersRef = useRef({});
   const completeRef = useRef({});
-const searchParams = new URLSearchParams(window.location.search);
-const isReadOnlyParam = searchParams.get("ro") === "1" || searchParams.get("readonly") === "1";
-const isReadOnlyRoute = /readonly/i.test(String(params?.mode || params?.view || ""));
-const READ_ONLY = isReadOnlyParam || isReadOnlyRoute;
+  const searchParams = new URLSearchParams(window.location.search);
+  const isReadOnlyParam =
+    searchParams.get("ro") === "1" || searchParams.get("readonly") === "1";
+  const isReadOnlyRoute = /readonly/i.test(
+    String(params?.mode || params?.view || ""),
+  );
+  const READ_ONLY = isReadOnlyParam || isReadOnlyRoute;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-const userHasEditedRef = React.useRef(false);
+  const userHasEditedRef = React.useRef(false);
 
   useEffect(() => {
     answersRef.current = answers;
@@ -130,7 +132,6 @@ const userHasEditedRef = React.useRef(false);
   useEffect(() => {
     completeRef.current = complete;
   }, [complete]);
-
 
   // Prefer user from context; fallback to localStorage `user` object
   const resolvedUserId =
@@ -148,6 +149,12 @@ const userHasEditedRef = React.useRef(false);
   const lsKey = (bid) => `eventSheet:${bid || "unknown"}`;
 
   async function notifyBand(payload = {}) {
+    const isClickEvent =
+      payload &&
+      typeof payload === "object" &&
+      (payload.nativeEvent || payload.currentTarget || payload.target);
+
+    const extraPayload = isClickEvent ? {} : sanitizeForSave(payload || {});
     if (!backendUrl) {
       alert("Backend URL is missing, so the band could not be notified.");
       return null;
@@ -167,13 +174,13 @@ const userHasEditedRef = React.useRef(false);
       updatedAt: new Date().toISOString(),
     };
 
-    const safePayload = {
+    const safePayload = sanitizeForSave({
       bookingId: bookingKey,
       bookingMongoId: booking._id,
       bookingRef: booking.bookingId,
       eventSheet,
-      ...payload,
-    };
+      ...extraPayload,
+    });
 
     try {
       setNotifying(true);
@@ -182,13 +189,13 @@ const userHasEditedRef = React.useRef(false);
       await axios.post(
         `${backendUrl}/api/booking/update-event-sheet`,
         { bookingId: bookingKey, eventSheet },
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
 
       const res = await axios.post(
         `${backendUrl}/api/booking/notify-band`,
         safePayload,
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
 
       console.log("✅ Band notified:", res.data);
@@ -205,7 +212,7 @@ const userHasEditedRef = React.useRef(false);
       alert(
         err?.response?.data?.message ||
           err?.response?.data?.error ||
-          "The band could not be notified. Check the console/server logs for details."
+          "The band could not be notified. Check the console/server logs for details.",
       );
 
       throw err;
@@ -228,7 +235,7 @@ const userHasEditedRef = React.useRef(false);
             seen.add(value);
           }
           return value;
-        })
+        }),
       );
       return out;
     } catch (e) {
@@ -241,12 +248,10 @@ const userHasEditedRef = React.useRef(false);
   const saveTimerRef = React.useRef(null);
 
   const saveEventSheet = (nextAnswers, nextComplete = complete) => {
-
     if (READ_ONLY) {
-  esDebug("saveEventSheet skipped (read-only mode)");
-  return;
-}
-
+      esDebug("saveEventSheet skipped (read-only mode)");
+      return;
+    }
 
     if (!booking) {
       esDebug("saveEventSheet skipped (no booking)");
@@ -314,7 +319,7 @@ const userHasEditedRef = React.useRef(false);
         console.warn(
           "⚠️ Payload is large (",
           bytes,
-          "bytes). Consider trimming heavy fields."
+          "bytes). Consider trimming heavy fields.",
         );
       }
       esDebug("🌐 POST begin", { url, payloadBytes: bytes });
@@ -359,32 +364,35 @@ const userHasEditedRef = React.useRef(false);
     };
   }, []);
 
-const handleAnswer = useCallback((key, value) => {
-  if (READ_ONLY) {
-    esDebug("handleAnswer ignored (read-only mode)", { key });
-    return;
-  }
+  const handleAnswer = useCallback(
+    (key, value) => {
+      if (READ_ONLY) {
+        esDebug("handleAnswer ignored (read-only mode)", { key });
+        return;
+      }
 
-  userHasEditedRef.current = true;
+      userHasEditedRef.current = true;
 
-  setAnswers((prev) => {
-    const updated = { ...prev, [key]: value };
-    answersRef.current = updated;
+      setAnswers((prev) => {
+        const updated = { ...prev, [key]: value };
+        answersRef.current = updated;
 
-    esDebug("✏️ handleAnswer", {
-      key,
-      previewValue: typeof value === "string" ? value.slice(0, 80) : value,
-    });
+        esDebug("✏️ handleAnswer", {
+          key,
+          previewValue: typeof value === "string" ? value.slice(0, 80) : value,
+        });
 
-    if (!suppressAutosaveRef.current) {
-      saveEventSheet(updated, completeRef.current);
-    } else {
-      esDebug("✏️ handleAnswer (autosave suppressed)");
-    }
+        if (!suppressAutosaveRef.current) {
+          saveEventSheet(updated, completeRef.current);
+        } else {
+          esDebug("✏️ handleAnswer (autosave suppressed)");
+        }
 
-    return updated;
-  });
-}, [READ_ONLY]);
+        return updated;
+      });
+    },
+    [READ_ONLY],
+  );
 
   useEffect(() => {
     const val = answers?.parking_checkout_status;
@@ -404,7 +412,9 @@ const handleAnswer = useCallback((key, value) => {
     const paid = params.get("parkingPaid") === "1";
 
     if (paid) return;
-    if (String(answers?.parking_checkout_status || "").toLowerCase() !== "paid") {
+    if (
+      String(answers?.parking_checkout_status || "").toLowerCase() !== "paid"
+    ) {
       return;
     }
 
@@ -443,7 +453,7 @@ const handleAnswer = useCallback((key, value) => {
             bookingId: booking.bookingId,
             amount_pence: String(amountPence),
           },
-        }
+        },
       );
       if (resp?.data?.url) {
         esDebug("➡️ redirecting to Stripe", { url: resp.data.url });
@@ -456,7 +466,7 @@ const handleAnswer = useCallback((key, value) => {
 
   console.log(
     "Stripe key present:",
-    !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+    !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
   );
 
   // Put this near the top of ViewEventSheet.jsx (outside the component is fine)
@@ -549,7 +559,7 @@ const handleAnswer = useCallback((key, value) => {
       const extras = Array.isArray(it.selectedExtras) ? it.selectedExtras : [];
       const extrasTotal = extras.reduce(
         (s, ex) => s + (Number(ex.price) || 0),
-        0
+        0,
       );
       const total = basePrice + extrasTotal;
 
@@ -575,16 +585,14 @@ const handleAnswer = useCallback((key, value) => {
       booking?.totals?.bookingTotal ??
         booking?.totals?.contractTotal ??
         booking?.totals?.fullAmount ??
-        NaN
+        NaN,
     );
 
     if (Number.isFinite(modelTotal) && modelTotal > 0) return modelTotal;
 
     return enrichedItems.reduce((sum, item) => {
       const baseOnly =
-        Number(item?.basePrice ?? NaN) ||
-        Number(item?.price ?? NaN) ||
-        0;
+        Number(item?.basePrice ?? NaN) || Number(item?.price ?? NaN) || 0;
 
       return sum + baseOnly;
     }, 0);
@@ -597,7 +605,7 @@ const handleAnswer = useCallback((key, value) => {
       booking?.totals?.addOnsPostBooking ??
         booking?.totals?.postBookingAddOns ??
         booking?.totals?.extrasTotal ??
-        NaN
+        NaN,
     );
 
     if (Number.isFinite(modelAddOns) && modelAddOns > 0) return modelAddOns;
@@ -607,9 +615,9 @@ const handleAnswer = useCallback((key, value) => {
         ? item.extras.reduce(
             (extraSum, extra) =>
               extraSum +
-              ((Number(extra?.price || 0) || 0) *
-                (Number(extra?.quantity || 1) || 1)),
-            0
+              (Number(extra?.price || 0) || 0) *
+                (Number(extra?.quantity || 1) || 1),
+            0,
           )
         : 0;
 
@@ -637,12 +645,12 @@ const handleAnswer = useCallback((key, value) => {
     if (isBookingMarkedPaid) return 0;
 
     const modelRemaining = Number(
-      booking?.totals?.remainingAmount ??
+      (booking?.totals?.remainingAmount ??
         booking?.totals?.outstandingBalance ??
         booking?.remainingAmount ??
-        booking?.balanceAmountPence != null
-          ? Number(booking?.balanceAmountPence) / 100
-          : NaN
+        booking?.balanceAmountPence != null)
+        ? Number(booking?.balanceAmountPence) / 100
+        : NaN,
     );
 
     if (Number.isFinite(modelRemaining) && modelRemaining >= 0) {
@@ -655,14 +663,12 @@ const handleAnswer = useCallback((key, value) => {
       return Math.max(0, Number(fullAmount || 0) - chargedAmount);
     }
 
-    return Math.max(
-      0,
-      Number(fullAmount || 0) - Number(depositAmount || 0)
-    );
+    return Math.max(0, Number(fullAmount || 0) - Number(depositAmount || 0));
   }, [booking, fullAmount, depositAmount, isBookingMarkedPaid]);
 
-const isPaidInFull =
-  isBookingMarkedPaid || (Number(fullAmount || 0) > 0 && remainingAmount <= 0.01);
+  const isPaidInFull =
+    isBookingMarkedPaid ||
+    (Number(fullAmount || 0) > 0 && remainingAmount <= 0.01);
 
   // Pro-rate deposit across items for a per-item view
   const detailedItems = useMemo(() => {
@@ -730,7 +736,7 @@ const isPaidInFull =
         return 100;
       };
       const uniqueInstruments = [...new Set(instruments)].sort(
-        (a, b) => weight(a) - weight(b)
+        (a, b) => weight(a) - weight(b),
       );
       if (!uniqueInstruments.length) return "";
 
@@ -740,7 +746,7 @@ const isPaidInFull =
       const roles = members.flatMap((m) =>
         (m.additionalRoles || [])
           .filter((r) => r?.isEssential)
-          .map((r) => cap(r.role || r.title || "Unnamed Service"))
+          .map((r) => cap(r.role || r.title || "Unnamed Service")),
       );
       const rolesStr = formatWithAnd(roles);
       const rolesTail = rolesStr ? ` (including ${rolesStr} services)` : "";
@@ -755,12 +761,12 @@ const isPaidInFull =
   // Find the full lineup object for a booking item using acts in context
   const resolveLineup = (actsList = [], item = {}) => {
     const act = (actsList || []).find(
-      (a) => String(a._id) === String(item.actId)
+      (a) => String(a._id) === String(item.actId),
     );
     if (!act) return null;
     const lid = String(item.lineupId || "");
     return (act.lineups || []).find(
-      (l) => String(l._id) === lid || String(l.lineupId) === lid
+      (l) => String(l._id) === lid || String(l.lineupId) === lid,
     );
   };
 
@@ -813,7 +819,7 @@ const isPaidInFull =
         const ln = resolveLineup(acts, it) || it.lineup || null;
         if (Array.isArray(ln?.bandMembers)) {
           const essential = ln.bandMembers.filter(
-            (m) => !isManagerLike(m)
+            (m) => !isManagerLike(m),
           ).length;
           return sum + (essential || 0);
         }
@@ -831,13 +837,13 @@ const isPaidInFull =
     if ((!cars || cars <= 0) && src.length) {
       const headerLike = src
         .map((it) =>
-          (it.lineupLabel || it.lineupName || it.actSize || "").toString()
+          (it.lineupLabel || it.lineupName || it.actSize || "").toString(),
         )
         .filter(Boolean)
         .join("+");
       const headerParsed = parseInt(
         String(headerLike).match(/\d+/)?.[0] || "",
-        10
+        10,
       );
       if (Number.isFinite(headerParsed) && headerParsed > 0)
         cars = headerParsed;
@@ -893,7 +899,7 @@ const isPaidInFull =
           "👤 ViewEventSheet resolvedUserId:",
           resolvedUserId,
           "routeId:",
-          routeId
+          routeId,
         );
         let match = null;
 
@@ -902,7 +908,7 @@ const isPaidInFull =
           // try Mongo _id route
           try {
             const byId = await axios.get(
-              `${backendUrl}/api/booking/booking/${routeId}`
+              `${backendUrl}/api/booking/booking/${routeId}`,
             );
             if (byId?.data?._id) {
               match = byId.data;
@@ -914,7 +920,7 @@ const isPaidInFull =
           if (!match) {
             try {
               const byRefResp = await axios.get(
-                `${backendUrl}/api/booking/by-ref/${routeId}`
+                `${backendUrl}/api/booking/by-ref/${routeId}`,
               );
               const data = byRefResp?.data;
               const b =
@@ -926,7 +932,7 @@ const isPaidInFull =
             } catch (e) {
               console.warn(
                 "by-ref lookup failed (will try user list):",
-                e?.message
+                e?.message,
               );
             }
           }
@@ -938,14 +944,14 @@ const isPaidInFull =
             "🛰️ Fetching bookings for user:",
             resolvedUserId,
             "from",
-            backendUrl
+            backendUrl,
           );
           let list = [];
 
           // Try GET user route
           try {
             const getResp = await axios.get(
-              `${backendUrl}/api/booking/user/${resolvedUserId}`
+              `${backendUrl}/api/booking/user/${resolvedUserId}`,
             );
             const data = getResp?.data;
             list = Array.isArray(data)
@@ -965,7 +971,7 @@ const isPaidInFull =
                 `${backendUrl}/api/booking/user`,
                 {
                   userId: resolvedUserId,
-                }
+                },
               );
               const data = postResp?.data;
               list = Array.isArray(data)
@@ -990,71 +996,71 @@ const isPaidInFull =
           if (!match && list.length) {
             match = [...list].sort((a, b) => {
               const ta = new Date(
-                a.createdAt || a.updatedAt || a.date || 0
+                a.createdAt || a.updatedAt || a.date || 0,
               ).getTime();
               const tb = new Date(
-                b.createdAt || b.updatedAt || b.date || 0
+                b.createdAt || b.updatedAt || b.date || 0,
               ).getTime();
               return tb - ta;
             })[0];
           }
         }
 
-      console.log("✅ Selected booking:", match);
-setBooking(match || null);
+        console.log("✅ Selected booking:", match);
+        setBooking(match || null);
 
-if (match) {
-  const hydrateKey = String(match.bookingId || match._id || "");
+        if (match) {
+          const hydrateKey = String(match.bookingId || match._id || "");
 
-  // only hydrate once per booking, so user typing doesn't get overwritten
-  if (hydratedRef.current !== hydrateKey) {
-    const key = lsKey(hydrateKey);
+          // only hydrate once per booking, so user typing doesn't get overwritten
+          if (hydratedRef.current !== hydrateKey) {
+            const key = lsKey(hydrateKey);
 
-    try {
-      const raw = localStorage.getItem(key);
+            try {
+              const raw = localStorage.getItem(key);
 
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setAnswers(parsed.answers || {});
-        setComplete(parsed.complete || {});
-      } else if (match.eventSheet) {
-        setAnswers(match.eventSheet.answers || {});
-        setComplete(match.eventSheet.complete || {});
-      } else {
-        const src = Array.isArray(match.actsSummary)
-          ? match.actsSummary
-          : Array.isArray(match.items)
-            ? match.items
-            : [];
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                setAnswers(parsed.answers || {});
+                setComplete(parsed.complete || {});
+              } else if (match.eventSheet) {
+                setAnswers(match.eventSheet.answers || {});
+                setComplete(match.eventSheet.complete || {});
+              } else {
+                const src = Array.isArray(match.actsSummary)
+                  ? match.actsSummary
+                  : Array.isArray(match.items)
+                    ? match.items
+                    : [];
 
-        const suggestions = src.flatMap((it) =>
-          Array.isArray(it.songSuggestions) ? it.songSuggestions : []
-        );
+                const suggestions = src.flatMap((it) =>
+                  Array.isArray(it.songSuggestions) ? it.songSuggestions : [],
+                );
 
-        const suggestionsText = suggestions
-          .map((s) => {
-            const t = (s.title || "").trim();
-            const a = (s.artist || "").trim();
-            if (t && a) return `${t} – ${a}`;
-            return t || a;
-          })
-          .filter(Boolean)
-          .join("\n");
+                const suggestionsText = suggestions
+                  .map((s) => {
+                    const t = (s.title || "").trim();
+                    const a = (s.artist || "").trim();
+                    if (t && a) return `${t} – ${a}`;
+                    return t || a;
+                  })
+                  .filter(Boolean)
+                  .join("\n");
 
-        const seeded = suggestionsText
-          ? { song_suggestions: suggestionsText }
-          : {};
+                const seeded = suggestionsText
+                  ? { song_suggestions: suggestionsText }
+                  : {};
 
-        setAnswers(seeded);
-        setComplete({});
-      }
-    } catch (err) {
-      console.warn("Hydration failed:", err);
-    }
+                setAnswers(seeded);
+                setComplete({});
+              }
+            } catch (err) {
+              console.warn("Hydration failed:", err);
+            }
 
-    hydratedRef.current = hydrateKey;
-  }
-}
+            hydratedRef.current = hydrateKey;
+          }
+        }
       } catch (e) {
         console.error("Error fetching booking:", e);
         setBooking(null);
@@ -1066,59 +1072,59 @@ if (match) {
 
   // after `setBooking(match || null);` (i.e., once a booking is in state)
   // add a new effect:
-useEffect(() => {
-  if (!booking?._id) return;
+  useEffect(() => {
+    if (!booking?._id) return;
 
-  const hasNum = !!(
-    booking.eventSheet?.emergencyContact?.number ||
-    booking.contactRouting?.proxyNumber
-  );
-  const hasCode = !!(
-    booking.eventSheet?.emergencyContact?.ivrCode ||
-    booking.contactRouting?.ivrCode
-  );
+    const hasNum = !!(
+      booking.eventSheet?.emergencyContact?.number ||
+      booking.contactRouting?.proxyNumber
+    );
+    const hasCode = !!(
+      booking.eventSheet?.emergencyContact?.ivrCode ||
+      booking.contactRouting?.ivrCode
+    );
 
-  if (hasNum && hasCode) return;
+    if (hasNum && hasCode) return;
 
-  const idOrRef = booking.bookingId || booking._id;
+    const idOrRef = booking.bookingId || booking._id;
 
-  (async () => {
-    try {
-      const resp = await axios.post(
-        `${backendUrl}/api/booking/${encodeURIComponent(idOrRef)}/ensure-emergency-contact`
-      );
-      const updated = resp?.data?.booking;
+    (async () => {
+      try {
+        const resp = await axios.post(
+          `${backendUrl}/api/booking/${encodeURIComponent(idOrRef)}/ensure-emergency-contact`,
+        );
+        const updated = resp?.data?.booking;
 
-      if (updated?._id) {
-        setBooking((prev) => {
-          if (!prev) return updated;
+        if (updated?._id) {
+          setBooking((prev) => {
+            if (!prev) return updated;
 
-          const prevNum =
-            prev.eventSheet?.emergencyContact?.number ||
-            prev.contactRouting?.proxyNumber;
-          const prevCode =
-            prev.eventSheet?.emergencyContact?.ivrCode ||
-            prev.contactRouting?.ivrCode;
+            const prevNum =
+              prev.eventSheet?.emergencyContact?.number ||
+              prev.contactRouting?.proxyNumber;
+            const prevCode =
+              prev.eventSheet?.emergencyContact?.ivrCode ||
+              prev.contactRouting?.ivrCode;
 
-          const nextNum =
-            updated.eventSheet?.emergencyContact?.number ||
-            updated.contactRouting?.proxyNumber;
-          const nextCode =
-            updated.eventSheet?.emergencyContact?.ivrCode ||
-            updated.contactRouting?.ivrCode;
+            const nextNum =
+              updated.eventSheet?.emergencyContact?.number ||
+              updated.contactRouting?.proxyNumber;
+            const nextCode =
+              updated.eventSheet?.emergencyContact?.ivrCode ||
+              updated.contactRouting?.ivrCode;
 
-          if (prevNum === nextNum && prevCode === nextCode) {
-            return prev;
-          }
+            if (prevNum === nextNum && prevCode === nextCode) {
+              return prev;
+            }
 
-          return updated;
-        });
+            return updated;
+          });
+        }
+      } catch (e) {
+        console.warn("ensure-emergency-contact failed:", e?.message || e);
       }
-    } catch (e) {
-      console.warn("ensure-emergency-contact failed:", e?.message || e);
-    }
-  })();
-}, [booking?._id, booking?.bookingId, backendUrl]);
+    })();
+  }, [booking?._id, booking?.bookingId, backendUrl]);
 
   // On return from Stripe (?parkingPaid=1 or ?parkingCanceled=1),
   // merge status into whatever was last saved (localStorage or state)
@@ -1189,28 +1195,28 @@ useEffect(() => {
     }, 0);
   }, [booking]);
 
-const handleOpenBalanceInvoice = async () => {
-  if (!booking) return;
+  const handleOpenBalanceInvoice = async () => {
+    if (!booking) return;
 
-  await persist(false);
+    await persist(false);
 
-  try {
-    const balanceRef = booking.bookingId || booking._id;
-    const r = await axios.get(
-      `${backendUrl}/api/invoices/balance-link/${balanceRef}?refresh=1&expectedAmountPence=${Math.round(remainingAmount * 100)}`
-    );
+    try {
+      const balanceRef = booking.bookingId || booking._id;
+      const r = await axios.get(
+        `${backendUrl}/api/invoices/balance-link/${balanceRef}?refresh=1&expectedAmountPence=${Math.round(remainingAmount * 100)}`,
+      );
 
-    const url = r?.data?.url;
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    } else {
+      const url = r?.data?.url;
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        alert("Couldn’t get a payment link right now.");
+      }
+    } catch (e) {
+      console.warn("balance-link error:", e?.response?.data || e?.message);
       alert("Couldn’t get a payment link right now.");
     }
-  } catch (e) {
-    console.warn("balance-link error:", e?.response?.data || e?.message);
-    alert("Couldn’t get a payment link right now.");
-  }
-};
+  };
 
   // ⛔ Block completion if lineup requires a changing room but client selects "No"
   useEffect(() => {
@@ -1248,12 +1254,13 @@ const handleOpenBalanceInvoice = async () => {
           : [];
       const first = src[0] || {};
       const act = (actsList || []).find(
-        (a) => String(a._id) === String(first.actId)
+        (a) => String(a._id) === String(first.actId),
       );
       const lineup = act
         ? (act.lineups || []).find(
             (l) =>
-              String(l._id) === String(first.lineupId || first.lineup?.lineupId)
+              String(l._id) ===
+              String(first.lineupId || first.lineup?.lineupId),
           )
         : first.lineup || null;
       const members = Array.isArray(lineup?.bandMembers)
@@ -1292,7 +1299,7 @@ const handleOpenBalanceInvoice = async () => {
           : [];
       const first = src[0] || {};
       const act = (actsList || []).find(
-        (a) => String(a._id) === String(first.actId)
+        (a) => String(a._id) === String(first.actId),
       );
 
       const lineup = act
@@ -1352,16 +1359,29 @@ const handleOpenBalanceInvoice = async () => {
         if (/^\d+$/.test(normalized)) {
           count = Number(normalized);
         } else if (
-          ["yes", "true", "required", "require", "needed", "hot meal", "hot meals"].some(
-            (word) => normalized.includes(word)
-          ) &&
-          !["no", "false", "not required", "none", "n/a", "na"].includes(normalized)
+          [
+            "yes",
+            "true",
+            "required",
+            "require",
+            "needed",
+            "hot meal",
+            "hot meals",
+          ].some((word) => normalized.includes(word)) &&
+          !["no", "false", "not required", "none", "n/a", "na"].includes(
+            normalized,
+          )
         ) {
           count = performerCount || 1;
         }
       } else if (raw && typeof raw === "object") {
         const objectCount = Number(
-          raw.count ?? raw.quantity ?? raw.number ?? raw.meals ?? raw.hotMeals ?? 0
+          raw.count ??
+            raw.quantity ??
+            raw.number ??
+            raw.meals ??
+            raw.hotMeals ??
+            0,
         );
 
         if (Number.isFinite(objectCount) && objectCount > 0) {
@@ -1444,7 +1464,7 @@ const handleOpenBalanceInvoice = async () => {
         : [];
     const first = src[0] || {};
     const act = (actsList || []).find(
-      (a) => String(a._id) === String(first.actId)
+      (a) => String(a._id) === String(first.actId),
     );
     let options = [];
     const fromAct = act?.performanceOptions || act?.eveningSetOptions || [];
@@ -1516,76 +1536,91 @@ const handleOpenBalanceInvoice = async () => {
     const changingRoomBlocksComplete = crRequiredByLineup && crAnswerNo;
 
     // derive event type safely (covers multiple shapes)
-const eventTypeRaw =
-  String(
-    answers.event_type ||
-      booking?.eventType ||
-      booking?.event_type ||
-      ""
-  ).toLowerCase();
+    const eventTypeRaw = String(
+      answers.event_type || booking?.eventType || booking?.event_type || "",
+    ).toLowerCase();
 
-const isWedding  = /wedding/.test(eventTypeRaw);
-const isBirthday = /birthday/.test(eventTypeRaw);
+    const isWedding = /wedding/.test(eventTypeRaw);
+    const isBirthday = /birthday/.test(eventTypeRaw);
 
-// Build the people section based on event type
-const peopleSection = isWedding
-  ? {
-      id: "client_names",
-      title: "Couple's Names",
-      help: "Could you kindly confirm your and your partner's name?",
-      fields: [
-        { key: "partner1_first", label: "First name", type: "text" },
-        { key: "partner1_last",  label: "Last name",  type: "text" },
-        { key: "partner2_first", label: "First name", type: "text" },
-        { key: "partner2_last",  label: "Last name",  type: "text" },
-        {
-          key: "introduced_as",
-          label: "How would you like to be introduced to the dancefloor?",
-          type: "text",
-          placeholder: "e.g. Mr & Mrs Smith",
-        },
-      ],
-    }
-  : isBirthday
-  ? {
-      id: "birthday_details",
-      title: "Birthday Details",
-      help:
-        "Please confirm who made the booking and the birthday person’s details.",
-      fields: [
-        { key: "booker_first",   label: "Booker's first name", type: "text" },
-        { key: "booker_last",    label: "Booker's last name",  type: "text" },
-        { key: "honouree_first", label: "Birthday person's first name", type: "text" },
-        { key: "honouree_last",  label: "Birthday person's last name",  type: "text" },
-        { key: "honouree_age",   label: "Age (on the day)", type: "number", placeholder: "e.g. 30" },
-        {
-          key: "introduced_as",
-          label: "Any special announcement wording?",
-          type: "text",
-          placeholder: 'e.g. "Happy 30th, Jamie!"',
-        },
-      ],
-    }
-  : {
-      id: "booker_details",
-      title: "Booker Details",
-      help: "Who is our main point of contact for this booking?",
-      fields: [
-        { key: "booker_first", label: "First name", type: "text" },
-        { key: "booker_last",  label: "Last name",  type: "text" },
-        { key: "booker_company", label: "Company (optional)", type: "text" },
-        {
-          key: "introduced_as",
-          label: "Announcement wording (optional)",
-          type: "text",
-          placeholder: "e.g. Awards host to announce...",
-        },
-      ],
-    };
-
+    // Build the people section based on event type
+    const peopleSection = isWedding
+      ? {
+          id: "client_names",
+          title: "Couple's Names",
+          help: "Could you kindly confirm your and your partner's name?",
+          fields: [
+            { key: "partner1_first", label: "First name", type: "text" },
+            { key: "partner1_last", label: "Last name", type: "text" },
+            { key: "partner2_first", label: "First name", type: "text" },
+            { key: "partner2_last", label: "Last name", type: "text" },
+            {
+              key: "introduced_as",
+              label: "How would you like to be introduced to the dancefloor?",
+              type: "text",
+              placeholder: "e.g. Mr & Mrs Smith",
+            },
+          ],
+        }
+      : isBirthday
+        ? {
+            id: "birthday_details",
+            title: "Birthday Details",
+            help: "Please confirm who made the booking and the birthday person’s details.",
+            fields: [
+              {
+                key: "booker_first",
+                label: "Booker's first name",
+                type: "text",
+              },
+              { key: "booker_last", label: "Booker's last name", type: "text" },
+              {
+                key: "honouree_first",
+                label: "Birthday person's first name",
+                type: "text",
+              },
+              {
+                key: "honouree_last",
+                label: "Birthday person's last name",
+                type: "text",
+              },
+              {
+                key: "honouree_age",
+                label: "Age (on the day)",
+                type: "number",
+                placeholder: "e.g. 30",
+              },
+              {
+                key: "introduced_as",
+                label: "Any special announcement wording?",
+                type: "text",
+                placeholder: 'e.g. "Happy 30th, Jamie!"',
+              },
+            ],
+          }
+        : {
+            id: "booker_details",
+            title: "Booker Details",
+            help: "Who is our main point of contact for this booking?",
+            fields: [
+              { key: "booker_first", label: "First name", type: "text" },
+              { key: "booker_last", label: "Last name", type: "text" },
+              {
+                key: "booker_company",
+                label: "Company (optional)",
+                type: "text",
+              },
+              {
+                key: "introduced_as",
+                label: "Announcement wording (optional)",
+                type: "text",
+                placeholder: "e.g. Awards host to announce...",
+              },
+            ],
+          };
 
     return [
-     peopleSection,
+      peopleSection,
       {
         id: "attire",
         title: "Attire",
@@ -1684,530 +1719,557 @@ const peopleSection = isWedding
           },
         ],
       },
-{
-  id: "parking",
-  title: "Parking",
-  help: (
-    <>
-      Parking is required for all band vehicles. If you need the band’s car
-      registrations, tick the box below and we’ll email them to you.
-    </>
-  ),
-  fields: [
-    {
-      key: "parking_available",
-      label: "Is parking available on site for the band?",
-      type: "select",
-      options: ["Yes", "For some", "No"],
-    },
-
-    {
-      key: "parking_conditional",
-      type: "custom",
-      render: () => {
-        const availability = String(
-          answers.parking_available || ""
-        ).toLowerCase();
-
-        const isYes = availability === "yes";
-        const isForSome = availability === "for some";
-        const isNo = availability === "no";
-
-        const src = Array.isArray(booking?.actsSummary)
-          ? booking.actsSummary
-          : Array.isArray(booking?.items)
-            ? booking.items
-            : [];
-
-        const firstItem = src[0] || {};
-        const lineup =
-          resolveLineup(acts, firstItem) || firstItem.lineup || null;
-
-        const costPerCar = Number(answers.parking_cost_per_car ?? 0);
-        const totalBandCars = Number(defaultCars || answers.parking_num_cars || 0);
-        const spacesOnSite = Number(answers.parking_spaces_on_site ?? 0);
-
-        const paidParkingCars = isForSome
-          ? Math.max(
-              0,
-              totalBandCars - (Number.isFinite(spacesOnSite) ? spacesOnSite : 0)
-            )
-          : isNo
-            ? totalBandCars
-            : 0;
-
-        const totalCost =
-          Number.isFinite(costPerCar) && Number.isFinite(paidParkingCars)
-            ? Math.max(
-                0,
-                Math.round(costPerCar * paidParkingCars * 100) / 100
-              )
-            : 0;
-
-        const normalizePlate = (s = "") =>
-          String(s).replace(/\s+/g, "").toUpperCase();
-
-        const regRows = Array.isArray(lineup?.bandMembers)
-          ? lineup.bandMembers
-              .map((m) => {
-                const raw =
-                  (m.carRegistrationValue && m.carRegistrationValue.trim()) ||
-                  (m.carRegistration && m.carRegistration.trim()) ||
-                  "";
-
-                const plate = normalizePlate(raw);
-                if (!plate) return null;
-
-                const name =
-                  [m.firstName, m.lastName].filter(Boolean).join(" ").trim() ||
-                  "Band member";
-
-                return {
-                  name,
-                  instrument: m.instrument || "",
-                  plate,
-                };
-              })
-              .filter(Boolean)
-          : [];
-
-        const ParkingPaymentBlock = () => {
-          const totalPence = Math.round(totalCost * 100);
-
-          return (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
-              <div className="md:col-span-2 flex flex-col">
-                <label className="text-sm text-gray-700 mb-1">
-                  Parking payment
-                </label>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleGenerateParkingInvoice({
-                        amountPence: totalPence,
-                      })
-                    }
-                    className="px-3 py-1.5 rounded bg-[#ff6667] text-white hover:opacity-90"
-                    disabled={!totalPence}
-                    title={
-                      !totalPence
-                        ? "Enter cost per paid parking space first"
-                        : "Open Stripe Checkout"
-                    }
-                  >
-                    Generate invoice
-                  </button>
-
-                  <div className="text-sm text-gray-700">
-                    Amount:&nbsp;
-                    <strong>£{totalCost.toFixed(2)}</strong>
-                    &nbsp;for {paidParkingCars} car
-                    {paidParkingCars === 1 ? "" : "s"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-sm text-gray-700 mb-1">Status</label>
-                <div className="text-sm flex items-center gap-1">
-                  {(() => {
-                    const raw = answers?.parking_checkout_status;
-                    const label = typeof raw === "string" ? raw.trim() : "";
-                    const isPaid = /^paid$/i.test(label);
-
-                    if (isPaid) {
-                      return (
-                        <>
-                          Paid
-                          <img
-                            src={assets.tick}
-                            alt="paid"
-                            className="inline w-4 h-4 ml-0.5"
-                          />
-                        </>
-                      );
-                    }
-
-                    return label || "Not paid";
-                  })()}
-                </div>
-              </div>
-            </div>
-          );
-        };
-
-        const ParkingScreenshotUpload = () => (
-          <div className="flex flex-col">
-            <label className="text-sm text-gray-700 mb-1">
-              Upload a screenshot of the parking options as displayed on
-              Parkopedia (or similar):
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              className="text-sm"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-
-                handleAnswer("parking_screenshot_name", file.name);
-
-                const reader = new FileReader();
-                reader.onload = () => {
-                  handleAnswer("parking_screenshot_url", reader.result);
-                };
-                reader.readAsDataURL(file);
-              }}
-            />
-
-            {answers.parking_screenshot_url && (
-              <div className="mt-2 rounded border bg-gray-50 p-2">
-                <div className="text-xs font-semibold text-gray-700 mb-1">
-                  Parking screenshot for the band
-                </div>
-                <img
-                  src={answers.parking_screenshot_url}
-                  alt={answers.parking_screenshot_name || "Parking screenshot"}
-                  className="max-h-64 rounded border object-contain bg-white"
-                  style={{ maxWidth: "100%", height: "auto" }}
-                />
-              </div>
-            )}
-          </div>
-        );
-
-        return (
+      {
+        id: "parking",
+        title: "Parking",
+        help: (
           <>
-            {isYes && (
-              <div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start md:col-span-2">
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Please provide a{" "}
-                      <a
-                        href="https://what3words.com/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#ff6667] underline hover:opacity-80"
-                      >
-                        What3Words
-                      </a>{" "}
-                      pin for the parking location:
-                    </label>
-                    <input
-                      type="text"
-                      className="border rounded px-2 py-1 text-sm text-gray-800"
-                      placeholder="e.g. ///word.word.word"
-                      value={answers.parking_pin || ""}
-                      onChange={(e) =>
-                        handleAnswer("parking_pin", e.target.value)
-                      }
-                    />
-                  </div>
+            Parking is required for all band vehicles. If you need the band’s
+            car registrations, tick the box below and we’ll email them to you.
+          </>
+        ),
+        fields: [
+          {
+            key: "parking_available",
+            label: "Is parking available on site for the band?",
+            type: "select",
+            options: ["Yes", "For some", "No"],
+          },
 
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Please specify any special parking instructions:
-                    </label>
-                    <textarea
-                      className="border rounded px-2 py-1 text-sm text-gray-800 min-h-[60px]"
-                      placeholder="Gates, codes, specific bays, ID required, on the grass, etc."
-                      value={answers.parking_notes || ""}
-                      onChange={(e) =>
-                        handleAnswer("parking_notes", e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
+          {
+            key: "parking_conditional",
+            type: "custom",
+            render: () => {
+              const availability = String(
+                answers.parking_available || "",
+              ).toLowerCase();
 
-                <div className="gap-3 mt-3">
-                  <label className="text-sm text-gray-700 mb-2 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="accent-[#ff6667]"
-                      checked={!!answers.need_registrations}
-                      onChange={(e) =>
-                        handleAnswer("need_registrations", e.target.checked)
-                      }
-                    />
-                    Does your venue require the band's vehicle registration
-                    numbers?
-                  </label>
+              const isYes = availability === "yes";
+              const isForSome = availability === "for some";
+              const isNo = availability === "no";
 
-                  {answers.need_registrations && (
-                    <div className="mt-2 rounded border bg-gray-50 p-3">
-                      <div className="text-sm font-semibold mb-2">
-                        Band vehicle registrations
-                      </div>
+              const src = Array.isArray(booking?.actsSummary)
+                ? booking.actsSummary
+                : Array.isArray(booking?.items)
+                  ? booking.items
+                  : [];
 
-                      {regRows.length > 0 ? (
-                        <ul className="text-sm text-gray-800 space-y-1">
-                          {regRows.map((r, i) => (
-                            <li
-                              key={`${r.plate}-${i}`}
-                              className="flex justify-between gap-3"
-                            >
-                              <span className="truncate">
-                                {r.name}
-                                {r.instrument ? ` — ${r.instrument}` : ""}
-                              </span>
-                              <span className="font-mono">
-                                {r.plate === "NO_CAR"
-                                  ? "No vehicle"
-                                  : r.plate}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="text-sm text-gray-600">
-                          We don’t have registration plates on file for this
-                          lineup yet. We’ll email them to you shortly.
+              const firstItem = src[0] || {};
+              const lineup =
+                resolveLineup(acts, firstItem) || firstItem.lineup || null;
+
+              const costPerCar = Number(answers.parking_cost_per_car ?? 0);
+              const totalBandCars = Number(
+                defaultCars || answers.parking_num_cars || 0,
+              );
+              const spacesOnSite = Number(answers.parking_spaces_on_site ?? 0);
+
+              const paidParkingCars = isForSome
+                ? Math.max(
+                    0,
+                    totalBandCars -
+                      (Number.isFinite(spacesOnSite) ? spacesOnSite : 0),
+                  )
+                : isNo
+                  ? totalBandCars
+                  : 0;
+
+              const totalCost =
+                Number.isFinite(costPerCar) && Number.isFinite(paidParkingCars)
+                  ? Math.max(
+                      0,
+                      Math.round(costPerCar * paidParkingCars * 100) / 100,
+                    )
+                  : 0;
+
+              const normalizePlate = (s = "") =>
+                String(s).replace(/\s+/g, "").toUpperCase();
+
+              const regRows = Array.isArray(lineup?.bandMembers)
+                ? lineup.bandMembers
+                    .map((m) => {
+                      const raw =
+                        (m.carRegistrationValue &&
+                          m.carRegistrationValue.trim()) ||
+                        (m.carRegistration && m.carRegistration.trim()) ||
+                        "";
+
+                      const plate = normalizePlate(raw);
+                      if (!plate) return null;
+
+                      const name =
+                        [m.firstName, m.lastName]
+                          .filter(Boolean)
+                          .join(" ")
+                          .trim() || "Band member";
+
+                      return {
+                        name,
+                        instrument: m.instrument || "",
+                        plate,
+                      };
+                    })
+                    .filter(Boolean)
+                : [];
+
+              const ParkingPaymentBlock = () => {
+                const totalPence = Math.round(totalCost * 100);
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                    <div className="md:col-span-2 flex flex-col">
+                      <label className="text-sm text-gray-700 mb-1">
+                        Parking payment
+                      </label>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleGenerateParkingInvoice({
+                              amountPence: totalPence,
+                            })
+                          }
+                          className="px-3 py-1.5 rounded bg-[#ff6667] text-white hover:opacity-90"
+                          disabled={!totalPence}
+                          title={
+                            !totalPence
+                              ? "Enter cost per paid parking space first"
+                              : "Open Stripe Checkout"
+                          }
+                        >
+                          Generate invoice
+                        </button>
+
+                        <div className="text-sm text-gray-700">
+                          Amount:&nbsp;
+                          <strong>£{totalCost.toFixed(2)}</strong>
+                          &nbsp;for {paidParkingCars} car
+                          {paidParkingCars === 1 ? "" : "s"}
                         </div>
-                      )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col">
+                      <label className="text-sm text-gray-700 mb-1">
+                        Status
+                      </label>
+                      <div className="text-sm flex items-center gap-1">
+                        {(() => {
+                          const raw = answers?.parking_checkout_status;
+                          const label =
+                            typeof raw === "string" ? raw.trim() : "";
+                          const isPaid = /^paid$/i.test(label);
+
+                          if (isPaid) {
+                            return (
+                              <>
+                                Paid
+                                <img
+                                  src={assets.tick}
+                                  alt="paid"
+                                  className="inline w-4 h-4 ml-0.5"
+                                />
+                              </>
+                            );
+                          }
+
+                          return label || "Not paid";
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                );
+              };
+
+              const ParkingScreenshotUpload = () => (
+                <div className="flex flex-col">
+                  <label className="text-sm text-gray-700 mb-1">
+                    Upload a screenshot of the parking options as displayed on
+                    Parkopedia (or similar):
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="text-sm"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      handleAnswer("parking_screenshot_name", file.name);
+
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        handleAnswer("parking_screenshot_url", reader.result);
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+
+                  {answers.parking_screenshot_url && (
+                    <div className="mt-2 rounded border bg-gray-50 p-2">
+                      <div className="text-xs font-semibold text-gray-700 mb-1">
+                        Parking screenshot for the band
+                      </div>
+                      <img
+                        src={answers.parking_screenshot_url}
+                        alt={
+                          answers.parking_screenshot_name ||
+                          "Parking screenshot"
+                        }
+                        className="max-h-64 rounded border object-contain bg-white"
+                        style={{ maxWidth: "100%", height: "auto" }}
+                      />
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              );
 
-            {isForSome && (
-              <div className="space-y-4 md:col-span-2">
-                <div className="text-sm text-gray-700">
-                  Please confirm how many band vehicles can park on site. Any
-                  remaining vehicles will need nearby paid parking.
-                </div>
+              return (
+                <>
+                  {isYes && (
+                    <div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start md:col-span-2">
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Please provide a{" "}
+                            <a
+                              href="https://what3words.com/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#ff6667] underline hover:opacity-80"
+                            >
+                              What3Words
+                            </a>{" "}
+                            pin for the parking location:
+                          </label>
+                          <input
+                            type="text"
+                            className="border rounded px-2 py-1 text-sm text-gray-800"
+                            placeholder="e.g. ///word.word.word"
+                            value={answers.parking_pin || ""}
+                            onChange={(e) =>
+                              handleAnswer("parking_pin", e.target.value)
+                            }
+                          />
+                        </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Total band vehicles
-                    </label>
-                    <input
-                      type="number"
-                      className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
-                      value={totalBandCars || 0}
-                      readOnly
-                      disabled
-                    />
-                  </div>
-
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Spaces available on site
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max={totalBandCars || undefined}
-                      className="border rounded px-2 py-1 text-sm text-gray-800"
-                      value={answers.parking_spaces_on_site ?? ""}
-                      onChange={(e) =>
-                        handleAnswer("parking_spaces_on_site", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Vehicles needing paid parking
-                    </label>
-                    <input
-                      type="number"
-                      className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
-                      value={paidParkingCars || 0}
-                      readOnly
-                      disabled
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Please provide a{" "}
-                      <a
-                        href="https://what3words.com/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#ff6667] underline hover:opacity-80"
-                      >
-                        What3Words
-                      </a>{" "}
-                      pin for the on-site parking location:
-                    </label>
-                    <input
-                      type="text"
-                      className="border rounded px-2 py-1 text-sm text-gray-800"
-                      placeholder="e.g. ///word.word.word"
-                      value={answers.parking_pin || ""}
-                      onChange={(e) =>
-                        handleAnswer("parking_pin", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Please specify any special parking instructions:
-                    </label>
-                    <textarea
-                      className="border rounded px-2 py-1 text-sm text-gray-800 min-h-[60px]"
-                      placeholder="Which vehicles can park on site, gates, codes, specific bays, ID required, etc."
-                      value={answers.parking_notes || ""}
-                      onChange={(e) =>
-                        handleAnswer("parking_notes", e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-
-                {paidParkingCars > 0 && (
-                  <>
-                    <div className="text-sm text-gray-700">
-                      Please find nearby parking for the remaining vehicles
-                      using{" "}
-                      <a
-                        href="https://www.parkopedia.com/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#ff6667] underline hover:opacity-80"
-                      >
-                        Parkopedia
-                      </a>
-                      . Enter the event location and set the arrival time to{" "}
-                      <strong>30 minutes prior to band arrival</strong> and the
-                      finish time to{" "}
-                      <strong>1 hour after the band’s contracted finish</strong>.
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
-                      <div className="flex flex-col">
-                        <label className="text-sm text-gray-700 mb-1">
-                          Cost per paid parking space (£)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="border rounded px-2 py-1 text-sm text-gray-800"
-                          value={answers.parking_cost_per_car ?? ""}
-                          onChange={(e) =>
-                            handleAnswer(
-                              "parking_cost_per_car",
-                              e.target.value
-                            )
-                          }
-                        />
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Please specify any special parking instructions:
+                          </label>
+                          <textarea
+                            className="border rounded px-2 py-1 text-sm text-gray-800 min-h-[60px]"
+                            placeholder="Gates, codes, specific bays, ID required, on the grass, etc."
+                            value={answers.parking_notes || ""}
+                            onChange={(e) =>
+                              handleAnswer("parking_notes", e.target.value)
+                            }
+                          />
+                        </div>
                       </div>
 
-                      <div className="flex flex-col">
-                        <label className="text-sm text-gray-700 mb-1">
-                          Paid parking spaces required
+                      <div className="gap-3 mt-3">
+                        <label className="text-sm text-gray-700 mb-2 flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="accent-[#ff6667]"
+                            checked={!!answers.need_registrations}
+                            onChange={(e) =>
+                              handleAnswer(
+                                "need_registrations",
+                                e.target.checked,
+                              )
+                            }
+                          />
+                          Does your venue require the band's vehicle
+                          registration numbers?
                         </label>
-                        <input
-                          type="number"
-                          className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
-                          value={paidParkingCars || 0}
-                          readOnly
-                          disabled
-                        />
-                      </div>
 
-                      <div className="flex flex-col">
-                        <label className="text-sm text-gray-700 mb-1">
-                          Total cost (£)
-                        </label>
-                        <input
-                          type="text"
-                          className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
-                          value={totalCost.toFixed(2)}
-                          readOnly
-                        />
+                        {answers.need_registrations && (
+                          <div className="mt-2 rounded border bg-gray-50 p-3">
+                            <div className="text-sm font-semibold mb-2">
+                              Band vehicle registrations
+                            </div>
+
+                            {regRows.length > 0 ? (
+                              <ul className="text-sm text-gray-800 space-y-1">
+                                {regRows.map((r, i) => (
+                                  <li
+                                    key={`${r.plate}-${i}`}
+                                    className="flex justify-between gap-3"
+                                  >
+                                    <span className="truncate">
+                                      {r.name}
+                                      {r.instrument ? ` — ${r.instrument}` : ""}
+                                    </span>
+                                    <span className="font-mono">
+                                      {r.plate === "NO_CAR"
+                                        ? "No vehicle"
+                                        : r.plate}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="text-sm text-gray-600">
+                                We don’t have registration plates on file for
+                                this lineup yet. We’ll email them to you
+                                shortly.
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
+                  )}
 
-                    <ParkingScreenshotUpload />
-                    <ParkingPaymentBlock />
-                  </>
-                )}
-              </div>
-            )}
+                  {isForSome && (
+                    <div className="space-y-4 md:col-span-2">
+                      <div className="text-sm text-gray-700">
+                        Please confirm how many band vehicles can park on site.
+                        Any remaining vehicles will need nearby paid parking.
+                      </div>
 
-            {isNo && (
-              <div className="space-y-4 md:col-span-2">
-                <div className="text-sm text-gray-700">
-                  Please find nearby parking for the band using{" "}
-                  <a
-                    href="https://www.parkopedia.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#ff6667] underline hover:opacity-80"
-                  >
-                    Parkopedia
-                  </a>
-                  . Enter the event location and set the arrival time to{" "}
-                  <strong>30 minutes prior to band arrival</strong> and the
-                  finish time to{" "}
-                  <strong>1 hour after the band’s contracted finish</strong>.
-                  Then complete the details below.
-                </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Total band vehicles
+                          </label>
+                          <input
+                            type="number"
+                            className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                            value={totalBandCars || 0}
+                            readOnly
+                            disabled
+                          />
+                        </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Cost per car (£)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="border rounded px-2 py-1 text-sm text-gray-800"
-                      value={answers.parking_cost_per_car ?? ""}
-                      onChange={(e) =>
-                        handleAnswer("parking_cost_per_car", e.target.value)
-                      }
-                    />
-                  </div>
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Spaces available on site
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={totalBandCars || undefined}
+                            className="border rounded px-2 py-1 text-sm text-gray-800"
+                            value={answers.parking_spaces_on_site ?? ""}
+                            onChange={(e) =>
+                              handleAnswer(
+                                "parking_spaces_on_site",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
 
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Vehicles needing paid parking
-                    </label>
-                    <input
-                      type="number"
-                      className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
-                      value={paidParkingCars || 0}
-                      readOnly
-                      disabled
-                    />
-                  </div>
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Vehicles needing paid parking
+                          </label>
+                          <input
+                            type="number"
+                            className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                            value={paidParkingCars || 0}
+                            readOnly
+                            disabled
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex flex-col">
-                    <label className="text-sm text-gray-700 mb-1">
-                      Total cost (£)
-                    </label>
-                    <input
-                      type="text"
-                      className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
-                      value={totalCost.toFixed(2)}
-                      readOnly
-                    />
-                  </div>
-                </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Please provide a{" "}
+                            <a
+                              href="https://what3words.com/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#ff6667] underline hover:opacity-80"
+                            >
+                              What3Words
+                            </a>{" "}
+                            pin for the on-site parking location:
+                          </label>
+                          <input
+                            type="text"
+                            className="border rounded px-2 py-1 text-sm text-gray-800"
+                            placeholder="e.g. ///word.word.word"
+                            value={answers.parking_pin || ""}
+                            onChange={(e) =>
+                              handleAnswer("parking_pin", e.target.value)
+                            }
+                          />
+                        </div>
 
-                <ParkingScreenshotUpload />
-                <ParkingPaymentBlock />
-              </div>
-            )}
-          </>
-        );
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Please specify any special parking instructions:
+                          </label>
+                          <textarea
+                            className="border rounded px-2 py-1 text-sm text-gray-800 min-h-[60px]"
+                            placeholder="Which vehicles can park on site, gates, codes, specific bays, ID required, etc."
+                            value={answers.parking_notes || ""}
+                            onChange={(e) =>
+                              handleAnswer("parking_notes", e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {paidParkingCars > 0 && (
+                        <>
+                          <div className="text-sm text-gray-700">
+                            Please find nearby parking for the remaining
+                            vehicles using{" "}
+                            <a
+                              href="https://www.parkopedia.com/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#ff6667] underline hover:opacity-80"
+                            >
+                              Parkopedia
+                            </a>
+                            . Enter the event location and set the arrival time
+                            to <strong>30 minutes prior to band arrival</strong>{" "}
+                            and the finish time to{" "}
+                            <strong>
+                              1 hour after the band’s contracted finish
+                            </strong>
+                            .
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                            <div className="flex flex-col">
+                              <label className="text-sm text-gray-700 mb-1">
+                                Cost per paid parking space (£)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                className="border rounded px-2 py-1 text-sm text-gray-800"
+                                value={answers.parking_cost_per_car ?? ""}
+                                onChange={(e) =>
+                                  handleAnswer(
+                                    "parking_cost_per_car",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </div>
+
+                            <div className="flex flex-col">
+                              <label className="text-sm text-gray-700 mb-1">
+                                Paid parking spaces required
+                              </label>
+                              <input
+                                type="number"
+                                className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                                value={paidParkingCars || 0}
+                                readOnly
+                                disabled
+                              />
+                            </div>
+
+                            <div className="flex flex-col">
+                              <label className="text-sm text-gray-700 mb-1">
+                                Total cost (£)
+                              </label>
+                              <input
+                                type="text"
+                                className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                                value={totalCost.toFixed(2)}
+                                readOnly
+                              />
+                            </div>
+                          </div>
+
+                          <ParkingScreenshotUpload />
+                          <ParkingPaymentBlock />
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {isNo && (
+                    <div className="space-y-4 md:col-span-2">
+                      <div className="text-sm text-gray-700">
+                        Please find nearby parking for the band using{" "}
+                        <a
+                          href="https://www.parkopedia.com/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#ff6667] underline hover:opacity-80"
+                        >
+                          Parkopedia
+                        </a>
+                        . Enter the event location and set the arrival time to{" "}
+                        <strong>30 minutes prior to band arrival</strong> and
+                        the finish time to{" "}
+                        <strong>
+                          1 hour after the band’s contracted finish
+                        </strong>
+                        . Then complete the details below.
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Cost per car (£)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="border rounded px-2 py-1 text-sm text-gray-800"
+                            value={answers.parking_cost_per_car ?? ""}
+                            onChange={(e) =>
+                              handleAnswer(
+                                "parking_cost_per_car",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Vehicles needing paid parking
+                          </label>
+                          <input
+                            type="number"
+                            className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                            value={paidParkingCars || 0}
+                            readOnly
+                            disabled
+                          />
+                        </div>
+
+                        <div className="flex flex-col">
+                          <label className="text-sm text-gray-700 mb-1">
+                            Total cost (£)
+                          </label>
+                          <input
+                            type="text"
+                            className="border rounded px-2 py-1 text-sm text-gray-800 bg-gray-50"
+                            value={totalCost.toFixed(2)}
+                            readOnly
+                          />
+                        </div>
+                      </div>
+
+                      <ParkingScreenshotUpload />
+                      <ParkingPaymentBlock />
+                    </div>
+                  )}
+                </>
+              );
+            },
+          },
+        ],
       },
-    },
-  ],
-},
       {
         id: "room_area",
         title: "Room & Area",
@@ -2364,7 +2426,7 @@ const peopleSection = isWedding
                         onChange={(e) =>
                           handleAnswer(
                             "lights_engineer_present",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       >
@@ -2424,7 +2486,7 @@ const peopleSection = isWedding
 
               const isTrafficLight =
                 String(
-                  answers.sound_limits_is_traffic_light || ""
+                  answers.sound_limits_is_traffic_light || "",
                 ).toLowerCase() === "yes";
 
               return (
@@ -2440,7 +2502,7 @@ const peopleSection = isWedding
                       onChange={(e) =>
                         handleAnswer(
                           "sound_limits_is_traffic_light",
-                          e.target.value
+                          e.target.value,
                         )
                       }
                     >
@@ -2507,7 +2569,7 @@ const peopleSection = isWedding
                               headers: {
                                 "Content-Type": "multipart/form-data",
                               },
-                            }
+                            },
                           );
 
                           const url = res?.data?.url;
@@ -2550,23 +2612,23 @@ const peopleSection = isWedding
                         try {
                           await axios.post(
                             `${backendUrl}/api/notifications/doc-signing-request`,
-                            body
+                            body,
                           );
                           alert(
-                            "We’ve emailed the team (and your venue if provided) to arrange signatures. ✅"
+                            "We’ve emailed the team (and your venue if provided) to arrange signatures. ✅",
                           );
                           handleAnswer(
                             "sound_limits_doc_needs_signing_request_at",
-                            new Date().toISOString()
+                            new Date().toISOString(),
                           );
                         } catch (err) {
                           console.warn("Doc notify failed", err);
                           alert(
-                            "Couldn’t auto-notify just now. We’ve flagged this in your sheet."
+                            "Couldn’t auto-notify just now. We’ve flagged this in your sheet.",
                           );
                           handleAnswer(
                             "sound_limits_doc_needs_signing_request_at",
-                            new Date().toISOString()
+                            new Date().toISOString(),
                           );
                         }
                       }}
@@ -2592,7 +2654,7 @@ const peopleSection = isWedding
                         onChange={(e) =>
                           handleAnswer(
                             "sound_limits_doc_venue_email",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -2769,7 +2831,7 @@ const peopleSection = isWedding
                       {renderContactRows(
                         personal,
                         updatePersonal,
-                        "poc-personal"
+                        "poc-personal",
                       )}
                       <button
                         type="button"
@@ -3095,14 +3157,14 @@ const peopleSection = isWedding
                     {(() => {
                       const dietaryRows = extractDietaryRequirements(
                         acts,
-                        booking
+                        booking,
                       );
                       const hasCaterer = !!(answers.caterer_email || "").trim();
 
                       // Reuse the hints you already show in the copy
                       const fastTrackHint =
                         String(
-                          answers.meal_fasttrack_ok || ""
+                          answers.meal_fasttrack_ok || "",
                         ).toLowerCase() === "yes"
                           ? "The band may need to be fast-tracked during a short performance break."
                           : "The band may need to be fast-tracked during a short performance break.";
@@ -3129,10 +3191,10 @@ const peopleSection = isWedding
                                 notes: answers.dietary_notes || "",
                               },
                               dietarySummary: dietaryRows, // helpful context for the band
-                            }
+                            },
                           );
                           alert(
-                            "Menu sent to the band (caterer cc’d if provided) ✅"
+                            "Menu sent to the band (caterer cc’d if provided) ✅",
                           );
                         } catch (e) {
                           console.error("menu-to-band failed:", e);
@@ -3161,7 +3223,7 @@ const peopleSection = isWedding
                                 text: answers.dietary_menu_text || "",
                                 fileUrl: answers.dietary_menu_file || "",
                               },
-                            }
+                            },
                           );
                           alert("Dietary requirements sent to the caterer ✅");
                         } catch (e) {
@@ -3236,108 +3298,111 @@ const peopleSection = isWedding
           },
         ],
       },
- {
-  id: "schedule",
-  title: "Schedule",
-  help:
-    "We’ve pulled any arrival/start/finish times from the booking. Add exact set times (and other key moments) below.",
-  fields: [
-    {
-      key: "schedule_simple",
-      type: "custom",
-      render: () => (
-        <SimpleScheduleEditor
-          booking={booking}
-          answers={answers}
-          handleAnswer={handleAnswer}
-          readOnly={READ_ONLY}
-          getPerformanceTimesFromBooking={getPerformanceTimesFromBooking}
-        />
-      ),
-    },
-  ],
-},
-    {
-  id: "first_dance",
-  title: isWedding
-    ? "First Dance & Song List"
-    : "Off-Repertoire Request & Song List",
-  fields: [
-    {
-      key: "first_dance_song",
-      label: isWedding
-        ? "First dance song"
-        : "Off-repertoire request (song & artist)",
-      type: "text",
-    },
-    {
-      key: "first_dance_performed_by",
-      label: isWedding
-        ? "Band to perform or original on MP3?"
-        : "Play live or use original MP3?",
-      type: "select",
-      options: ["Band", "MP3"],
-    },
-    {
-      key: "song_suggestions",
-      type: "custom",
-      render: () => {
-        // Derive a link to the first act's public profile using the SEO slug.
-        // Do not fall back to actId here because /act/:key expects the public slug.
-        const first =
-          (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]) ||
-          null;
-
-        const actSlug =
-          first?.actSlug ||
-          first?.slug ||
-          first?.act?.slug ||
-          first?.act?.actSlug ||
-          first?.act?.seoSlug ||
-          first?.seoSlug ||
-          "";
-
-        const profileUrl = actSlug ? `/act/${actSlug}` : null;
-
-        return (
-          <div>
-            <label className="text-sm text-gray-700 mb-1 block">
-              Song suggestions
-            </label>
-
-            <p className="text-sm text-gray-600 mb-2">
-              The band typically performs <strong>around 28–32 songs</strong> across a
-              2-hour evening set. Feel free to list as few or as many favourites
-              as you like from the{" "}
-              {profileUrl ? (
-                <a
-                  href={profileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[#ff6667] underline hover:opacity-80"
-                >
-                  band’s repertoire
-                </a>
-              ) : (
-                <>band’s repertoire</>
-              )}
-              . The final setlist is curated by the band so the night flows —
-              they’ll accommodate as many requests as possible and may make
-              on-the-night tweaks to keep the dancefloor buzzing.
-            </p>
-
-            <textarea
-              className="border rounded px-2 py-1 text-sm text-gray-800 w-full min-h-[100px]"
-              placeholder="One per line"
-              value={answers.song_suggestions || ""}
-              onChange={(e) => handleAnswer("song_suggestions", e.target.value)}
-            />
-          </div>
-        );
+      {
+        id: "schedule",
+        title: "Schedule",
+        help: "We’ve pulled any arrival/start/finish times from the booking. Add exact set times (and other key moments) below.",
+        fields: [
+          {
+            key: "schedule_simple",
+            type: "custom",
+            render: () => (
+              <SimpleScheduleEditor
+                booking={booking}
+                answers={answers}
+                handleAnswer={handleAnswer}
+                readOnly={READ_ONLY}
+                getPerformanceTimesFromBooking={getPerformanceTimesFromBooking}
+              />
+            ),
+          },
+        ],
       },
-    },
-  ],
-},
+      {
+        id: "first_dance",
+        title: isWedding
+          ? "First Dance & Song List"
+          : "Off-Repertoire Request & Song List",
+        fields: [
+          {
+            key: "first_dance_song",
+            label: isWedding
+              ? "First dance song"
+              : "Off-repertoire request (song & artist)",
+            type: "text",
+          },
+          {
+            key: "first_dance_performed_by",
+            label: isWedding
+              ? "Band to perform or original on MP3?"
+              : "Play live or use original MP3?",
+            type: "select",
+            options: ["Band", "MP3"],
+          },
+          {
+            key: "song_suggestions",
+            type: "custom",
+            render: () => {
+              // Derive a link to the first act's public profile using the SEO slug.
+              // Do not fall back to actId here because /act/:key expects the public slug.
+              const first =
+                (Array.isArray(booking?.actsSummary) &&
+                  booking.actsSummary[0]) ||
+                null;
+
+              const actSlug =
+                first?.actSlug ||
+                first?.slug ||
+                first?.act?.slug ||
+                first?.act?.actSlug ||
+                first?.act?.seoSlug ||
+                first?.seoSlug ||
+                "";
+
+              const profileUrl = actSlug ? `/act/${actSlug}` : null;
+
+              return (
+                <div>
+                  <label className="text-sm text-gray-700 mb-1 block">
+                    Song suggestions
+                  </label>
+
+                  <p className="text-sm text-gray-600 mb-2">
+                    The band typically performs{" "}
+                    <strong>around 28–32 songs</strong> across a 2-hour evening
+                    set. Feel free to list as few or as many favourites as you
+                    like from the{" "}
+                    {profileUrl ? (
+                      <a
+                        href={profileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#ff6667] underline hover:opacity-80"
+                      >
+                        band’s repertoire
+                      </a>
+                    ) : (
+                      <>band’s repertoire</>
+                    )}
+                    . The final setlist is curated by the band so the night
+                    flows — they’ll accommodate as many requests as possible and
+                    may make on-the-night tweaks to keep the dancefloor buzzing.
+                  </p>
+
+                  <textarea
+                    className="border rounded px-2 py-1 text-sm text-gray-800 w-full min-h-[100px]"
+                    placeholder="One per line"
+                    value={answers.song_suggestions || ""}
+                    onChange={(e) =>
+                      handleAnswer("song_suggestions", e.target.value)
+                    }
+                  />
+                </div>
+              );
+            },
+          },
+        ],
+      },
       {
         id: "socials",
         title: "Socials (optional)",
@@ -3365,7 +3430,7 @@ const peopleSection = isWedding
               // Update row
               const updateRow = (idx, field, val) => {
                 const next = handles.map((row, i) =>
-                  i === idx ? { ...row, [field]: val } : row
+                  i === idx ? { ...row, [field]: val } : row,
                 );
                 handleAnswer("social_handles", next);
               };
@@ -3375,7 +3440,7 @@ const peopleSection = isWedding
                 const next = handles.filter((_, i) => i !== idx);
                 handleAnswer(
                   "social_handles",
-                  next.length ? next : [{ handle: "", role: "" }]
+                  next.length ? next : [{ handle: "", role: "" }],
                 );
               };
 
@@ -3454,7 +3519,7 @@ const peopleSection = isWedding
   const totalSections = sections.length;
   const completedCount = useMemo(
     () => Object.values(complete).filter(Boolean).length,
-    [complete]
+    [complete],
   );
 
   const toggleComplete = (sectionId, val) => {
@@ -3490,7 +3555,7 @@ const peopleSection = isWedding
     try {
       localStorage.setItem(
         lsKey(payload.bookingId || "unknown"),
-        JSON.stringify(payload.eventSheet)
+        JSON.stringify(payload.eventSheet),
       );
     } catch (e) {
       console.warn("Local save failed:", e?.message);
@@ -3499,7 +3564,7 @@ const peopleSection = isWedding
     if (!payload._id) {
       console.warn(
         "Skipping autosave: missing Mongo _id (server requires ObjectId)",
-        { bookingRef }
+        { bookingRef },
       );
       return;
     }
@@ -3510,7 +3575,7 @@ const peopleSection = isWedding
     } catch (e) {
       console.warn(
         "Event sheet saved locally (backend route not available yet).",
-        e?.message
+        e?.message,
       );
     } finally {
       setSaving(false);
@@ -3530,379 +3595,381 @@ const peopleSection = isWedding
 
   const eventDate = booking.date ? new Date(booking.date) : null;
   const cur = currencySymbol(
-    booking?.totals?.currency || booking?.cartMeta?.currency || "GBP"
+    booking?.totals?.currency || booking?.cartMeta?.currency || "GBP",
   );
 
   return (
     <>
-<SEO
-  title="Event Sheet | The Supreme Collective"
-  description="Manage your booking details and event information."
-path={`/event-sheet/${booking?.bookingId || booking?._id}`}
-  noindex={true}
-/>
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">🎤 Event Sheet</h1>
-          <p className="text-gray-700">
-            <strong>Booking:</strong> {booking.bookingId || booking._id}
-          </p>
-          <p className="text-gray-700">
-            <strong>Act(s):</strong> {actNames || "—"}
-          </p>
-          <p className="text-gray-700">
-            <strong>Lineup:</strong> {headerLineup || "—"}
-          </p>
-          <p className="text-gray-700">
-            <strong>Venue:</strong> {venueString}
-          </p>
-          <p className="text-gray-700">
-            <strong>Date:</strong>{" "}
-            {eventDate ? eventDate.toLocaleDateString("en-GB") : "—"}
-          </p>
-          <p className="text-gray-700">
-            <strong>Event Type:</strong> {booking.eventType || "—"}
-          </p>
-        </div>
-
-        <div className="min-w-[220px]">
-          <div className="rounded border p-3 bg-white shadow-sm">
-            <div className="text-sm text-gray-600 mb-1">
-              Progress: {completedCount}/{totalSections} sections
-            </div>
-            <div className="w-full h-2 bg-gray-200 rounded">
-              <div
-                className="h-2 bg-[#ff6667] rounded"
-                style={{
-                  width: `${Math.round((completedCount / totalSections) * 100)}%`,
-                  transition: "width 200ms ease",
-                }}
-              />
-            </div>
-            <div className="flex gap-2 mt-3">
-              <button
-                onClick={() => persist(false)}
-                disabled={saving}
-                className="px-3 py-1.5 text-sm rounded bg-black text-white hover:bg-[#ff6667]"
-              >
-                {saving ? "Saving…" : "Save Draft"}
-              </button>
-              <button
-                onClick={notifyBand}
-                disabled={notifying || completedCount !== totalSections}
-                className={`px-3 py-1.5 text-sm rounded ${
-                  completedCount === totalSections
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
-                }`}
-                title={
-                  completedCount === totalSections
-                    ? "Notify the band"
-                    : "Mark all sections complete to notify the band"
-                }
-              >
-                {notifying ? "Notifying…" : "Notify Band"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Booking Details */}
-      <div className="mt-6 bg-white rounded border p-4 shadow-sm">
-        <h2 className="text-lg font-semibold mb-3">Booking Details</h2>
-
-        {!booking?.actsSummary || booking.actsSummary.length === 0 ? (
-          <div className="text-gray-600">—</div>
-        ) : (
-          <div className="space-y-4">
-            {booking.actsSummary.map((it, i) => (
-              <div key={i} className="flex gap-3 items-start">
-                {it.image?.url ? (
-                  <img
-                    src={it.image.url}
-                    alt={it.actName}
-                    className="w-20 h-20 object-cover rounded"
-                    onError={(e) => (e.currentTarget.style.display = "none")}
-                  />
-                ) : null}
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="font-semibold text-gray-900">
-                      {it.actName}
-                    </span>
-                    {it.lineupLabel && (
-                      <span className="text-sm text-gray-600">
-                        — {it.lineupLabel}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Quantity */}
-                  {Number(it.quantity) > 1 && (
-                    <p className="text-sm text-gray-700 mt-1">
-                      Quantity: {Number(it.quantity)}
-                    </p>
-                  )}
-
-                  {/* Performance times */}
-                  {it.performance && (
-                    <div className="mt-1 text-sm text-gray-700">
-                      {it.performance.arrivalTime && (
-                        <p>Arrival: {it.performance.arrivalTime}</p>
-                      )}
-                      {it.performance.setupAndSoundcheckedBy && (
-                        <p>
-                          Soundcheck by: {it.performance.setupAndSoundcheckedBy}
-                        </p>
-                      )}
-                      {it.performance.startTime && (
-                        <p>Start: {it.performance.startTime}</p>
-                      )}
-                      {it.performance.finishTime && (
-                        <p>
-                          Finish: {it.performance.finishTime}
-                          {it.performance.finishDayOffset
-                            ? ` (+${it.performance.finishDayOffset}d)`
-                            : ""}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Afternoon sets */}
-                  {Array.isArray(it.afternoonSets) &&
-                    it.afternoonSets.length > 0 && (
-                      <div className="mt-1">
-                        <div className="text-xs text-gray-600">
-                          Afternoon Sets:
-                        </div>
-                        <ul className="text-sm text-gray-700 list-disc ml-5">
-                          {it.afternoonSets.map((set, idx) => (
-                            <li key={idx}>
-                              {set.name || set.label || "Set"}{" "}
-                              {Number(set.price)
-                                ? `(${booking?.totals?.currency || "£"}${Number(
-                                    set.price
-                                  ).toFixed(2)})`
-                                : ""}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                  {/* Extras */}
-                  {Array.isArray(it.selectedExtras) &&
-                    it.selectedExtras.length > 0 && (
-                      <div className="mt-1">
-                        <div className="text-xs text-gray-600">Extras:</div>
-                        <ul className="text-sm text-gray-700 list-disc ml-5">
-                          {it.selectedExtras.map((ex, idx) => (
-                            <li
-                              key={idx}
-                              className="flex justify-between gap-3"
-                            >
-                              <span>
-                                {ex.name || ex.key}
-                                {ex.quantity && Number(ex.quantity) > 1
-                                  ? ` × ${ex.quantity}`
-                                  : ""}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                </div>
-              </div>
-            ))}
-
-                  <hr className="my-2" />
-
-        {/* Booking-level totals */}
-        <div className="text-sm space-y-1">
-          <div className="flex justify-between">
-            <span>Original booking total</span>
-            <span>
-              {currencySymbol(booking?.currency)}
-              {Number(bookingTotal || 0).toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex justify-between">
-            <span>Add-ons post booking</span>
-            <span>
-              {currencySymbol(booking?.currency)}
-              {Number(addOnsPostBooking || 0).toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex justify-between font-medium">
-            <span>Updated booking total</span>
-            <span>
-              {currencySymbol(booking?.currency)}
-              {Number(fullAmount || 0).toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex justify-between">
-            <span>Deposit paid</span>
-            <span>
-              {currencySymbol(booking?.currency)}
-              {Number(depositAmount || 0).toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex justify-between font-bold mt-4">
-            <p>Outstanding balance</p>
-            <p>
-              {currencySymbol(booking?.currency)}
-              {Number(remainingAmount || 0).toFixed(2)}
+      <SEO
+        title="Event Sheet | The Supreme Collective"
+        description="Manage your booking details and event information."
+        path={`/event-sheet/${booking?.bookingId || booking?._id}`}
+        noindex={true}
+      />
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold mb-1">🎤 Event Sheet</h1>
+            <p className="text-gray-700">
+              <strong>Booking:</strong> {booking.bookingId || booking._id}
+            </p>
+            <p className="text-gray-700">
+              <strong>Act(s):</strong> {actNames || "—"}
+            </p>
+            <p className="text-gray-700">
+              <strong>Lineup:</strong> {headerLineup || "—"}
+            </p>
+            <p className="text-gray-700">
+              <strong>Venue:</strong> {venueString}
+            </p>
+            <p className="text-gray-700">
+              <strong>Date:</strong>{" "}
+              {eventDate ? eventDate.toLocaleDateString("en-GB") : "—"}
+            </p>
+            <p className="text-gray-700">
+              <strong>Event Type:</strong> {booking.eventType || "—"}
             </p>
           </div>
-      
 
-  {/* Pay button */}
-  {!READ_ONLY && !isPaidInFull && Number(remainingAmount || 0) > 0.01 && (
-    <div className="mt-3 flex justify-end">
-      <button
-        onClick={handleOpenBalanceInvoice}
-        className="px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667] transition-colors"
-      >
-        Pay Balance
-      </button>
-    </div>
-  )}
-</div>
-          </div>
-        )}
-      </div>
-
-      {/* Sections */}
-      <div className="mt-6 space-y-6">
-        {sections.map((sec) => (
-          <div key={sec.id} className="bg-white rounded border p-4 shadow-sm">
-            {/* Header row */}
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold">{sec.title}</h3>
-                {sec.help && (
-                  <p className="text-sm text-gray-600 mt-1">{sec.help}</p>
-                )}
+          <div className="min-w-[220px]">
+            <div className="rounded border p-3 bg-white shadow-sm">
+              <div className="text-sm text-gray-600 mb-1">
+                Progress: {completedCount}/{totalSections} sections
               </div>
-
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="accent-[#ff6667]"
-                  checked={!!complete[sec.id]}
-                  disabled={!!sec.blockComplete} // disable UI if blocked
-                  onChange={(e) => {
-                    if (sec.blockComplete) return; // hard gate
-                    toggleComplete(sec.id, e.target.checked);
+              <div className="w-full h-2 bg-gray-200 rounded">
+                <div
+                  className="h-2 bg-[#ff6667] rounded"
+                  style={{
+                    width: `${Math.round((completedCount / totalSections) * 100)}%`,
+                    transition: "width 200ms ease",
                   }}
                 />
-                <span className="text-gray-700">Mark complete</span>
-              </label>
-            </div>
-
-            {/* Block reason UNDER the checkbox row, styled as an alert */}
-            {sec.blockComplete && sec.blockReason && (
-              <div
-                role="alert"
-                className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-              >
-                {sec.blockReason}
               </div>
-            )}
-
-            {/* Section fields */}
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 items-start">
-              {sec.fields.map((f) => {
-                if (f.type === "custom" && typeof f.render === "function") {
-                  return (
-                    <div key={f.key} className="md:col-span-2">
-                      {f.render()}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div key={f.key} className="flex flex-col">
-                    {f.label && (
-                      <label className="text-sm text-gray-700 mb-1">
-                        {f.label}
-                      </label>
-                    )}
-
-                    {f.type === "textarea" ? (
-                      <textarea
-                        className="border rounded px-2 py-1 text-sm text-gray-800 min-h-[88px]"
-                        placeholder={f.placeholder || ""}
-                        value={answers[f.key] || ""}
-                        onChange={(e) => handleAnswer(f.key, e.target.value)}
-                      />
-                    ) : f.type === "select" ? (
-                      <select
-                        className="border rounded px-2 py-1 text-sm text-gray-800"
-                        value={answers[f.key] || ""}
-                        onChange={(e) => handleAnswer(f.key, e.target.value)}
-                      >
-                        <option value="">Select…</option>
-                        {f.options?.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    ) : f.type === "number" ? (
-                      <input
-                        type="number"
-                        className="border rounded px-2 py-1 text-sm text-gray-800"
-                        value={answers[f.key] ?? ""}
-                        onChange={(e) => handleAnswer(f.key, e.target.value)}
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        className="border rounded px-2 py-1 text-sm text-gray-800"
-                        placeholder={f.placeholder || ""}
-                        value={answers[f.key] || ""}
-                        onChange={(e) => handleAnswer(f.key, e.target.value)}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => persist(false)}
+                  disabled={saving}
+                  className="px-3 py-1.5 text-sm rounded bg-black text-white hover:bg-[#ff6667]"
+                >
+                  {saving ? "Saving…" : "Save Draft"}
+                </button>
+                <button
+                  onClick={notifyBand}
+                  disabled={notifying || completedCount !== totalSections}
+                  className={`px-3 py-1.5 text-sm rounded ${
+                    completedCount === totalSections
+                      ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                      : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                  }`}
+                  title={
+                    completedCount === totalSections
+                      ? "Notify the band"
+                      : "Mark all sections complete to notify the band"
+                  }
+                >
+                  {notifying ? "Notifying…" : "Notify Band"}
+                </button>
+              </div>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
 
-      <div className="flex gap-3 mt-6">
-        <button
-          onClick={() => persist(false)}
-          disabled={saving}
-          className="px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667]"
-        >
-          {saving ? "Saving…" : "Save Draft"}
-        </button>
-        <button
-          onClick={notifyBand}
-          disabled={notifying || completedCount !== totalSections}
-          className={`px-4 py-2 rounded ${
-            completedCount === totalSections
-              ? "bg-emerald-600 text-white hover:bg-emerald-700"
-              : "bg-gray-300 text-gray-600 cursor-not-allowed"
-          }`}
-        >
-          {notifying ? "Notifying…" : "Notify Band"}
-        </button>
+        {/* Booking Details */}
+        <div className="mt-6 bg-white rounded border p-4 shadow-sm">
+          <h2 className="text-lg font-semibold mb-3">Booking Details</h2>
+
+          {!booking?.actsSummary || booking.actsSummary.length === 0 ? (
+            <div className="text-gray-600">—</div>
+          ) : (
+            <div className="space-y-4">
+              {booking.actsSummary.map((it, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  {it.image?.url ? (
+                    <img
+                      src={it.image.url}
+                      alt={it.actName}
+                      className="w-20 h-20 object-cover rounded"
+                      onError={(e) => (e.currentTarget.style.display = "none")}
+                    />
+                  ) : null}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="font-semibold text-gray-900">
+                        {it.actName}
+                      </span>
+                      {it.lineupLabel && (
+                        <span className="text-sm text-gray-600">
+                          — {it.lineupLabel}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Quantity */}
+                    {Number(it.quantity) > 1 && (
+                      <p className="text-sm text-gray-700 mt-1">
+                        Quantity: {Number(it.quantity)}
+                      </p>
+                    )}
+
+                    {/* Performance times */}
+                    {it.performance && (
+                      <div className="mt-1 text-sm text-gray-700">
+                        {it.performance.arrivalTime && (
+                          <p>Arrival: {it.performance.arrivalTime}</p>
+                        )}
+                        {it.performance.setupAndSoundcheckedBy && (
+                          <p>
+                            Soundcheck by:{" "}
+                            {it.performance.setupAndSoundcheckedBy}
+                          </p>
+                        )}
+                        {it.performance.startTime && (
+                          <p>Start: {it.performance.startTime}</p>
+                        )}
+                        {it.performance.finishTime && (
+                          <p>
+                            Finish: {it.performance.finishTime}
+                            {it.performance.finishDayOffset
+                              ? ` (+${it.performance.finishDayOffset}d)`
+                              : ""}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Afternoon sets */}
+                    {Array.isArray(it.afternoonSets) &&
+                      it.afternoonSets.length > 0 && (
+                        <div className="mt-1">
+                          <div className="text-xs text-gray-600">
+                            Afternoon Sets:
+                          </div>
+                          <ul className="text-sm text-gray-700 list-disc ml-5">
+                            {it.afternoonSets.map((set, idx) => (
+                              <li key={idx}>
+                                {set.name || set.label || "Set"}{" "}
+                                {Number(set.price)
+                                  ? `(${booking?.totals?.currency || "£"}${Number(
+                                      set.price,
+                                    ).toFixed(2)})`
+                                  : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                    {/* Extras */}
+                    {Array.isArray(it.selectedExtras) &&
+                      it.selectedExtras.length > 0 && (
+                        <div className="mt-1">
+                          <div className="text-xs text-gray-600">Extras:</div>
+                          <ul className="text-sm text-gray-700 list-disc ml-5">
+                            {it.selectedExtras.map((ex, idx) => (
+                              <li
+                                key={idx}
+                                className="flex justify-between gap-3"
+                              >
+                                <span>
+                                  {ex.name || ex.key}
+                                  {ex.quantity && Number(ex.quantity) > 1
+                                    ? ` × ${ex.quantity}`
+                                    : ""}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                  </div>
+                </div>
+              ))}
+
+              <hr className="my-2" />
+
+              {/* Booking-level totals */}
+              <div className="text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span>Original booking total</span>
+                  <span>
+                    {currencySymbol(booking?.currency)}
+                    {Number(bookingTotal || 0).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>Add-ons post booking</span>
+                  <span>
+                    {currencySymbol(booking?.currency)}
+                    {Number(addOnsPostBooking || 0).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between font-medium">
+                  <span>Updated booking total</span>
+                  <span>
+                    {currencySymbol(booking?.currency)}
+                    {Number(fullAmount || 0).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>Deposit paid</span>
+                  <span>
+                    {currencySymbol(booking?.currency)}
+                    {Number(depositAmount || 0).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between font-bold mt-4">
+                  <p>Outstanding balance</p>
+                  <p>
+                    {currencySymbol(booking?.currency)}
+                    {Number(remainingAmount || 0).toFixed(2)}
+                  </p>
+                </div>
+
+                {/* Pay button */}
+                {!READ_ONLY &&
+                  !isPaidInFull &&
+                  Number(remainingAmount || 0) > 0.01 && (
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        onClick={handleOpenBalanceInvoice}
+                        className="px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667] transition-colors"
+                      >
+                        Pay Balance
+                      </button>
+                    </div>
+                  )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sections */}
+        <div className="mt-6 space-y-6">
+          {sections.map((sec) => (
+            <div key={sec.id} className="bg-white rounded border p-4 shadow-sm">
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold">{sec.title}</h3>
+                  {sec.help && (
+                    <p className="text-sm text-gray-600 mt-1">{sec.help}</p>
+                  )}
+                </div>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="accent-[#ff6667]"
+                    checked={!!complete[sec.id]}
+                    disabled={!!sec.blockComplete} // disable UI if blocked
+                    onChange={(e) => {
+                      if (sec.blockComplete) return; // hard gate
+                      toggleComplete(sec.id, e.target.checked);
+                    }}
+                  />
+                  <span className="text-gray-700">Mark complete</span>
+                </label>
+              </div>
+
+              {/* Block reason UNDER the checkbox row, styled as an alert */}
+              {sec.blockComplete && sec.blockReason && (
+                <div
+                  role="alert"
+                  className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                >
+                  {sec.blockReason}
+                </div>
+              )}
+
+              {/* Section fields */}
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 items-start">
+                {sec.fields.map((f) => {
+                  if (f.type === "custom" && typeof f.render === "function") {
+                    return (
+                      <div key={f.key} className="md:col-span-2">
+                        {f.render()}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={f.key} className="flex flex-col">
+                      {f.label && (
+                        <label className="text-sm text-gray-700 mb-1">
+                          {f.label}
+                        </label>
+                      )}
+
+                      {f.type === "textarea" ? (
+                        <textarea
+                          className="border rounded px-2 py-1 text-sm text-gray-800 min-h-[88px]"
+                          placeholder={f.placeholder || ""}
+                          value={answers[f.key] || ""}
+                          onChange={(e) => handleAnswer(f.key, e.target.value)}
+                        />
+                      ) : f.type === "select" ? (
+                        <select
+                          className="border rounded px-2 py-1 text-sm text-gray-800"
+                          value={answers[f.key] || ""}
+                          onChange={(e) => handleAnswer(f.key, e.target.value)}
+                        >
+                          <option value="">Select…</option>
+                          {f.options?.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      ) : f.type === "number" ? (
+                        <input
+                          type="number"
+                          className="border rounded px-2 py-1 text-sm text-gray-800"
+                          value={answers[f.key] ?? ""}
+                          onChange={(e) => handleAnswer(f.key, e.target.value)}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          className="border rounded px-2 py-1 text-sm text-gray-800"
+                          placeholder={f.placeholder || ""}
+                          value={answers[f.key] || ""}
+                          onChange={(e) => handleAnswer(f.key, e.target.value)}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={() => persist(false)}
+            disabled={saving}
+            className="px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667]"
+          >
+            {saving ? "Saving…" : "Save Draft"}
+          </button>
+          <button
+            onClick={notifyBand}
+            disabled={notifying || completedCount !== totalSections}
+            className={`px-4 py-2 rounded ${
+              completedCount === totalSections
+                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                : "bg-gray-300 text-gray-600 cursor-not-allowed"
+            }`}
+          >
+            {notifying ? "Notifying…" : "Notify Band"}
+          </button>
+        </div>
       </div>
-    </div>
     </>
   );
 };
