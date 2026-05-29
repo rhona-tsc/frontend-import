@@ -1256,12 +1256,32 @@ const ViewEventSheet = () => {
       const act = (actsList || []).find(
         (a) => String(a._id) === String(first.actId),
       );
+      const bookedLineupId =
+        first.lineupId ||
+        first.lineup?._id ||
+        first.lineup?.lineupId ||
+        first.lineup?.id ||
+        "";
+
+      const bookedLineupLabel = String(
+        first.lineupLabel || first.lineupName || first.actSize || first.lineup?.actSize || "",
+      ).toLowerCase();
+
       const lineup = act
-        ? (act.lineups || []).find(
-            (l) =>
-              String(l._id) ===
-              String(first.lineupId || first.lineup?.lineupId),
-          )
+        ? (act.lineups || []).find((l) => {
+            return (
+              String(l._id) === String(bookedLineupId) ||
+              String(l.lineupId) === String(bookedLineupId) ||
+              String(l.id) === String(bookedLineupId)
+            );
+          }) ||
+          (act.lineups || []).find((l) =>
+            bookedLineupLabel &&
+            String(l.actSize || l.lineupLabel || l.lineupName || "").toLowerCase() === bookedLineupLabel,
+          ) ||
+          first.lineup ||
+          (act.lineups || [])[0] ||
+          null
         : first.lineup || null;
       const members = Array.isArray(lineup?.bandMembers)
         ? lineup.bandMembers
@@ -1302,22 +1322,44 @@ const ViewEventSheet = () => {
         (a) => String(a._id) === String(first.actId),
       );
 
+      const bookedLineupId =
+        first.lineupId ||
+        first.lineup?._id ||
+        first.lineup?.lineupId ||
+        first.lineup?.id ||
+        "";
+
+      const bookedLineupLabel = String(
+        first.lineupLabel || first.lineupName || first.actSize || first.lineup?.actSize || "",
+      ).toLowerCase();
+
       const lineup = act
         ? (act.lineups || []).find((l) => {
-            const bookedLineupId =
-              first.lineupId ||
-              first.lineup?._id ||
-              first.lineup?.lineupId ||
-              first.lineup?.id ||
-              "";
-
             return (
               String(l._id) === String(bookedLineupId) ||
               String(l.lineupId) === String(bookedLineupId) ||
               String(l.id) === String(bookedLineupId)
             );
-          })
+          }) ||
+          (act.lineups || []).find((l) =>
+            bookedLineupLabel &&
+            String(l.actSize || l.lineupLabel || l.lineupName || "").toLowerCase() === bookedLineupLabel,
+          ) ||
+          first.lineup ||
+          (act.lineups || [])[0] ||
+          null
         : first.lineup || null;
+
+      console.log("🍽️ hot meal lineup resolution", {
+        actName: act?.name || act?.tscName || first?.actName,
+        bookedLineupId,
+        bookedLineupLabel,
+        resolvedLineupId: lineup?.lineupId || lineup?._id || lineup?.id,
+        resolvedActSize: lineup?.actSize || lineup?.lineupLabel || lineup?.lineupName,
+        hotMeal: lineup?.hotMeal,
+        hotMeals: lineup?.hotMeals,
+        meals: lineup?.meals,
+      });
 
       // Count performers (exclude managers/non-performers)
       const members = Array.isArray(lineup?.bandMembers)
