@@ -12,9 +12,11 @@ const calculateActPricing = async (
   selectedCounty,
   selectedAddress,
   selectedDate,
-  selectedLineup = null
+  selectedLineup = null,
 ) => {
   console.groupCollapsed("💷 calculateActPricing");
+
+  const MARKUP_MULTIPLIER = 1.33;
 
   if (!act) {
     console.warn("⚠️ Missing act");
@@ -22,82 +24,84 @@ const calculateActPricing = async (
     return { total: 0, travelCalculated: false };
   }
 
-const normalizeCounty = (c) =>
-  String(c || "")
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[.,]/g, "")
-    .replace(/\bcounty\b/g, "")
-    .replace(/\bgreater\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const looksTrue = (v) =>
+    v === true || v === "true" || v === 1 || v === "1";
 
-const isManagerLike = (m = {}) => {
-  const norm = (s = "") => String(s || "").trim().toLowerCase();
+  const normalizeCounty = (c) =>
+    String(c || "")
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, "and")
+      .replace(/[.,]/g, "")
+      .replace(/\bcounty\b/g, "")
+      .replace(/\bgreater\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
 
-  const instr = norm(m.instrument);
-  const title = norm(m.title);
-  const roles = (Array.isArray(m.additionalRoles) ? m.additionalRoles : []).map(
-    (r) => norm(r?.role)
-  );
+  const isManagerLike = (m = {}) => {
+    const norm = (s = "") => String(s || "").trim().toLowerCase();
 
-  const isNonPerformerText = (value = "") => {
+    const instr = norm(m.instrument);
+    const title = norm(m.title);
+    const roles = (Array.isArray(m.additionalRoles) ? m.additionalRoles : []).map(
+      (r) => norm(r?.role),
+    );
+
+    const isNonPerformerText = (value = "") => {
+      return (
+        value.includes("manager") ||
+        value.includes("management") ||
+        value.includes("admin") ||
+        value.includes("sound engineer") ||
+        value.includes("sound tech") ||
+        value.includes("sound technician") ||
+        value.includes("audio engineer") ||
+        value.includes("audio tech") ||
+        value.includes("audio technician") ||
+        value.includes("foh") ||
+        value.includes("front of house")
+      );
+    };
+
     return (
-      value.includes("manager") ||
-      value.includes("management") ||
-      value.includes("admin") ||
-      value.includes("sound engineer") ||
-      value.includes("sound tech") ||
-      value.includes("sound technician") ||
-      value.includes("audio engineer") ||
-      value.includes("audio tech") ||
-      value.includes("audio technician") ||
-      value.includes("foh") ||
-      value.includes("front of house")
+      m.isManager === true ||
+      m.isNonPerformer === true ||
+      isNonPerformerText(instr) ||
+      isNonPerformerText(title) ||
+      roles.some(isNonPerformerText)
     );
   };
 
-  return (
-    m.isManager === true ||
-    m.isNonPerformer === true ||
-    isNonPerformerText(instr) ||
-    isNonPerformerText(title) ||
-    roles.some(isNonPerformerText)
-  );
-};
+  const getCountyFeeFromMap = (feesMap, countyName) => {
+    if (!feesMap) return undefined;
+    const target = normalizeCounty(countyName);
 
-const getCountyFeeFromMap = (feesMap, countyName) => {
-  if (!feesMap) return undefined;
-  const target = normalizeCounty(countyName);
+    const entries =
+      typeof feesMap.forEach === "function"
+        ? (() => {
+            const arr = [];
+            feesMap.forEach((v, k) => arr.push([k, v]));
+            return arr;
+          })()
+        : Object.entries(feesMap);
 
-  const entries =
-    typeof feesMap.forEach === "function"
-      ? (() => {
-          const arr = [];
-          feesMap.forEach((v, k) => arr.push([k, v]));
-          return arr;
-        })()
-      : Object.entries(feesMap);
+    const normLookup = new Map();
+    for (const [key, val] of entries) {
+      normLookup.set(normalizeCounty(key), val);
+    }
 
-  const normLookup = new Map();
-  for (const [key, val] of entries) {
-    normLookup.set(normalizeCounty(key), val);
-  }
+    if (normLookup.has(target)) return normLookup.get(target);
 
-  if (normLookup.has(target)) return normLookup.get(target);
+    if (target === "london") {
+      return (
+        normLookup.get("greater london") ??
+        normLookup.get("inner london") ??
+        normLookup.get("outer london")
+      );
+    }
 
-  // London alias handling
-  if (target === "london") {
-    return (
-      normLookup.get("greater london") ??
-      normLookup.get("inner london") ??
-      normLookup.get("outer london")
-    );
-  }
-
-  return undefined;
-};
+    return undefined;
+  };
 
   const hasAnyCountyFees = (feesMap) => {
     if (!feesMap) return false;
@@ -114,66 +118,77 @@ const getCountyFeeFromMap = (feesMap, countyName) => {
 
   const extractOutcode = (addr) => {
     const s =
-      typeof addr === "string"
-        ? addr
-        : addr?.postcode || addr?.address || "";
+      typeof addr === "string" ? addr : addr?.postcode || addr?.address || "";
+
     const m = String(s || "")
       .toUpperCase()
       .match(
-        /\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*\d[A-Z]{2}\b|\b([A-Z]{1,2}\d{1,2}[A-Z]?)\b/
+        /\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*\d[A-Z]{2}\b|\b([A-Z]{1,2}\d{1,2}[A-Z]?)\b/,
       );
-    return (m && (m[1] || m[2])) ? (m[1] || m[2]) : "";
+
+    return m && (m[1] || m[2]) ? m[1] || m[2] : "";
   };
 
   const countyFromOutcode = (outcode) => {
     if (!outcode) return "";
+
     const OUT = String(outcode).toUpperCase().trim();
     let db = outcodeToCounty;
+
     if (!db && typeof window !== "undefined") {
       db = window.OUTCODE_TO_COUNTY || window.POSTCODE_TO_COUNTY || {};
     }
+
     if (!db) return "";
 
     if (typeof db.get === "function") {
-      const val = db.get(OUT); // Map(OUT → County)
+      const val = db.get(OUT);
       if (val) return String(val);
+
       for (const [county, codes] of db.entries()) {
-        if (Array.isArray(codes) && codes.includes(OUT))
+        if (Array.isArray(codes) && codes.includes(OUT)) {
           return county.replace(/_/g, " ");
+        }
       }
+
       return "";
     }
 
     if (Array.isArray(db)) db = db[0] || {};
 
     const inverted = db[OUT];
-    if (typeof inverted === "string") return inverted; // { "SL6": "Berkshire" }
+    if (typeof inverted === "string") return inverted;
 
     for (const [county, codes] of Object.entries(db)) {
-      if (Array.isArray(codes) && codes.includes(OUT))
+      if (Array.isArray(codes) && codes.includes(OUT)) {
         return county.replace(/_/g, " ");
+      }
     }
+
     return "";
   };
 
-  // ── pick lineup ──────────────────────────────────────────────────────────────
+  const applyMarkup = (amount) => Math.round(Number(amount || 0) * MARKUP_MULTIPLIER);
+
   let smallestLineup = null;
+
   if (selectedLineup && Array.isArray(selectedLineup.bandMembers)) {
     smallestLineup = selectedLineup;
   } else {
     smallestLineup = act.lineups?.reduce((min, lineup) => {
       if (!Array.isArray(lineup.bandMembers)) return min;
-      if (!min || lineup.bandMembers.length < min.bandMembers.length) return lineup;
+      if (!min || lineup.bandMembers.length < min.bandMembers.length) {
+        return lineup;
+      }
       return min;
     }, null);
   }
+
   if (!smallestLineup || !Array.isArray(smallestLineup.bandMembers)) {
     console.groupEnd();
     return { total: null, travelCalculated: false };
   }
 
-  // test-act guard
-  const looksTrue = (v) => v === true || v === "true" || v === 1 || v === "1";
   const isTestAct = looksTrue(act?.isTest) || looksTrue(act?.actData?.isTest);
   if (isTestAct) {
     console.log("🧪 Test act detected → forcing price £0.50");
@@ -185,30 +200,28 @@ const getCountyFeeFromMap = (feesMap, countyName) => {
     "🎸 Using lineup:",
     smallestLineup?.actSize,
     smallestLineup?.bandMembers?.length,
-    "members"
+    "members",
   );
 
-  // ── county derivation (robust) ───────────────────────────────────────────────
   const outcodeFromAddress = extractOutcode(selectedAddress);
 
   const sanitizeCountyInput = (val) => {
     const s = String(val || "").trim();
     if (!s) return "";
-    // If user passed an address/postcode here, resolve to county
+
     const oc = extractOutcode(s);
     if (oc) {
       const c = countyFromOutcode(oc);
       if (c) return c;
     }
-    // If it contains digits, it's probably not a county string
+
     if (/\d/.test(s)) return "";
     return s;
   };
 
   const guessedFromOutcode = countyFromOutcode(outcodeFromAddress);
   const cleanedSelectedCounty = sanitizeCountyInput(selectedCounty);
-  const derivedCounty =
-    cleanedSelectedCounty || guessedFromOutcode || "";
+  const derivedCounty = cleanedSelectedCounty || guessedFromOutcode || "";
 
   console.log("📍 County inputs/derivation:", {
     selectedCounty: selectedCounty ?? null,
@@ -218,29 +231,32 @@ const getCountyFeeFromMap = (feesMap, countyName) => {
     selectedDate: selectedDate || null,
   });
 
-  // ── normalize travel flags to support acts or actfiltercards ────────────────
   const TRAVEL = act?.travelModel || {};
+
   const useCounty =
     (act?.useCountyTravelFee ??
       TRAVEL.useCountyTravelFee ??
-      (TRAVEL.type === "county")) === true;
+      TRAVEL.type === "county") === true;
+
   const countyFees = act?.countyFees ?? TRAVEL.countyFees ?? null;
   const costPerMileNorm = Number(act?.costPerMile ?? TRAVEL.costPerMile) || 0;
 
-const countyFeePerMemberRaw = useCounty
-  ? getCountyFeeFromMap(countyFees, derivedCounty)
-  : undefined;
+  const countyFeePerMemberRaw = useCounty
+    ? getCountyFeeFromMap(countyFees, derivedCounty)
+    : undefined;
 
-const countyFeePerMember = countyFeePerMemberRaw != null
-  ? Number(String(countyFeePerMemberRaw).replace(/[^0-9.-]/g, ""))
-  : undefined;
+  const countyFeePerMember =
+    countyFeePerMemberRaw != null
+      ? Number(String(countyFeePerMemberRaw).replace(/[^0-9.-]/g, ""))
+      : undefined;
 
-const hasCountyTable = !!(
-  useCounty &&
-  hasAnyCountyFees(countyFees) &&
-  derivedCounty &&
-  Number.isFinite(countyFeePerMember)
-);
+  const hasCountyTable = !!(
+    useCounty &&
+    hasAnyCountyFees(countyFees) &&
+    derivedCounty &&
+    Number.isFinite(countyFeePerMember)
+  );
+
   console.log("🌍 Travel flags (normalized):", {
     useCounty,
     hasCountyFees: hasAnyCountyFees(countyFees),
@@ -251,25 +267,83 @@ const hasCountyTable = !!(
 
   if (useCounty && !derivedCounty) {
     console.warn("⚠️ No county could be determined from postcode/address.");
-    
   }
 
-  // ── northern team switch ────────────────────────────────────────────────────
   const northernCounties = new Set([
-    "ceredigion","cheshire","cleveland","conway","cumbria","denbighshire","derbyshire","durham",
-    "flintshire","greater manchester","gwynedd","herefordshire","lancashire","leicestershire",
-    "lincolnshire","merseyside","north humberside","north yorkshire","northumberland",
-    "nottinghamshire","rutland","shropshire","south humberside","south yorkshire",
-    "staffordshire","tyne and wear","warwickshire","west midlands","west yorkshire",
-    "worcestershire","wrexham","rhondda cynon taf","torfaen","neath port talbot","bridgend",
-    "blaenau gwent","caerphilly","cardiff","merthyr tydfil","newport","aberdeen city",
-    "aberdeenshire","angus","argyll and bute","clackmannanshire","dumfries and galloway",
-    "dundee city","east ayrshire","east dunbartonshire","east lothian","east renfrewshire",
-    "edinburgh","falkirk","fife","glasgow","highland","inverclyde","midlothian","moray",
-    "na h eileanan siar","north ayrshire","north lanarkshire","orkney islands","perth and kinross",
-    "renfrewshire","scottish borders","shetland islands","south ayrshire","south lanarkshire",
-    "stirling","west dunbartonshire","west lothian"
+    "ceredigion",
+    "cheshire",
+    "cleveland",
+    "conway",
+    "cumbria",
+    "denbighshire",
+    "derbyshire",
+    "durham",
+    "flintshire",
+    "greater manchester",
+    "gwynedd",
+    "herefordshire",
+    "lancashire",
+    "leicestershire",
+    "lincolnshire",
+    "merseyside",
+    "north humberside",
+    "north yorkshire",
+    "northumberland",
+    "nottinghamshire",
+    "rutland",
+    "shropshire",
+    "south humberside",
+    "south yorkshire",
+    "staffordshire",
+    "tyne and wear",
+    "warwickshire",
+    "west midlands",
+    "west yorkshire",
+    "worcestershire",
+    "wrexham",
+    "rhondda cynon taf",
+    "torfaen",
+    "neath port talbot",
+    "bridgend",
+    "blaenau gwent",
+    "caerphilly",
+    "cardiff",
+    "merthyr tydfil",
+    "newport",
+    "aberdeen city",
+    "aberdeenshire",
+    "angus",
+    "argyll and bute",
+    "clackmannanshire",
+    "dumfries and galloway",
+    "dundee city",
+    "east ayrshire",
+    "east dunbartonshire",
+    "east lothian",
+    "east renfrewshire",
+    "edinburgh",
+    "falkirk",
+    "fife",
+    "glasgow",
+    "highland",
+    "inverclyde",
+    "midlothian",
+    "moray",
+    "na h eileanan siar",
+    "north ayrshire",
+    "north lanarkshire",
+    "orkney islands",
+    "perth and kinross",
+    "renfrewshire",
+    "scottish borders",
+    "shetland islands",
+    "south ayrshire",
+    "south lanarkshire",
+    "stirling",
+    "west dunbartonshire",
+    "west lothian",
   ]);
+
   const isNorthernGig = northernCounties.has(normalizeCounty(derivedCounty));
   console.log("🧭 Is northern gig?", isNorthernGig);
 
@@ -281,6 +355,7 @@ const hasCountyTable = !!(
   const travelEligibleMembers = Array.isArray(bandMembers)
     ? bandMembers.filter((m) => !isManagerLike(m))
     : [];
+
   const travelEligibleCount = travelEligibleMembers.length;
 
   console.log("👥 Band members:", {
@@ -288,16 +363,19 @@ const hasCountyTable = !!(
     travelEligible: travelEligibleCount,
   });
 
-  // ── net fees ────────────────────────────────────────────────────────────────
   const perMemberFees = (smallestLineup.bandMembers || []).map((m) => {
-    const baseFee = m.isEssential ? Number(m.fee) || 0 : 0;
-    const essentialRoles = (m.additionalRoles || [])
-      .filter((r) => r?.isEssential)
-      .map((r) => ({
-        role: r?.role,
-        fee: Number(r?.additionalFee) || 0,
-      }));
-    const rolesTotal = essentialRoles.reduce((s, r) => s + (r.fee || 0), 0);
+    const baseFee = looksTrue(m?.isEssential) ? Number(m?.fee || 0) : 0;
+
+    const essentialRoles = Array.isArray(m?.additionalRoles)
+      ? m.additionalRoles
+          .filter((r) => looksTrue(r?.isEssential))
+          .map((r) => ({
+            role: r?.role,
+            fee: Number(r?.additionalFee || 0),
+          }))
+      : [];
+
+    const rolesTotal = essentialRoles.reduce((sum, r) => sum + (r.fee || 0), 0);
     const memberTotal = baseFee + rolesTotal;
 
     console.log("💰 Member fee:", m.firstName, {
@@ -311,9 +389,10 @@ const hasCountyTable = !!(
       id: m?._id?.toString?.() || "",
       name:
         `${m.firstName || ""} ${m.lastName || ""}`.trim() ||
-        (m.instrument || "Member"),
+        m.instrument ||
+        "Member",
       instrument: m.instrument,
-      isEssential: !!m.isEssential,
+      isEssential: looksTrue(m?.isEssential),
       baseFee,
       rolesTotal,
       essentialRoles,
@@ -321,15 +400,18 @@ const hasCountyTable = !!(
     };
   });
 
-  const baseFeeTotal = perMemberFees.reduce((s, m) => s + (m.memberTotal || 0), 0);
+  const baseFeeTotal = perMemberFees.reduce(
+    (sum, m) => sum + Number(m.memberTotal || 0),
+    0,
+  );
+
   console.log("💸 Total base lineup fee:", baseFeeTotal);
 
-  // ── decide travel method (and show *why*) ───────────────────────────────────
   const decision = hasCountyTable
     ? "county"
     : costPerMileNorm > 0
-    ? "per-mile"
-    : "mu";
+      ? "per-mile"
+      : "mu";
 
   console.log("🏷️ Travel method decision:", {
     decision,
@@ -342,78 +424,95 @@ const hasCountyTable = !!(
     },
   });
 
-  // ── travel calc ─────────────────────────────────────────────────────────────
   let travelFee = 0;
   let travelCalculated = false;
 
   if (decision === "county") {
-  console.log(
-    "📊 County travel fee per member (raw):",
-    countyFeePerMemberRaw,
-    "→ parsed:",
-    countyFeePerMember
-  );
-
-  if (Number.isFinite(countyFeePerMember) && travelEligibleCount > 0) {
-    travelFee = countyFeePerMember * travelEligibleCount;
-    travelCalculated = true;
-  } else {
-    console.warn(
-      "⚠️ County travel selected but no matching county fee found — will fall back."
+    console.log(
+      "📊 County travel fee per member (raw):",
+      countyFeePerMemberRaw,
+      "→ parsed:",
+      countyFeePerMember,
     );
+
+    if (Number.isFinite(countyFeePerMember) && travelEligibleCount > 0) {
+      travelFee = countyFeePerMember * travelEligibleCount;
+      travelCalculated = true;
+    } else {
+      console.warn(
+        "⚠️ County travel selected but no matching county fee found — will fall back.",
+      );
+    }
   }
-}
 
   if (!travelCalculated && (!selectedAddress || !selectedDate)) {
-    const totalPrice = Math.ceil(baseFeeTotal);
-    console.log("⚠️ No travel data → base + margin only", totalPrice);
+    const subtotalBeforeMarkup = baseFeeTotal;
+    const total = applyMarkup(subtotalBeforeMarkup);
+
+    console.log("⚠️ No travel data → base + markup only", {
+      subtotalBeforeMarkup,
+      markupMultiplier: MARKUP_MULTIPLIER,
+      total,
+    });
+
     console.groupEnd();
+
     return {
-      total: totalPrice,
+      total,
       travelCalculated: false,
       decision,
       baseFeeTotal,
       travelFeeTotal: 0,
-      marginApplied: 0.33,
+      subtotalBeforeMarkup,
+      markupMultiplier: MARKUP_MULTIPLIER,
     };
   }
 
   if (!travelCalculated && decision === "per-mile") {
     for (const m of travelEligibleMembers) {
       const postCode = m.postCode;
+
       const destination =
         typeof selectedAddress === "string"
           ? selectedAddress
           : selectedAddress?.postcode || selectedAddress?.address || "";
+
       if (!postCode || !destination) continue;
 
       const { miles } = await getTravelV2(postCode, destination, selectedDate);
       const cost = (miles || 0) * costPerMileNorm * 2;
+
       console.log(
         `🛣️ ${m.firstName} travel: ${miles} miles × £${costPerMileNorm}/mi × 2 →`,
-        cost
+        cost,
       );
+
       travelFee += cost;
     }
+
     travelCalculated = true;
   } else if (!travelCalculated && decision === "mu") {
     for (const m of travelEligibleMembers) {
       const postCode = m.postCode;
+
       const destination =
         typeof selectedAddress === "string"
           ? selectedAddress
           : selectedAddress?.postcode || selectedAddress?.address || "";
+
       if (!postCode || !destination) continue;
 
       const { outbound, returnTrip } = await getTravelV2(
         postCode,
         destination,
-        selectedDate
+        selectedDate,
       );
+
       if (!outbound || !returnTrip) continue;
 
       const totalDistanceMiles =
         (outbound.distance.value + returnTrip.distance.value) / 1609.34;
+
       const totalDurationHours =
         (outbound.duration.value + returnTrip.duration.value) / 3600;
 
@@ -435,16 +534,18 @@ const hasCountyTable = !!(
 
       travelFee += cost;
     }
+
     travelCalculated = true;
   }
 
   const travelFeeTotal = travelFee;
   console.log(`🚗 Travel fee total: £${travelFeeTotal}`);
 
-  const subtotal = baseFeeTotal + travelFeeTotal;
-  console.log(`🧮 Subtotal before margin: £${subtotal}`);
+  const subtotalBeforeMarkup = baseFeeTotal + travelFeeTotal;
+  console.log(`🧮 Subtotal before markup: £${subtotalBeforeMarkup}`);
+  console.log(`📈 Markup multiplier: x${MARKUP_MULTIPLIER}`);
 
-  const finalTotal = Math.round(subtotal);
+  const finalTotal = applyMarkup(subtotalBeforeMarkup);
 
   console.log("✅ Final total price (rounded):", finalTotal);
 
@@ -454,10 +555,13 @@ const hasCountyTable = !!(
     decision,
     baseFeeTotal,
     travelFeeTotal,
-
+    subtotalBeforeMarkup,
+    markupMultiplier: MARKUP_MULTIPLIER,
   };
+
   console.log("✅ Final summary:", payload);
   console.groupEnd();
+
   return payload;
 };
 
