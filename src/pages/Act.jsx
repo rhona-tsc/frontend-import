@@ -801,39 +801,89 @@ const Act = () => {
   useEffect(() => {
     if (!actData) return;
 
+    console.group("💰 ACT PRICE CALCULATION");
+    console.log("Act:", {
+      actId: actData?._id,
+      name: actData?.tscName || actData?.name,
+    });
+    console.log("Inputs:", {
+      selectedDate,
+      selectedAddress,
+      selectedCounty,
+      storedPlace,
+    });
+    console.log("Travel Config:", {
+      useCountyTravelFee: actData?.useCountyTravelFee,
+      countyFees: actData?.countyFees,
+      countyTravelAvailability: actData?.countyTravelAvailability,
+    });
+    console.log("Lineups:", actData?.lineups);
+
     setIsPriceLoading(true);
 
     if (!actData?.lineups?.length) {
-      // show base if available and bail
       const lineup = actData?.lineups?.[0];
       const base =
         actData?.formattedPrice?.total ??
         lineup?.base_fee?.[0]?.total_fee ??
         null;
+
+      console.log("No lineups found. Falling back to base price:", {
+        formattedPrice: actData?.formattedPrice?.total,
+        lineupBaseFee: lineup?.base_fee?.[0]?.total_fee,
+        chosenBase: base,
+      });
+
       if (base != null) {
-        setPrice({
+        const fallback = {
           total: Number(String(base).replace(/[^0-9.+-]/g, "")),
           travelCalculated: false,
-        });
+        };
+
+        console.log("Setting fallback price:", fallback);
+        setPrice(fallback);
       }
+
       setIsPriceLoading(false);
+      console.groupEnd();
       return;
     }
 
     const hasAnyLocation = !!(selectedAddress || selectedCounty);
+    console.log("Location Check:", {
+      hasAnyLocation,
+      selectedAddress,
+      selectedCounty,
+    });
+
     if (!selectedDate || !hasAnyLocation) {
       const lineup = actData.lineups[0];
       const base =
         actData?.formattedPrice?.total ??
         lineup?.base_fee?.[0]?.total_fee ??
         null;
+
+      console.log("Missing date or location. Falling back to base price:", {
+        hasSelectedDate: !!selectedDate,
+        hasAnyLocation,
+        formattedPrice: actData?.formattedPrice?.total,
+        lineupBaseFee: lineup?.base_fee?.[0]?.total_fee,
+        chosenBase: base,
+        lineup,
+      });
+
       if (base != null) {
-        setPrice({
+        const fallback = {
           total: Number(String(base).replace(/[^0-9.+-]/g, "")),
           travelCalculated: false,
-        });
+        };
+
+        console.log("Setting fallback price:", fallback);
+        setPrice(fallback);
       }
+
       setIsPriceLoading(false);
+      console.groupEnd();
       return;
     }
 
@@ -842,18 +892,35 @@ const Act = () => {
       actData.countyFees &&
       Object.keys(actData.countyFees).length > 0;
 
+    console.log("County Table Check:", {
+      hasCountyTable,
+      useCountyTravelFee: actData?.useCountyTravelFee,
+      countyFeeCount: Object.keys(actData?.countyFees || {}).length,
+      countyFees: actData?.countyFees,
+    });
+
     const countyTravelCheck = checkActTravelsToCounty(
       actData,
       selectedCounty,
       storedPlace,
     );
 
+    console.log("County Travel Check:", countyTravelCheck);
+
     if (selectedAddress && !countyTravelCheck.allowed) {
+      console.warn("Travel unavailable for selected location:", {
+        selectedAddress,
+        selectedCounty,
+        storedPlace,
+        countyTravelCheck,
+      });
+
       setPrice(null);
       setFinalTravelPrice(null);
       setTravelUnavailableMessage(countyTravelCheck.message);
       setIsTravelAvailableForSelection(false);
       setIsPriceLoading(false);
+      console.groupEnd();
       return;
     }
 
@@ -861,6 +928,17 @@ const Act = () => {
     setIsTravelAvailableForSelection(true);
 
     const lineup = actData.lineups[0];
+
+    console.log("Selected lineup for initial price calculation:", {
+      lineupId: lineup?._id || lineup?.lineupId,
+      actSize: lineup?.actSize,
+      lineup,
+      baseFee: lineup?.base_fee,
+      bandMembers: lineup?.bandMembers,
+      bandMemberCount: Array.isArray(lineup?.bandMembers)
+        ? lineup.bandMembers.length
+        : 0,
+    });
 
     const key = makePriceKey({
       actId: actData._id,
@@ -870,16 +948,37 @@ const Act = () => {
       county: hasCountyTable ? selectedCounty : "",
     });
 
+    console.log("Price Cache Key:", key);
+
     const cached = priceCache.get(key);
+    console.log("Cached Price:", cached);
+
     if (cached) {
+      console.log("Using cached price result:", cached);
       setPrice(cached);
       setFinalTravelPrice(cached);
       setIsPriceLoading(false);
+      console.groupEnd();
       return;
     }
 
     (async () => {
       try {
+        console.log("🚀 Calling calculateActPricing()", {
+          actId: actData?._id,
+          actName: actData?.tscName || actData?.name,
+          countyPassedToPricing: hasCountyTable ? selectedCounty : null,
+          selectedCounty,
+          selectedAddress,
+          selectedDate,
+          hasCountyTable,
+          useCountyTravelFee: actData?.useCountyTravelFee,
+          costPerMile: actData?.costPerMile,
+          lineupId: lineup?._id || lineup?.lineupId,
+          actSize: lineup?.actSize,
+          lineup,
+        });
+
         const pricingResults = await calculateActPricing(
           actData,
           hasCountyTable ? selectedCounty : null,
@@ -888,10 +987,31 @@ const Act = () => {
           lineup,
         );
 
+        console.log("✅ calculateActPricing Result:", pricingResults);
+        console.log("Travel Result Details:", {
+          total: pricingResults?.total,
+          travelCalculated: pricingResults?.travelCalculated,
+          travelFeeTotal: pricingResults?.travelFeeTotal,
+          travelFee: pricingResults?.travelFee,
+          distanceMiles: pricingResults?.distanceMiles,
+          returnMiles: pricingResults?.returnMiles,
+          countyFeeUsed: pricingResults?.countyFeeUsed,
+          county: pricingResults?.county,
+          travelMethod: pricingResults?.travelMethod,
+        });
+
         const base =
           actData?.formattedPrice?.total ??
           lineup?.base_fee?.[0]?.total_fee ??
           0;
+
+        console.log("Base Price:", {
+          formattedPrice: actData?.formattedPrice?.total,
+          minDisplayPrice: actData?.minDisplayPrice,
+          lineupBaseFee: lineup?.base_fee?.[0]?.total_fee,
+          fullBaseFeeArray: lineup?.base_fee,
+          chosenBase: base,
+        });
 
         const final =
           pricingResults && pricingResults.total != null
@@ -901,33 +1021,66 @@ const Act = () => {
                 travelCalculated: false,
               };
 
+        console.log("Final Price Object:", final);
+
         priceCache.set(key, final);
+        console.log("Stored price in cache:", {
+          key,
+          final,
+        });
+
         setFinalTravelPrice(final);
-        setPrice({
+
+        const statePrice = {
           total: final.total,
           travelCalculated: !!final.travelCalculated,
           travelFeeTotal: final.travelFeeTotal ?? 0,
+        };
+
+        console.log("Updating State:", {
+          finalTravelPrice: final,
+          price: statePrice,
         });
+
+        setPrice(statePrice);
       } catch (err) {
         console.error("❌ Failed to calculate price:", {
           err,
           actId: actData?._id,
+          actName: actData?.tscName || actData?.name,
           useCountyTravelFee: actData?.useCountyTravelFee,
+          selectedCounty,
+          selectedAddress,
+          selectedDate,
+          lineupId: lineup?._id || lineup?.lineupId,
+          lineup,
         });
+
         const base =
           actData?.formattedPrice?.total ??
           lineup?.base_fee?.[0]?.total_fee ??
           null;
+
+        console.log("Fallback Data:", {
+          formattedPrice: actData?.formattedPrice?.total,
+          lineupBaseFee: lineup?.base_fee?.[0]?.total_fee,
+          chosenBase: base,
+        });
+
         if (base != null) {
           const fallback = {
             total: Number(String(base).replace(/[^0-9.+-]/g, "")),
             travelCalculated: false,
           };
+
+          console.log("Setting fallback after pricing error:", fallback);
           setPrice(fallback);
           setFinalTravelPrice(fallback);
         }
       } finally {
         setIsPriceLoading(false);
+        console.log("Price loading finished.");
+        console.groupEnd();
       }
     })();
   }, [
