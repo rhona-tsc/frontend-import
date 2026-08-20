@@ -763,10 +763,29 @@ const ViewEventSheet = () => {
     const act = (actsList || []).find(
       (a) => String(a._id) === String(item.actId),
     );
-    if (!act) return null;
+    if (!act) return item.lineup || null;
     const lid = String(item.lineupId || "");
-    return (act.lineups || []).find(
-      (l) => String(l._id) === lid || String(l.lineupId) === lid,
+    const wantedLabel = String(
+      item.lineupLabel || item.lineupName || item.actSize || item.lineup?.actSize || "",
+    )
+      .trim()
+      .toLowerCase();
+    return (
+      (act.lineups || []).find(
+        (l) =>
+          String(l._id) === lid ||
+          String(l.lineupId) === lid ||
+          String(l.id) === lid,
+      ) ||
+      (act.lineups || []).find(
+        (l) =>
+          wantedLabel &&
+          String(l.actSize || l.lineupLabel || l.lineupName || "")
+            .trim()
+            .toLowerCase() === wantedLabel,
+      ) ||
+      item.lineup ||
+      null
     );
   };
 
@@ -889,6 +908,44 @@ const ViewEventSheet = () => {
 
     return [...new Set(parts)].join(" + ");
   }, [booking, acts]);
+
+  const actMedia = useMemo(() => {
+    const first =
+      (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]) ||
+      (Array.isArray(booking?.items) && booking.items[0]) ||
+      {};
+    const act = (acts || []).find(
+      (candidate) => String(candidate?._id) === String(first?.actId),
+    ) || first?.act || {};
+    const urlOf = (value) =>
+      typeof value === "string" ? value : value?.url || value?.secure_url || "";
+    const images = [
+      act?.images?.[0],
+      first?.image,
+      act?.images?.[1],
+      act?.gallery?.[0],
+      act?.gallery?.[1],
+      act?.galleryImages?.[0],
+      act?.galleryImages?.[1],
+      act?.galleryOne,
+      act?.galleryTwo,
+    ]
+      .map(urlOf)
+      .filter(Boolean);
+    const videos = [
+      act?.promoVideo,
+      act?.promoVideoUrl,
+      act?.video,
+      ...(Array.isArray(act?.tscVideos) ? act.tscVideos : []),
+      ...(Array.isArray(act?.videos) ? act.videos : []),
+    ]
+      .map(urlOf)
+      .filter(Boolean);
+    return {
+      images: [...new Set(images)].slice(0, 3),
+      videos: [...new Set(videos)],
+    };
+  }, [acts, booking]);
 
   // Fetch booking(s) for the user, with robust fallbacks by route id/ref.
   useEffect(() => {
@@ -1437,12 +1494,16 @@ const ViewEventSheet = () => {
         }
       }
 
-      return {
-        required: count > 0,
-        count,
-      };
+      // Hot meals are part of every act booking. Missing legacy metadata must
+      // never be interpreted as an explicit "not required" response.
+      const fallbackCount =
+        performerCount ||
+        Number(first?.bandMembersCount || 0) ||
+        Number(String(first?.lineupLabel || first?.actSize || "").match(/\d+/)?.[0] || 0) ||
+        1;
+      return { required: true, count: count || fallbackCount };
     } catch {
-      return { required: false, count: 0 };
+      return { required: true, count: 1 };
     }
   }
 
@@ -1666,12 +1727,33 @@ const ViewEventSheet = () => {
       {
         id: "attire",
         title: "Attire",
-        help: "Would you like the band to dress as per their promomotional videos. Or would you prefer them to be dressed differently?",
+        help: "Would you like the band to dress as shown in their promotional photos and videos, or would you prefer something different?",
         fields: [
           {
             key: "attire_notes",
             placeholder: "Preferred look",
             type: "textarea",
+            required: true,
+          },
+          {
+            key: "promo_video_reference",
+            type: "custom",
+            render: () => (
+              <div>
+                <div className="text-sm text-gray-700 mb-1">Promo video reference</div>
+                {actMedia.videos.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {actMedia.videos.map((url, index) => (
+                      <a key={url} href={url} target="_blank" rel="noreferrer" className="text-sm text-[#ff6667] underline">
+                        Promo video {index + 1}
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-amber-700">Promo video is missing from the act profile.</p>
+                )}
+              </div>
+            ),
           },
         ],
       },
@@ -1776,6 +1858,7 @@ const ViewEventSheet = () => {
             label: "Is parking available on site for the band?",
             type: "select",
             options: ["Yes", "For some", "No"],
+            required: true,
           },
 
           {
@@ -3446,6 +3529,25 @@ const ViewEventSheet = () => {
         ],
       },
       {
+        id: "spotify_playlists",
+        title: "Spotify Playlists & DJ Requests",
+        help: "Please add background-music playlists for before and between the band sets. Final edits should be made by 17 September 2026; if no playlist is supplied, we will use a standard party playlist.",
+        fields: [
+          {
+            key: "spotify_playlist_links",
+            label: "Spotify playlist links (one per line)",
+            type: "textarea",
+            placeholder: "https://open.spotify.com/playlist/…",
+          },
+          {
+            key: "advanced_dj_requests",
+            label: "Advanced DJ requests (optional)",
+            type: "textarea",
+            placeholder: "Playlist link, requested genres, and any songs to avoid",
+          },
+        ],
+      },
+      {
         id: "socials",
         title: "Socials (optional)",
         fields: [
@@ -3545,6 +3647,20 @@ const ViewEventSheet = () => {
       },
 
       {
+        id: "other_suppliers",
+        title: "Other Suppliers (optional)",
+        help: "Share the names or social handles of your other suppliers so everyone can support each other on social media.",
+        fields: [
+          {
+            key: "other_suppliers",
+            label: "Supplier names, roles and social handles",
+            type: "textarea",
+            placeholder: "Photographer — @handle\nFlorist — @handle",
+          },
+        ],
+      },
+
+      {
         id: "notes",
         title: "Notes",
         fields: [
@@ -3565,6 +3681,16 @@ const ViewEventSheet = () => {
   );
 
   const toggleComplete = (sectionId, val) => {
+    if (val) {
+      const section = sections.find((candidate) => candidate.id === sectionId);
+      const missing = (section?.fields || []).filter(
+        (field) => field.required && !String(answers[field.key] ?? "").trim(),
+      );
+      if (missing.length) {
+        alert(`Please complete: ${missing.map((field) => field.label || field.key).join(", ")}`);
+        return;
+      }
+    }
     setComplete((prev) => {
       const next = { ...prev, [sectionId]: val };
       // persist alongside current answers
@@ -3635,7 +3761,14 @@ const ViewEventSheet = () => {
       </div>
     );
 
-  const eventDate = booking.date ? new Date(booking.date) : null;
+  const bookingDateValue =
+    booking.date || booking.eventDate || booking.event_date || booking.performanceDate;
+  const refDateMatch = String(booking.bookingId || "").match(/^(\d{2})(\d{2})(\d{2})-/);
+  const eventDate = bookingDateValue
+    ? new Date(bookingDateValue)
+    : refDateMatch
+      ? new Date(2000 + Number(refDateMatch[1]), Number(refDateMatch[2]) - 1, Number(refDateMatch[3]))
+      : null;
   const cur = currencySymbol(
     booking?.totals?.currency || booking?.cartMeta?.currency || "GBP",
   );
@@ -3726,14 +3859,17 @@ const ViewEventSheet = () => {
             <div className="space-y-4">
               {booking.actsSummary.map((it, i) => (
                 <div key={i} className="flex gap-3 items-start">
-                  {it.image?.url ? (
-                    <img
-                      src={it.image.url}
-                      alt={it.actName}
-                      className="w-20 h-20 object-cover rounded"
-                      onError={(e) => (e.currentTarget.style.display = "none")}
-                    />
-                  ) : null}
+                  <div className="grid grid-cols-3 gap-2 shrink-0">
+                    {actMedia.images.map((url, imageIndex) => (
+                      <img
+                        key={url}
+                        src={url}
+                        alt={`${it.actName} promotional ${imageIndex + 1}`}
+                        className="w-20 h-20 object-cover rounded"
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                      />
+                    ))}
+                  </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 flex-wrap">
@@ -3943,7 +4079,7 @@ const ViewEventSheet = () => {
                     <div key={f.key} className="flex flex-col">
                       {f.label && (
                         <label className="text-sm text-gray-700 mb-1">
-                          {f.label}
+                          {f.label}{f.required ? " *" : ""}
                         </label>
                       )}
 
