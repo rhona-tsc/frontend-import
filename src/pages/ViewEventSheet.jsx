@@ -1265,7 +1265,10 @@ const ViewEventSheet = () => {
 
       const url = r?.data?.url;
       if (url) {
-        window.open(url, "_blank", "noopener,noreferrer");
+        // Redirect in the current tab. Opening a new tab after the awaited save
+        // and API request is treated as an unsolicited popup by some browsers
+        // (particularly mobile Safari), so the click can appear to do nothing.
+        window.location.assign(url);
       } else {
         alert("Couldn’t get a payment link right now.");
       }
