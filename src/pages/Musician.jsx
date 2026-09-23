@@ -16,6 +16,9 @@ import Title from "../components/Title";
 import { getPossessiveTitleCase } from "./utils/getPossessiveTitleCase"; // adjust path as needed
 import axios from "axios";
 import MusicianHero from "../components/MusicianHero";
+import MusicianSocialPosts from "../components/MusicianSocialPosts";
+import { getMusicianSocialPosts } from "../utils/musicianSocialPosts";
+import ReviewCard from "../components/ReviewCard";
 const MusicianRepertoireSection = lazy(
   () => import("../components/MusicianRepertoireSection"),
 );
@@ -27,12 +30,15 @@ const getStoredUserId = () =>
 
 // Calculate average rating from reviews, rounded to nearest 0.5
 const calculateAverageRating = (reviews) => {
-  if (!reviews || reviews.length === 0) return 0;
-  const sum = reviews.reduce(
-    (total, review) => total + (review.rating || 0),
+  const ratedReviews = (Array.isArray(reviews) ? reviews : []).filter(
+    (review) => Number(review?.rating) >= 1 && Number(review?.rating) <= 5,
+  );
+  if (ratedReviews.length === 0) return 0;
+  const sum = ratedReviews.reduce(
+    (total, review) => total + Number(review.rating),
     0,
   );
-  return Math.round((sum / reviews.length) * 2) / 2; // round to nearest 0.5
+  return Math.round((sum / ratedReviews.length) * 2) / 2;
 };
 
 const pickBioText = (data) => {
@@ -87,6 +93,90 @@ const pickFirstImageUrl = (data) => {
   );
 };
 
+const mergeVideoLinks = (...lists) => {
+  const seen = new Set();
+
+  return lists
+    .flatMap((list) => (Array.isArray(list) ? list : []))
+    .filter((video) => {
+      const url = String(video?.url || "").trim();
+      const key = url.replace(/\/$/, "").toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
+
+const getVideoEmbed = (value) => {
+  const rawUrl = String(value || "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .trim();
+  if (!rawUrl) return null;
+
+  const youtubeMatch = rawUrl.match(
+    /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([0-9A-Za-z_-]{11})/i,
+  );
+  if (youtubeMatch) {
+    const id = youtubeMatch[1];
+    return {
+      provider: "YouTube",
+      embedUrl: `https://www.youtube.com/embed/${id}?modestbranding=1&rel=0&controls=1`,
+      thumbnailUrl: `https://img.youtube.com/vi/${id}/0.jpg`,
+    };
+  }
+
+  let url;
+  try {
+    url = new URL(
+      /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`,
+    );
+  } catch {
+    return null;
+  }
+
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  if (host === "vimeo.com" || host === "player.vimeo.com") {
+    const id = url.pathname.match(/\/(?:video\/)?(\d+)/)?.[1];
+    if (!id) return null;
+    return {
+      provider: "Vimeo",
+      embedUrl: `https://player.vimeo.com/video/${id}`,
+      thumbnailUrl: "",
+    };
+  }
+
+  if (host === "drive.google.com") {
+    const id =
+      url.pathname.match(/\/file\/d\/([^/]+)/)?.[1] ||
+      url.searchParams.get("id");
+    if (!id) return null;
+    return {
+      provider: "Google Drive",
+      embedUrl: `https://drive.google.com/file/d/${id}/preview`,
+      thumbnailUrl: "",
+    };
+  }
+
+  return null;
+};
+
+const getMusicianVideos = (musician) => {
+  const functionVideos = mergeVideoLinks(
+    musician?.functionBandVideoLinks,
+    musician?.tscApprovedFunctionBandVideoLinks,
+  ).filter((video) => getVideoEmbed(video?.url));
+  const originalVideos = mergeVideoLinks(
+    musician?.originalBandVideoLinks,
+    musician?.tscApprovedOriginalBandVideoLinks,
+  ).filter((video) => getVideoEmbed(video?.url));
+
+  return {
+    functionVideos,
+    originalVideos,
+    allVideos: mergeVideoLinks(functionVideos, originalVideos),
+  };
+};
+
 export const buildMusicianMeta = (musician) => {
   const firstName = (musician?.firstName || "").trim();
   const lastName = (musician?.lastName || "").trim();
@@ -133,14 +223,7 @@ const shouldIndexMusician = (musician) => {
 
   const hasImage = Boolean(pickFirstImageUrl(musician));
 
-  const hasVideos = [
-    ...(Array.isArray(musician?.tscApprovedFunctionBandVideoLinks)
-      ? musician.tscApprovedFunctionBandVideoLinks
-      : []),
-    ...(Array.isArray(musician?.tscApprovedOriginalBandVideoLinks)
-      ? musician.tscApprovedOriginalBandVideoLinks
-      : []),
-  ].some((v) => v && v.url);
+  const hasVideos = getMusicianVideos(musician).allVideos.length > 0;
 
   const hasInstrumentation =
     Array.isArray(musician?.instrumentation) &&
@@ -177,12 +260,6 @@ const Musician = () => {
     return `${CANONICAL_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
   };
 
-  // Extract YouTube video ID from a full URL or return as-is if already an ID
-  const extractVideoId = (url) => {
-    if (!url) return "";
-    const match = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-    return match ? match[1] : url;
-  };
   // Route param can be named differently depending on router (e.g. /musician/:key)
   const params = useParams();
   const musicianId =
@@ -202,6 +279,17 @@ const Musician = () => {
   );
   const [finalTravelPrice, setFinalTravelPrice] = useState(null);
   const [actData, setActData] = useState(null);
+  const socialPosts = React.useMemo(
+    () => getMusicianSocialPosts(actData),
+    [actData],
+  );
+  const profileReviews = React.useMemo(
+    () =>
+      (Array.isArray(actData?.reviews) ? actData.reviews : []).filter(
+        (review) => review?.comment && (review?.verified || review?.source !== "booking"),
+      ),
+    [actData],
+  );
 
   // Fetch musician/deputy profile for this page
   useEffect(() => {
@@ -254,15 +342,8 @@ const Musician = () => {
               bio: m?.bio,
             });
 
-            // pick a default video from approved links if present
-            const vids = [
-              ...(Array.isArray(m?.tscApprovedFunctionBandVideoLinks)
-                ? m.tscApprovedFunctionBandVideoLinks
-                : []),
-              ...(Array.isArray(m?.tscApprovedOriginalBandVideoLinks)
-                ? m.tscApprovedOriginalBandVideoLinks
-                : []),
-            ].filter((v) => v && v.url);
+            // Show uploaded videos immediately; approved links remain supported.
+            const vids = getMusicianVideos(m).allVideos;
             if (vids.length) setVideo(vids[0].url);
           }
         }
@@ -663,14 +744,7 @@ const Musician = () => {
       };
     }
 
-    const videosArr = [
-      ...(Array.isArray(actData?.tscApprovedFunctionBandVideoLinks)
-        ? actData.tscApprovedFunctionBandVideoLinks
-        : []),
-      ...(Array.isArray(actData?.tscApprovedOriginalBandVideoLinks)
-        ? actData.tscApprovedOriginalBandVideoLinks
-        : []),
-    ].filter((v) => v && v.url);
+    const videosArr = getMusicianVideos(actData).allVideos;
 
     const hasVideos = videosArr.length > 0;
 
@@ -879,30 +953,20 @@ const Musician = () => {
                   />
                 </div>
                 {(() => {
-                  const allVideoLinks = [
-                    ...(Array.isArray(
-                      actData?.tscApprovedFunctionBandVideoLinks,
-                    )
-                      ? actData.tscApprovedFunctionBandVideoLinks
-                      : []),
-                    ...(Array.isArray(
-                      actData?.tscApprovedOriginalBandVideoLinks,
-                    )
-                      ? actData.tscApprovedOriginalBandVideoLinks
-                      : []),
-                  ].filter((v) => v && v.url);
+                  const allVideoLinks = getMusicianVideos(actData).allVideos;
 
                   const selectedUrl = video || allVideoLinks[0]?.url || "";
-                  const selectedVideoId = extractVideoId(selectedUrl);
+                  const selectedVideo = getVideoEmbed(selectedUrl);
 
-                  if (!selectedVideoId) return null; // hide if none
+                  if (!selectedVideo) return null;
 
                   return (
                     <div ref={videoContainerRef} className="w-full h-full">
                       {videoVisible ? (
                         <iframe
                           className="w-full h-full object-contain aspect-video rounded"
-src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&controls=1`}                          title="YouTube video player"
+                          src={selectedVideo.embedUrl}
+                          title={`${selectedVideo.provider} video player`}
                           frameBorder="0"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
@@ -914,12 +978,18 @@ src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&co
                           className="w-full h-full rounded overflow-hidden relative group"
                           aria-label="Play video"
                         >
-                          <img
-                            src={`https://img.youtube.com/vi/${selectedVideoId}/hqdefault.jpg`}
-                            alt="Video poster"
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
+                          {selectedVideo.thumbnailUrl ? (
+                            <img
+                              src={selectedVideo.thumbnailUrl}
+                              alt="Video poster"
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className="grid h-full w-full place-items-center bg-gray-900 text-lg font-semibold text-white">
+                              Play {selectedVideo.provider} video
+                            </span>
+                          )}
                           <span
                             className="absolute inset-0 grid place-items-center"
                             aria-hidden
@@ -944,20 +1014,8 @@ src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&co
 
               {/* Thumbnails */}
               {(() => {
-                const covers = Array.isArray(
-                  actData?.tscApprovedFunctionBandVideoLinks,
-                )
-                  ? actData.tscApprovedFunctionBandVideoLinks.filter(
-                      (v) => v && v.url,
-                    )
-                  : [];
-                const originals = Array.isArray(
-                  actData?.tscApprovedOriginalBandVideoLinks,
-                )
-                  ? actData.tscApprovedOriginalBandVideoLinks.filter(
-                      (v) => v && v.url,
-                    )
-                  : [];
+                const { functionVideos: covers, originalVideos: originals } =
+                  getMusicianVideos(actData);
 
                 const Row = ({ label, items }) => {
                   if (!items.length) return null;
@@ -968,18 +1026,30 @@ src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&co
                       </div>
                       <div className="flex gap-2 overflow-x-auto pb-2">
                         {items.map((videoObj, index) => {
-                          const videoId = extractVideoId(videoObj.url);
-                          if (!videoId) return null;
+                          const embeddedVideo = getVideoEmbed(videoObj.url);
+                          if (!embeddedVideo) return null;
                           return (
-                            <img
+                            <button
+                              type="button"
                               key={`${label}-${index}`}
                               onClick={() => setVideo(videoObj.url)}
-                              className="w-[96px] h-[54px] object-cover cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded"
-                              src={`https://img.youtube.com/vi/${videoId}/0.jpg`}
-                              alt={videoObj.title || `${label} ${index + 1}`}
+                              className="relative w-[96px] h-[54px] overflow-hidden cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded bg-gray-900 text-white"
+                              aria-label={`Play ${videoObj.title || `${label} ${index + 1}`}`}
                               title={videoObj.title || videoObj.url}
-                              loading="lazy"
-                            />
+                            >
+                              {embeddedVideo.thumbnailUrl ? (
+                                <img
+                                  className="h-full w-full object-cover"
+                                  src={embeddedVideo.thumbnailUrl}
+                                  alt=""
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="grid h-full w-full place-items-center px-1 text-[10px] font-semibold">
+                                  {embeddedVideo.provider}
+                                </span>
+                              )}
+                            </button>
                           );
                         })}
                       </div>
@@ -1108,6 +1178,8 @@ src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&co
                     ))}
                 </ul>
               </Section>
+
+              <MusicianSocialPosts posts={socialPosts} />
 
               {/* Skills categories */}
               <Section when={content.hasAnySkills}>
@@ -1574,6 +1646,32 @@ src={`https://www.youtube.com/embed/${selectedVideoId}?modestbranding=1&rel=0&co
                 addToCart={addToCart}
               />
             </Suspense>
+          </div>
+        </Section>
+
+        <Section when={profileReviews.length > 0}>
+          <div className="relative mt-12" id="reviews">
+            <div className="text-2xl mb-2">
+              <Title
+                text1={getPossessiveTitleCase(displayShortName(actData))}
+                text2="REVIEWS"
+              />
+            </div>
+            <div className="relative p-6">
+              <button onClick={() => scrollReviews("left")} className="absolute -left-2 top-1/2 z-10 -translate-y-1/2" aria-label="Scroll reviews left" type="button">
+                <img src={assets.scroll_left_icon} alt="" className="h-8 w-8" />
+              </button>
+              <div ref={reviewGalleryRef} className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-4">
+                {profileReviews.map((review, index) => (
+                  <div key={review.reviewId || review._id || index} className="flex-shrink-0 snap-start">
+                    <ReviewCard review={review} />
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => scrollReviews("right")} className="absolute -right-2 top-1/2 z-10 -translate-y-1/2" aria-label="Scroll reviews right" type="button">
+                <img src={assets.scroll_right_icon} alt="" className="h-8 w-8" />
+              </button>
+            </div>
           </div>
         </Section>
 

@@ -51,7 +51,7 @@ const ReviewCard = ({ review }) => {
   overflow-y-auto flex-shrink-0
 ">
   {/* Star rating */}
-  <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex items-center gap-[2px]">
+  {Number(rating) >= 1 && <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex items-center gap-[2px]">
     {[1, 2, 3, 4, 5].map((i) => (
       <img
         key={i}
@@ -66,7 +66,7 @@ const ReviewCard = ({ review }) => {
         alt={`Star ${i}`}
       />
     ))}
-  </div>
+  </div>}
 
   {/* Profile + client */}
   <div className="flex items-start gap-2 sm:gap-3 w-full">
@@ -77,10 +77,12 @@ const ReviewCard = ({ review }) => {
     />
     <div>
       <p className="font-semibold text-gray-800 text-sm sm:text-base">{initials}</p>
-      <p className="text-xs sm:text-sm text-gray-500">
-        {eventType?.charAt(0).toUpperCase() + eventType?.slice(1)},{" "}
-        {eventLocation?.charAt(0).toUpperCase() + eventLocation?.slice(1)}
-      </p>
+      {(eventType || eventLocation) && <p className="text-xs sm:text-sm text-gray-500">
+        {[eventType, eventLocation]
+          .filter(Boolean)
+          .map((value) => value.charAt(0).toUpperCase() + value.slice(1))
+          .join(", ")}
+      </p>}
       <p className="text-xs sm:text-sm text-gray-500 mt-1">{formatDate(eventDate)}</p>
     </div>
   </div>
