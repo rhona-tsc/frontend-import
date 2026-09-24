@@ -68,6 +68,10 @@ const parseSocialPost = (value) => {
 
 export const getMusicianSocialPosts = (musician) => {
   const links = [
+    ...(Array.isArray(musician?.socialHighlightPostLinks)
+      ? musician.socialHighlightPostLinks
+      : []),
+    // Backward compatibility for social posts saved in the old video fields.
     ...(Array.isArray(musician?.functionBandVideoLinks)
       ? musician.functionBandVideoLinks
       : []),

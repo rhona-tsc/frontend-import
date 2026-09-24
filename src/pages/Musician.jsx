@@ -101,7 +101,7 @@ const mergeVideoLinks = (...lists) => {
     .filter((video) => {
       const url = String(video?.url || "").trim();
       const key = url.replace(/\/$/, "").toLowerCase();
-      if (!key || seen.has(key)) return false;
+      if (!key || video?.moderationStatus === "rejected" || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
@@ -155,6 +155,16 @@ const getVideoEmbed = (value) => {
       embedUrl: `https://drive.google.com/file/d/${id}/preview`,
       thumbnailUrl: "",
     };
+  }
+
+  if (host === "dropbox.com" || host.endsWith("dropboxusercontent.com")) {
+    url.searchParams.delete("dl");
+    url.searchParams.set("raw", "1");
+    return { provider: "Dropbox", mediaType: "video", embedUrl: url.toString(), thumbnailUrl: "" };
+  }
+
+  if (/\.(mp4|mov|m4v|webm)(?:$|[?#])/i.test(rawUrl)) {
+    return { provider: "Video", mediaType: "video", embedUrl: rawUrl, thumbnailUrl: "" };
   }
 
   return null;
@@ -962,7 +972,14 @@ const Musician = () => {
 
                   return (
                     <div ref={videoContainerRef} className="w-full h-full">
-                      {videoVisible ? (
+                      {videoVisible && selectedVideo.mediaType === "video" ? (
+                        <video
+                          className="w-full h-full object-contain aspect-video rounded bg-black"
+                          src={selectedVideo.embedUrl}
+                          controls
+                          playsInline
+                        />
+                      ) : videoVisible ? (
                         <iframe
                           className="w-full h-full object-contain aspect-video rounded"
                           src={selectedVideo.embedUrl}
@@ -1179,8 +1196,6 @@ const Musician = () => {
                 </ul>
               </Section>
 
-              <MusicianSocialPosts posts={socialPosts} />
-
               {/* Skills categories */}
               <Section when={content.hasAnySkills}>
                 {(() => {
@@ -1338,6 +1353,8 @@ const Musician = () => {
     </div>
   </div>
 </Section>
+
+          <MusicianSocialPosts posts={socialPosts} />
             </div>
 
           </Section>
