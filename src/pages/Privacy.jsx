@@ -32,9 +32,9 @@ const Privacy = () => {
         <Title text1="PRIVACY" text2="POLICY" />
       </div>
 
-      <div className="my-10 flex flex-col md:flex-row gap-16">
+      <div className="my-10 flex flex-col items-start gap-10 md:flex-row md:gap-16">
         <img
-          className="w-full md:w-auto md:max-w-[450px] h-auto object-cover rounded"
+          className="aspect-[5/4] w-full self-start rounded object-cover object-center md:w-[42%] md:max-w-[450px]"
           src={assets.hero_no_logo
           }
           alt="Musicians performing"
