@@ -65,6 +65,59 @@ const pickBioText = (data) => {
   }
 };
 
+const escapeBioHtml = (value = "") =>
+  String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const splitLongBioIntoParagraphs = (value = "") => {
+  const normalised = String(value).replace(/\r\n?/g, "\n").trim();
+  const suppliedParagraphs = normalised
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.replace(/\s*\n\s*/g, " ").trim())
+    .filter(Boolean);
+
+  if (suppliedParagraphs.length > 1 || normalised.length < 420) {
+    return suppliedParagraphs;
+  }
+
+  const sentences = normalised.match(/[^.!?]+[.!?]+(?:["”’']+)?|[^.!?]+$/g)
+    ?.map((sentence) => sentence.trim())
+    .filter(Boolean) || [normalised];
+
+  if (sentences.length < 4) return [normalised];
+
+  const paragraphCount = Math.min(3, sentences.length);
+  const paragraphs = [];
+  let cursor = 0;
+  for (let index = 0; index < paragraphCount; index += 1) {
+    const remainingSentences = sentences.length - cursor;
+    const remainingParagraphs = paragraphCount - index;
+    const take = Math.ceil(remainingSentences / remainingParagraphs);
+    paragraphs.push(sentences.slice(cursor, cursor + take).join(" "));
+    cursor += take;
+  }
+  return paragraphs;
+};
+
+const formatBioHtml = (value = "") => {
+  const raw = String(value || "").trim();
+  const looksLikeHtml =
+    /<\/?[a-z][\s\S]*>/i.test(raw) || /&lt;<\/?[a-z][\s\S]*&gt;/i.test(raw);
+  if (looksLikeHtml) return raw;
+
+  return splitLongBioIntoParagraphs(raw)
+    .map((paragraph) => {
+      const escaped = escapeBioHtml(paragraph);
+      const withBold = escaped.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      return `<p style="margin:0 0 1em">${withBold}</p>`;
+    })
+    .join("");
+};
+
 const pickFirstImageUrl = (data) => {
   const pickFrom = (v) => {
     if (!v) return "";
@@ -1095,12 +1148,7 @@ const Musician = () => {
                 <div className="px-2 py-2 text-gray-600 text-lg sm:text-xl leading-relaxed">
                   {(() => {
                     const raw = content.bio;
-                    const looksLikeHTML =
-                      /<\/?[a-z][\s\S]*>/i.test(raw) ||
-                      /&lt;<\/?[a-z][\s\S]*&gt;/i.test(raw);
-                    const html = looksLikeHTML
-                      ? raw
-                      : String(raw).replace(/\n/g, "<br/>");
+                    const html = formatBioHtml(raw);
                     return <div dangerouslySetInnerHTML={{ __html: html }} />;
                   })()}
                 </div>
