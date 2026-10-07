@@ -92,6 +92,8 @@ const parseStoredSocialPost = (item) => {
       key: `tiktok-import-${item._id || embedUrl}`,
       platform: "TikTok",
       embedUrl,
+      imageUrl: cleanUrl(item.thumbnailUrl),
+      linkUrl: embedUrl,
       aspectClass: "aspect-[9/16]",
     };
   }

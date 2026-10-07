@@ -12,15 +12,36 @@ const MusicianSocialPosts = ({ posts }) => {
             key={post.key}
             className={`w-full ${post.aspectClass} overflow-hidden rounded-lg bg-black shadow-sm`}
           >
-            <iframe
-              src={post.embedUrl}
-              title={`${post.platform} post`}
-              className="h-full w-full border-0"
-              loading="lazy"
-              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
+            {post.imageUrl ? (
+              <a
+                href={post.linkUrl || post.embedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative block h-full w-full"
+                aria-label={`View ${post.platform} post`}
+              >
+                <img
+                  src={post.imageUrl}
+                  alt={`${post.platform} post cover`}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="absolute inset-x-0 bottom-0 bg-black/70 px-3 py-2 text-center text-sm font-semibold text-white transition group-hover:bg-black/85">
+                  View on {post.platform}
+                </span>
+              </a>
+            ) : (
+              <iframe
+                src={post.embedUrl}
+                title={`${post.platform} post`}
+                className="h-full w-full border-0"
+                loading="lazy"
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            )}
           </div>
         ))}
       </div>
@@ -34,6 +55,8 @@ MusicianSocialPosts.propTypes = {
       key: PropTypes.string.isRequired,
       platform: PropTypes.string.isRequired,
       embedUrl: PropTypes.string.isRequired,
+      imageUrl: PropTypes.string,
+      linkUrl: PropTypes.string,
       aspectClass: PropTypes.string.isRequired,
     }),
   ).isRequired,
