@@ -66,6 +66,33 @@ const parseSocialPost = (value) => {
   return null;
 };
 
+const parseStoredSocialPost = (item) => {
+  if (!item || item.visible === false) return null;
+
+  const platform = String(item.platform || "").toLowerCase();
+  const mediaUrl = cleanUrl(item.mediaUrl);
+  if (platform === "tiktok" && mediaUrl) {
+    let embedUrl;
+    try {
+      const parsedUrl = new URL(mediaUrl);
+      if (!parsedUrl.hostname.toLowerCase().endsWith("tiktok.com")) return null;
+      parsedUrl.searchParams.set("hide_author", "1");
+      embedUrl = parsedUrl.toString();
+    } catch {
+      return null;
+    }
+
+    return {
+      key: `tiktok-import-${item._id || embedUrl}`,
+      platform: "TikTok",
+      embedUrl,
+      aspectClass: "aspect-[9/16]",
+    };
+  }
+
+  return parseSocialPost(item.url);
+};
+
 export const getMusicianSocialPosts = (musician) => {
   const links = [
     ...(Array.isArray(musician?.socialHighlightPostLinks)
@@ -82,7 +109,7 @@ export const getMusicianSocialPosts = (musician) => {
 
   const seen = new Set();
   return links
-    .map((item) => parseSocialPost(item?.url))
+    .map(parseStoredSocialPost)
     .filter((post) => {
       if (!post || seen.has(post.key)) return false;
       seen.add(post.key);
