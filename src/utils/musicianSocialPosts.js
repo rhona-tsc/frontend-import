@@ -72,15 +72,21 @@ const parseStoredSocialPost = (item) => {
   const platform = String(item.platform || "").toLowerCase();
   const mediaUrl = cleanUrl(item.mediaUrl);
   if (platform === "tiktok" && mediaUrl) {
-    let embedUrl;
+    let parsedUrl;
     try {
-      const parsedUrl = new URL(mediaUrl);
+      parsedUrl = new URL(mediaUrl);
       if (!parsedUrl.hostname.toLowerCase().endsWith("tiktok.com")) return null;
-      parsedUrl.searchParams.set("hide_author", "1");
-      embedUrl = parsedUrl.toString();
     } catch {
       return null;
     }
+
+    const postId =
+      parsedUrl.pathname.match(/\/player\/v1\/(\d+)/i)?.[1] ||
+      parsedUrl.pathname.match(/\/video\/(\d+)/i)?.[1] ||
+      parsedUrl.searchParams.get("id");
+    if (!postId || !/^\d+$/.test(postId)) return null;
+
+    const embedUrl = `https://www.tiktok.com/player/v1/${postId}?description=0&music_info=0&rel=0&autoplay=0`;
 
     return {
       key: `tiktok-import-${item._id || embedUrl}`,
