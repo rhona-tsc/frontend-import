@@ -4,8 +4,9 @@ import Title from "./Title";
 
 const MusicianSocialPosts = ({ posts }) => {
   const carouselRef = useRef(null);
+  const imagePosts = posts.filter((post) => Boolean(post.imageUrl));
 
-  if (!posts.length) return null;
+  if (!imagePosts.length) return null;
 
   const scroll = (direction) => {
     const carousel = carouselRef.current;
@@ -25,7 +26,7 @@ const MusicianSocialPosts = ({ posts }) => {
         <div className="text-2xl">
           <Title text1="SOCIAL" text2="HIGHLIGHTS" />
         </div>
-        {posts.length > 1 ? (
+        {imagePosts.length > 1 ? (
           <div className="flex gap-2 pb-1">
             <button
               type="button"
@@ -51,30 +52,18 @@ const MusicianSocialPosts = ({ posts }) => {
         ref={carouselRef}
         className="mt-3 flex snap-x snap-mandatory gap-1 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {posts.map((post) => (
+        {imagePosts.map((post) => (
           <div
             key={post.key}
             className="relative h-[220px] min-w-[180px] flex-none snap-start overflow-hidden bg-black sm:h-[260px] sm:min-w-[210px] lg:h-[280px] lg:min-w-[225px]"
           >
-            {post.imageUrl ? (
-              <img
-                src={post.imageUrl}
-                alt={`${post.platform} performance highlight`}
-                className="h-full w-full object-cover"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <iframe
-                src={post.embedUrl}
-                title={`${post.platform} post`}
-                className="h-full w-full border-0"
-                loading="lazy"
-                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            )}
+            <img
+              src={post.imageUrl}
+              alt={`${post.platform} performance highlight`}
+              className="h-full w-full object-cover"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
           </div>
         ))}
       </div>
