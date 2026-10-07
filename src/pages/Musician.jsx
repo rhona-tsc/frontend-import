@@ -507,18 +507,8 @@ const Musician = () => {
     return `${day}${suffix} of ${month} ${year}`;
   };
 
-  // Gallery Carousel logic
-  const galleryRef = useRef(null);
-
   const videoContainerRef = useRef(null);
   const [videoVisible, setVideoVisible] = useState(false);
-
-  const scrollGallery = (direction) => {
-    if (galleryRef.current) {
-      const scrollAmount = direction === "left" ? -400 : 400;
-      galleryRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-    }
-  };
 
   // verify latest reply on this act+date (deferred)
   useEffect(() => {
@@ -604,38 +594,6 @@ const Musician = () => {
 
     fetchShortlist();
   }, [setShortlistedActs]);
-
-  // Touch/swipe gesture support for gallery carousel (images)
-  useEffect(() => {
-    const el = galleryRef.current;
-    if (!el) return;
-    let startX = 0;
-    let scrollLeft = 0;
-    let isDown = false;
-
-    const onTouchStart = (e) => {
-      isDown = true;
-      startX = e.touches[0].pageX - el.offsetLeft;
-      scrollLeft = el.scrollLeft;
-    };
-    const onTouchMove = (e) => {
-      if (!isDown) return;
-      const x = e.touches[0].pageX - el.offsetLeft;
-      const walk = startX - x;
-      el.scrollLeft = scrollLeft + walk;
-    };
-    const onTouchEnd = () => {
-      isDown = false;
-    };
-    el.addEventListener("touchstart", onTouchStart);
-    el.addEventListener("touchmove", onTouchMove);
-    el.addEventListener("touchend", onTouchEnd);
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, []);
 
   // Review gallery carousel logic
   const reviewGalleryRef = useRef(null);
@@ -767,8 +725,8 @@ const Musician = () => {
   }, [actData, selectedLineup, selectedDate, selectedAddress]);
 
   // --- Gallery tab state for musician media sets ---
-  const [activeMediaTab, setActiveMediaTab] = useState("blackTie");
-  // one of: "blackTie" | "formal" | "smartCasual" | "sessionAllBlack" | "additional"
+  const [activeMediaTab, setActiveMediaTab] = useState("all");
+  const [selectedGalleryImage, setSelectedGalleryImage] = useState(null);
 
   // Helper to get short name: first + last initial, with fallbacks
   const displayShortName = (act) => {
@@ -1402,13 +1360,14 @@ const Musician = () => {
   </div>
 </Section>
 
-          <MusicianSocialPosts posts={socialPosts} />
             </div>
 
           </Section>
 
 
         </div>
+
+        <MusicianSocialPosts posts={socialPosts} />
 
         {/* ===== GALLERY (full width) ===== */}
         {/*  Academics & Achievements */}
@@ -1590,27 +1549,33 @@ const Musician = () => {
             },
           ];
 
-          const nonEmptyMediaGroups = mediaGroups
-            .map((group) => ({
-              ...group,
-              items: (group.items || [])
-                .map((item) => {
-                  if (typeof item === "string") return item;
-                  if (item && typeof item === "object" && item.url)
-                    return item.url;
-                  return null;
-                })
-                .filter(Boolean),
-            }))
-            .filter((group) => group.items.length > 0);
+          const normaliseImages = (group) =>
+            (group.items || [])
+              .map((item) => {
+                const url = typeof item === "string" ? item : item?.url;
+                return url
+                  ? { url, category: group.id, label: group.label }
+                  : null;
+              })
+              .filter(Boolean);
 
-          if (nonEmptyMediaGroups.length === 0) return null;
+          const allImages = mediaGroups
+            .flatMap(normaliseImages)
+            .filter(
+              (item, index, values) =>
+                values.findIndex((candidate) => candidate.url === item.url) ===
+                index,
+            );
+          const visibleGroups = mediaGroups.filter(
+            (group) => normaliseImages(group).length > 0,
+          );
 
-          const activeGroup =
-            nonEmptyMediaGroups.find((g) => g.id === activeMediaTab) ||
-            nonEmptyMediaGroups[0];
+          if (allImages.length === 0) return null;
 
-          const images = activeGroup.items;
+          const images =
+            activeMediaTab === "all"
+              ? allImages
+              : allImages.filter((item) => item.category === activeMediaTab);
 
           return (
             <Section when={true}>
@@ -1621,74 +1586,81 @@ const Musician = () => {
                 />
               </div>
 
-              {/* Tabs */}
-              <div className="flex flex-wrap gap-2 mt-4 px-1">
-                {nonEmptyMediaGroups.map((g) => (
+              <div
+                className="mt-4 flex flex-wrap gap-2"
+                role="group"
+                aria-label="Filter gallery photographs"
+              >
+                {[
+                  { id: "all", label: "All", items: allImages },
+                  ...visibleGroups,
+                ].map((g) => (
                   <button
                     key={g.id}
                     type="button"
                     onClick={() => setActiveMediaTab(g.id)}
-                    className={`px-3 py-1.5 rounded border text-sm transition-colors ${
+                    aria-pressed={activeMediaTab === g.id}
+                    className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                       activeMediaTab === g.id
-                        ? "bg-black text-white border-black"
-                        : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-[#ff6667] hover:text-white hover:border-[#ff6667]"
+                        ? "border-black bg-black text-white"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-[#ff6667] hover:text-[#d94f50]"
                     }`}
                   >
-                    {g.label} ({g.items.length})
+                    {g.label} ({g.items?.length || 0})
                   </button>
                 ))}
               </div>
 
-              {/* Carousel */}
-              <div className="relative px-1 py-3">
-                <div className="relative">
-                  <button
-                    onClick={() => scrollGallery("left")}
-                    className="absolute -left-6 top-1/2 -translate-y-1/2 z-10"
-                    aria-label="Scroll left"
-                    type="button"
-                  >
-                    <img
-                      src={assets.scroll_left_icon}
-                      alt="Scroll left"
-                      className="w-8 h-8"
-                    />
-                  </button>
-
-                  <div
-                    ref={galleryRef}
-                    className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
-                    style={{ scrollBehavior: "smooth" }}
-                  >
-                    {images.map((url, index) => (
-                      <div
-                        key={`${activeGroup.id}-${index}`}
-                        className="w-[600px] h-[400px] bg-gray-100 rounded shadow-sm flex-shrink-0 snap-start overflow-hidden flex items-center justify-center"
+              <div className="py-3">
+                {images.length > 0 ? (
+                  <div className="columns-2 gap-1 md:columns-3 xl:columns-4">
+                    {images.map((image, index) => (
+                      <button
+                        type="button"
+                        key={`${image.category}-${image.url}-${index}`}
+                        onClick={() => setSelectedGalleryImage(image)}
+                        className="group mb-1 block w-full break-inside-avoid overflow-hidden bg-transparent text-left"
                       >
                         <img
-                          src={url}
-                          alt={`${activeGroup.label} image ${index + 1}`}
-                          className="w-full h-full object-contain"
+                          src={image.url}
+                          alt={`${image.label} photograph ${index + 1}`}
+                          className="block h-auto w-full transition duration-300 group-hover:brightness-95"
                           loading="lazy"
                         />
-                      </div>
+                      </button>
                     ))}
                   </div>
-
-                  <button
-                    onClick={() => scrollGallery("right")}
-                    className="absolute -right-6 top-1/2 -translate-y-1/2 z-10"
-                    aria-label="Scroll right"
-                    type="button"
-                  >
-                    <img
-                      src={assets.scroll_right_icon}
-                      alt="Scroll right"
-                      className="w-8 h-8"
-                    />
-                  </button>
-                </div>
+                ) : (
+                  <p className="py-3 text-sm text-gray-400">
+                    No photographs are available in this category yet.
+                  </p>
+                )}
               </div>
+
+              {selectedGalleryImage ? (
+                <div
+                  className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-3 sm:p-8"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`${selectedGalleryImage.label} photograph`}
+                  onClick={() => setSelectedGalleryImage(null)}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGalleryImage(null)}
+                    className="absolute right-4 top-4 rounded-full bg-white/10 px-4 py-2 text-xl text-white hover:bg-white/20"
+                    aria-label="Close photograph"
+                  >
+                    ×
+                  </button>
+                  <img
+                    src={selectedGalleryImage.url}
+                    alt={`${selectedGalleryImage.label} photograph`}
+                    className="max-h-full max-w-full object-contain"
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                </div>
+              ) : null}
             </Section>
           );
         })()}
