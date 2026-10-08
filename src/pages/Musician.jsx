@@ -160,6 +160,22 @@ const mergeVideoLinks = (...lists) => {
     });
 };
 
+const hasText = (value) => String(value ?? "").trim().length > 0;
+const hasObjectText = (item, keys) =>
+  Boolean(item) && keys.some((key) => hasText(item?.[key]));
+const meaningfulItems = (items, keys) =>
+  (Array.isArray(items) ? items : []).filter((item) =>
+    typeof item === "string" ? hasText(item) : hasObjectText(item, keys),
+  );
+const getVisibleVocalTypes = (musician) =>
+  (Array.isArray(musician?.vocals?.type) ? musician.vocals.type : []).filter(
+    (type) => hasText(type) && String(type).trim().toLowerCase() !== "i don't sing",
+  );
+const isNonSinger = (musician) =>
+  (Array.isArray(musician?.vocals?.type) ? musician.vocals.type : []).some(
+    (type) => String(type).trim().toLowerCase() === "i don't sing",
+  );
+
 const getVideoEmbed = (value) => {
   const rawUrl = String(value || "")
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
@@ -772,21 +788,24 @@ const Musician = () => {
     const bio = pickBioText(actData);
     const hasBio = hasContent(bio);
 
-    const hasInstrumentation =
-      Array.isArray(actData?.instrumentation) &&
-      actData.instrumentation.length > 0;
+    const visibleInstrumentation = meaningfulItems(actData?.instrumentation, [
+      "instrument",
+    ]);
+    const vocalTypes = getVisibleVocalTypes(actData);
+    const hasInstrumentation = visibleInstrumentation.length > 0;
 
     const hasVocals =
-      (Array.isArray(actData?.vocals?.type) &&
-        actData.vocals.type.length > 0) ||
-      hasContent(actData?.vocals?.range) ||
-      actData?.vocals?.rap === true ||
-      actData?.vocals?.rap === "true";
+      !isNonSinger(actData) &&
+      (vocalTypes.length > 0 ||
+        (hasText(actData?.vocals?.range) &&
+          String(actData.vocals.range).trim().toLowerCase() !== "not sure") ||
+        actData?.vocals?.rap === true ||
+        actData?.vocals?.rap === "true");
 
     const otherSkillsArr = Array.isArray(actData?.other_skills)
       ? actData.other_skills
       : [];
-    const hasAnySkills = otherSkillsArr.length > 0;
+    const hasAnySkills = otherSkillsArr.some(hasText);
 
     const hasLocation = hasContent(actData?.address?.county);
     const audioTracks = [
@@ -797,14 +816,21 @@ const Musician = () => {
     const hasMp3s = audioTracks.length > 0;
 
     const hasCredits =
-      (Array.isArray(actData?.academic_credentials) &&
-        actData.academic_credentials.length > 0) ||
-      (Array.isArray(actData?.awards) && actData.awards.length > 0) ||
-      (Array.isArray(actData?.function_bands_performed_with) &&
-        actData.function_bands_performed_with.length > 0) ||
-      (Array.isArray(actData?.original_bands_performed_with) &&
-        actData.original_bands_performed_with.length > 0) ||
-      (Array.isArray(actData?.sessions) && actData.sessions.length > 0);
+      meaningfulItems(actData?.academic_credentials, [
+        "education_level",
+        "course",
+        "institution",
+        "years",
+      ]).length > 0 ||
+      meaningfulItems(actData?.awards, ["description", "years"]).length > 0 ||
+      (isPrivileged &&
+        meaningfulItems(actData?.function_bands_performed_with, [
+          "function_band_name",
+        ]).length > 0) ||
+      meaningfulItems(actData?.original_bands_performed_with, [
+        "original_band_name",
+      ]).length > 0 ||
+      meaningfulItems(actData?.sessions, ["artist", "session_type"]).length > 0;
 
     const galleryCounts = [
       actData?.digitalWardrobeBlackTie,
@@ -815,8 +841,12 @@ const Musician = () => {
     ].map((g) => (Array.isArray(g) ? g.length : 0));
     const hasGallery = galleryCounts.some((n) => n > 0);
 
-    const hasRepertoire =
-      Array.isArray(actData?.selectedSongs) && actData.selectedSongs.length > 0;
+    const hasRepertoire = meaningfulItems(actData?.selectedSongs, [
+      "title",
+      "song",
+      "name",
+      "artist",
+    ]).length > 0;
 
     const hasNonEmptyArrayRows = (
       arr,
@@ -876,11 +906,9 @@ const Musician = () => {
 
     const hasRelated =
       (Array.isArray(actData?.vocals?.genres) &&
-        actData.vocals.genres.length > 0) ||
+        actData.vocals.genres.some(hasText)) ||
       hasInstrumentation ||
-      hasContent(
-        Array.isArray(actData?.vocals?.type) ? actData.vocals.type[0] : "",
-      );
+      vocalTypes.length > 0;
 
     return {
       hasVideos,
@@ -899,7 +927,7 @@ const Musician = () => {
       audioTracks,
       bio,
     };
-  }, [actData]);
+  }, [actData, isPrivileged]);
 
   // Tiny conditional wrapper
   const Section = ({ when, children }) => (when ? <>{children}</> : null);
@@ -1124,8 +1152,8 @@ const Musician = () => {
                 />
               </div>
               {/* Instrumentation */}
-              {Array.isArray(actData?.instrumentation) &&
-                (actData?.instrumentation?.length || 0) > 0 && (
+              {meaningfulItems(actData?.instrumentation, ["instrument"])
+                .length > 0 && (
                   <>
                     <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
                       <h4 className="font-semibold text-gray-900 mb-2">
@@ -1138,7 +1166,9 @@ const Musician = () => {
                           Intermediate: 3,
                         };
                         const sorted = [
-                          ...(actData.instrumentation || []),
+                          ...meaningfulItems(actData.instrumentation, [
+                            "instrument",
+                          ]),
                         ].sort((a, b) => {
                           const aOrder = skillOrder[a?.skill_level] || 99;
                           const bOrder = skillOrder[b?.skill_level] || 99;
@@ -1160,10 +1190,9 @@ const Musician = () => {
                 <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
                   <h4 className="font-semibold text-gray-900 mb-2">Vocals</h4>
 
-                  {Array.isArray(actData?.vocals?.type) &&
-                    (actData?.vocals?.type?.length || 0) > 0 && (
+                  {getVisibleVocalTypes(actData).length > 0 && (
                       <li>
-                        {actData.vocals.type.join(", ")}
+                        {getVisibleVocalTypes(actData).join(", ")}
                         {actData.vocals?.range &&
                         actData.vocals.range.trim().toLowerCase() !== "not sure"
                           ? ` (${actData.vocals.range})`
@@ -1178,15 +1207,24 @@ const Musician = () => {
 
               <Section
                 when={
-                  Array.isArray(profileData?.academic_credentials) &&
-                  profileData?.academic_credentials?.length > 0
+                  meaningfulItems(profileData?.academic_credentials, [
+                    "education_level",
+                    "course",
+                    "institution",
+                    "years",
+                  ]).length > 0
                 }
               >
                 <ul className="list-disc pl-5 text-lg text-gray-600 mt-4">
                   <h4 className="font-semibold text-gray-900 mb-2">
                     Highlights
                   </h4>
-                  {profileData?.academic_credentials
+                  {meaningfulItems(profileData?.academic_credentials, [
+                    "education_level",
+                    "course",
+                    "institution",
+                    "years",
+                  ])
                     ?.slice(0, 2)
                     .map((cred, idx) => (
                       <li key={`highlight-cred-${idx}`}>
@@ -1372,21 +1410,7 @@ const Musician = () => {
         {/* ===== GALLERY (full width) ===== */}
         {/*  Academics & Achievements */}
 
-        <Section
-          when={Boolean(
-            (Array.isArray(profileData?.academic_credentials) &&
-              profileData?.academic_credentials?.length > 0) ||
-              (Array.isArray(profileData?.awards) &&
-                profileData?.awards?.length > 0) ||
-              (isPrivileged &&
-                Array.isArray(profileData?.function_bands_performed_with) &&
-                profileData?.function_bands_performed_with?.length > 0) ||
-              (Array.isArray(profileData?.original_bands_performed_with) &&
-                profileData?.original_bands_performed_with?.length > 0) ||
-              (Array.isArray(profileData?.sessions) &&
-                profileData?.sessions?.length > 0),
-          )}
-        >
+        <Section when={content.hasCredits}>
           <div className="lg:col-span-12 mt-12">
             <div className="text-2xl mb-2">
               <Title
@@ -1396,26 +1420,32 @@ const Musician = () => {
             </div>
 
             <div className="border rounded px-4 py-6 text-m text-gray-700 w-full my-2 sm:px-6 sm:py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {((Array.isArray(profileData?.academic_credentials) &&
-                profileData?.academic_credentials?.length > 0) ||
-                (Array.isArray(profileData?.awards) &&
-                  profileData?.awards?.length > 0)) && (
+              {(meaningfulItems(profileData?.academic_credentials, [
+                "education_level",
+                "course",
+                "institution",
+                "years",
+              ]).length > 0 ||
+                meaningfulItems(profileData?.awards, ["description", "years"])
+                  .length > 0) && (
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">
                     Education & Awards
                   </h4>
 
-                  {Array.isArray(profileData?.academic_credentials) &&
-                    profileData?.academic_credentials?.length > 0 && (
+                  {meaningfulItems(profileData?.academic_credentials, [
+                    "education_level",
+                    "course",
+                    "institution",
+                    "years",
+                  ]).length > 0 && (
                       <ul className="list-disc pl-5 space-y-1 mb-4">
-                        {profileData?.academic_credentials
-                          ?.filter(
-                            (cred) =>
-                              cred?.course ||
-                              cred?.institution ||
-                              cred?.years ||
-                              cred?.education_level,
-                          )
+                        {meaningfulItems(profileData?.academic_credentials, [
+                          "education_level",
+                          "course",
+                          "institution",
+                          "years",
+                        ])
                           .map((cred, idx) => {
                             const parts = [
                               cred?.education_level,
@@ -1431,13 +1461,15 @@ const Musician = () => {
                       </ul>
                     )}
 
-                  {Array.isArray(profileData?.awards) &&
-                    profileData?.awards?.length > 0 && (
+                  {meaningfulItems(profileData?.awards, [
+                    "description",
+                    "years",
+                  ]).length > 0 && (
                       <ul className="list-disc pl-5 space-y-1">
-                        {profileData?.awards
-                          ?.filter(
-                            (award) => award?.description || award?.years,
-                          )
+                        {meaningfulItems(profileData?.awards, [
+                          "description",
+                          "years",
+                        ])
                           .map((award, idx) => (
                             <li key={`award-${idx}`}>
                               {award?.description}
@@ -1450,15 +1482,18 @@ const Musician = () => {
               )}
 
               {isPrivileged &&
-                Array.isArray(profileData?.function_bands_performed_with) &&
-                profileData?.function_bands_performed_with?.length > 0 && (
+                meaningfulItems(profileData?.function_bands_performed_with, [
+                  "function_band_name",
+                ]).length > 0 && (
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-2">
                       Function Projects
                     </h4>
                     <ul className="list-disc pl-5 space-y-1">
-                      {profileData?.function_bands_performed_with
-                        ?.filter((b) => b?.function_band_name)
+                      {meaningfulItems(
+                        profileData?.function_bands_performed_with,
+                        ["function_band_name"],
+                      )
                         .map((b, idx) => (
                           <li key={`funcband-${idx}`}>
                             {b?.function_band_name}
@@ -1468,15 +1503,18 @@ const Musician = () => {
                   </div>
                 )}
 
-              {Array.isArray(profileData?.original_bands_performed_with) &&
-                profileData?.original_bands_performed_with?.length > 0 && (
+              {meaningfulItems(profileData?.original_bands_performed_with, [
+                "original_band_name",
+              ]).length > 0 && (
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-2">
                       Original Projects
                     </h4>
                     <ul className="list-disc pl-5 space-y-1">
-                      {profileData?.original_bands_performed_with
-                        ?.filter((b) => b?.original_band_name)
+                      {meaningfulItems(
+                        profileData?.original_bands_performed_with,
+                        ["original_band_name"],
+                      )
                         .map((b, idx) => (
                           <li key={`origband-${idx}`}>
                             {b?.original_band_name}
@@ -1486,15 +1524,19 @@ const Musician = () => {
                   </div>
                 )}
 
-              {Array.isArray(profileData?.sessions) &&
-                profileData?.sessions?.length > 0 && (
+              {meaningfulItems(profileData?.sessions, [
+                "artist",
+                "session_type",
+              ]).length > 0 && (
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-2">
                       Sessions
                     </h4>
                     <ul className="list-disc pl-5 space-y-1">
-                      {profileData?.sessions
-                        ?.filter((s) => s?.artist || s?.session_type)
+                      {meaningfulItems(profileData?.sessions, [
+                        "artist",
+                        "session_type",
+                      ])
                         .map((s, idx) => (
                           <li key={`session-${idx}`}>
                             {[s?.artist, s?.session_type]
