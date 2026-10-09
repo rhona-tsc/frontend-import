@@ -3500,7 +3500,7 @@ const ViewEventSheet = () => {
       {
         id: "schedule",
         title: "Schedule",
-        help: "We’ve pulled any arrival/start/finish times from the booking. Add exact set times (and other key moments) below.",
+        help: "Add the timings you know in the table below. It is fine to leave gaps or enter items out of order—we can tidy the final running order later.",
         fields: [
           {
             key: "schedule_simple",
