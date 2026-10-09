@@ -1349,9 +1349,16 @@ const ViewEventSheet = () => {
           (act.lineups || [])[0] ||
           null
         : first.lineup || null;
-      const members = Array.isArray(lineup?.bandMembers)
-        ? lineup.bandMembers
-        : [];
+      const confirmedMembers = [
+        booking?.assignedMusicians,
+        booking?.bookingMusicians,
+        booking?.bandLineup,
+      ].find((items) => Array.isArray(items) && items.length) || [];
+      const members = confirmedMembers.length
+        ? confirmedMembers
+        : Array.isArray(lineup?.bandMembers)
+          ? lineup.bandMembers
+          : [];
 
       const clean = (s = "") => String(s || "").trim();
       const mapDiet = (s) => {
