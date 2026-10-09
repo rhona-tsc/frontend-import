@@ -953,6 +953,15 @@ const ViewEventSheet = () => {
     };
   }, [acts, booking]);
 
+  const videoThumbnail = (url = "") => {
+    const match = String(url).match(
+      /(?:youtu\.be\/|youtube\.com\/(?:watch\?.*?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/i,
+    );
+    return match?.[1]
+      ? `https://i.ytimg.com/vi/${match[1]}/hqdefault.jpg`
+      : "";
+  };
+
   // Fetch booking(s) for the user, with robust fallbacks by route id/ref.
   useEffect(() => {
     (async () => {
@@ -1776,12 +1785,43 @@ const ViewEventSheet = () => {
               <div>
                 <div className="text-sm text-gray-700 mb-1">Promo video reference</div>
                 {actMedia.videos.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {actMedia.videos.map((url, index) => (
-                      <a key={url} href={url} target="_blank" rel="noreferrer" className="text-sm text-[#ff6667] underline">
-                        Promo video {index + 1}
-                      </a>
-                    ))}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {actMedia.videos.map((url, index) => {
+                      const thumbnail = videoThumbnail(url);
+                      return (
+                        <a
+                          key={url}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Open promo video ${index + 1}`}
+                          className="group overflow-hidden rounded-lg border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                        >
+                          <div className="relative aspect-video overflow-hidden bg-gray-900">
+                            {thumbnail ? (
+                              <img
+                                src={thumbnail}
+                                alt={`Promo video ${index + 1} thumbnail`}
+                                loading="lazy"
+                                className="h-full w-full object-cover transition group-hover:scale-105"
+                              />
+                            ) : (
+                              <div className="flex h-full items-center justify-center bg-gray-800 text-xs text-white">
+                                Promo video
+                              </div>
+                            )}
+                            <span className="absolute inset-0 flex items-center justify-center">
+                              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-lg text-white shadow">
+                                ▶
+                              </span>
+                            </span>
+                          </div>
+                          <span className="block px-2 py-2 text-xs font-medium text-gray-800">
+                            Promo video {index + 1}
+                          </span>
+                        </a>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-amber-700">Promo video is missing from the act profile.</p>
