@@ -1349,12 +1349,16 @@ const ViewEventSheet = () => {
           (act.lineups || [])[0] ||
           null
         : first.lineup || null;
-      const confirmedMembers = [
+      const allocationLists = [
         booking?.assignedMusicians,
         booking?.bookingMusicians,
         booking?.bandLineup,
-      ].find((items) => Array.isArray(items) && items.length) || [];
-      const members = confirmedMembers.length
+      ];
+      const hasAllocationData = allocationLists.some((items) => Array.isArray(items));
+      const confirmedMembers = allocationLists.find(
+        (items) => Array.isArray(items) && items.length,
+      ) || [];
+      const members = hasAllocationData
         ? confirmedMembers
         : Array.isArray(lineup?.bandMembers)
           ? lineup.bandMembers
@@ -1368,7 +1372,7 @@ const ViewEventSheet = () => {
         return s;
       };
 
-      return members
+      const confirmedRows = members
         .filter((m) => !isManagerLike(m))
         .map((m) => ({
           name:
@@ -1377,6 +1381,20 @@ const ViewEventSheet = () => {
           instrument: m?.instrument || "",
           diet: mapDiet(m?.dietaryRequirements || m?.dietary || ""),
         }));
+      const bookedPerformerCount = Array.isArray(lineup?.bandMembers)
+        ? lineup.bandMembers.filter((member) => !isManagerLike(member)).length
+        : confirmedRows.length;
+      const tbcCount = Math.max(0, bookedPerformerCount - confirmedRows.length);
+      return tbcCount
+        ? [
+            ...confirmedRows,
+            {
+              name: "Awaiting confirmation",
+              instrument: "Remaining lineup places",
+              diet: `${tbcCount} × TBC`,
+            },
+          ]
+        : confirmedRows;
     } catch {
       return [];
     }
