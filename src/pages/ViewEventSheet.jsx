@@ -933,6 +933,12 @@ const ViewEventSheet = () => {
       .map(urlOf)
       .filter(Boolean);
     const videos = [
+      first?.promoVideo,
+      first?.promoVideoUrl,
+      first?.video,
+      ...(Array.isArray(first?.tscVideos) ? first.tscVideos : []),
+      ...(Array.isArray(first?.videos) ? first.videos : []),
+      ...(Array.isArray(first?.promoVideos) ? first.promoVideos : []),
       act?.promoVideo,
       act?.promoVideoUrl,
       act?.video,
