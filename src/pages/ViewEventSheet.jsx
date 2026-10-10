@@ -1380,13 +1380,29 @@ const ViewEventSheet = () => {
           return DIET_FALLBACK;
         return s;
       };
+      const formatMusicianName = (member = {}) => {
+        const firstName = clean(member.firstName);
+        const lastName = clean(member.lastName);
+        if (firstName || lastName) {
+          return [
+            firstName,
+            lastName ? `${lastName.charAt(0).toUpperCase()}.` : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+        }
+
+        const nameParts = clean(member.name).split(/\s+/).filter(Boolean);
+        if (nameParts.length > 1) {
+          return `${nameParts[0]} ${nameParts.at(-1).charAt(0).toUpperCase()}.`;
+        }
+        return nameParts[0] || "Band member";
+      };
 
       const confirmedRows = members
         .filter((m) => !isManagerLike(m))
         .map((m) => ({
-          name:
-            [m?.firstName, m?.lastName].filter(Boolean).join(" ") ||
-            "Band member",
+          name: formatMusicianName(m),
           instrument: m?.instrument || "",
           diet: mapDiet(m?.dietaryRequirements || m?.dietary || ""),
         }));
@@ -1398,8 +1414,8 @@ const ViewEventSheet = () => {
         ? [
             ...confirmedRows,
             {
-              name: "Awaiting confirmation",
-              instrument: "Remaining lineup places",
+              name: "Other musicians",
+              instrument: "—",
               diet: `${tbcCount} × TBC`,
             },
           ]
