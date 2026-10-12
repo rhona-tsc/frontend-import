@@ -2,6 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { BACKEND } from "../apiBase";
 
 const hasText = (value) => String(value || "").trim().length > 0;
+const isPublicRoomName = (value) => {
+  const name = String(value || "").trim();
+  return hasText(name)
+    && name.toLowerCase() !== "main / unspecified room"
+    && !/(?:\/\/\/)?[a-z]+(?:\.[a-z]+){2}/i.test(name)
+    && !/(?:google maps?|what\s*3\s*words?|\bw3w\b|parking|entrance|station|load(?:ing)?|spaces? available)/i.test(name)
+    && name.length <= 55;
+};
 
 const Info = ({ label, value }) => {
   if (!hasText(value)) return null;
@@ -51,7 +59,7 @@ const VenueGuide = () => {
   }, []);
 
   const counties = useMemo(() => [...new Set(venues.map((venue) => venue.county).filter(Boolean))].sort(), [venues]);
-  const rooms = useMemo(() => [...new Set(venues.flatMap((venue) => (venue.rooms || []).map((item) => item.name)).filter(Boolean))].sort(), [venues]);
+  const rooms = useMemo(() => [...new Set(venues.flatMap((venue) => (venue.rooms || []).map((item) => item.name)).filter(isPublicRoomName))].sort(), [venues]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -191,4 +199,3 @@ const VenueGuide = () => {
 };
 
 export default VenueGuide;
-
