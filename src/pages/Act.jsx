@@ -37,6 +37,20 @@ import { logBadges } from "../utils/logger";
 import { readCachedAct, writeCachedAct } from "../utils/actCache";
 import axios from "axios";
 
+const retryImport = async (load) => {
+  for (let attempt = 0; ; attempt += 1) {
+    try { return await load(); }
+    catch (error) {
+      if (attempt >= 2) throw error;
+      await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1000));
+    }
+  }
+};
+const RepertoireSectionLazy = React.lazy(() => retryImport(() => import("../components/RepertoireSection")));
+const AcousticExtrasSelectorLazy = React.lazy(() => retryImport(() => import("../components/AcousticExtrasSelector")));
+const ActPerformanceOverviewLazy = React.lazy(() => retryImport(() => import("../components/ActPerformanceOverview")));
+const RelatedActsLazy = React.lazy(() => retryImport(() => import("../components/RelatedActs")));
+
 // ✅ SEO helper: build meta title/description from act data
 export const buildActMeta = (act) => {
   const name = act?.tscName || act?.name || "Wedding Band";
@@ -186,17 +200,6 @@ const Act = () => {
     return Math.round((sum / reviews.length) * 2) / 2; // nearest 0.5
   }, [reviews]);
 
-  // at top of Act.jsx
-  const RepertoireSectionLazy = React.lazy(
-    () => import("../components/RepertoireSection"),
-  );
-  const AcousticExtrasSelectorLazy = React.lazy(
-    () => import("../components/AcousticExtrasSelector"),
-  );
-  const ActPerformanceOverviewLazy = React.lazy(
-    () => import("../components/ActPerformanceOverview"),
-  );
-  const RelatedActsLazy = React.lazy(() => import("../components/RelatedActs"));
   const DEBUG = import.meta?.env?.DEV ?? false; // on in dev
   const log = (...a) => {
     if (DEBUG) console.log(...a);
