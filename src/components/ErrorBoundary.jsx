@@ -23,6 +23,15 @@ export default class ErrorBoundary extends React.Component {
     const isChunkFail =
       /Failed to fetch dynamically imported module|Loading chunk|ChunkLoadError/i.test(msg);
 
+    if (isChunkFail && this.props.initialPublicHtml) {
+      return (
+        <div className="max-w-5xl mx-auto p-6">
+          <div dangerouslySetInnerHTML={{ __html: this.props.initialPublicHtml }} />
+          <p className="mt-6">The interactive features couldn't load. <button className="underline" onClick={() => window.location.reload()}>Refresh to try again</button>.</p>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-6">
         <div className="max-w-xl w-full border rounded-2xl p-6 shadow-sm">

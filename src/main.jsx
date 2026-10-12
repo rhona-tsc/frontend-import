@@ -20,12 +20,14 @@ if (location.search.includes("nolog")) {
   });
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root');
+const initialPublicHtml = rootElement.innerHTML;
+ReactDOM.createRoot(rootElement).render(
   
   <BrowserRouter>
   <HelmetProvider>
     <ShopProvider> 
-        <ErrorBoundary>
+        <ErrorBoundary initialPublicHtml={initialPublicHtml}>
       <App />
       </ErrorBoundary>
     </ShopProvider>
