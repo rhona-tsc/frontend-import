@@ -55,7 +55,9 @@
     X-Backend-Policy = "Redirected from ngrok → Render backend only"
 
     # ✅ Security-ish defaults
-    X-Frame-Options = "DENY"
+    # Allow the private TSC admin to show an exact client-view profile preview.
+    # Other sites remain unable to frame the public website.
+    Content-Security-Policy = "frame-ancestors 'self' https://admin.thesupremecollective.co.uk"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
