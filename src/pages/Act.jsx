@@ -1274,14 +1274,14 @@ const Act = () => {
     return (
       <div className="p-4 text-gray-500">
         <Helmet>
-          <title>Act | The Supreme Collective</title>
+          <title>Live Band for Hire | The Supreme Collective</title>
           <meta
             name="description"
             content="Browse premium wedding and event bands across the UK. Watch videos and get an instant quote with The Supreme Collective."
           />
           <link
             rel="canonical"
-            href="https://thesupremecollective.co.uk/acts"
+            href={`https://thesupremecollective.co.uk${location.pathname.replace(/\/+$/, "")}`}
           />
         </Helmet>
         Loading act details...

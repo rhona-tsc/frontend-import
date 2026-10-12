@@ -2740,6 +2740,9 @@ const cardsLen = Array.isArray(cards) ? cards.length : 0;
 return (
   <>
     <Helmet>
+      <title>Wedding & Event Bands for Hire | The Supreme Collective</title>
+      <meta name="description" content="Explore live bands for weddings, parties and corporate events across the UK. Watch performances, compare lineups and get a quote for your date and venue." />
+      <meta property="og:title" content="Wedding & Event Bands for Hire | The Supreme Collective" />
       <link rel="canonical" href={canonicalForPath(location.pathname)} />
       <meta property="og:url" content={canonicalForPath(location.pathname)} />
     </Helmet>

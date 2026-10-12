@@ -7,7 +7,7 @@ export default function Blog() {
   return (
     <>
       <Helmet>
-        <title>Blog | The Supreme Collective</title>
+        <title>Wedding & Event Music Inspiration | The Supreme Collective</title>
         <meta
           name="description"
           content="Read wedding entertainment inspiration, live music ideas, and planning tips from The Supreme Collective."

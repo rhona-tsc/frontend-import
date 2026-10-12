@@ -20,6 +20,9 @@ const About = () => {
   return (
     <>
       <Helmet>
+        <title>About Our Live Music Agency | The Supreme Collective</title>
+        <meta name="description" content="Meet The Supreme Collective, a live music agency bringing professional bands to weddings, parties and corporate events across the UK and beyond." />
+        <meta property="og:title" content="About Our Live Music Agency | The Supreme Collective" />
         <link rel="canonical" href={canonicalForPath(location.pathname)} />
         <meta property="og:url" content={canonicalForPath(location.pathname)} />
       </Helmet>

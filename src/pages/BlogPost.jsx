@@ -14,6 +14,10 @@ export default function BlogPost() {
   if (!post) {
     return (
       <div className="px-4 py-16 max-w-4xl mx-auto">
+        <Helmet>
+          <title>Article Not Found | The Supreme Collective</title>
+          <meta name="robots" content="noindex,follow" />
+        </Helmet>
         <h1 className="text-3xl font-semibold mb-4">Post not found</h1>
         <Link to="/blog" className="underline">
           Back to blog
