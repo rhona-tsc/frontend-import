@@ -146,6 +146,13 @@ const pickFirstImageUrl = (data) => {
   );
 };
 
+const normaliseGalleryImageUrl = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && typeof value.url === "string") return value.url;
+  return "";
+};
+
 const mergeVideoLinks = (...lists) => {
   const seen = new Set();
 
@@ -839,7 +846,12 @@ const Musician = () => {
       actData?.digitalWardrobeSessionAllBlack,
       actData?.additionalImages,
     ].map((g) => (Array.isArray(g) ? g.length : 0));
-    const hasGallery = galleryCounts.some((n) => n > 0);
+    const hasGallery =
+      galleryCounts.some((n) => n > 0) ||
+      Boolean(
+        normaliseGalleryImageUrl(actData?.profilePhoto) ||
+          normaliseGalleryImageUrl(actData?.coverHeroImage),
+      );
 
     const hasRepertoire = meaningfulItems(actData?.selectedSongs, [
       "title",
@@ -1590,6 +1602,18 @@ const Musician = () => {
                 : [],
             },
           ];
+
+          const hasDedicatedGalleryImages = mediaGroups.some((group) =>
+            (group.items || []).some((item) => Boolean(typeof item === "string" ? item : item?.url)),
+          );
+
+          if (!hasDedicatedGalleryImages) {
+            mediaGroups.push({
+              id: "profileImages",
+              label: "Profile Photos",
+              items: [actData?.profilePhoto, actData?.coverHeroImage].filter(Boolean),
+            });
+          }
 
           const normaliseImages = (group) =>
             (group.items || [])
