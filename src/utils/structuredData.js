@@ -41,7 +41,11 @@ export const buildPageSchema = ({ route, title, description, act, post, bands = 
     graph.push(group);
     page.mainEntity = { '@id': group['@id'] };
   } else if (post) {
-    const article = { '@type': 'BlogPosting', '@id': `${url}#article`, headline: post.title, description: post.metaDescription || post.excerpt, mainEntityOfPage: { '@id': page['@id'] }, author: { '@type': 'Organization', name: post.author || organisation.name }, publisher: { '@id': organisation['@id'] }, ...(post.publishedAt ? { datePublished: post.publishedAt } : {}), ...(post.heroImage ? { image: new URL(post.heroImage, SITE_ORIGIN).href } : {}) };
+    // Only emit a publication timestamp when the source includes its time and zone.
+    // Date-only editorial records remain visible on the page; do not invent a time.
+    const publishedAt = typeof post.publishedAt === 'string' && /T\d{2}:\d{2}.*(?:Z|[+-]\d{2}:\d{2})$/.test(post.publishedAt) && !Number.isNaN(Date.parse(post.publishedAt)) ? post.publishedAt : undefined;
+    const author = { '@type': 'Organization', name: post.author || organisation.name, ...(post.authorUrl ? { url: post.authorUrl } : !post.author || post.author === organisation.name ? { '@id': organisation['@id'], url: organisation.url } : {}) };
+    const article = { '@type': 'BlogPosting', '@id': `${url}#article`, headline: post.title, description: post.metaDescription || post.excerpt, mainEntityOfPage: { '@id': page['@id'] }, author, publisher: { '@id': organisation['@id'] }, ...(publishedAt ? { datePublished: publishedAt } : {}), ...(post.heroImage ? { image: new URL(post.heroImage, SITE_ORIGIN).href } : {}) };
     graph.push(article);
     page.mainEntity = { '@id': article['@id'] };
   } else if (route === '/acts') {
