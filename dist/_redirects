@@ -6,6 +6,14 @@
 /bandsforhire/*                             tag=:tag                                  /404  404
 
 
+# Permanent replacements for legacy URLs. Keep these above the SPA fallback.
+/journal                                  /blog                             301!
+/contact-2                                /contact                          301!
+/tsc                                      /about                            301!
+/bandsforhire/motown-magic                 /act/dancefloor-magic             301!
+/bandsforhire                             /acts                             301!
+/bandsforhire/*                           /act/:splat                       301!
+
 # ✅ API proxy
 /api/*  https://tsc-backend-v2.onrender.com/api/:splat  200
 
@@ -13,5 +21,27 @@
 # This preserves normal asset serving, but missing assets will 404 (instead of returning index.html).
 /assets/*  /assets/:splat  200
 
-# ✅ SPA fallback (keep LAST)
-/*      /index.html  200
+# Known app routes use the React application. Unknown routes return a real 404.
+/                            /index.html  200
+/acts                        /index.html  200
+/acts/*                      /index.html  200
+/act/*                       /index.html  200
+/musician/*                  /index.html  200
+/event-sheet/*               /index.html  200
+/blog                        /index.html  200
+/blog/*                      /index.html  200
+/about                       /index.html  200
+/contact                     /index.html  200
+/terms                       /index.html  200
+/privacy                     /index.html  200
+/login                       /index.html  200
+/reset-password              /index.html  200
+/bookings                    /index.html  200
+/cart                        /index.html  200
+/client-dashboard            /index.html  200
+/booking-success             /index.html  200
+/booking-cancelled           /index.html  200
+/place-booking               /index.html  200
+/shortlist                   /index.html  200
+/wedding-bands-london         /index.html  200
+/*                           /404.html    404
