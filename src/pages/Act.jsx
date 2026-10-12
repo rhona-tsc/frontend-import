@@ -1395,9 +1395,23 @@ const Act = () => {
               "@type": "MusicGroup",
               name: actData?.tscName || actData?.name || "Wedding Band",
               url: canonicalUrl,
-              genre: Array.isArray(actData?.genres)
-                ? actData.genres.filter(Boolean)
-                : undefined,
+              genre: (() => {
+                const current = Array.isArray(actData?.genre)
+                  ? actData.genre
+                  : typeof actData?.genre === "string"
+                    ? [actData.genre]
+                    : [];
+                const legacy = Array.isArray(actData?.genres)
+                  ? actData.genres
+                  : [];
+                const genres = (current.some(value => String(value || "").trim())
+                  ? current
+                  : legacy)
+                  .filter(value => typeof value === "string")
+                  .map(value => value.trim())
+                  .filter(Boolean);
+                return genres.length ? [...new Set(genres)] : undefined;
+              })(),
               image: ogImage || undefined,
             }),
           }}
