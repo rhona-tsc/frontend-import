@@ -2,10 +2,20 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App.jsx';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useLocation } from 'react-router-dom';
 import ShopProvider from './context/ShopContext';
 import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "./components/ErrorBoundary";
+
+function InitialSchemaLifecycle() {
+  const { pathname } = useLocation();
+  React.useEffect(() => {
+    const schema = document.getElementById('initial-page-schema');
+    const path = pathname === '/' ? '/' : pathname.replace(/\/+$/, '');
+    if (schema && schema.dataset.pagePath !== path) schema.remove();
+  }, [pathname]);
+  return null;
+}
 
 
 // 🚫 Block accidental ngrok usage at runtime
@@ -25,6 +35,7 @@ const initialPublicHtml = rootElement.innerHTML;
 ReactDOM.createRoot(rootElement).render(
   
   <BrowserRouter>
+  <InitialSchemaLifecycle />
   <HelmetProvider>
     <ShopProvider> 
         <ErrorBoundary initialPublicHtml={initialPublicHtml}>

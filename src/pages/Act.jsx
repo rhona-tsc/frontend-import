@@ -37,6 +37,7 @@ import { logBadges } from "../utils/logger";
 import { readCachedAct, writeCachedAct } from "../utils/actCache";
 import axios from "axios";
 import { buildActMeta } from "../utils/actSeo.js";
+import { buildMusicGroup, serializeSchema } from "../utils/structuredData.js";
 export { buildActMeta } from "../utils/actSeo.js";
 
 const retryImport = async (load) => {
@@ -1390,29 +1391,9 @@ const Act = () => {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: serializeSchema({
               "@context": "https://schema.org",
-              "@type": "MusicGroup",
-              name: actData?.tscName || actData?.name || "Wedding Band",
-              url: canonicalUrl,
-              genre: (() => {
-                const current = Array.isArray(actData?.genre)
-                  ? actData.genre
-                  : typeof actData?.genre === "string"
-                    ? [actData.genre]
-                    : [];
-                const legacy = Array.isArray(actData?.genres)
-                  ? actData.genres
-                  : [];
-                const genres = (current.some(value => String(value || "").trim())
-                  ? current
-                  : legacy)
-                  .filter(value => typeof value === "string")
-                  .map(value => value.trim())
-                  .filter(Boolean);
-                return genres.length ? [...new Set(genres)] : undefined;
-              })(),
-              image: ogImage || undefined,
+              ...buildMusicGroup(actData, canonicalUrl, ogImage),
             }),
           }}
         />

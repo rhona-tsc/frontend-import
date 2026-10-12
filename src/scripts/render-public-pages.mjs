@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { blogPosts } from '../data/BlogPosts.js';
 import { buildActMeta } from '../utils/actSeo.js';
+import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
 
 const origin = 'https://thesupremecollective.co.uk';
 const api = (process.env.SITEMAP_API_URL || process.env.VITE_BACKEND_URL || 'https://tsc-backend-v2.onrender.com').replace(/\/$/, '');
@@ -28,9 +29,12 @@ const bandLinks = acts.map(({route, act}) => `<li><a href="${escape(route)}">${e
 const paragraph = text => `<p>${escape(text)}</p>`;
 async function writePage(route, title, description, heading, content) {
   const canonical = `${origin}${route}`;
+  const act = acts.find(item => item.route === route)?.act;
+  const post = blogPosts.find(item => `/blog/${item.slug}` === route);
+  const schema = buildPageSchema({ route, title, description, act, post, bands: acts });
   const head = `<title data-rh="true">${escape(title)}</title><meta data-rh="true" name="description" content="${escape(description)}"><link data-rh="true" rel="canonical" href="${escape(canonical)}"><meta data-rh="true" property="og:title" content="${escape(title)}"><meta data-rh="true" property="og:description" content="${escape(description)}"><meta data-rh="true" property="og:url" content="${escape(canonical)}">`;
   const body = `<header><a href="/">The Supreme Collective</a><nav><a href="/acts">Bands</a> · <a href="/blog">Blog</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></nav></header><main><h1>${escape(heading)}</h1>${content}</main>`;
-  const html = template.replace(/<title>.*?<\/title>/s, head).replace('<div id="root"></div>', `<div id="root">${body}</div>`);
+  const html = template.replace(/<title>.*?<\/title>/s, head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>`).replace('<div id="root"></div>', `<div id="root">${body}</div>`);
   const directory = path.join('dist', route.replace(/^\//, ''));
   await fs.mkdir(directory, { recursive: true });
   await fs.writeFile(path.join(directory, 'index.html'), html);
