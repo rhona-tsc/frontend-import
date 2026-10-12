@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { assets } from "../assets/assets";
 import { ShopContext } from "../context/ShopContext";
 import { Helmet } from "react-helmet-async";
+import { getBandImageAlt } from "../utils/bandImageAlt.js";
 
 /** Cloudinary helper: injects transforms */
 const cld = (url, { w, h, crop = "fill", gravity = "auto", q = "auto", fmt = "auto" } = {}) => {
@@ -140,7 +141,7 @@ const ActHero = ({
             src={src}
             srcSet={srcSet}
             sizes={sizes}
-            alt={actData.tscName || actData.name || "Act hero image"}
+            alt={getBandImageAlt(rawUrl, actData)}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
             decoding="async"
             loading={eager ? "eager" : "lazy"}

@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import calculateActPricing from "../pages/utils/pricing";
 import { ShopContext } from "../context/ShopContext";
 import PropTypes from "prop-types";
+import { getBandImageAlt } from "../utils/bandImageAlt.js";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Debug logger
@@ -611,7 +612,7 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
           <img
             className="block h-full w-full object-cover hover:scale-110 transition ease-in-out"
             src={resolvedImage}
-            alt={getTitle(actData)}
+            alt={getBandImageAlt(resolvedImage, actData)}
           />
         </div>
 

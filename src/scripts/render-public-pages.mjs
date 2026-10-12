@@ -3,6 +3,7 @@ import path from 'node:path';
 import { blogPosts } from '../data/BlogPosts.js';
 import { buildActMeta } from '../utils/actSeo.js';
 import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
+import { getBandImageAlt } from '../utils/bandImageAlt.js';
 
 const origin = 'https://thesupremecollective.co.uk';
 const api = (process.env.SITEMAP_API_URL || process.env.VITE_BACKEND_URL || 'https://tsc-backend-v2.onrender.com').replace(/\/$/, '');
@@ -51,7 +52,9 @@ await writePage('/venues', 'Venue Guide | The Supreme Collective', 'Practical ve
 for (const {route, act} of acts) {
   const bio = plain(act.tscBio || act.bio);
   const meta = buildActMeta(act);
-  await writePage(route, meta.title, meta.description, act.tscName, paragraph(plain(act.tscDescription || act.description)) + `<section><h2>About ${escape(act.tscName)}</h2>${paragraph(bio)}</section><p><a href="/acts">Compare our bands</a> · <a href="/contact">Contact us about your event</a></p>`);
+  const photos = (act.images || []).filter(image => image?.url).map((image, index) => `<img src="${escape(image.url.replace('/upload/', '/upload/w_960,c_limit,f_auto,q_auto/'))}" alt="${escape(getBandImageAlt(image, act, index))}" width="480" style="max-width:100%;height:auto" loading="lazy">`).join('');
+  const gallery = photos ? `<section><h2>${escape(act.tscName)} photographs</h2>${photos}</section>` : '';
+  await writePage(route, meta.title, meta.description, act.tscName, paragraph(plain(act.tscDescription || act.description)) + `<section><h2>About ${escape(act.tscName)}</h2>${paragraph(bio)}</section>${gallery}<p><a href="/acts">Compare our bands</a> · <a href="/contact">Contact us about your event</a></p>`);
 }
 await writePage('/blog', 'Wedding & Event Music Inspiration | The Supreme Collective', 'Ideas, insights and planning tips for unforgettable live music experiences.', 'Wedding and event inspiration', blogPosts.map(post => `<article><h2><a href="/blog/${escape(post.slug)}">${escape(post.title)}</a></h2>${paragraph(post.excerpt)}</article>`).join(''));
 for (const post of blogPosts) {

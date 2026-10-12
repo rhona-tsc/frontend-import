@@ -38,6 +38,7 @@ import { readCachedAct, writeCachedAct } from "../utils/actCache";
 import axios from "axios";
 import { buildActMeta } from "../utils/actSeo.js";
 import { buildMusicGroup, serializeSchema } from "../utils/structuredData.js";
+import { getBandImageAlt } from "../utils/bandImageAlt.js";
 export { buildActMeta } from "../utils/actSeo.js";
 
 const retryImport = async (load) => {
@@ -2601,7 +2602,7 @@ const Act = () => {
                         width={900}
                         height={600}
                         className="w-full h-full object-contain"
-                        alt={imgObj?.alt || imgObj?.description || `${actData.tscName || actData.name} — band photograph ${index + 1}`}
+                        alt={getBandImageAlt(imgObj, actData, index)}
                       />
                     </div>
                   ))}
