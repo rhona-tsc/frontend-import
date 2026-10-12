@@ -40,6 +40,7 @@ const aboutSource = await fs.readFile('src/pages/About.jsx', 'utf8');
 const aboutParagraphs = [...aboutSource.matchAll(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/g)].map(match => plain(match[1])).filter(Boolean);
 await writePage('/about', 'About Our Live Music Agency | The Supreme Collective', 'Meet The Supreme Collective, a live music agency bringing professional bands to weddings, parties and corporate events across the UK and beyond.', 'About Us', aboutParagraphs.map(paragraph).join(''));
 await writePage('/contact', 'Contact | The Supreme Collective', 'Contact The Supreme Collective to discuss live music for your wedding, party or corporate event.', 'Contact The Supreme Collective', paragraph('Get in touch to discuss your event and find the right live band.') + '<p><a href="mailto:hello@thesupremecollective.co.uk">hello@thesupremecollective.co.uk</a></p><p><a href="/acts">Explore our bands</a></p>');
+await writePage('/venues', 'Venue Guide | The Supreme Collective', 'Practical venue and room information from previous Supreme Collective events, including access, parking, changing facilities and sound restrictions.', 'The Supreme Collective Venue Guide', paragraph('Search our venue guide for practical information gathered from venues and previous events, including room-specific sound restrictions, parking, access and changing facilities.'));
 for (const {route, act} of acts) {
   const bio = plain(act.tscBio || act.bio);
   const genres = Array.isArray(act.genres) ? act.genres.slice(0, 2).filter(Boolean).join(', ') : '';
@@ -52,4 +53,4 @@ for (const post of blogPosts) {
   const content = (post.content || []).map(item => item.type === 'heading' ? `<h2>${escape(item.text)}</h2>` : item.text ? paragraph(item.text) : '').join('');
   await writePage(`/blog/${post.slug}`, post.metaTitle || post.title, post.metaDescription || post.excerpt, post.title, content);
 }
-console.log(`Rendered ${acts.length + blogPosts.length + 5} public pages with initial HTML content and metadata.`);
+console.log(`Rendered ${acts.length + blogPosts.length + 6} public pages with initial HTML content and metadata.`);
