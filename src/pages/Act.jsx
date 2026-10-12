@@ -70,6 +70,7 @@ const Act = () => {
   const [actData, setActData] = useState(null);
   const [loadingAct, setLoadingAct] = useState(true);
   const [actError, setActError] = useState("");
+  const [actNotFound, setActNotFound] = useState(false);
 
   const actFetchUrl = React.useMemo(() => {
     if (!key) return "";
@@ -85,6 +86,7 @@ const Act = () => {
       try {
         setLoadingAct(true);
         setActError("");
+        setActNotFound(false);
 
         console.log("🧪 fetching act:", { params, key, actFetchUrl });
 
@@ -97,6 +99,7 @@ const Act = () => {
         if (!cancelled) {
           setActData(null);
           setActError(e?.response?.data?.message || "Failed to load act");
+          setActNotFound(e?.response?.status === 404);
         }
       } finally {
         if (!cancelled) setLoadingAct(false);
@@ -1274,7 +1277,8 @@ const Act = () => {
     return (
       <div className="p-4 text-gray-500">
         <Helmet>
-          <title>Live Band for Hire | The Supreme Collective</title>
+          <title>{actNotFound ? "Band Not Found | The Supreme Collective" : "Live Band for Hire | The Supreme Collective"}</title>
+          {actNotFound && <meta name="robots" content="noindex,follow" />}
           <meta
             name="description"
             content="Browse premium wedding and event bands across the UK. Watch videos and get an instant quote with The Supreme Collective."
@@ -1284,7 +1288,13 @@ const Act = () => {
             href={`https://thesupremecollective.co.uk${location.pathname.replace(/\/+$/, "")}`}
           />
         </Helmet>
-        Loading act details...
+        {loadingAct ? "Loading band details..." : (
+          <div>
+            <h1 className="text-2xl font-semibold mb-3">{actNotFound ? "We couldn't find that band" : "We couldn't load this band"}</h1>
+            <p>{actNotFound ? "This link may be out of date." : "Please try again in a moment."}</p>
+            <a href="/acts" className="underline">Explore our bands</a>
+          </div>
+        )}
       </div>
     );
   }
