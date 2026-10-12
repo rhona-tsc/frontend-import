@@ -55,7 +55,8 @@ for (const {route, act} of acts) {
 }
 await writePage('/blog', 'Wedding & Event Music Inspiration | The Supreme Collective', 'Ideas, insights and planning tips for unforgettable live music experiences.', 'Wedding and event inspiration', blogPosts.map(post => `<article><h2><a href="/blog/${escape(post.slug)}">${escape(post.title)}</a></h2>${paragraph(post.excerpt)}</article>`).join(''));
 for (const post of blogPosts) {
-  const content = (post.content || []).map(item => item.type === 'heading' ? `<h2>${escape(item.text)}</h2>` : item.text ? paragraph(item.text) : '').join('');
+  const hero = post.heroImage ? `<img src="${escape(post.heroImage)}" alt="${escape(post.heroImageAlt || post.title)}" width="1920" height="1080">` : '';
+  const content = hero + (post.content || []).map(item => item.type === 'heading' ? `<h2>${escape(item.text)}</h2>` : item.type === 'image' ? `<img src="${escape(item.src)}" alt="${escape(item.alt || `Illustration for ${post.title}`)}" loading="lazy">` : item.text ? paragraph(item.text) : '').join('');
   await writePage(`/blog/${post.slug}`, post.metaTitle || post.title, post.metaDescription || post.excerpt, post.title, content);
 }
 console.log(`Rendered ${acts.length + blogPosts.length + 6} public pages with initial HTML content and metadata.`);

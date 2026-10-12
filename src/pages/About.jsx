@@ -33,7 +33,7 @@ const About = () => {
     </div>
 
     <div className='my-10 flex flex-col md:flex-row gap-16'>
-        <img   className='w-full md:w-auto md:max-w-[450px] h-auto object-cover'  src={assets.about_img} alt="" />
+        <img   className='w-full md:w-auto md:max-w-[450px] h-auto object-cover'  src={assets.about_img} alt="Black-and-white portrait of a musician holding an electric bass guitar" />
         <div className='flex flex-col justify-center gap-6 md:w-2/4 text-gray-600'>
           <p>  The Supreme Collective is a powerhouse of professional bands, delivering world-class live music for hire across the UK and beyond. We pride ourselves on exceptional musicianship, electrifying performances, and award-winning customer service—every single time. Our collective is made up of some of the most talented and sought-after musicians in the industry, backed by award-winning management with years of experience crafting unforgettable performances. Whether it’s a wedding, birthday party, corporate event, festival, summer ball, HM Forces event, or a New Year’s Eve celebration, our bands know how to bring the magic to your dance floor.  
           </p>

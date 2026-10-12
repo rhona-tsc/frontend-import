@@ -69,12 +69,12 @@ const {
         <Link to="/" className="flex-shrink-0" aria-label="Home">
           <img
             src={assets.agent_icon}
-            alt="Logo"
+            alt="The Supreme Collective"
             className="h-20 w-auto block lg:hidden"
           />
           <img
             src={assets.logo}
-            alt="Logo"
+            alt="The Supreme Collective"
             className="h-10 w-auto hidden lg:block"
           />
         </Link>

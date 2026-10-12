@@ -81,7 +81,7 @@ export default function BlogPost() {
       {post.heroImage && (
         <img
           src={post.heroImage}
-          alt={post.title}
+          alt={post.heroImageAlt || post.title}
           className="w-full rounded-3xl object-cover mb-10 max-h-[520px]"
         />
       )}
@@ -104,7 +104,7 @@ export default function BlogPost() {
       <img
         key={index}
         src={block.src}
-        alt={block.alt || "Blog image"}
+        alt={block.alt || `Illustration for ${post.title}`}
         className="w-full rounded-3xl object-cover my-8"
       />
     );

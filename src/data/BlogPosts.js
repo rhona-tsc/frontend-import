@@ -12,6 +12,7 @@ export const blogPosts = [
     publishedAt: "2026-03-11",
     readTime: "6 min read",
     heroImage: "/images/blog/live-music-transforms-event-hero.jpg",
+    heroImageAlt: "Wedding guests celebrating together beneath red heart-shaped balloons",
 
     content: [
       {

@@ -1508,7 +1508,7 @@ const Act = () => {
                     >
                       <img
                         src={`https://img.youtube.com/vi/${selectedVideoId}/hqdefault.jpg`}
-                        alt="Video thumbnail"
+                        alt={`${actData.tscName || actData.name} performance video preview`}
                         className="w-full h-full object-cover"
                       />
                       <span className="absolute inset-0 grid place-items-center">
@@ -1560,7 +1560,7 @@ const Act = () => {
                     }}
                     className="w-[80px] h-[56px] object-cover cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-[#ff6667] hover:shadow-md transition duration-200 rounded"
                     src={`https://img.youtube.com/vi/${vid}/0.jpg`}
-                    alt={v.title || `Video ${index + 1}`}
+                    alt={v.title || `${actData.tscName || actData.name} performance video ${index + 1}`}
                   />
                 );
               })}
@@ -2601,7 +2601,7 @@ const Act = () => {
                         width={900}
                         height={600}
                         className="w-full h-full object-contain"
-                        alt={`Gallery image ${index + 1}`}
+                        alt={imgObj?.alt || imgObj?.description || `${actData.tscName || actData.name} — band photograph ${index + 1}`}
                       />
                     </div>
                   ))}
