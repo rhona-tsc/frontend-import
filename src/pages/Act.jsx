@@ -36,6 +36,8 @@ import useRenderTracker from "../hooks/useRenderTracker";
 import { logBadges } from "../utils/logger";
 import { readCachedAct, writeCachedAct } from "../utils/actCache";
 import axios from "axios";
+import { buildActMeta } from "../utils/actSeo.js";
+export { buildActMeta } from "../utils/actSeo.js";
 
 const retryImport = async (load) => {
   for (let attempt = 0; ; attempt += 1) {
@@ -52,18 +54,6 @@ const ActPerformanceOverviewLazy = React.lazy(() => retryImport(() => import("..
 const RelatedActsLazy = React.lazy(() => retryImport(() => import("../components/RelatedActs")));
 
 // ✅ SEO helper: build meta title/description from act data
-export const buildActMeta = (act) => {
-  const name = act?.tscName || act?.name || "Wedding Band";
-  const genres = Array.isArray(act?.genres)
-    ? act.genres.slice(0, 2).filter(Boolean).join(", ")
-    : "";
-  const loc = act?.baseCounty || act?.address?.county || "the UK";
-
-  return {
-    title: `${name} | Wedding Band for Hire | The Supreme Collective`,
-    description: `Book ${name} — premium live music for weddings & events. ${genres ? `Styles: ${genres}. ` : ""}Available across ${loc}. View videos & get an instant quote.`,
-  };
-};
 
 const Act = () => {
   const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(

@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { blogPosts } from '../data/BlogPosts.js';
+import { buildActMeta } from '../utils/actSeo.js';
 
 const origin = 'https://thesupremecollective.co.uk';
 const api = (process.env.SITEMAP_API_URL || process.env.VITE_BACKEND_URL || 'https://tsc-backend-v2.onrender.com').replace(/\/$/, '');
@@ -43,10 +44,8 @@ await writePage('/contact', 'Contact | The Supreme Collective', 'Contact The Sup
 await writePage('/venues', 'Venue Guide | The Supreme Collective', 'Practical venue and room information from previous Supreme Collective events, including access, parking, changing facilities and sound restrictions.', 'The Supreme Collective Venue Guide', paragraph('Search our venue guide for practical information gathered from venues and previous events, including room-specific sound restrictions, parking, access and changing facilities.'));
 for (const {route, act} of acts) {
   const bio = plain(act.tscBio || act.bio);
-  const genres = Array.isArray(act.genres) ? act.genres.slice(0, 2).filter(Boolean).join(', ') : '';
-  const loc = act.baseCounty || act.address?.county || 'the UK';
-  const description = `Book ${act.tscName} — premium live music for weddings & events. ${genres ? `Styles: ${genres}. ` : ''}Available across ${loc}. View videos & get an instant quote.`;
-  await writePage(route, `${act.tscName} | Wedding Band for Hire | The Supreme Collective`, description, act.tscName, paragraph(plain(act.tscDescription || act.description)) + `<section><h2>About ${escape(act.tscName)}</h2>${paragraph(bio)}</section><p><a href="/acts">Compare our bands</a> · <a href="/contact">Contact us about your event</a></p>`);
+  const meta = buildActMeta(act);
+  await writePage(route, meta.title, meta.description, act.tscName, paragraph(plain(act.tscDescription || act.description)) + `<section><h2>About ${escape(act.tscName)}</h2>${paragraph(bio)}</section><p><a href="/acts">Compare our bands</a> · <a href="/contact">Contact us about your event</a></p>`);
 }
 await writePage('/blog', 'Wedding & Event Music Inspiration | The Supreme Collective', 'Ideas, insights and planning tips for unforgettable live music experiences.', 'Wedding and event inspiration', blogPosts.map(post => `<article><h2><a href="/blog/${escape(post.slug)}">${escape(post.title)}</a></h2>${paragraph(post.excerpt)}</article>`).join(''));
 for (const post of blogPosts) {
