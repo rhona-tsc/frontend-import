@@ -1,5 +1,3 @@
-export const BACKEND =
-  (import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com").replace(/\/+$/,"");
 // Centralised backend base + URL helper for API/SSE calls
 // Behaviour:
 //  • In DEV: if VITE_BACKEND_URL is set, use it; otherwise return relative paths so Vite proxy can forward to the backend.

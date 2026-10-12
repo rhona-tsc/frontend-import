@@ -29,6 +29,7 @@ import ResetPassword from "./pages/ResetPassword";
 import AuthGateModal from "./components/AuthGateModal";
 import ScrollToTop from "./components/ScrollToTop";
 import { Helmet } from "react-helmet-async";
+import VenueGuide from "./pages/VenueGuide";
 
   // 👇 helper to decode token once
   function parseToken(t) {
@@ -175,6 +176,7 @@ import { Helmet } from "react-helmet-async";
                 <Route path="/event-sheet/:bookingId" element={<ViewEventSheet />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/venues" element={<VenueGuide />} />
  <Route path="/blog" element={<Blog />} />
   <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="/login" element={<Login />} />

@@ -97,6 +97,10 @@ const {
             <p>ABOUT</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
           </NavLink>
+          <NavLink to="/venues" className="group flex flex-col items-center gap-1">
+            <p>VENUES</p>
+            <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
+          </NavLink>
           <NavLink to="/contact" className="group flex flex-col items-center gap-1">
             <p>CONTACT</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -223,6 +227,9 @@ const {
           </NavLink>
           <NavLink onClick={() => setDrawerOpen(false)} to="/about" className="block px-6 py-3 border-b">
             ABOUT
+          </NavLink>
+          <NavLink onClick={() => setDrawerOpen(false)} to="/venues" className="block px-6 py-3 border-b">
+            VENUES
           </NavLink>
           <NavLink onClick={() => setDrawerOpen(false)} to="/contact" className="block px-6 py-3 border-b">
             CONTACT
