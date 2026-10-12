@@ -22,6 +22,20 @@ export const buildPageSchema = ({ route, title, description, act, post, bands = 
   const type = route === '/about' ? 'AboutPage' : route === '/contact' ? 'ContactPage' : ['/acts', '/blog', '/venues'].includes(route) ? 'CollectionPage' : 'WebPage';
   const page = { '@type': type, '@id': `${url}#webpage`, url, name: title, description, isPartOf: { '@id': website['@id'] } };
   const graph = [organisation, website, page];
+  if (route !== '/') {
+    const labels = { '/acts': 'Bands', '/about': 'About Us', '/contact': 'Contact', '/blog': 'Blog', '/venues': 'Venue Guide' };
+    const items = [{ name: 'Home', item: `${SITE_ORIGIN}/` }];
+    if (act) items.push({ name: 'Bands', item: `${SITE_ORIGIN}/acts` });
+    if (post) items.push({ name: 'Blog', item: `${SITE_ORIGIN}/blog` });
+    items.push({ name: act?.tscName || act?.name || post?.title || labels[route] || title, item: url });
+    const breadcrumbs = {
+      '@type': 'BreadcrumbList',
+      '@id': `${url}#breadcrumbs`,
+      itemListElement: items.map((item, index) => ({ '@type': 'ListItem', position: index + 1, ...item })),
+    };
+    graph.push(breadcrumbs);
+    page.breadcrumb = { '@id': breadcrumbs['@id'] };
+  }
   if (act) {
     const group = buildMusicGroup(act, url);
     graph.push(group);
