@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
-import Title from '../components/Title';
 import { assets } from '../assets/assets';
 import NewsletterBox from '../components/NewsletterBox';
 
@@ -24,12 +23,14 @@ const Privacy = () => {
   return (
     <div>
       <Helmet>
-        <title>Privacy Policy | The Supreme Collective</title>
+        <title>The Supreme Collective Privacy Policy</title>
         <link rel="canonical" href={canonicalForPath(location.pathname)} />
         <meta property="og:url" content={canonicalForPath(location.pathname)} />
       </Helmet>
       <div className="text-2xl text-center pt-8 border-t">
-        <Title text1="PRIVACY" text2="POLICY" />
+        <h1 className="text-gray-500">
+          THE SUPREME COLLECTIVE <span className="text-gray-700 font-medium">PRIVACY POLICY</span>
+        </h1>
       </div>
 
       <div className="my-10 flex flex-col items-start gap-10 md:flex-row md:gap-16">

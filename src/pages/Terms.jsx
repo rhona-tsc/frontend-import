@@ -12,10 +12,10 @@ const Terms = () => {
   return (
     <>
       <Helmet>
-        <title>Terms &amp; Conditions | The Supreme Collective</title>
+        <title>The Supreme Collective Terms of Service</title>
         <meta
           name="description"
-          content="Read the Terms & Conditions for using The Supreme Collective website and booking live music services."
+          content="Read the Terms of Service for The Supreme Collective website, musician profiles and live music services."
         />
         <link rel="canonical" href="https://thesupremecollective.co.uk/terms" />
         <meta property="og:url" content="https://thesupremecollective.co.uk/terms" />
@@ -23,7 +23,9 @@ const Terms = () => {
 
     <div>
       <div className="text-2xl text-center pt-8 border-t">
-        <Title text1="TERMS &" text2="CONDITIONS" />
+        <h1 className="text-gray-500">
+          THE SUPREME COLLECTIVE <span className="text-gray-700 font-medium">TERMS OF SERVICE</span>
+        </h1>
       </div>
 
       <div className="my-10 flex flex-col md:flex-row gap-16">
@@ -35,8 +37,9 @@ const Terms = () => {
         <div className="flex flex-col justify-center gap-6 md:w-2/4 text-gray-600">
           <h2 className="text-xl font-semibold mt-4">Introduction</h2>
           <p>
-            Welcome to The Supreme Collective website. By accessing or using our site,
-            you agree to the following terms.
+            Welcome to The Supreme Collective. These Terms of Service apply to our website,
+            musician profiles, connected social-media features and live music services.
+            By accessing or using our site, you agree to these terms.
           </p>
 
           <h2 className="text-xl font-semibold mt-4">Use of Website</h2>
