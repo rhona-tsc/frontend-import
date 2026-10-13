@@ -248,11 +248,9 @@ const getVideoEmbed = (value) => {
 
 const getMusicianVideos = (musician) => {
   const functionVideos = mergeVideoLinks(
-    musician?.functionBandVideoLinks,
     musician?.tscApprovedFunctionBandVideoLinks,
   ).filter((video) => getVideoEmbed(video?.url));
   const originalVideos = mergeVideoLinks(
-    musician?.originalBandVideoLinks,
     musician?.tscApprovedOriginalBandVideoLinks,
   ).filter((video) => getVideoEmbed(video?.url));
 
@@ -1018,6 +1016,13 @@ const Musician = () => {
 
                   const selectedUrl = video || allVideoLinks[0]?.url || "";
                   const selectedVideo = getVideoEmbed(selectedUrl);
+                  const selectedVideoObject = allVideoLinks.find((item) => item?.url === selectedUrl);
+                  const selectedPoster =
+                    normaliseGalleryImageUrl(selectedVideoObject?.thumbnailUrl) ||
+                    selectedVideo?.thumbnailUrl ||
+                    normaliseGalleryImageUrl(actData?.coverHeroImage) ||
+                    normaliseGalleryImageUrl(actData?.profilePhoto) ||
+                    pickFirstImageUrl(actData);
 
                   if (!selectedVideo) return null;
 
@@ -1046,9 +1051,9 @@ const Musician = () => {
                           className="w-full h-full rounded overflow-hidden relative group"
                           aria-label="Play video"
                         >
-                          {selectedVideo.thumbnailUrl ? (
+                          {selectedPoster ? (
                             <img
-                              src={selectedVideo.thumbnailUrl}
+                              src={selectedPoster}
                               alt="Video poster"
                               className="w-full h-full object-cover"
                               loading="lazy"
@@ -1096,6 +1101,12 @@ const Musician = () => {
                         {items.map((videoObj, index) => {
                           const embeddedVideo = getVideoEmbed(videoObj.url);
                           if (!embeddedVideo) return null;
+                          const thumbnail =
+                            normaliseGalleryImageUrl(videoObj?.thumbnailUrl) ||
+                            embeddedVideo.thumbnailUrl ||
+                            normaliseGalleryImageUrl(actData?.coverHeroImage) ||
+                            normaliseGalleryImageUrl(actData?.profilePhoto) ||
+                            pickFirstImageUrl(actData);
                           return (
                             <button
                               type="button"
@@ -1105,10 +1116,10 @@ const Musician = () => {
                               aria-label={`Play ${videoObj.title || `${label} ${index + 1}`}`}
                               title={videoObj.title || videoObj.url}
                             >
-                              {embeddedVideo.thumbnailUrl ? (
+                              {thumbnail ? (
                                 <img
                                   className="h-full w-full object-cover"
-                                  src={embeddedVideo.thumbnailUrl}
+                                  src={thumbnail}
                                   alt=""
                                   loading="lazy"
                                 />
