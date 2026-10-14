@@ -14,6 +14,7 @@ import SimpleScheduleEditor from "../components/eventSheet/SimpleScheduleEditor"
 import SEO from "../components/SEO";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
+const DIET_FALLBACK = "TBC";
 
 const currencySymbol = (code) => {
   if (!code) return "£";
@@ -154,7 +155,6 @@ const ViewEventSheet = () => {
           freshBooking?.bookingMusicians,
           freshBooking?.bandLineup,
         ].find((items) => Array.isArray(items) && items.length) || [];
-        console.log("Dietary roster refreshed:", members.length);
         setConfirmedDietaryMembers(members);
       })
       .catch((error) => {
