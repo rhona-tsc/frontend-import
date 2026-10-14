@@ -96,6 +96,7 @@ const ViewEventSheet = () => {
   const routeId = params.bookingId || params.id || null;
   const { user, acts } = useContext(ShopContext);
   const [booking, setBooking] = useState(null);
+  const [confirmedDietaryMembers, setConfirmedDietaryMembers] = useState([]);
   // Derive act info once and reuse (must be inside the component)
   const actInfo = useMemo(
     () => getActEquipmentInfo(acts, booking),
@@ -1095,6 +1096,13 @@ const ViewEventSheet = () => {
         }
 
         console.log("✅ Selected booking:", match);
+        const allocationMembers = [
+          match?.assignedMusicians,
+          match?.bookingMusicians,
+          match?.bandLineup,
+        ].find((items) => Array.isArray(items) && items.length) || [];
+
+        setConfirmedDietaryMembers(allocationMembers);
         setBooking(match || null);
 
         if (match) {
@@ -1406,9 +1414,11 @@ const ViewEventSheet = () => {
         booking?.bandLineup,
       ];
       const hasAllocationData = allocationLists.some((items) => Array.isArray(items));
-      const confirmedMembers = allocationLists.find(
-        (items) => Array.isArray(items) && items.length,
-      ) || [];
+      const confirmedMembers = confirmedDietaryMembers.length
+        ? confirmedDietaryMembers
+        : allocationLists.find(
+            (items) => Array.isArray(items) && items.length,
+          ) || [];
       const members = hasAllocationData
         ? confirmedMembers
         : Array.isArray(lineup?.bandMembers)
