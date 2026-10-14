@@ -1205,7 +1205,33 @@ const ViewEventSheet = () => {
               return prev;
             }
 
-            return updated;
+            const preserveAllocation = (nextItems, previousItems) =>
+              Array.isArray(nextItems) && nextItems.length
+                ? nextItems
+                : Array.isArray(previousItems)
+                  ? previousItems
+                  : [];
+
+            return {
+              ...prev,
+              ...updated,
+              eventSheet: {
+                ...(prev.eventSheet || {}),
+                ...(updated.eventSheet || {}),
+              },
+              assignedMusicians: preserveAllocation(
+                updated.assignedMusicians,
+                prev.assignedMusicians,
+              ),
+              bookingMusicians: preserveAllocation(
+                updated.bookingMusicians,
+                prev.bookingMusicians,
+              ),
+              bandLineup: preserveAllocation(
+                updated.bandLineup,
+                prev.bandLineup,
+              ),
+            };
           });
         }
       } catch (e) {
