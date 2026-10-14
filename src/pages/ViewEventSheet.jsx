@@ -3847,7 +3847,7 @@ const ViewEventSheet = () => {
         ],
       },
     ];
-  }, [answers, booking, acts]);
+  }, [answers, booking, acts, confirmedDietaryMembers]);
 
   const totalSections = sections.length;
   const completedCount = useMemo(
