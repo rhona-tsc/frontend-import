@@ -981,6 +981,10 @@ const ViewEventSheet = () => {
           try {
             const byId = await axios.get(
               `${backendUrl}/api/booking/booking/${routeId}`,
+              {
+                params: { eventSheetRefresh: Date.now() },
+                headers: { "Cache-Control": "no-cache" },
+              },
             );
             if (byId?.data?._id) {
               match = byId.data;
@@ -988,11 +992,23 @@ const ViewEventSheet = () => {
             }
           } catch {}
 
-          // try booking ref route if still not found
-          if (!match) {
+          const hasConfirmedAllocation = [
+            match?.assignedMusicians,
+            match?.bookingMusicians,
+            match?.bandLineup,
+          ].some((items) => Array.isArray(items) && items.length > 0);
+
+          // The by-ref response is allocation-aware. Refresh it when the first
+          // response is missing confirmed musicians so dietary details never
+          // fall back to an older cached booking payload.
+          if (!match || !hasConfirmedAllocation) {
             try {
               const byRefResp = await axios.get(
                 `${backendUrl}/api/booking/by-ref/${routeId}`,
+                {
+                  params: { eventSheetRefresh: Date.now() },
+                  headers: { "Cache-Control": "no-cache" },
+                },
               );
               const data = byRefResp?.data;
               const b =
