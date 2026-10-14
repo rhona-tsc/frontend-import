@@ -134,6 +134,37 @@ const ViewEventSheet = () => {
     completeRef.current = complete;
   }, [complete]);
 
+  // Keep the public dietary roster independent from later booking-state
+  // refreshes (for example emergency-contact provisioning).
+  useEffect(() => {
+    if (!routeId || !backendUrl) return;
+
+    let cancelled = false;
+    axios
+      .get(`${backendUrl}/api/booking/by-ref/${encodeURIComponent(routeId)}`, {
+        params: { dietaryRefresh: Date.now() },
+      })
+      .then((response) => {
+        if (cancelled) return;
+        const freshBooking =
+          response?.data?.booking ||
+          (Array.isArray(response?.data) ? response.data[0] : response?.data);
+        const members = [
+          freshBooking?.assignedMusicians,
+          freshBooking?.bookingMusicians,
+          freshBooking?.bandLineup,
+        ].find((items) => Array.isArray(items) && items.length) || [];
+        setConfirmedDietaryMembers(members);
+      })
+      .catch((error) => {
+        console.warn("Dietary roster refresh failed:", error?.message);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeId, backendUrl]);
+
   // Prefer user from context; fallback to localStorage `user` object
   const resolvedUserId =
     user?._id ||
@@ -1452,7 +1483,9 @@ const ViewEventSheet = () => {
       };
 
       const confirmedRows = members
-        .filter((m) => !isManagerLike(m))
+        // Confirmed booking allocations are performers by definition. Apply
+        // manager filtering only to the fallback act-lineup data.
+        .filter((m) => confirmedMembers.length > 0 || !isManagerLike(m))
         .map((m) => ({
           name: formatMusicianName(m),
           instrument: m?.instrument || "",
