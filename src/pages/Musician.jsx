@@ -254,10 +254,19 @@ const getMusicianVideos = (musician) => {
     musician?.tscApprovedOriginalBandVideoLinks,
   ).filter((video) => getVideoEmbed(video?.url));
 
+  const allVideos = mergeVideoLinks(functionVideos, originalVideos);
+  const primaryVideoUrl = String(musician?.primaryVideoUrl || "").trim();
+  if (primaryVideoUrl) {
+    allVideos.sort((a, b) =>
+      Number(String(b?.url || "").trim() === primaryVideoUrl) -
+      Number(String(a?.url || "").trim() === primaryVideoUrl),
+    );
+  }
+
   return {
     functionVideos,
     originalVideos,
-    allVideos: mergeVideoLinks(functionVideos, originalVideos),
+    allVideos,
   };
 };
 
