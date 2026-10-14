@@ -154,6 +154,7 @@ const ViewEventSheet = () => {
           freshBooking?.bookingMusicians,
           freshBooking?.bandLineup,
         ].find((items) => Array.isArray(items) && items.length) || [];
+        console.log("Dietary roster refreshed:", members.length);
         setConfirmedDietaryMembers(members);
       })
       .catch((error) => {
