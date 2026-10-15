@@ -1451,26 +1451,28 @@ const ViewEventSheet = () => {
   const handleOpenBalanceInvoice = async () => {
     if (!booking) return;
 
-    await persist(false);
-
     try {
-      const balanceRef = booking.bookingId || booking._id;
-      const r = await axios.get(
-        `${backendUrl}/api/invoices/balance-link/${balanceRef}?refresh=1&expectedAmountPence=${Math.round(remainingAmount * 100)}`,
-      );
+      await persist(false);
 
-      const url = r?.data?.url;
-      if (url) {
-        // Redirect in the current tab. Opening a new tab after the awaited save
-        // and API request is treated as an unsolicited popup by some browsers
-        // (particularly mobile Safari), so the click can appear to do nothing.
-        window.location.assign(url);
-      } else {
-        alert("Couldn’t get a payment link right now.");
+      const invoiceRef = booking.bookingBoardId;
+      if (!invoiceRef) {
+        throw new Error("No invoice is linked to this booking.");
       }
+
+      const response = await axios.get(
+        `${backendUrl}/api/invoices/board-invoice/${encodeURIComponent(invoiceRef)}`,
+        { responseType: "blob" },
+      );
+      const contentType = String(response.headers?.["content-type"] || "");
+      if (!contentType.toLowerCase().includes("application/pdf")) {
+        throw new Error("The invoice response was not a PDF.");
+      }
+
+      const invoiceUrl = URL.createObjectURL(response.data);
+      window.location.assign(invoiceUrl);
     } catch (e) {
-      console.warn("balance-link error:", e?.response?.data || e?.message);
-      alert("Couldn’t get a payment link right now.");
+      console.warn("invoice-open error:", e?.response?.data || e?.message);
+      alert("Couldn’t open the invoice right now.");
     }
   };
 
