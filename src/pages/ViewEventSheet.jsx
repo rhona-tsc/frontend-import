@@ -662,6 +662,8 @@ const ViewEventSheet = () => {
       booking?.totals?.bookingTotal ??
         booking?.totals?.contractTotal ??
         booking?.totals?.fullAmount ??
+        booking?.grossValue ??
+        booking?.fee ??
         NaN,
     );
 
@@ -675,7 +677,12 @@ const ViewEventSheet = () => {
     }, 0);
   }, [booking, enrichedItems]);
 
-  const depositAmount = Number(booking?.totals?.depositAmount ?? 0);
+  const depositAmount = Number(
+    booking?.totals?.depositAmount ??
+      booking?.payments?.depositChargedAmount ??
+      booking?.payments?.depositAmount ??
+      0,
+  );
 
   const addOnsPostBooking = useMemo(() => {
     const modelAddOns = Number(
@@ -721,13 +728,15 @@ const ViewEventSheet = () => {
   const remainingAmount = useMemo(() => {
     if (isBookingMarkedPaid) return 0;
 
+    const explicitRemaining =
+      booking?.totals?.remainingAmount ??
+      booking?.totals?.outstandingBalance ??
+      booking?.remainingAmount;
     const modelRemaining = Number(
-      (booking?.totals?.remainingAmount ??
-        booking?.totals?.outstandingBalance ??
-        booking?.remainingAmount ??
-        booking?.balanceAmountPence != null)
-        ? Number(booking?.balanceAmountPence) / 100
-        : NaN,
+      explicitRemaining ??
+        (booking?.balanceAmountPence != null
+          ? Number(booking.balanceAmountPence) / 100
+          : NaN),
     );
 
     if (Number.isFinite(modelRemaining) && modelRemaining >= 0) {
