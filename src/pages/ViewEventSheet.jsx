@@ -4179,7 +4179,7 @@ const ViewEventSheet = () => {
                       </span>
                       {it.lineupLabel && (
                         <span className="text-sm text-gray-600">
-                          — {it.lineupLabel}
+                          Lineup: {it.lineupLabel}
                         </span>
                       )}
                     </div>
