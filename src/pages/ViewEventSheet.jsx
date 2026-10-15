@@ -1897,6 +1897,19 @@ const ViewEventSheet = () => {
 
     const isWedding = /wedding/.test(eventTypeRaw);
     const isBirthday = /birthday/.test(eventTypeRaw);
+    const playlistService = String(
+      booking?.bookingDetails?.playlistService ||
+        booking?.playlistService ||
+        booking?.musicService ||
+        "",
+    ).toLowerCase();
+    const hasBookedDj = Boolean(
+      booking?.bookingDetails?.djServicesBooked ||
+        booking?.djServicesBooked ||
+        booking?.bookedDj ||
+        booking?.djBooked ||
+        ["pro_dj", "band_member_dj", "dj"].includes(playlistService),
+    );
 
     // Build the people section based on event type
     const peopleSection = isWedding
@@ -3813,7 +3826,7 @@ const ViewEventSheet = () => {
       },
       {
         id: "spotify_playlists",
-        title: "Spotify Playlists & DJ Requests",
+        title: hasBookedDj ? "Spotify Playlists & DJ Requests" : "Spotify Playlists",
         help: "Please add background-music playlists for before and between the band sets. Final edits should be made by 17 September 2026; if no playlist is supplied, we will use a standard party playlist.",
         fields: [
           {
@@ -3822,12 +3835,17 @@ const ViewEventSheet = () => {
             type: "textarea",
             placeholder: "https://open.spotify.com/playlist/…",
           },
-          {
-            key: "advanced_dj_requests",
-            label: "Advanced DJ requests (optional)",
-            type: "textarea",
-            placeholder: "Playlist link, requested genres, and any songs to avoid",
-          },
+          ...(hasBookedDj
+            ? [
+                {
+                  key: "advanced_dj_requests",
+                  label: "Advanced DJ requests (optional)",
+                  type: "textarea",
+                  placeholder:
+                    "Playlist link, requested genres, and any songs to avoid",
+                },
+              ]
+            : []),
         ],
       },
       {
