@@ -1918,9 +1918,19 @@ const ViewEventSheet = () => {
           title: "Couple's Names",
           help: "Could you kindly confirm your and your partner's name?",
           fields: [
-            { key: "partner1_first", label: "First name", type: "text" },
+            {
+              key: "partner1_first",
+              label: "First name",
+              type: "text",
+              required: true,
+            },
             { key: "partner1_last", label: "Last name", type: "text" },
-            { key: "partner2_first", label: "First name", type: "text" },
+            {
+              key: "partner2_first",
+              label: "Partner's first name",
+              type: "text",
+              required: true,
+            },
             { key: "partner2_last", label: "Last name", type: "text" },
             {
               key: "introduced_as",
@@ -1987,8 +1997,29 @@ const ViewEventSheet = () => {
             ],
           };
 
+    const eventPurposeSection =
+      !isWedding && !isBirthday
+        ? {
+            id: "event_purpose",
+            title: "About the Event",
+            help: "What is the event being held for? This helps the band understand the occasion.",
+            fields: [
+              {
+                key: "event_purpose",
+                label: "What is the event for?",
+                type: "textarea",
+                placeholder:
+                  "e.g. a company awards night, product launch, anniversary, engagement party or charity fundraiser",
+                required: true,
+                fullWidth: true,
+              },
+            ],
+          }
+        : null;
+
     return [
       peopleSection,
+      ...(eventPurposeSection ? [eventPurposeSection] : []),
       {
         id: "attire",
         title: "Attire",
@@ -3988,9 +4019,41 @@ const ViewEventSheet = () => {
 
   const totalSections = sections.length;
   const completedCount = useMemo(
-    () => Object.values(complete).filter(Boolean).length,
-    [complete],
+    () =>
+      sections.reduce(
+        (count, section) => count + (complete[section.id] ? 1 : 0),
+        0,
+      ),
+    [complete, sections],
   );
+
+  // If a required answer is removed after its section was marked complete,
+  // reopen that section so the sheet cannot be submitted with missing details.
+  useEffect(() => {
+    if (READ_ONLY) return;
+
+    const invalidSectionIds = sections
+      .filter(
+        (section) =>
+          complete[section.id] &&
+          (section.fields || []).some(
+            (field) =>
+              field.required && !String(answers[field.key] ?? "").trim(),
+          ),
+      )
+      .map((section) => section.id);
+
+    if (!invalidSectionIds.length) return;
+
+    const nextComplete = { ...complete };
+    invalidSectionIds.forEach((sectionId) => {
+      nextComplete[sectionId] = false;
+    });
+
+    completeRef.current = nextComplete;
+    setComplete(nextComplete);
+    saveEventSheet(answersRef.current, nextComplete);
+  }, [READ_ONLY, answers, complete, saveEventSheet, sections]);
 
   const toggleComplete = (sectionId, val) => {
     if (val) {
@@ -4388,7 +4451,10 @@ const ViewEventSheet = () => {
                   }
 
                   return (
-                    <div key={f.key} className="flex flex-col">
+                    <div
+                      key={f.key}
+                      className={`flex flex-col ${f.fullWidth ? "md:col-span-2" : ""}`}
+                    >
                       {f.label && (
                         <label className="text-sm text-gray-700 mb-1">
                           {f.label}{f.required ? " *" : ""}
