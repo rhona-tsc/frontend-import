@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { assets } from '../assets/assets';
 import Title from './Title';
@@ -34,7 +34,7 @@ const parseCustomRepertoire = (text) => {
   const parsedSongs = [];
 
   lines.forEach((line) => {
-    if (/^[A-Z][a-zA-Z\s\/&+]+$/.test(line) && !line.includes('-') && line.length < 40) {
+    if (/^[A-Z][a-zA-Z\s/&+]+$/.test(line) && !line.includes('-') && line.length < 40) {
       currentGenre = line;
     } else {
       const match = line.match(/^(\d{4})?\s?-?\s?(.*?)\s*-\s*(.+)$/);
@@ -51,9 +51,18 @@ const parseCustomRepertoire = (text) => {
   return parsedSongs;
 };
 
-const ActRepertoire = ({ selectedSongs, actData, favourites, toggleFavourite }) => {
+const ActRepertoire = ({
+  selectedSongs,
+  actData,
+  favourites = [],
+  toggleFavourite = () => {},
+  showHeader = true,
+  showIntro = true,
+  interactive = true,
+}) => {
   const [filter, setFilter] = useState({ decade: '', genre: '', artist: '', search: '' });
   const [filteredSongs, setFilteredSongs] = useState([]);
+  const [visibleLimit, setVisibleLimit] = useState(100);
 
   const genreCategories = Object.keys(genreMap).filter((cat) => cat !== 'Other');
 
@@ -66,12 +75,22 @@ const ActRepertoire = ({ selectedSongs, actData, favourites, toggleFavourite }) 
     let result = [...selectedSongs];
 
     if (filter.decade) {
-      result = result.filter((song) => String(song.year).startsWith(filter.decade));
+      result = result.filter((song) => {
+        const rawYear = song?.year;
+        if (rawYear == null || String(rawYear).trim() === '') return false;
+
+        const year = Number(rawYear);
+        if (!Number.isFinite(year)) return false;
+        if (filter.decade === 'pre1970') return year <= 1969;
+
+        const decadeStart = Number(filter.decade);
+        return year >= decadeStart && year < decadeStart + 10;
+      });
     }
 
     if (filter.genre) {
       result = result.filter((song) =>
-        song.genre
+        String(song?.genre || '')
           .split('/')
           .map((g) => categorizeGenre(g.trim()))
           .includes(filter.genre)
@@ -80,48 +99,55 @@ const ActRepertoire = ({ selectedSongs, actData, favourites, toggleFavourite }) 
 
     if (filter.artist) {
       result = result.filter((song) =>
-        song.artist.toLowerCase().includes(filter.artist.toLowerCase())
+        String(song?.artist || '').toLowerCase().includes(filter.artist.toLowerCase())
       );
     }
 
     if (filter.search) {
       result = result.filter((song) =>
-        song.title.toLowerCase().includes(filter.search.toLowerCase()) ||
-        song.artist.toLowerCase().includes(filter.search.toLowerCase())
+        String(song?.title || '').toLowerCase().includes(filter.search.toLowerCase()) ||
+        String(song?.artist || '').toLowerCase().includes(filter.search.toLowerCase())
       );
     }
 
     setFilteredSongs(result);
+    setVisibleLimit(100);
   }, [filter, selectedSongs]);
 
   return (
     <div className="flex gap-6 items-start w-full">
       <div className="">
-        <div className="text-2xl">
-          <Title text1={getPossessiveTitleCase(actData?.tscName)} text2="REPERTOIRE" />
-        </div>
+        {showHeader && (
+          <div className="text-2xl">
+            <Title text1={getPossessiveTitleCase(actData?.tscName)} text2="REPERTOIRE" />
+          </div>
+        )}
 
-        <p className="text-gray-600 text-[17px] mt-2 mb-4 p-2">
-          Use the filters below to explore {actData?.tscName || 'the act'}'s repertoire of {selectedSongs?.length || ''} songs and find your favourites. Heart the songs from {actData?.tscName || 'the act'}'s repertoire that you'd love to hear, pop them in the cart and we'll pass them to {actData?.tscName || 'the act'} upon booking - and don't worry you'll still able to amend your favourite song suggestions after booking too!
-        </p>
+        {showIntro && (
+          <p className="text-gray-600 text-[17px] mt-2 mb-4 p-2">
+            Use the filters below to explore {actData?.tscName || 'the act'}’s repertoire of {selectedSongs?.length || ''} songs and find your favourites. Heart the songs from {actData?.tscName || 'the act'}’s repertoire that you’d love to hear, pop them in the cart and we’ll pass them to {actData?.tscName || 'the act'} upon booking — and don’t worry, you’ll still be able to amend your favourite song suggestions after booking too!
+          </p>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 mt-2 w-full">
           <select
+            aria-label="Filter repertoire by decade"
             className="w-full border px-2 py-1 rounded text-gray-600 text-[17px]"
             value={filter.decade}
             onChange={(e) => setFilter({ ...filter, decade: e.target.value })}
           >
             <option value="">All Decades</option>
-            <option value="195">≤ 1969</option>
-            <option value="197">1970s</option>
-            <option value="198">1980s</option>
-            <option value="199">1990s</option>
-            <option value="200">2000s</option>
-            <option value="201">2010s</option>
-            <option value="202">2020s</option>
+            <option value="pre1970">≤ 1969</option>
+            <option value="1970">1970s</option>
+            <option value="1980">1980s</option>
+            <option value="1990">1990s</option>
+            <option value="2000">2000s</option>
+            <option value="2010">2010s</option>
+            <option value="2020">2020s</option>
           </select>
 
           <select
+            aria-label="Filter repertoire by genre"
             className="w-full border px-2 py-1 rounded text-gray-600 text-[17px]"
             value={filter.genre}
             onChange={(e) => setFilter({ ...filter, genre: e.target.value })}
@@ -138,6 +164,7 @@ const ActRepertoire = ({ selectedSongs, actData, favourites, toggleFavourite }) 
           <input
             type="text"
             placeholder="Artist"
+            aria-label="Filter repertoire by artist"
             className="w-full border px-2 py-1 rounded text-gray-600 text-[17px]"
             value={filter.artist}
             onChange={(e) => setFilter({ ...filter, artist: e.target.value })}
@@ -146,6 +173,7 @@ const ActRepertoire = ({ selectedSongs, actData, favourites, toggleFavourite }) 
           <input
             type="text"
             placeholder="Search title"
+            aria-label="Search repertoire by song title"
             className="w-full border px-2 py-1 rounded text-gray-600 text-[17px]"
             value={filter.search}
             onChange={(e) => setFilter({ ...filter, search: e.target.value })}
@@ -158,40 +186,54 @@ const ActRepertoire = ({ selectedSongs, actData, favourites, toggleFavourite }) 
               There aren’t any songs that match your filters right now — remove or adjust some filters to see more songs.
             </div>
           ) : (
-            filteredSongs.slice(0, 100).map((song, idx) => (
+            filteredSongs.slice(0, visibleLimit).map((song, idx) => (
               <div
                 key={`${song.title}-${song.artist}-${idx}`}
-                className="grid grid-cols-[1fr_auto] items-center gap-3 border-b py-2 text-gray-600 text-[15px] md:text-[17px]"
+                className={`${interactive ? 'grid grid-cols-[1fr_auto]' : 'block'} items-center gap-3 border-b py-2 text-gray-600 text-[15px] md:text-[17px]`}
               >
                 <span className="break-words leading-snug pr-1">
                   {song.title} – {song.artist}
                 </span>
 
-                <button
-                  onClick={() => toggleFavourite(song)}
-                  className="justify-self-end shrink-0 min-w-[28px] md:min-w-[32px] p-0 text-red-500 hover:text-red-600 focus:outline-none"
-                  aria-label={
-                    favourites.some((fav) => fav.title === song.title && fav.artist === song.artist)
-                      ? 'Remove from favourites'
-                      : 'Add to favourites'
-                  }
-                >
-                  {favourites.some((fav) => fav.title === song.title && fav.artist === song.artist) ? (
-                    <img
-                      src={assets.heart_icon}
-                      alt="Song shortlisted"
-                      className="w-6 h-6 md:w-7 md:h-7"
-                    />
-                  ) : (
-                    <img
-                      src={assets.shortlist_icon}
-                      alt="Shortlist this song"
-                      className="w-6 h-6 md:w-7 md:h-7"
-                    />
-                  )}
-                </button>
+                {interactive && (
+                  <button
+                    type="button"
+                    onClick={() => toggleFavourite(song)}
+                    className="justify-self-end shrink-0 min-w-[28px] md:min-w-[32px] p-0 text-red-500 hover:text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff6667]"
+                    aria-pressed={favourites.some((fav) => fav.title === song.title && fav.artist === song.artist)}
+                    aria-label={
+                      favourites.some((fav) => fav.title === song.title && fav.artist === song.artist)
+                        ? `Remove ${song.title} by ${song.artist} from favourites`
+                        : `Add ${song.title} by ${song.artist} to favourites`
+                    }
+                  >
+                    {favourites.some((fav) => fav.title === song.title && fav.artist === song.artist) ? (
+                      <img
+                        src={assets.heart_icon}
+                        alt=""
+                        className="w-6 h-6 md:w-7 md:h-7"
+                      />
+                    ) : (
+                      <img
+                        src={assets.shortlist_icon}
+                        alt=""
+                        className="w-6 h-6 md:w-7 md:h-7"
+                      />
+                    )}
+                  </button>
+                )}
               </div>
             ))
+          )}
+
+          {filteredSongs.length > visibleLimit && (
+            <button
+              type="button"
+              onClick={() => setVisibleLimit((current) => current + 100)}
+              className="mt-3 w-full rounded border px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff6667]"
+            >
+              Show more ({filteredSongs.length - visibleLimit} remaining)
+            </button>
           )}
         </div>
       </div>
@@ -202,8 +244,11 @@ const ActRepertoire = ({ selectedSongs, actData, favourites, toggleFavourite }) 
 ActRepertoire.propTypes = {
   selectedSongs: PropTypes.array.isRequired,
   actData: PropTypes.object,
-  favourites: PropTypes.array.isRequired,
-  toggleFavourite: PropTypes.func.isRequired,
+  favourites: PropTypes.array,
+  toggleFavourite: PropTypes.func,
+  showHeader: PropTypes.bool,
+  showIntro: PropTypes.bool,
+  interactive: PropTypes.bool,
 };
 
 export { ActRepertoire as default, parseCustomRepertoire, categorizeGenre, genreMap };

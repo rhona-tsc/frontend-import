@@ -11,6 +11,7 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { ShopContext } from "../context/ShopContext";
 import SimpleScheduleEditor from "../components/eventSheet/SimpleScheduleEditor";
+import EventSheetRepertoirePicker from "../components/eventSheet/EventSheetRepertoirePicker";
 import SEO from "../components/SEO";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
@@ -25,6 +26,26 @@ const currencySymbol = (code) => {
 const splitPersonName = (value = "") => {
   const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
   return { first: parts[0] || "", last: parts.slice(1).join(" ") };
+};
+
+const sanitizeForSave = (obj) => {
+  try {
+    const seen = new WeakSet();
+    return JSON.parse(
+      JSON.stringify(obj, (key, value) => {
+        if (typeof value === "function") return undefined;
+        if (value && typeof value === "object") {
+          if (value.$$typeof) return undefined;
+          if (seen.has(value)) return undefined;
+          seen.add(value);
+        }
+        return value;
+      }),
+    );
+  } catch (error) {
+    console.warn("sanitizeForSave failed; falling back to empty object", error);
+    return {};
+  }
 };
 
 // Known contract/booking facts sit underneath saved answers, so client edits
@@ -297,34 +318,10 @@ const ViewEventSheet = () => {
       setNotifying(false);
     }
   }
-  // --- Ensure we only send JSON-serializable, safe data ---
-  const sanitizeForSave = (obj) => {
-    try {
-      const seen = new WeakSet();
-      const out = JSON.parse(
-        JSON.stringify(obj, (key, value) => {
-          // Drop functions and React elements/fragments
-          if (typeof value === "function") return undefined;
-          if (value && typeof value === "object") {
-            // React element heuristic (has $$typeof) or cyclic
-            if (value.$$typeof) return undefined;
-            if (seen.has(value)) return undefined;
-            seen.add(value);
-          }
-          return value;
-        }),
-      );
-      return out;
-    } catch (e) {
-      console.warn("sanitizeForSave failed; falling back to empty object", e);
-      return {};
-    }
-  };
-
   // --- Debounced autosave helper ---
   const saveTimerRef = React.useRef(null);
 
-  const saveEventSheet = (nextAnswers, nextComplete = complete) => {
+  const saveEventSheet = useCallback((nextAnswers, nextComplete = completeRef.current) => {
     if (READ_ONLY) {
       esDebug("saveEventSheet skipped (read-only mode)");
       return;
@@ -429,7 +426,7 @@ const ViewEventSheet = () => {
         });
       }
     }, 600);
-  };
+  }, [READ_ONLY, backendUrl, booking]);
 
   // Optional: clear debounce on unmount
   useEffect(() => {
@@ -468,7 +465,7 @@ const ViewEventSheet = () => {
         return updated;
       });
     },
-    [READ_ONLY],
+    [READ_ONLY, saveEventSheet],
   );
 
   useEffect(() => {
@@ -3812,6 +3809,17 @@ const ViewEventSheet = () => {
                     flows — they’ll accommodate as many requests as possible and
                     may make on-the-night tweaks to keep the dancefloor buzzing.
                   </p>
+
+                  <EventSheetRepertoirePicker
+                    backendUrl={backendUrl}
+                    booking={booking}
+                    acts={acts}
+                    value={answers.song_suggestions || ""}
+                    onChange={(nextValue) =>
+                      handleAnswer("song_suggestions", nextValue)
+                    }
+                    readOnly={READ_ONLY}
+                  />
 
                   <textarea
                     className="border rounded px-2 py-1 text-sm text-gray-800 w-full min-h-[100px]"
