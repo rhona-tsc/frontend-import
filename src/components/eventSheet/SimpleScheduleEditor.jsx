@@ -9,6 +9,23 @@ const makeRow = (activity, time = "", notes = "") => ({
 
 const normaliseTime = (value = "") => String(value || "").trim();
 
+const minutesFromTime = (value = "") => {
+  const match = normaliseTime(value).match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+};
+
+const timeFromMinutes = (value) => {
+  if (!Number.isFinite(value)) return "";
+  const wrapped = ((value % 1440) + 1440) % 1440;
+  return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
+};
+
+const durationFromValue = (value, fallback) => {
+  const match = String(value || "").match(/\d+/);
+  return match ? Number(match[0]) : fallback;
+};
+
 export default function SimpleScheduleEditor({
   booking,
   answers,
@@ -36,24 +53,95 @@ export default function SimpleScheduleEditor({
     const bookingKey = String(booking?._id || booking?.bookingId || "booking");
     if (seededBookingRef.current === bookingKey) return;
     seededBookingRef.current = bookingKey;
-    if (Array.isArray(answers.schedule_table_rows)) return;
+
+    const savedRows = Array.isArray(answers.schedule_table_rows)
+      ? answers.schedule_table_rows
+      : [];
+    const legacyGeneratedActivities = new Set([
+      "Band arrival",
+      "Set-up and soundcheck (90 minutes)",
+      "Live performance begins",
+      "Performance finishes",
+    ]);
+    const canReplaceLegacyRows =
+      savedRows.length > 0 &&
+      savedRows.every(
+        (row) =>
+          !normaliseTime(row?.activity) &&
+          legacyGeneratedActivities.has(normaliseTime(row?.item)),
+      );
+    if (savedRows.length && !canReplaceLegacyRows) return;
 
     const legacyCustomRows = Array.isArray(answers.schedule_simple_rows)
       ? answers.schedule_simple_rows.map((row) =>
           makeRow(row.label || "", row.time || "", row.notes || ""),
         )
       : [];
+    const firstAct = Array.isArray(booking?.actsSummary)
+      ? booking.actsSummary[0] || {}
+      : {};
+    const lineup = firstAct?.lineup || {};
+    const arrival = normaliseTime(
+      performance.arrivalTime || answers.schedule_simple_arrival,
+    );
+    const arrivalMinutes = minutesFromTime(arrival);
+    const setupMinutes = durationFromValue(
+      lineup?.setupTime || booking?.setupDuration,
+      60,
+    );
+    const soundcheckMinutes = durationFromValue(lineup?.soundcheckTime, 30);
+    const changeMinutes = durationFromValue(
+      booking?.changeTime || answers.contracted_change_time,
+      15,
+    );
+    const setupEnd = Number.isFinite(arrivalMinutes)
+      ? arrivalMinutes + setupMinutes
+      : null;
+    const soundcheckEnd = Number.isFinite(setupEnd)
+      ? setupEnd + soundcheckMinutes
+      : null;
+    const changeEnd = Number.isFinite(soundcheckEnd)
+      ? soundcheckEnd + changeMinutes
+      : null;
+    const range = (start, end) =>
+      Number.isFinite(start) && Number.isFinite(end)
+        ? `${timeFromMinutes(start)}–${timeFromMinutes(end)}`
+        : "";
+    const liveStart = normaliseTime(
+      answers.schedule_simple_start || performance.startTime,
+    );
+    const liveFinish = normaliseTime(
+      performance.finishTime || answers.schedule_simple_finish_time,
+    );
+    const performancePlan = normaliseTime(
+      booking?.performancePlan ||
+        firstAct?.performancePlan ||
+        answers.contracted_performance_plan ||
+        "2 × 60 minutes or 3 × 40 minutes",
+    );
+
     handleAnswer("schedule_table_rows", [
-      makeRow("Band arrival", normaliseTime(performance.arrivalTime || answers.schedule_simple_arrival)),
-      makeRow("Band setup", normaliseTime(answers.schedule_simple_setup), "Allow approximately 60 minutes"),
-      makeRow("Soundcheck", normaliseTime(answers.schedule_simple_soundcheck), "Allow approximately 30 minutes"),
-      makeRow("Band meal", "", "Allow approximately 30 minutes"),
-      makeRow("DJ / playlist starts", normaliseTime(answers.schedule_simple_start || performance.startTime)),
-      makeRow("1st live set", normaliseTime(answers.schedule_simple_set1)),
-      makeRow("DJ / playlist between sets", normaliseTime(answers.schedule_simple_between1)),
-      makeRow("2nd live set", normaliseTime(answers.schedule_simple_set2)),
-      makeRow("3rd live set"),
-      makeRow("Finish", normaliseTime(performance.finishTime || answers.schedule_simple_finish_time)),
+      makeRow("Band arrival", arrival),
+      makeRow(
+        "Setup",
+        range(arrivalMinutes, setupEnd),
+        `${setupMinutes} minutes`,
+      ),
+      makeRow(
+        "Soundcheck",
+        range(setupEnd, soundcheckEnd),
+        `${soundcheckMinutes} minutes`,
+      ),
+      makeRow(
+        "Change time",
+        range(soundcheckEnd, changeEnd),
+        `${changeMinutes} minutes`,
+      ),
+      makeRow(
+        "Live sets",
+        liveStart && liveFinish ? `${liveStart}–${liveFinish}` : liveStart,
+        performancePlan,
+      ),
       ...legacyCustomRows,
     ]);
   }, [
@@ -62,8 +150,12 @@ export default function SimpleScheduleEditor({
     performance.arrivalTime,
     performance.finishTime,
     performance.startTime,
+    booking?.performancePlan,
+    booking?.changeTime,
     answers.schedule_table_rows,
     answers.schedule_simple_rows,
+    answers.contracted_change_time,
+    answers.contracted_performance_plan,
     handleAnswer,
   ]);
 
