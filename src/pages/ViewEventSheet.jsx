@@ -1460,8 +1460,10 @@ const ViewEventSheet = () => {
       const clean = (s = "") => String(s || "").trim();
       const mapDiet = (s) => {
         const x = clean(s).toLowerCase();
-        if (!x || x === "none" || x === "no" || x === "n/a")
-          return DIET_FALLBACK;
+        if (!x) return DIET_FALLBACK;
+        if (["none", "no", "n/a", "no dietary requirements"].includes(x)) {
+          return "No dietary requirements";
+        }
         return s;
       };
       const formatMusicianName = (member = {}) => {
