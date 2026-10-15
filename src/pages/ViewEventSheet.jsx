@@ -2095,17 +2095,17 @@ const ViewEventSheet = () => {
                     />
                   </div>
 
-                  {/* What3Words pin */}
+                  {/* Google Maps loading-in pin */}
                   <div>
                     <label className="text-sm text-gray-700 mb-1 block">
                       A{" "}
                       <a
-                        href="https://what3words.com/"
+                        href="https://www.google.com/maps"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#ff6667] underline hover:opacity-80"
                       >
-                        What3Words
+                        GoogleMaps
                       </a>{" "}
                       pin for loading in:
                     </label>
