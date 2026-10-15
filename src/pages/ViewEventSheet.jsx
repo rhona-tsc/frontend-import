@@ -22,6 +22,50 @@ const currencySymbol = (code) => {
   return map[code] || "£";
 };
 
+const splitPersonName = (value = "") => {
+  const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
+  return { first: parts[0] || "", last: parts.slice(1).join(" ") };
+};
+
+// Known contract/booking facts sit underneath saved answers, so client edits
+// are preserved while a new event sheet is no longer presented as blank.
+const bookingPrefillAnswers = (booking = {}) => {
+  const contact = splitPersonName(
+    booking.clientFirstNames || booking.bookerName || booking.clientName || "",
+  );
+  const performance = booking.performanceTimes || {};
+  const firstAct = Array.isArray(booking.actsSummary)
+    ? booking.actsSummary[0] || {}
+    : Array.isArray(booking.items)
+      ? booking.items[0] || {}
+      : {};
+  const firstPerformance = firstAct.performance || {};
+
+  return Object.fromEntries(Object.entries({
+    event_type: booking.eventType || booking.event_type || "",
+    booker_first: contact.first,
+    booker_last: contact.last,
+    booker_company: booking.clientCompany || booking.company || "",
+    venue_name:
+      booking.venue || booking.venueName || booking.venueAddress || booking.address || "",
+    act_name:
+      booking.actTscName || booking.actName || firstAct.tscName || firstAct.actName || "",
+    contracted_lineup:
+      booking.lineupSelected || booking.lineupLabel || firstAct.lineupLabel || "",
+    contracted_performance_plan:
+      booking.performancePlan || firstAct.performancePlan || "",
+    contracted_setup_time: booking.setupTime || "",
+    contracted_change_time: booking.changeTime || "",
+    contracted_performance_area: booking.performanceArea || "",
+    schedule_simple_arrival:
+      performance.arrivalTime || firstPerformance.arrivalTime || booking.arrivalTime || "",
+    schedule_simple_start:
+      performance.startTime || firstPerformance.startTime || booking.startTime || "",
+    schedule_simple_finish_time:
+      performance.finishTime || firstPerformance.finishTime || booking.finishTime || "",
+  }).filter(([, value]) => value !== "" && value != null));
+};
+
 // --- Equipment description helpers (pull from acts in context) ---
 const getActEquipmentInfo = (actsList = [], booking) => {
   try {
@@ -723,14 +767,26 @@ const ViewEventSheet = () => {
         return left || i.label;
       })
       .filter(Boolean);
-    return [...new Set(names)].join(" + ");
-  }, [normalizedItems]);
+    return (
+      [...new Set(names)].join(" + ") ||
+      booking?.actTscName ||
+      booking?.actName ||
+      answers.act_name ||
+      ""
+    );
+  }, [normalizedItems, booking, answers.act_name]);
 
   // Venue string: prefer explicit venue field, fall back to venueAddress
   const venueString = useMemo(() => {
     if (!booking) return "—";
-    return booking.venue || booking.venueAddress || "—";
-  }, [booking]);
+    return (
+      booking.venue ||
+      booking.venueAddress ||
+      booking.address ||
+      answers.venue_name ||
+      "—"
+    );
+  }, [booking, answers.venue_name]);
 
   // Make a friendly instrument list from a lineup, including essential service roles
   const describeLineup = (lineup = {}) => {
@@ -939,8 +995,14 @@ const ViewEventSheet = () => {
       })
       .filter(Boolean);
 
-    return [...new Set(parts)].join(" + ");
-  }, [booking, acts]);
+    return (
+      [...new Set(parts)].join(" + ") ||
+      booking?.lineupSelected ||
+      booking?.lineupLabel ||
+      answers.contracted_lineup ||
+      ""
+    );
+  }, [booking, acts, answers.contracted_lineup]);
 
   const actMedia = useMemo(() => {
     const first =
@@ -1149,10 +1211,16 @@ const ViewEventSheet = () => {
 
               if (raw) {
                 const parsed = JSON.parse(raw);
-                setAnswers(parsed.answers || {});
+                setAnswers({
+                  ...bookingPrefillAnswers(match),
+                  ...(parsed.answers || {}),
+                });
                 setComplete(parsed.complete || {});
               } else if (match.eventSheet) {
-                setAnswers(match.eventSheet.answers || {});
+                setAnswers({
+                  ...bookingPrefillAnswers(match),
+                  ...(match.eventSheet.answers || {}),
+                });
                 setComplete(match.eventSheet.complete || {});
               } else {
                 const src = Array.isArray(match.actsSummary)
@@ -1179,7 +1247,7 @@ const ViewEventSheet = () => {
                   ? { song_suggestions: suggestionsText }
                   : {};
 
-                setAnswers(seeded);
+                setAnswers({ ...bookingPrefillAnswers(match), ...seeded });
                 setComplete({});
               }
             } catch (err) {
@@ -1685,12 +1753,18 @@ const ViewEventSheet = () => {
         : 0;
 
       return {
-        arrivalTime: perfTop.arrivalTime || perfFirst.arrivalTime || "",
+        arrivalTime:
+          perfTop.arrivalTime ||
+          perfFirst.arrivalTime ||
+          booking?.arrivalTime ||
+          "",
         setupAndSoundcheckedBy:
           perfTop.setupAndSoundcheckedBy ||
           perfFirst.setupAndSoundcheckedBy ||
+          booking?.setupTime ||
           "",
-        startTime: perfTop.startTime || perfFirst.startTime || "",
+        startTime:
+          perfTop.startTime || perfFirst.startTime || booking?.startTime || "",
         finishTime,
         finishDayOffset,
       };
