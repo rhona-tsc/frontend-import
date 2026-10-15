@@ -1595,7 +1595,8 @@ const ViewEventSheet = () => {
         }));
       const bookedPerformerCount = Array.isArray(lineup?.bandMembers)
         ? lineup.bandMembers.filter((member) => !isManagerLike(member)).length
-        : confirmedRows.length;
+        : Number(bookedLineupLabel.match(/\d+/)?.[0] || 0) ||
+          confirmedRows.length;
       const tbcCount = Math.max(0, bookedPerformerCount - confirmedRows.length);
       return tbcCount
         ? [
