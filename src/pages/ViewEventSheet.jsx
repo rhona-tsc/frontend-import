@@ -1018,12 +1018,34 @@ const ViewEventSheet = () => {
       (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]) ||
       (Array.isArray(booking?.items) && booking.items[0]) ||
       {};
-    const act = (acts || []).find(
-      (candidate) => String(candidate?._id) === String(first?.actId),
-    ) || first?.act || {};
+    const normaliseName = (value = "") =>
+      String(value).trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const firstActName =
+      first?.tscName ||
+      first?.actName ||
+      first?.name ||
+      booking?.actTscName ||
+      booking?.actName ||
+      booking?.tscName ||
+      "";
+    const act =
+      (acts || []).find(
+        (candidate) => String(candidate?._id) === String(first?.actId),
+      ) ||
+      (acts || []).find((candidate) =>
+        [candidate?.tscName, candidate?.name]
+          .map(normaliseName)
+          .filter(Boolean)
+          .includes(normaliseName(firstActName)),
+      ) ||
+      first?.act ||
+      {};
     const urlOf = (value) =>
       typeof value === "string" ? value : value?.url || value?.secure_url || "";
     const images = [
+      first?.images?.[0],
+      first?.coverImage?.[0],
+      first?.profileImage?.[0],
       act?.images?.[0],
       first?.image,
       act?.images?.[1],
