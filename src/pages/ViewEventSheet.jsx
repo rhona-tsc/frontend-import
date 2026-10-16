@@ -17,6 +17,49 @@ import SEO from "../components/SEO";
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 const DIET_FALLBACK = "TBC";
 
+const getThursdayInWeekBefore = (booking = {}) => {
+  const rawDate =
+    booking.date ||
+    booking.eventDate ||
+    booking.event_date ||
+    booking.performanceDate ||
+    "";
+  const isoMatch = String(rawDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const refMatch = String(booking.bookingId || "").match(
+    /^(\d{2})(\d{2})(\d{2})-/,
+  );
+
+  const eventDate = isoMatch
+    ? new Date(
+        Number(isoMatch[1]),
+        Number(isoMatch[2]) - 1,
+        Number(isoMatch[3]),
+        12,
+      )
+    : refMatch
+      ? new Date(
+          2000 + Number(refMatch[1]),
+          Number(refMatch[2]) - 1,
+          Number(refMatch[3]),
+          12,
+        )
+      : null;
+
+  if (!eventDate || Number.isNaN(eventDate.getTime())) return "";
+
+  // Monday anchors the event week; four days earlier is the Thursday
+  // in the preceding week, matching the automation-email deadline.
+  const daysSinceMonday = (eventDate.getDay() + 6) % 7;
+  const deadline = new Date(eventDate);
+  deadline.setDate(deadline.getDate() - daysSinceMonday - 4);
+
+  return deadline.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+};
+
 const currencySymbol = (code) => {
   if (!code) return "£";
   const map = { GBP: "£", USD: "$", EUR: "€" };
@@ -997,7 +1040,13 @@ const ViewEventSheet = () => {
             ? `${lineup.bandMembers.length}-Piece`
             : "");
         const desc = lineup ? describeLineup(lineup) : "";
-        return [label, desc && ` - ${desc}`].filter(Boolean).join(" ");
+        const labelAlreadyDescribesRoles = /\([^)]{5,}\)/.test(label);
+        return [
+          label,
+          desc && !labelAlreadyDescribesRoles ? ` - ${desc}` : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
       })
       .filter(Boolean);
 
@@ -3869,7 +3918,7 @@ const ViewEventSheet = () => {
       {
         id: "spotify_playlists",
         title: hasBookedDj ? "Spotify Playlists & DJ Requests" : "Spotify Playlists",
-        help: "Please add background-music playlists for before and between the band sets. Final edits should be made by 17 September 2026; if no playlist is supplied, we will use a standard party playlist.",
+        help: `Please add background-music playlists for before and between the band sets. Final edits should be made by ${getThursdayInWeekBefore(booking) || "the Thursday in the week before the event"}; if no playlist is supplied, we will use a standard party playlist.`,
         fields: [
           {
             key: "spotify_playlist_links",
