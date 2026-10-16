@@ -17,7 +17,8 @@ import SEO from "../components/SEO";
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 const DIET_FALLBACK = "TBC";
 
-const getThursdayInWeekBefore = (booking = {}) => {
+const getThursdayInWeekBefore = (bookingValue = {}) => {
+  const booking = bookingValue || {};
   const rawDate =
     booking.date ||
     booking.eventDate ||
