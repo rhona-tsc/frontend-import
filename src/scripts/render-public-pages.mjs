@@ -37,7 +37,15 @@ async function writePage(route, title, description, heading, content) {
   const breadcrumbs = breadcrumbItems.length ? `<nav aria-label="Breadcrumb">${breadcrumbItems.map(item => `<a href="${escape(item.item)}">${escape(item.name)}</a>`).join(' / ')}</nav>` : '';
   const head = `<title data-rh="true">${escape(title)}</title><meta data-rh="true" name="description" content="${escape(description)}"><link data-rh="true" rel="canonical" href="${escape(canonical)}"><meta data-rh="true" property="og:title" content="${escape(title)}"><meta data-rh="true" property="og:description" content="${escape(description)}"><meta data-rh="true" property="og:url" content="${escape(canonical)}">`;
   const body = `<header><a href="/">The Supreme Collective</a><nav><a href="/acts">Bands</a> · <a href="/blog">Blog</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></nav></header><main>${breadcrumbs}<h1>${escape(heading)}</h1>${content}</main>`;
-  const html = template.replace(/<title>.*?<\/title>/s, head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>`).replace('<div id="root"></div>', `<div id="root">${body}</div>`);
+  const html = template
+    .replace(
+      /<title>.*?<\/title>/s,
+      head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>`,
+    )
+    .replace(
+      '<div id="root"></div>',
+      `<div id="root" data-prerendered style="visibility:hidden">${body}</div><noscript><style>#root[data-prerendered]{visibility:visible!important}</style></noscript>`,
+    );
   const directory = path.join('dist', route.replace(/^\//, ''));
   await fs.mkdir(directory, { recursive: true });
   await fs.writeFile(path.join(directory, 'index.html'), html);

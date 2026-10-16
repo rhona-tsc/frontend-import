@@ -9,6 +9,13 @@ import ErrorBoundary from "./components/ErrorBoundary";
 
 function InitialSchemaLifecycle() {
   const { pathname } = useLocation();
+  React.useLayoutEffect(() => {
+    const root = document.getElementById('root');
+    if (root?.hasAttribute('data-prerendered')) {
+      root.style.visibility = '';
+      root.removeAttribute('data-prerendered');
+    }
+  }, []);
   React.useEffect(() => {
     const schema = document.getElementById('initial-page-schema');
     const path = pathname === '/' ? '/' : pathname.replace(/\/+$/, '');
