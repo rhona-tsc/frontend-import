@@ -6,6 +6,7 @@ import SEO from '../components/SEO';
 import { BACKEND } from '../apiBase';
 import { locationPages, locationMeta, locationCopy } from '../data/locationPages.js';
 import { getBandImageAlt } from '../utils/bandImageAlt.js';
+import { cleanVenueName } from '../utils/venueName.js';
 import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
 
 const initialData = slug => {
@@ -55,7 +56,7 @@ export default function LocationWeddingBands({ slug }) {
     </section>
     <section className="rounded-3xl bg-gray-50 p-6 sm:p-10"><h2 className="text-3xl font-semibold">{config.planningTitle}</h2><ul className="mt-6 space-y-4">{config.planning.map(tip => <li className="flex gap-3 leading-7 text-gray-700" key={tip}><span aria-hidden="true">•</span><span>{tip}</span></li>)}</ul><p className="mt-6 leading-7 text-gray-600">{locationCopy.areaIntro(config)}</p></section>
     <section className="py-14"><h2 className="text-3xl font-semibold">Explore wedding venues in {config.name}</h2><p className="mt-4 leading-7 text-gray-600">{locationCopy.venueIntro(config.name)}</p>
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{(current?.venues || []).map(venue => <Link key={venue.id} to={`/venues?venue=${encodeURIComponent(venue.id)}&county=${encodeURIComponent(venue.county)}`} className="rounded-2xl border border-gray-200 p-4 font-medium hover:border-black">{venue.name}<span className="mt-1 block text-sm font-normal text-gray-500">View venue details →</span></Link>)}</div>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{(current?.venues || []).map(venue => <Link key={venue.id} to={`/venues?venue=${encodeURIComponent(venue.id)}&county=${encodeURIComponent(venue.county)}`} className="rounded-2xl border border-gray-200 p-4 font-medium hover:border-black">{cleanVenueName(venue.name)}<span className="mt-1 block text-sm font-normal text-gray-500">View venue details →</span></Link>)}</div>
       {current && !current.venues.length && <p className="mt-5 text-gray-600">We are adding venue records for this area. Send us your venue details for advice.</p>}
       <Link to={`/venues?county=${encodeURIComponent(config.name === 'London' ? 'Greater London' : config.name)}`} className="mt-6 inline-block underline underline-offset-4">Explore the {config.name} venue guide</Link>
     </section>

@@ -4,6 +4,7 @@ import { blogPosts } from '../data/BlogPosts.js';
 import { buildActMeta } from '../utils/actSeo.js';
 import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
 import { getBandImageAlt } from '../utils/bandImageAlt.js';
+import { cleanVenueName } from '../utils/venueName.js';
 import { locationPages, locationMeta, locationCopy } from '../data/locationPages.js';
 
 const origin = 'https://thesupremecollective.co.uk';
@@ -76,8 +77,9 @@ if (!locationResponse.ok) throw new Error(`Location data unavailable: HTTP ${loc
 const locationResult = await locationResponse.json();
 if (!locationResult.success) throw new Error('Location data unavailable');
 for (const config of locationPages) {
-  const data = locationResult.locations?.[config.slug];
-  if (!data?.bands?.length || data.county !== config.name) throw new Error(`Missing location content for ${config.name}`);
+  const rawData = locationResult.locations?.[config.slug];
+  if (!rawData?.bands?.length || rawData.county !== config.name) throw new Error(`Missing location content for ${config.name}`);
+  const data = { ...rawData, venues: rawData.venues.map(venue => ({ ...venue, name: cleanVenueName(venue.name) })) };
   const meta = locationMeta(config);
   const bandCards = data.bands.slice(0, 9).map(band => `<article><h3><a href="/act/${escape(band.slug)}">${escape(band.name)}</a></h3><img src="${escape(band.image)}" alt="${escape(getBandImageAlt(band.image, { tscName: band.name }))}" width="480" loading="lazy">${band.hasLocalOriginal ? paragraph(locationCopy.localBadge) : ''}${band.hasVenueExperience ? paragraph(locationCopy.venueExperience(config.name)) : ''}${paragraph(band.description || band.genres.join(', '))}<a href="/act/${escape(band.slug)}">Watch performances &amp; explore lineups</a></article>`).join('');
   const venueLinks = data.venues.map(venue => `<li><a href="/venues?venue=${escape(encodeURIComponent(venue.id))}&amp;county=${escape(encodeURIComponent(venue.county))}">${escape(venue.name)}</a></li>`).join('');

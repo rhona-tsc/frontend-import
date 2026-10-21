@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { BACKEND } from "../apiBase";
 import SEO from '../components/SEO';
+import { cleanVenueName } from '../utils/venueName.js';
 
 const hasText = (value) => String(value || "").trim().length > 0;
 const isPublicRoomName = (value) => {
@@ -49,7 +50,7 @@ const VenueGuide = () => {
         const response = await fetch(`${BACKEND}/api/venues/public`);
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || "Unable to load venue information");
-        if (active) setVenues(data.venues || []);
+        if (active) setVenues((data.venues || []).map(venue => ({ ...venue, name: cleanVenueName(venue.name) })));
       } catch (err) {
         if (active) setError(err.message || "Unable to load venue information");
       } finally {
