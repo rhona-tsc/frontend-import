@@ -36,7 +36,7 @@ const LocationWeddingBands = lazy(() => import("./pages/LocationWeddingBands"));
 const VenueGuide = lazy(() => import("./pages/VenueGuide"));
 
 const PageLoading = () => (
-  <div role="status" aria-live="polite" className="min-h-[60vh] flex items-center justify-center text-gray-600">
+  <div role="status" aria-live="polite" className="min-h-screen flex items-center justify-center text-gray-600">
     Loading page…
   </div>
 );
