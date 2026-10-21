@@ -18,6 +18,13 @@ const sitemap = await fs.readFile('dist/sitemap.xml', 'utf8');
 const urls = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => new URL(m[1]));
 const actPaths = urls.map(u => u.pathname).filter(p => p.startsWith('/act/'));
 
+// Distribute the unmodified font copyright notices with the hosted files.
+await fs.mkdir('dist/font-licenses', { recursive: true });
+await Promise.all([
+  fs.copyFile('node_modules/@fontsource-variable/outfit/LICENSE', 'dist/font-licenses/outfit.txt'),
+  fs.copyFile('node_modules/@fontsource/prata/LICENSE', 'dist/font-licenses/prata.txt'),
+]);
+
 // Use the same React components and hashed asset URLs as the browser build.
 // The renderer stays outside dist so no build-only code is published.
 const rendererDirectory = path.resolve('node_modules/.cache/tsc-public-render');
@@ -59,7 +66,9 @@ async function writePage(route, title, description, heading, content, location) 
     : route === '/' ? renderHomeContent(content)
     : renderStaticContent(route) || `<main class="initial-public-content">${breadcrumbs}<h1>${escape(heading)}</h1>${content}</main>`;
   const body = renderPublicShell(route, pageContent);
-  const html = template
+  // Only preload the display face where it is used above the fold.
+  const pageTemplate = route === '/' || location ? template : template.replace(/<link\b(?=[^>]*data-font="heading")[^>]*>\s*/g, '');
+  const html = pageTemplate
     .replace(
       /<title>.*?<\/title>/s,
       head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>` + (location ? `<script id="initial-location-data" data-county="${escape(location.county.toLowerCase().replace(/\s+/g, '-'))}" type="application/json">${serializeSchema(location)}</script>` : ''),

@@ -1,6 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Prata&display=swap');
-@import "slick-carousel/slick/slick.css"; 
-@import "slick-carousel/slick/slick-theme.css";
+@import "@fontsource-variable/outfit/index.css";
+@import "@fontsource/prata/400.css";
 
 @tailwind base;
 @tailwind components;
@@ -11,11 +10,11 @@ a.active hr{
 }
 
 *{
-    font-family: Outfit;
+    font-family: "Outfit Variable", Arial, sans-serif;
 }
 
 .prata-regular {
-    font-family: "Prata", serif;
+    font-family: "Prata", Georgia, serif;
     font-weight: 400;
     font-style: normal;
   }
