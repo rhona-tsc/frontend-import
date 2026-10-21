@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
-  (window?.location?.hostname?.includes('netlify.app') ? '/.netlify/functions' : '/api');
+  (typeof window !== 'undefined' && window.location?.hostname?.includes('netlify.app') ? '/.netlify/functions' : '/api');
 
 export default function ActSubmissionForm({ onSuccess, className = '' }) {
   const [form, setForm] = useState({

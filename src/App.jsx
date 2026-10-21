@@ -4,7 +4,7 @@
   import Navbar from "./components/Navbar";
   import SearchBox from "./components/SearchBox";
   import Footer from "./components/Footer";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
   import { useState, useEffect   } from "react";
 import AuthGateModal from "./components/AuthGateModal";
 import ScrollToTop from "./components/ScrollToTop";
@@ -35,11 +35,14 @@ const BlogPost = lazy(() => import("./pages/BlogPost"));
 const LocationWeddingBands = lazy(() => import("./pages/LocationWeddingBands"));
 const VenueGuide = lazy(() => import("./pages/VenueGuide"));
 
-const PageLoading = () => (
-  <div role="status" aria-live="polite" className="min-h-screen flex items-center justify-center text-gray-600">
-    Loading page…
-  </div>
-);
+const PageLoading = ({ initialContent, initialPath }) => {
+  const { pathname } = useLocation();
+  const path = pathname === '/' ? '/' : pathname.replace(/\/+$/, '');
+  if (initialContent && path === initialPath) {
+    return <div data-initial-page-content="" dangerouslySetInnerHTML={{ __html: initialContent }} />;
+  }
+  return <div role="status" aria-live="polite" className="min-h-screen flex items-center justify-center text-gray-600">Loading page…</div>;
+};
 
   // 👇 helper to decode token once
   function parseToken(t) {
@@ -65,7 +68,7 @@ const PageLoading = () => (
     }
   }
 
-  const App = () => {
+  const App = ({ initialContent, initialPath }) => {
     const initialToken = localStorage.getItem("token") || "";
     const initialUser = parseToken(initialToken);
 
@@ -164,7 +167,7 @@ const PageLoading = () => (
           <div className="mt-16">
              <SearchBox />
              <ScrollToTop />
-            <Suspense fallback={<PageLoading />}>
+            <Suspense fallback={<PageLoading initialContent={initialContent} initialPath={initialPath} />}>
             <Routes>
                
               <Route path="/" element={<Home />} />

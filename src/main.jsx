@@ -12,7 +12,6 @@ function InitialSchemaLifecycle() {
   React.useLayoutEffect(() => {
     const root = document.getElementById('root');
     if (root?.hasAttribute('data-prerendered')) {
-      root.style.visibility = '';
       root.removeAttribute('data-prerendered');
     }
   }, []);
@@ -39,6 +38,8 @@ if (location.search.includes("nolog")) {
 
 const rootElement = document.getElementById('root');
 const initialPublicHtml = rootElement.innerHTML;
+const initialContent = rootElement.querySelector('[data-initial-page-content]')?.innerHTML || '';
+const initialPath = window.location.pathname === '/' ? '/' : window.location.pathname.replace(/\/+$/, '');
 ReactDOM.createRoot(rootElement).render(
   
   <BrowserRouter>
@@ -46,7 +47,7 @@ ReactDOM.createRoot(rootElement).render(
   <HelmetProvider>
     <ShopProvider> 
         <ErrorBoundary initialPublicHtml={initialPublicHtml}>
-      <App />
+      <App initialContent={initialContent} initialPath={initialPath} />
       </ErrorBoundary>
     </ShopProvider>
 

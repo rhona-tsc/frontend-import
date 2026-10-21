@@ -83,3 +83,12 @@ html {
   
 
 img, video { max-width: 100%; height: auto; }
+
+/* Readable initial content for public pages that do not yet share a full view. */
+.initial-public-content { max-width: 72rem; margin: 0 auto; padding: 1.5rem 0 4rem; line-height: 1.75; }
+.initial-public-content h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.15; margin: 1rem 0 1.5rem; }
+.initial-public-content h2 { font-size: 1.75rem; line-height: 1.25; margin: 2rem 0 1rem; }
+.initial-public-content h3 { font-size: 1.25rem; margin: 1.5rem 0 .5rem; }
+.initial-public-content p { margin: .75rem 0; }
+.initial-public-content a { text-decoration: underline; text-underline-offset: 3px; }
+.initial-public-content img { max-width: 100%; height: auto; }
