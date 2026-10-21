@@ -9,6 +9,7 @@ import { ShopContext } from '../context/ShopContext';
 import { getBandImageAlt } from '../utils/bandImageAlt.js';
 import { cleanVenueName } from '../utils/venueName.js';
 import { gtagEvent } from '../utils/gtag.js';
+import { bandImageDelivery, bandImageSrcSet } from '../utils/bandImageDelivery.js';
 import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
 
 const initialData = slug => {
@@ -51,7 +52,7 @@ export default function LocationWeddingBands({ slug }) {
       <p className="mt-4 max-w-3xl leading-7 text-gray-600">{locationCopy.bandsIntro}</p>
       {!current && <p role="status" className="py-8 text-gray-600">{error ? 'The local selection is temporarily unavailable. You can still browse all bands or contact us.' : 'Loading the local selection…'}</p>}
       <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{(current?.bands || []).slice(0, 9).map(band => <article key={band.id} className="overflow-hidden rounded-3xl border border-gray-200 bg-white">
-        <Link to={`/act/${band.slug}`}><img src={band.image} alt={getBandImageAlt(band.image, { tscName: band.name })} loading="lazy" width="600" height="400" className="aspect-[3/2] w-full object-cover object-top" /></Link>
+        <Link to={`/act/${band.slug}`}><img src={bandImageDelivery(band.image)} srcSet={bandImageSrcSet(band.image)} sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 384px" alt={getBandImageAlt(band.image, { tscName: band.name })} loading="lazy" decoding="async" width="600" height="400" className="aspect-[3/2] w-full object-cover object-top" /></Link>
         <div className="p-5"><h3 className="text-2xl font-semibold"><Link to={`/act/${band.slug}`}>{band.name}</Link></h3>
           {band.hasLocalOriginal && <p className="mt-3 inline-block rounded-full bg-rose-50 px-3 py-1 text-sm font-medium text-rose-900">{locationCopy.localBadge}</p>}
           {band.hasVenueExperience && <p className="mt-2 text-sm font-medium text-gray-700">{locationCopy.venueExperience(config.name)}</p>}

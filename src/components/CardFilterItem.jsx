@@ -11,6 +11,8 @@ import { Link } from "react-router-dom";
 import calculateActPricing from "../pages/utils/pricing";
 import { ShopContext } from "../context/ShopContext";
 import { preparedListingPrice, listingPricingSignature, withPricingTimeout } from '../utils/listingPrice.js';
+import { getBandImageAlt } from '../utils/bandImageAlt.js';
+import { bandImageDelivery, bandImageSrcSet } from '../utils/bandImageDelivery.js';
 
 const MARGIN_RATE = 0.33;
 const applyMargin = (v) => Math.ceil((Number(v) || 0) * (1 + MARGIN_RATE));
@@ -159,7 +161,7 @@ const PriceSkeleton = () => (
  * - cancel in-flight async work on rapid changes
  * - avoid extra state churn (don’t set price repeatedly to same value)
  */
-const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPriceComputed }) => {
+const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPriceComputed, imagePriority = false }) => {
   const ctx = useContext(ShopContext) || {};
   const {
   shortlistedActs,
@@ -437,8 +439,11 @@ if (!hasLineups) {
         <div className="overflow-hidden aspect-[524/636] w-full bg-gray-100">
           <img
             className="block h-full w-full object-cover hover:scale-110 transition ease-in-out"
-            src={resolvedImage}
-            alt={getTitle(actData)}
+            src={bandImageDelivery(resolvedImage)}
+            srcSet={bandImageSrcSet(resolvedImage)}
+            sizes="(max-width: 639px) 50vw, (max-width: 1279px) 33vw, 25vw"
+            width="524" height="636" decoding="async" loading={imagePriority ? 'eager' : 'lazy'}
+            alt={getBandImageAlt(resolvedImage, actData)}
           />
         </div>
 
@@ -530,7 +535,7 @@ export default React.memo(CardFilterItem, (prev, next) => {
 
   // We *don’t* include onPriceComputed in the comparison.
   return (
-    sameCore && listingPricingSignature(prev.actData) === listingPricingSignature(next.actData) &&
+    sameCore && prev.imagePriority === next.imagePriority && listingPricingSignature(prev.actData) === listingPricingSignature(next.actData) &&
     prev.timesShortlisted === next.timesShortlisted &&
     prev.standalone === next.standalone
   );

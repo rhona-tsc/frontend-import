@@ -4382,11 +4382,12 @@ return (
       : "Loading acts..."}
   </div>
 ) : (
-              resultsWithPrice.map((item) => (
+              resultsWithPrice.map((item, index) => (
                <CardFilterItem
   key={item.actId || item._id}
   actData={{ ...item, images: item?.images ?? item?.__card?.images ?? item?.__card?.coverImages }}
   variant="listing"
+  imagePriority={index < 4}
   onPriceComputed={onPriceComputed}   // ✅ add this
 />
               ))
