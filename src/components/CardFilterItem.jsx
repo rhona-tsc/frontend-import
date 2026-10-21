@@ -10,6 +10,7 @@ import React, {
 import { Link } from "react-router-dom";
 import calculateActPricing from "../pages/utils/pricing";
 import { ShopContext } from "../context/ShopContext";
+import { preparedListingPrice, listingPricingSignature, withPricingTimeout } from '../utils/listingPrice.js';
 
 const MARGIN_RATE = 0.33;
 const applyMargin = (v) => Math.ceil((Number(v) || 0) * (1 + MARGIN_RATE));
@@ -53,6 +54,7 @@ const getBasePrice = (src) => {
     src?.minDisplayPrice,
     src?.formattedPrice?.total,
     src?.formattedPrice?.from,
+    src?.__card?.basePrice,
   ]
     .map((v) =>
       v == null ? null : Number(String(v).replace(/[^0-9.+-]/g, ""))
@@ -202,6 +204,7 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
 
   const actId = useMemo(() => String(getActId(actData)), [actData]);
   const actVer = useMemo(() => String(actData?.updatedAt || actData?.__v || ""), [actData]);
+  const pricingSignature = listingPricingSignature(actData);
 
   const addrNorm = useMemo(() => normalizeAddrStrict(selectedAddress || ""), [selectedAddress]);
 
@@ -215,8 +218,8 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
   const pricingKey = useMemo(() => {
     const county = String(selectedCounty || "");
     const mode = standalone ? "standalone" : "card";
-    return `${mode}|${actId}|${actVer}|${county}|${addrNorm}|${dateISO}`;
-  }, [standalone, actId, actVer, selectedCounty, addrNorm, dateISO]);
+    return `${mode}|${actId}|${actVer}|${county}|${addrNorm}|${dateISO}|${pricingSignature}`;
+  }, [standalone, actId, actVer, selectedCounty, addrNorm, dateISO, pricingSignature]);
 
   const safeSetPrice = useCallback((next) => {
     setPrice((prev) => {
@@ -277,6 +280,12 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
           return;
         }
 
+        const prepared = preparedListingPrice(a);
+        if (prepared) {
+          if (!cancelled) safeSetPrice(prepared);
+          return;
+        }
+
         // 3) No lineups → use the card payload only.
 // Avoid calling ShopContext helpers here because they are currently
 // falling back to GET /api/act, which does not exist on this backend.
@@ -306,13 +315,13 @@ if (!hasLineups) {
 
         const lineup = a.lineups[0];
 
-        const result = await calculateActPricing(
+        const result = await withPricingTimeout(() => calculateActPricing(
           a,
           hasCountyTable ? county : null,
           addrN,
           dateStr,
           lineup
-        );
+        ));
 
         if (cancelled) return;
 
@@ -323,8 +332,8 @@ if (!hasLineups) {
 
         safeSetPrice({
           ...result,
-          total: applyMargin(result.total),
-          travelCalculated: true,
+          total: result.total,
+          travelCalculated: result.travelCalculated === true,
         });
       } catch (err) {
         console.error("❌ Failed to calculate price:", {
@@ -438,12 +447,12 @@ if (!hasLineups) {
             <p className="text-sm">{getTitle(actData)}</p>
 
             <div className="act-price min-h-[20px]">
-              {loadingPrice ? (
+              {displayTotal !== null ? (
+                <>{price?.travelCalculated && !loadingPrice ? `£${displayTotal}` : `from £${displayTotal}`}{loadingPrice && <span className="sr-only"> — updating price</span>}</>
+              ) : loadingPrice ? (
                 <PriceSkeleton />
-              ) : displayTotal !== null ? (
-                price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`
               ) : (
-                "Loading price..."
+                "Price on enquiry"
               )}
             </div>
           </div>
@@ -521,7 +530,7 @@ export default React.memo(CardFilterItem, (prev, next) => {
 
   // We *don’t* include onPriceComputed in the comparison.
   return (
-    sameCore &&
+    sameCore && listingPricingSignature(prev.actData) === listingPricingSignature(next.actData) &&
     prev.timesShortlisted === next.timesShortlisted &&
     prev.standalone === next.standalone
   );

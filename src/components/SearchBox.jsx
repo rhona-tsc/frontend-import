@@ -30,7 +30,7 @@ const SearchBox = () => {
 
   // Determine if the search box is allowed to stay open on this route
   const isSearchRoute =
-    location.pathname === "/acts" || location.pathname.startsWith("/act/") || isLocationPage;
+    location.pathname.replace(/\/+$/, '') === "/acts" || location.pathname.startsWith("/act/") || isLocationPage;
 
   const {
     showSearch,
