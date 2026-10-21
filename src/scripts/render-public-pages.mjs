@@ -5,7 +5,7 @@ import { buildActMeta } from '../utils/actSeo.js';
 import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
 import { getBandImageAlt } from '../utils/bandImageAlt.js';
 import { cleanVenueName } from '../utils/venueName.js';
-import { locationPages, locationMeta, locationCopy } from '../data/locationPages.js';
+import { locationPages, locationMeta, locationCopy, contactOptions } from '../data/locationPages.js';
 
 const origin = 'https://thesupremecollective.co.uk';
 const api = (process.env.SITEMAP_API_URL || process.env.VITE_BACKEND_URL || 'https://tsc-backend-v2.onrender.com').replace(/\/$/, '');
@@ -42,7 +42,7 @@ async function writePage(route, title, description, heading, content, location) 
   const html = template
     .replace(
       /<title>.*?<\/title>/s,
-      head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>` + (location ? `<script id="initial-location-data" data-county="${escape(location.county.toLowerCase())}" type="application/json">${serializeSchema(location)}</script>` : ''),
+      head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>` + (location ? `<script id="initial-location-data" data-county="${escape(location.county.toLowerCase().replace(/\s+/g, '-'))}" type="application/json">${serializeSchema(location)}</script>` : ''),
     )
     .replace(
       '<div id="root"></div>',
@@ -86,7 +86,9 @@ for (const config of locationPages) {
   const reviews = data.reviews.map(review => `<figure><blockquote>${escape(review.comment)}</blockquote><figcaption>${escape(review.author)} · <a href="/act/${escape(review.actSlug)}">${escape(review.actName)}</a>${review.eventType ? ` · ${escape(review.eventType)}` : ''}</figcaption></figure>`).join('');
   const faq = [...config.faqs, locationCopy.priceFaq].map(item => `<h3>${escape(item.q)}</h3>${paragraph(item.a)}`).join('');
   const nearby = locationPages.filter(item => item.slug !== config.slug).map(item => `<a href="/wedding-bands-${item.slug}">${item.name}</a>`).join(' · ');
-  const content = paragraph(config.intro) + `<p><a href="#bands">Explore the bands</a> · <a href="/contact">Tell us your date and venue</a></p><section id="bands"><h2>Bands for your ${config.name} wedding</h2>${paragraph(locationCopy.bandsIntro)}${bandCards}<a href="/acts">Explore all our bands</a></section><section><h2>${escape(config.planningTitle)}</h2><ul>${config.planning.map(tip => `<li>${escape(tip)}</li>`).join('')}</ul>${paragraph(locationCopy.areaIntro(config))}</section><section><h2>Explore wedding venues in ${config.name}</h2>${paragraph(locationCopy.venueIntro(config.name))}<ul>${venueLinks}</ul></section>${reviews ? `<section><h2>What clients say about events in ${config.name}</h2>${reviews}</section>` : ''}<section><h2>Your ${config.name} wedding music questions</h2>${faq}</section><section><h2>Explore nearby areas</h2>${nearby}</section>`;
+  const directLinks = contactOptions.map(option => `<a href="${escape(option.href)}"${option.external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${escape(option.label)}</a>`).join(' · ');
+  const contact = `<section id="contact-options"><h2>Let’s find your wedding band</h2>${paragraph('Add your date and venue to explore bands and travel pricing, or talk through your ideas with us directly.')}<a href="/acts">Add your date &amp; venue</a><p>Prefer a conversation? ${directLinks}</p></section>`;
+  const content = paragraph(config.intro) + `<p><a href="/acts">Add your date &amp; venue</a> · <a href="#bands">Explore the bands</a> · <a href="#contact-options">Email, WhatsApp, text or book a call</a></p><section id="bands"><h2>Bands for your ${config.name} wedding</h2>${paragraph(locationCopy.bandsIntro)}${bandCards}<a href="/acts">Explore all our bands</a></section><section><h2>${escape(config.planningTitle)}</h2><ul>${config.planning.map(tip => `<li>${escape(tip)}</li>`).join('')}</ul>${paragraph(locationCopy.areaIntro(config))}</section><section><h2>Explore wedding venues in ${config.name}</h2>${paragraph(locationCopy.venueIntro(config.name))}<ul>${venueLinks}</ul></section>${reviews ? `<section><h2>What clients say about events in ${config.name}</h2>${reviews}</section>` : ''}<section><h2>Your ${config.name} wedding music questions</h2>${faq}</section>${contact}<section><h2>Explore more locations</h2>${nearby}</section>`;
   await writePage(`/wedding-bands-${config.slug}`, meta.title, meta.description, `Wedding bands in ${config.name}`, content, data);
 }
 console.log(`Rendered ${acts.length + blogPosts.length + 6 + locationPages.length} public pages with initial HTML content and metadata.`);

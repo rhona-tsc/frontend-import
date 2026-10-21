@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import RoyalMailAddressNow from "./RoyalMailAddressNow";
 import { gtagEvent } from "../utils/gtag";
 
@@ -25,10 +25,12 @@ const normaliseUKPostcode = (value = "") => {
 
 const SearchBox = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const isLocationPage = location.pathname.startsWith('/wedding-bands-');
 
   // Determine if the search box is allowed to stay open on this route
   const isSearchRoute =
-    location.pathname === "/acts" || location.pathname.startsWith("/act/");
+    location.pathname === "/acts" || location.pathname.startsWith("/act/") || isLocationPage;
 
   const {
     showSearch,
@@ -304,6 +306,7 @@ SB("ls.selectedPostcode:", localStorage.getItem("selectedPostcode"));
     sessionStorage.removeItem(DISMISS_KEY);
 
     handleClose("submit_success");
+    if (isLocationPage) navigate('/acts');
   };
 
   // ✅ Enable button if postcode is valid OR user typed a postcode into venue input
