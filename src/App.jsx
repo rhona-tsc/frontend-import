@@ -1,37 +1,45 @@
-  import React from "react";
+  import React, { lazy, Suspense } from "react";
   import { jwtDecode } from "jwt-decode";
   import { ToastContainer } from "react-toastify";
   import Navbar from "./components/Navbar";
   import SearchBox from "./components/SearchBox";
   import Footer from "./components/Footer";
 import { Routes, Route } from "react-router-dom";
-import Blog from "./pages/Blog";
-import BlogPost from "./pages/BlogPost";
-  import Home from "./pages/Home";
-  import About from "./pages/About";
-  import Act from "./pages/Act";
-  import Acts from "./pages/Acts";
-  import Bookings from "./pages/Bookings";
-  import Cart from "./pages/Cart";
-  import Client_Dashboard from "./pages/Client_Dashboard";
-  import Contact from "./pages/Contact";
-import Login from "./pages/Login";
-import ResetPassword from "./pages/ResetPassword";
-  import Musician from "./pages/Musician";
-  import PlaceBooking from "./pages/PlaceBooking";
-  import Shortlist from "./pages/Shortlist";
-  import ViewEventSheet from "./pages/ViewEventSheet";
-  import BookingSuccess from './pages/BookingSuccess';
-  import BookingCancelled from './pages/BookingCancelled';
-  import Terms from "./pages/Terms";
-  import Privacy from "./pages/Privacy";
   import { useState, useEffect   } from "react";
 import AuthGateModal from "./components/AuthGateModal";
 import ScrollToTop from "./components/ScrollToTop";
 import { Helmet } from "react-helmet-async";
-import LocationWeddingBands from "./pages/LocationWeddingBands";
 import { locationPages } from "./data/locationPages.js";
-import VenueGuide from "./pages/VenueGuide";
+
+// Keep the shared shell available while downloading only the requested page.
+const Home = lazy(() => import("./pages/Home"));
+const About = lazy(() => import("./pages/About"));
+const Act = lazy(() => import("./pages/Act"));
+const Acts = lazy(() => import("./pages/Acts"));
+const Bookings = lazy(() => import("./pages/Bookings"));
+const Cart = lazy(() => import("./pages/Cart"));
+const Client_Dashboard = lazy(() => import("./pages/Client_Dashboard"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Login = lazy(() => import("./pages/Login"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Musician = lazy(() => import("./pages/Musician"));
+const PlaceBooking = lazy(() => import("./pages/PlaceBooking"));
+const Shortlist = lazy(() => import("./pages/Shortlist"));
+const ViewEventSheet = lazy(() => import("./pages/ViewEventSheet"));
+const BookingSuccess = lazy(() => import("./pages/BookingSuccess"));
+const BookingCancelled = lazy(() => import("./pages/BookingCancelled"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
+const LocationWeddingBands = lazy(() => import("./pages/LocationWeddingBands"));
+const VenueGuide = lazy(() => import("./pages/VenueGuide"));
+
+const PageLoading = () => (
+  <div role="status" aria-live="polite" className="min-h-[60vh] flex items-center justify-center text-gray-600">
+    Loading page…
+  </div>
+);
 
   // 👇 helper to decode token once
   function parseToken(t) {
@@ -156,6 +164,7 @@ import VenueGuide from "./pages/VenueGuide";
           <div className="mt-16">
              <SearchBox />
              <ScrollToTop />
+            <Suspense fallback={<PageLoading />}>
             <Routes>
                
               <Route path="/" element={<Home />} />
@@ -190,6 +199,7 @@ import VenueGuide from "./pages/VenueGuide";
               <Route path="/place-booking" element={<PlaceBooking />} />
               <Route path="/shortlist" element={<Shortlist />} />
             </Routes>
+            </Suspense>
           </div>
           <Footer />
         </div>
