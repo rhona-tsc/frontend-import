@@ -18,6 +18,9 @@ const {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  // Match the public server snapshot, then restore this visitor's private counts.
+  const [clientReady, setClientReady] = useState(false);
+  useEffect(() => { setClientReady(true); }, []);
 
   const dropdownRef = useRef(null);
   const drawerRef = useRef(null);
@@ -164,7 +167,7 @@ const {
 >
   <img src={assets.shortlist_icon} alt="Shortlist" className="w-5 h-5" />
   <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center bg-black text-white rounded-full text-[10px] leading-none">
-    {getShortlistCount()}
+    {clientReady ? getShortlistCount() : 0}
   </span>
 </Link>
 
@@ -175,7 +178,7 @@ const {
 >
   <img src={assets.cart_icon} alt="Cart" className="w-5 h-5" />
   <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center bg-black text-white rounded-full text-[10px] leading-none">
-    {getCartCount()}
+    {clientReady ? getCartCount() : 0}
   </span>
 
   {cartUpdated && (

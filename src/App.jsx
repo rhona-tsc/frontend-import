@@ -68,8 +68,10 @@ const PageLoading = ({ initialContent, initialPath }) => {
     }
   }
 
-  const App = ({ initialContent, initialPath }) => {
-    const initialToken = localStorage.getItem("token") || "";
+  const App = ({ initialContent, initialPath, initialPage, initialPagePath }) => {
+    const { pathname } = useLocation();
+    const currentPath = pathname === '/' ? '/' : pathname.replace(/\/+$/, '');
+    const initialToken = typeof localStorage !== 'undefined' ? localStorage.getItem("token") || "" : "";
     const initialUser = parseToken(initialToken);
 
   // ✅ hydrate initial state from token so first render is correct
@@ -167,7 +169,7 @@ const PageLoading = ({ initialContent, initialPath }) => {
           <div className="mt-16">
              <SearchBox />
              <ScrollToTop />
-            <Suspense fallback={<PageLoading initialContent={initialContent} initialPath={initialPath} />}>
+            {initialPage && currentPath === initialPagePath ? <div data-initial-page-content="">{initialPage}</div> : <Suspense fallback={<PageLoading initialContent={initialContent} initialPath={initialPath} />}>
             <Routes>
                
               <Route path="/" element={<Home />} />
@@ -202,7 +204,7 @@ const PageLoading = ({ initialContent, initialPath }) => {
               <Route path="/place-booking" element={<PlaceBooking />} />
               <Route path="/shortlist" element={<Shortlist />} />
             </Routes>
-            </Suspense>
+            </Suspense>}
           </div>
           <Footer />
         </div>

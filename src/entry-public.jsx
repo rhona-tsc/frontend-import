@@ -14,11 +14,24 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
+import App from './App';
+import LocationWeddingBands from './pages/LocationWeddingBands';
 
 const publicContext = {
   token: '', cartItems: {}, cartUpdated: false,
   getCartCount: () => 0, getShortlistCount: () => 0,
+  showSearch: false, selectedAddress: '', selectedDate: '',
 };
+
+export function renderCountyApp(route, slug, data) {
+  return renderToString(<StaticRouter location={route}>
+    <HelmetProvider context={{}}>
+      <ShopContext.Provider value={publicContext}>
+        <App initialPagePath={route} initialPage={<LocationWeddingBands slug={slug} initialLocation={data} />} />
+      </ShopContext.Provider>
+    </HelmetProvider>
+  </StaticRouter>);
+}
 
 export function renderLocationContent(route, slug, data) {
   return renderToString(<StaticRouter location={route}>

@@ -97,7 +97,7 @@ const setShowSearchDBG = (next, reason = "unknown") => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAddress, selectedDate]);
 
-  const getStored = (key) => sessionStorage.getItem(key) || "";
+  const getStored = (key) => typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) || "" : "";
   // ✅ Determine if we already have enough info to NOT show the search box on /acts
   // Rule: date required AND (address OR valid postcode) present (from context or session storage)
   const searchSnapshot = useMemo(() => {

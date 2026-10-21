@@ -15,10 +15,10 @@ const initialData = slug => {
   try { return JSON.parse(node.textContent); } catch { return null; }
 };
 
-export default function LocationWeddingBands({ slug }) {
+export default function LocationWeddingBands({ slug, initialLocation }) {
   const { setShowSearch } = useContext(ShopContext);
   const config = locationPages.find(item => item.slug === slug);
-  const [data, setData] = useState(() => initialData(slug));
+  const [data, setData] = useState(() => initialLocation || initialData(slug));
   const [error, setError] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
@@ -41,4 +41,4 @@ export default function LocationWeddingBands({ slug }) {
       trackContact={method => gtagEvent('location_contact_click', { county_slug: slug, contact_method: method })} />
   </>;
 }
-LocationWeddingBands.propTypes = { slug: PropTypes.oneOf(locationPages.map(page => page.slug)).isRequired };
+LocationWeddingBands.propTypes = { slug: PropTypes.oneOf(locationPages.map(page => page.slug)).isRequired, initialLocation: PropTypes.object };

@@ -36,7 +36,7 @@ await build({
     rollupOptions: { output: { entryFileNames: 'entry-public.mjs' } },
   },
 });
-const { renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
+const { renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent, renderCountyApp } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
 
 async function getAct(route) {
   const response = await fetch(`${api}/api/act/${route.split('/').pop()}`, { signal: AbortSignal.timeout(30000) });
@@ -65,7 +65,7 @@ async function writePage(route, title, description, heading, content, location) 
     ? renderLocationContent(route, route.replace('/wedding-bands-', ''), location)
     : route === '/' ? renderHomeContent(content)
     : renderStaticContent(route) || `<main class="initial-public-content">${breadcrumbs}<h1>${escape(heading)}</h1>${content}</main>`;
-  const body = renderPublicShell(route, pageContent);
+  const body = location ? renderCountyApp(route, route.replace('/wedding-bands-', ''), location) : renderPublicShell(route, pageContent);
   // Only preload the display face where it is used above the fold.
   const pageTemplate = route === '/' || location ? template : template.replace(/<link\b(?=[^>]*data-font="heading")[^>]*>\s*/g, '');
   const html = pageTemplate
@@ -75,7 +75,7 @@ async function writePage(route, title, description, heading, content, location) 
     )
     .replace(
       '<div id="root"></div>',
-      `<div id="root" data-prerendered>${body}</div>`,
+      `<div id="root" data-prerendered${location ? ' data-hydrate="county"' : ''}>${body}</div>`,
     );
   const directory = path.join('dist', route.replace(/^\//, ''));
   await fs.mkdir(directory, { recursive: true });
