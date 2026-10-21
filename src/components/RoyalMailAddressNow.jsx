@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { loadAddressNow } from "../utils/loadAddressNow.js";
 
 const normaliseSpaces = (s = "") => String(s || "").replace(/\s+/g, " ").trim();
 
@@ -14,27 +15,6 @@ const offscreenStyle = {
   pointerEvents: "none",
 };
 
-const waitForPca = (timeoutMs = 5000) =>
-  new Promise((resolve, reject) => {
-    const start = Date.now();
-    const tick = () => {
-      if (
-        window.pca &&
-        typeof window.pca.Address === "function" &&
-        window.pca.fieldMode
-      ) {
-        resolve(window.pca);
-        return;
-      }
-      if (Date.now() - start > timeoutMs) {
-        reject(new Error("pca library not ready"));
-        return;
-      }
-      setTimeout(tick, 50);
-    };
-    tick();
-  });
-
 const RoyalMailAddressNow = ({
   captureKey, // ✅ your Capture key for this instance
   idPrefix = "an", // ✅ MUST be unique per instance on a page
@@ -45,9 +25,15 @@ const RoyalMailAddressNow = ({
   value,
   className,
   placeholder,
+  active = false,
+  onFocus,
   ...props
 }) => {
   const inputRef = useRef(null);
+  const [focused, setFocused] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [lookupState, setLookupState] = useState('idle');
+  const enabled = active || focused;
 
   // AddressNow-populated field refs (hidden/offscreen inputs)
   const line1Ref = useRef(null);
@@ -87,6 +73,8 @@ const RoyalMailAddressNow = ({
 
   // Bind AddressNow to THIS input + populate THESE hidden fields
   useEffect(() => {
+    if (!enabled) return;
+    const el = inputRef.current;
     let control = null;
     let cancelled = false;
 
@@ -98,7 +86,8 @@ const RoyalMailAddressNow = ({
       if (el.dataset.pcaBound === "1") return;
 
       try {
-        const pca = await waitForPca();
+        setLookupState('loading');
+        const pca = await loadAddressNow();
         if (cancelled) return;
 
         // Fields mapping: SEARCH input + POPULATE into our hidden inputs
@@ -142,7 +131,10 @@ const RoyalMailAddressNow = ({
         });
 
         el.dataset.pcaBound = "1";
+        setLookupState('ready');
       } catch (e) {
+        if (cancelled) return;
+        setLookupState('error');
         // If this happens, it usually means the script didn't load (or was blocked)
         console.warn("[AddressNow] bind failed:", e);
       }
@@ -152,7 +144,6 @@ const RoyalMailAddressNow = ({
 
     return () => {
       cancelled = true;
-      const el = inputRef.current;
       if (el) delete el.dataset.pcaBound;
 
       try {
@@ -161,7 +152,7 @@ const RoyalMailAddressNow = ({
         // some versions don’t expose destroy; ignore
       }
     };
-  }, [captureKey, ids.search, ids.line1, ids.line2, ids.town, ids.county, ids.postcode]);
+  }, [enabled, retry, captureKey, ids.search, ids.line1, ids.line2, ids.town, ids.county, ids.postcode]);
 
   return (
     <div className="w-full relative">
@@ -175,8 +166,19 @@ const RoyalMailAddressNow = ({
         className={className || "border-2 border-gray-300 p-2 text-gray-500 bg-white w-full"}
         autoComplete="off"
         onChange={(e) => setValue(e.target.value)}
+        onFocus={(event) => {
+          setFocused(true);
+          if (lookupState === 'error') setRetry(count => count + 1);
+          onFocus?.(event);
+        }}
+        aria-describedby={lookupState === 'loading' || lookupState === 'error' ? `${ids.search}_status` : undefined}
         {...props}
       />
+      {(lookupState === 'loading' || lookupState === 'error') && (
+        <p id={`${ids.search}_status`} role="status" className="mt-1 text-xs text-gray-600">
+          {lookupState === 'loading' ? 'Loading address suggestions—you can also enter a full UK postcode.' : 'Address suggestions are unavailable. Please enter a full UK postcode.'}
+        </p>
+      )}
 
       {/* Off-screen fields for AddressNow to populate */}
       <div style={offscreenStyle} aria-hidden="true">

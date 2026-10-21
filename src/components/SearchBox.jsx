@@ -378,6 +378,7 @@ return showSearch || animate ? (
         <div className="flex flex-col">
           <label className="font-medium text-sm text-gray-700 mb-2">VENUE</label>
           <RoyalMailAddressNow
+            active={showSearch}
             captureKey="KR44-RW29-HH36-NC62"
             idPrefix="sb"
             setAddress={setLocalAddress}
