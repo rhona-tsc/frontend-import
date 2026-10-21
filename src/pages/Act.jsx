@@ -39,6 +39,7 @@ import axios from "axios";
 import { buildActMeta } from "../utils/actSeo.js";
 import { buildMusicGroup, serializeSchema } from "../utils/structuredData.js";
 import { getBandImageAlt } from "../utils/bandImageAlt.js";
+import { getActPriceLabel } from "../utils/actPriceDisplay.js";
 export { buildActMeta } from "../utils/actSeo.js";
 
 const retryImport = async (load) => {
@@ -1206,6 +1207,9 @@ const Act = () => {
       : null;
 
   // Check if the act is already in the cart
+  const hasPricingDetails = Boolean(String(selectedDate || '').trim() && String(selectedAddress || '').trim());
+  const actPriceLabel = getActPriceLabel({ act: actData, hasDetails: hasPricingDetails, price, formattedPrice, finalTravelPrice });
+
   const isInCart =
     actData &&
     cartItems[actData._id] &&
@@ -1430,14 +1434,12 @@ const Act = () => {
             </p>
           ) : (
             <p className="text-sm mt-3 p-2 text-gray-500 justify-center">
-              Please select a date and location for an accurate price and
-              availability
-              <span
+              <button type="button"
                 onClick={() => setShowSearch(true)}
                 className="text-blue-600 cursor-pointer underline ml-2"
               >
-                add my date and location
-              </span>
+                Add your location and date for an accurate price
+              </button>
             </p>
           )}
         </div>
@@ -1798,26 +1800,13 @@ const Act = () => {
                 </div>
               )}
               <p className="mt-5 text-3xl font-medium p-3">
-                {isPriceLoading ? (
+                {isPriceLoading && hasPricingDetails ? (
                   <span className="inline-block h-7 w-36 rounded bg-gray-200 animate-pulse align-middle" />
                 ) : (
-                  (() => {
-                    const cleanTotal =
-                      price?.total ??
-                      finalTravelPrice?.total ??
-                      actData?.formattedPrice?.total ??
-                      null;
-
-                    if (cleanTotal != null) {
-                      return price?.travelCalculated ||
-                        finalTravelPrice?.travelCalculated
-                        ? `£${cleanTotal}`
-                        : `from £${cleanTotal}`;
-                    }
-                    return ""; // nothing if not ready
-                  })()
+                  actPriceLabel || 'Price on enquiry'
                 )}
               </p>
+              {!hasPricingDetails && <button type="button" onClick={() => setShowSearch(true)} className="mx-3 mb-3 rounded-full border border-black px-5 py-3 text-sm font-medium underline underline-offset-4 hover:bg-gray-50">Add your location and date for an accurate price</button>}
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">
                   {generateDescription(safeSelectedLineup) || "Add a Linuep"}
@@ -2079,68 +2068,9 @@ const Act = () => {
             </div>
 
             <p className="mt-5 text-3xl font-medium p-3">
-              {(() => {
-                // If we don't have an address (e.g. nothing persisted in localStorage), show the act's min display price
-                const hasAddress =
-                  typeof selectedAddress === "string" &&
-                  selectedAddress.trim().length > 0;
-
-                if (!hasAddress) {
-                  const rawMin =
-                    actData?.minDisplayPrice ??
-                    actData?.formattedPrice?.minDisplayPrice ??
-                    actData?.formattedPrice?.min ??
-                    actData?.formattedPrice?.total ??
-                    null;
-
-                  const minClean =
-                    rawMin != null
-                      ? Number(String(rawMin).replace(/[^0-9.+-]/g, ""))
-                      : null;
-
-                  if (minClean != null && !Number.isNaN(minClean)) {
-                    return `from £${Math.round(minClean)}`;
-                  }
-
-                  return "Add date & location for an accurate price";
-                }
-
-                if (travelUnavailableMessage) {
-  return (
-    <span className="text-base font-medium text-red-600">
-      {travelUnavailableMessage}
-    </span>
-  );
-}
-
-                const rawTotal =
-                  price?.total ??
-                  formattedPrice ??
-                  actData?.formattedPrice?.total ??
-                  null;
-
-                const cleanTotal =
-                  rawTotal != null
-                    ? Number(String(rawTotal).replace(/[^0-9.+-]/g, ""))
-                    : null;
-
-                const displayTotal =
-                  cleanTotal != null && !Number.isNaN(cleanTotal)
-                    ? Math.round(cleanTotal)
-                    : null;
-
-                const travelCalculated =
-                  price?.travelCalculated || finalTravelPrice?.travelCalculated;
-
-                if (displayTotal != null) {
-                  return travelCalculated
-                    ? `£${displayTotal}`
-                    : `from £${displayTotal}`;
-                }
-
-                return "Loading price...";
-              })()}
+              {hasPricingDetails && travelUnavailableMessage ? <span className="text-base font-medium text-red-600">{travelUnavailableMessage}</span> : actPriceLabel || 'Price on enquiry'}
             </p>
+            {!hasPricingDetails && <button type="button" onClick={() => setShowSearch(true)} className="mx-3 mb-3 rounded-full border border-black px-5 py-3 text-sm font-medium underline underline-offset-4 hover:bg-gray-50">Add your location and date for an accurate price</button>}
 
             {/* ✅ Lineup Selection (Now Updates Price Instantly) */}
             <div className="flex flex-col gap-4 my-2">
