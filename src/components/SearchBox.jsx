@@ -81,6 +81,8 @@ const setShowSearchDBG = (next, reason = "unknown") => {
   const [animate, setAnimate] = useState(false);
 
   const openedAtRef = useRef(null);
+  const dialogRef = useRef(null);
+  const closeTimerRef = useRef(null);
   const DISMISS_KEY = "acts:searchboxDismissed";
 
   // Keep local inputs in sync with context + session storage (on load)
@@ -232,7 +234,43 @@ useEffect(() => {
     }
 
     setAnimate(false);
-setTimeout(() => setShowSearchDBG(false, `handleClose:${reason}`), 500);  };
+    clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => setShowSearch(false), 200);
+  };
+
+  useEffect(() => () => clearTimeout(closeTimerRef.current), []);
+
+  useEffect(() => {
+    if (!showSearch) return;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+    const onKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleClose('manual');
+      }
+      if (event.key !== 'Tab') return;
+      const items = [...(dialogRef.current?.querySelectorAll('button, input, a[href], select, textarea, [tabindex="0"]') || [])]
+        .filter(element => !element.disabled && !element.closest('[aria-hidden="true"]') && element.getClientRects().length);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+    // Only attach for the lifetime of this open dialog.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSearch]);
 
   useEffect(() => {
     SB_GROUP("🎛 showSearch changed");
@@ -328,20 +366,21 @@ SB("ls.selectedPostcode:", localStorage.getItem("selectedPostcode"));
 
 return showSearch || animate ? (
   <div
-    className={`fixed top-16 left-0 right-0 z-50 px-4 py-4 transition-all duration-500 ${
-      animate ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+    onClick={event => { if (event.target === event.currentTarget) handleClose('manual'); }}
+    className={`fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 px-4 py-6 transition-opacity duration-200 ${
+      animate ? "opacity-100" : "opacity-0 pointer-events-none"
     }`}
   >
-    <div className="max-w-6xl mx-auto rounded-[32px] border border-gray-200 bg-white shadow-sm px-5 py-5 md:px-8 md:py-6">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="search-dialog-title" tabIndex={-1} className="w-full max-w-4xl max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-[32px] border border-white/15 bg-[#111] text-white shadow-2xl px-6 py-7 md:px-10 md:py-10 outline-none">
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-gray-500 mb-2">
+          <p className="text-sm uppercase tracking-[0.2em] text-[#ff6677] mb-2">
             Search acts
           </p>
-          <h2 className="text-2xl md:text-3xl font-semibold leading-tight text-[#111]">
+          <h2 id="search-dialog-title" className="text-2xl md:text-3xl font-semibold leading-tight text-white">
             Add your date and venue
           </h2>
-          <p className="text-sm md:text-base text-gray-600 mt-2">
+          <p className="text-sm md:text-base text-gray-300 mt-3">
             Enter your event date and a UK postcode or venue so we can show relevant acts and calculate travel.
           </p>
         </div>
@@ -349,11 +388,11 @@ return showSearch || animate ? (
         <button
           type="button"
           onClick={() => handleClose("manual")}
-          className="shrink-0 rounded-full p-2 hover:bg-gray-100 transition"
+          className="shrink-0 rounded-full p-2 hover:bg-white/10 transition"
           aria-label="Close search"
         >
           <img
-            className="w-4 h-4"
+            className="w-4 h-4 brightness-0 invert"
             src={assets.cross_icon}
             alt="Close"
           />
@@ -363,8 +402,9 @@ return showSearch || animate ? (
       <div className="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-4 items-end">
         {/* Date */}
         <div className="flex flex-col">
-          <label className="font-medium text-sm text-gray-700 mb-2">DATE</label>
+          <label htmlFor="search-event-date" className="font-medium text-sm text-gray-200 mb-2">DATE</label>
           <input
+            id="search-event-date"
             type="date"
             className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-700 outline-none focus:border-[#ff6667]"
             value={localDate}
@@ -376,8 +416,9 @@ return showSearch || animate ? (
 
         {/* Venue */}
         <div className="flex flex-col">
-          <label className="font-medium text-sm text-gray-700 mb-2">VENUE</label>
+          <label htmlFor="sb_search" className="font-medium text-sm text-gray-200 mb-2">VENUE</label>
           <RoyalMailAddressNow
+            statusClassName="mt-2 text-xs text-gray-300"
             active={showSearch}
             captureKey="KR44-RW29-HH36-NC62"
             idPrefix="sb"
@@ -396,10 +437,10 @@ return showSearch || animate ? (
           <div className="hidden md:block h-[28px]" aria-hidden="true" />
           <button
             type="button"
-            className={`w-full md:w-auto rounded-full px-6 py-3 text-sm font-medium text-white transition ${
+            className={`w-full md:w-auto rounded-full px-6 py-3 text-sm font-semibold transition ${
               searchDisabled
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-[#ff6667] hover:bg-[#ff4d4f]"
+                ? "bg-white/15 text-white/50 cursor-not-allowed"
+                : "bg-[#ff6677] text-black hover:bg-[#ff8491]"
             }`}
             onClick={handleSearch}
             disabled={searchDisabled}

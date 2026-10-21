@@ -25,6 +25,7 @@ const RoyalMailAddressNow = ({
   value,
   className,
   placeholder,
+  statusClassName = 'mt-1 text-xs text-gray-600',
   active = false,
   onFocus,
   ...props
@@ -175,18 +176,18 @@ const RoyalMailAddressNow = ({
         {...props}
       />
       {(lookupState === 'loading' || lookupState === 'error') && (
-        <p id={`${ids.search}_status`} role="status" className="mt-1 text-xs text-gray-600">
+        <p id={`${ids.search}_status`} role="status" className={statusClassName}>
           {lookupState === 'loading' ? 'Loading address suggestions—you can also enter a full UK postcode.' : 'Address suggestions are unavailable. Please enter a full UK postcode.'}
         </p>
       )}
 
       {/* Off-screen fields for AddressNow to populate */}
       <div style={offscreenStyle} aria-hidden="true">
-        <input ref={line1Ref} id={ids.line1} name={ids.line1} />
-        <input ref={line2Ref} id={ids.line2} name={ids.line2} />
-        <input ref={townRef} id={ids.town} name={ids.town} />
-        <input ref={countyRef} id={ids.county} name={ids.county} />
-        <input ref={postcodeRef} id={ids.postcode} name={ids.postcode} />
+        <input tabIndex={-1} ref={line1Ref} id={ids.line1} name={ids.line1} />
+        <input tabIndex={-1} ref={line2Ref} id={ids.line2} name={ids.line2} />
+        <input tabIndex={-1} ref={townRef} id={ids.town} name={ids.town} />
+        <input tabIndex={-1} ref={countyRef} id={ids.county} name={ids.county} />
+        <input tabIndex={-1} ref={postcodeRef} id={ids.postcode} name={ids.postcode} />
       </div>
     </div>
   );

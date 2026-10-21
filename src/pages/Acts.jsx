@@ -6,6 +6,7 @@ import { Helmet } from "react-helmet-async";
 import Title from "../components/Title";
 import CardFilterItem from "../components/CardFilterItem";
 import { assets } from "../assets/assets";
+import { scheduleSearchPrompt } from "../utils/scheduleSearchPrompt.js";
 
 // --- DEBUG HELPERS ---------------------------------------------------------
 const ACTS_DBG = (...args) => console.log("🎯 [Acts]", ...args);
@@ -2461,28 +2462,29 @@ const noLocation =
     storedCounty,
     storedPlace,
   });
-  if (noLocation) {
-    if (!isPresetRoute && !alreadyAutoOpened) {
-      sessionStorage.setItem(AUTO_OPEN_KEY, "1");
-      setShowSearch(true);
-      window.scrollTo(0, 0);
-    }
-  } else {
-  setShowSearchDBG(false, "boot_close_hasLocation");
-  }
-
+  // Automatic prompting is scheduled separately. Do not close an explicit edit.
   setInitializing(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
-    // ✅ If user selects a location while search is open, close it immediately
+// Prompt once per session, unless dismissed or a location is already known.
 useEffect(() => {
-  if (showSearch && hasAnyLocation()) {
-    if (DEBUG_FILTER) ACTS_DBG("Location detected -> closing search");
-    setShowSearch(false);
+  if (showSearch) {
+    sessionStorage.setItem(AUTO_OPEN_KEY, '1');
+    return;
   }
+  if (preset || hasAnyLocation() || sessionStorage.getItem(AUTO_OPEN_KEY) === '1' || sessionStorage.getItem('acts:searchboxDismissed') === '1') return;
+  return scheduleSearchPrompt({
+    window,
+    shouldOpen: () => !hasAnyLocation() && sessionStorage.getItem('acts:searchboxDismissed') !== '1',
+    onOpen: () => {
+      sessionStorage.setItem(AUTO_OPEN_KEY, '1');
+      setShowSearch(true);
+    },
+  });
+  // Stored location is read again when the timer fires.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [showSearch, selectedAddress, selectedCounty]);
+}, [preset, showSearch, selectedAddress, selectedCounty, setShowSearch]);
 
 
 const removeFilterPill = (item) => {
