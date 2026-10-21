@@ -1,6 +1,7 @@
 import React from "react";
 import { assets } from "../assets/assets";
 import { Link } from "react-router-dom";
+import { locationPages } from '../data/locationPages.js';
 
 const Footer = () => {
   return (
@@ -26,6 +27,7 @@ const Footer = () => {
   <li><Link to="/venues">Venue Guide</Link></li>
   <li><Link to="/terms">Terms & Conditions</Link></li>
   <li><Link to="/privacy">Privacy Policy</Link></li>
+  {locationPages.map(({ slug, name }) => <li key={slug}><Link to={`/wedding-bands-${slug}`}>Wedding bands in {name}</Link></li>)}
           </ul>
         </div>
 

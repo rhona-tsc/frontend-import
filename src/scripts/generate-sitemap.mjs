@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { SitemapStream, streamToPromise } from "sitemap";
+import { locationPages } from '../data/locationPages.js';
 
 const SITE_URL = "https://thesupremecollective.co.uk";
 const API_URL =
@@ -17,6 +18,7 @@ const CORE_PAGES = [
   { url: "/venues", changefreq: "weekly", priority: 0.7 },
   { url: "/privacy", changefreq: "yearly", priority: 0.3 },
   { url: "/terms", changefreq: "yearly", priority: 0.3 },
+  ...locationPages.map(({ slug }) => ({ url: `/wedding-bands-${slug}`, changefreq: 'weekly', priority: 0.8 })),
 ];
 
 async function fetchActSlugs() {

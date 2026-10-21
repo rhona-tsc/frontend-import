@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { BACKEND } from "../apiBase";
+import SEO from '../components/SEO';
 
 const hasText = (value) => String(value || "").trim().length > 0;
 const isPublicRoomName = (value) => {
@@ -33,10 +34,11 @@ const LinkButton = ({ href, children }) => {
 const VenueGuide = () => {
   const [venues, setVenues] = useState([]);
   const [query, setQuery] = useState("");
-  const [county, setCounty] = useState("");
+  const [venueId, setVenueId] = useState(() => new URLSearchParams(window.location.search).get('venue') || '');
+  const [county, setCounty] = useState(() => new URLSearchParams(window.location.search).get('county') || "");
   const [room, setRoom] = useState("");
   const [feature, setFeature] = useState("");
-  const [expanded, setExpanded] = useState("");
+  const [expanded, setExpanded] = useState(() => new URLSearchParams(window.location.search).get('venue') || "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -74,12 +76,13 @@ const VenueGuide = () => {
         || (feature === "changing" && venueRooms.some((item) => hasText(item.changingRoom)))
         || (feature === "parking" && hasText(venue.parking))
         || (feature === "access" && (hasText(venue.generalDirections) || venueRooms.some((item) => hasText(item.accessAndLoading))));
-      return matchesText && matchesCounty && matchesRoom && matchesFeature;
+      return (!venueId || venue._id === venueId) && matchesText && matchesCounty && matchesRoom && matchesFeature;
     });
-  }, [county, feature, query, room, venues]);
+  }, [county, feature, query, room, venues, venueId]);
 
   return (
     <main className="mx-auto max-w-6xl pb-20 pt-6">
+      <SEO title="Wedding & Event Venue Guide | The Supreme Collective" description="Explore practical venue information for live music, including access, parking, performance spaces and sound restrictions." path="/venues" />
       <section className="overflow-hidden rounded-[2rem] bg-black px-6 py-12 text-white sm:px-10 sm:py-16">
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#ff6677]">Plan with confidence</p>
         <h1 className="max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">The Supreme Collective Venue Guide</h1>
@@ -115,10 +118,10 @@ const VenueGuide = () => {
             </select>
           </label>
         </div>
-        {(query || county || room || feature) && (
+        {(query || county || room || feature || venueId) && (
           <div className="mt-4 flex items-center justify-between gap-4 text-sm">
             <span className="text-gray-600">{filtered.length} {filtered.length === 1 ? "venue" : "venues"} found</span>
-            <button type="button" onClick={() => { setQuery(""); setCounty(""); setRoom(""); setFeature(""); }} className="font-medium underline underline-offset-4">Clear filters</button>
+            <button type="button" onClick={() => { setQuery(""); setCounty(""); setRoom(""); setFeature(""); setVenueId(''); }} className="font-medium underline underline-offset-4">Clear filters</button>
           </div>
         )}
       </section>

@@ -29,6 +29,8 @@ import ResetPassword from "./pages/ResetPassword";
 import AuthGateModal from "./components/AuthGateModal";
 import ScrollToTop from "./components/ScrollToTop";
 import { Helmet } from "react-helmet-async";
+import LocationWeddingBands from "./pages/LocationWeddingBands";
+import { locationPages } from "./data/locationPages.js";
 import VenueGuide from "./pages/VenueGuide";
 
   // 👇 helper to decode token once
@@ -169,6 +171,7 @@ import VenueGuide from "./pages/VenueGuide";
               <Route path="/about" element={<About />} />
               <Route path="/act/:key" element={<Act />} />
               <Route path="/acts/:preset" element={<Acts />} />
+              {locationPages.map(({ slug }) => <Route key={slug} path={`/wedding-bands-${slug}`} element={<LocationWeddingBands slug={slug} />} />)}
               <Route path="/bookings" element={<Bookings />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/client-dashboard" element={<Client_Dashboard />} />

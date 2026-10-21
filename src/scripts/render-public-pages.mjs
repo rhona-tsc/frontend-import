@@ -4,6 +4,7 @@ import { blogPosts } from '../data/BlogPosts.js';
 import { buildActMeta } from '../utils/actSeo.js';
 import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
 import { getBandImageAlt } from '../utils/bandImageAlt.js';
+import { locationPages, locationMeta } from '../data/locationPages.js';
 
 const origin = 'https://thesupremecollective.co.uk';
 const api = (process.env.SITEMAP_API_URL || process.env.VITE_BACKEND_URL || 'https://tsc-backend-v2.onrender.com').replace(/\/$/, '');
@@ -28,11 +29,11 @@ for (let index = 0; index < actPaths.length; index += 4) {
 }
 const bandLinks = acts.map(({route, act}) => `<li><a href="${escape(route)}">${escape(act.tscName)}</a><p>${escape(plain(act.tscDescription || act.description))}</p></li>`).join('');
 const paragraph = text => `<p>${escape(text)}</p>`;
-async function writePage(route, title, description, heading, content) {
+async function writePage(route, title, description, heading, content, location) {
   const canonical = `${origin}${route}`;
   const act = acts.find(item => item.route === route)?.act;
   const post = blogPosts.find(item => `/blog/${item.slug}` === route);
-  const schema = buildPageSchema({ route, title, description, act, post, bands: acts });
+  const schema = buildPageSchema({ route, title, description, act, post, bands: acts, location });
   const breadcrumbItems = schema['@graph'].find(item => item['@type'] === 'BreadcrumbList')?.itemListElement || [];
   const breadcrumbs = breadcrumbItems.length ? `<nav aria-label="Breadcrumb">${breadcrumbItems.map(item => `<a href="${escape(item.item)}">${escape(item.name)}</a>`).join(' / ')}</nav>` : '';
   const head = `<title data-rh="true">${escape(title)}</title><meta data-rh="true" name="description" content="${escape(description)}"><link data-rh="true" rel="canonical" href="${escape(canonical)}"><meta data-rh="true" property="og:title" content="${escape(title)}"><meta data-rh="true" property="og:description" content="${escape(description)}"><meta data-rh="true" property="og:url" content="${escape(canonical)}">`;
@@ -40,7 +41,7 @@ async function writePage(route, title, description, heading, content) {
   const html = template
     .replace(
       /<title>.*?<\/title>/s,
-      head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>`,
+      head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>` + (location ? `<script id="initial-location-data" data-county="${escape(location.county.toLowerCase())}" type="application/json">${serializeSchema(location)}</script>` : ''),
     )
     .replace(
       '<div id="root"></div>',
@@ -70,4 +71,20 @@ for (const post of blogPosts) {
   const content = hero + (post.content || []).map(item => item.type === 'heading' ? `<h2>${escape(item.text)}</h2>` : item.type === 'image' ? `<img src="${escape(item.src)}" alt="${escape(item.alt || `Illustration for ${post.title}`)}" loading="lazy">` : item.text ? paragraph(item.text) : '').join('');
   await writePage(`/blog/${post.slug}`, post.metaTitle || post.title, post.metaDescription || post.excerpt, post.title, content);
 }
-console.log(`Rendered ${acts.length + blogPosts.length + 6} public pages with initial HTML content and metadata.`);
+const locationResponse = await fetch(`${api}/api/locations/public`, { signal: AbortSignal.timeout(30000) });
+if (!locationResponse.ok) throw new Error(`Location data unavailable: HTTP ${locationResponse.status}`);
+const locationResult = await locationResponse.json();
+if (!locationResult.success) throw new Error('Location data unavailable');
+for (const config of locationPages) {
+  const data = locationResult.locations?.[config.slug];
+  if (!data?.bands?.length || data.county !== config.name) throw new Error(`Missing location content for ${config.name}`);
+  const meta = locationMeta(config);
+  const bandCards = data.bands.slice(0, 9).map(band => `<article><h3><a href="/act/${escape(band.slug)}">${escape(band.name)}</a></h3><img src="${escape(band.image)}" alt="${escape(getBandImageAlt(band.image, { tscName: band.name }))}" width="480" loading="lazy">${band.hasLocalOriginal ? paragraph(`Original member based in ${config.name}`) : ''}${band.hasVenueExperience ? paragraph(`Recorded ${config.name} venue experience`) : ''}${paragraph(band.description || band.genres.join(', '))}<a href="/act/${escape(band.slug)}">Watch performances &amp; explore lineups</a></article>`).join('');
+  const venueLinks = data.venues.map(venue => `<li><a href="/venues?venue=${escape(encodeURIComponent(venue.id))}&amp;county=${escape(encodeURIComponent(venue.county))}">${escape(venue.name)}</a></li>`).join('');
+  const reviews = data.reviews.map(review => `<figure><blockquote>${escape(review.comment)}</blockquote><figcaption>${escape(review.author)} · <a href="/act/${escape(review.actSlug)}">${escape(review.actName)}</a>${review.eventType ? ` · ${escape(review.eventType)}` : ''}</figcaption></figure>`).join('');
+  const faq = config.faqs.map(item => `<h3>${escape(item.q)}</h3>${paragraph(item.a)}`).join('');
+  const nearby = locationPages.filter(item => item.slug !== config.slug).map(item => `<a href="/wedding-bands-${item.slug}">${item.name}</a>`).join(' · ');
+  const content = paragraph(config.intro) + `<p><a href="#bands">Explore the bands</a> · <a href="/contact">Tell us your date and venue</a></p><section id="bands"><h2>Bands for your ${config.name} wedding</h2>${paragraph(`Acts with confirmed ${config.name}-based original members appear first, followed by recorded local venue experience. Other acts are included too. The final lineup, availability and travel are confirmed for your date.`)}${bandCards}<a href="/acts">Explore all our bands</a></section><section><h2>${escape(config.planningTitle)}</h2><ul>${config.planning.map(tip => `<li>${escape(tip)}</li>`).join('')}</ul></section><section><h2>${config.name} venues in our guide</h2>${paragraph('These records come from our shared venue guide. Check current room, sound and access arrangements with your venue before booking.')}<ul>${venueLinks}</ul></section>${reviews ? `<section><h2>What clients say about events in ${config.name}</h2>${reviews}</section>` : ''}<section><h2>Your ${config.name} wedding music questions</h2>${faq}<h3>How much will our wedding band cost?</h3>${paragraph('Your quote depends on the act, lineup, date, travel, timings and extras. A local-member label is not a promise of free travel or a fixed fee.')}</section><section><h2>Explore nearby areas</h2>${nearby}</section>`;
+  await writePage(`/wedding-bands-${config.slug}`, meta.title, meta.description, `Wedding bands in ${config.name}`, content, data);
+}
+console.log(`Rendered ${acts.length + blogPosts.length + 6 + locationPages.length} public pages with initial HTML content and metadata.`);
