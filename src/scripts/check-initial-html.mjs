@@ -36,6 +36,7 @@ for (const route of routes) {
   for (const asset of html.matchAll(/\bsrc="(\/assets\/[^"]+)"/g)) await access(path.join('dist', asset[1]));
   if (route.startsWith('/wedding-bands-')) {
     assert.match(html, /data-hydrate="county"/, 'County pages must reuse their initial React markup');
+    assert.match(html, /<script type="module" fetchpriority="low"/, 'County app downloads must not outrank visible text');
     const data = JSON.parse(html.match(/<script id="initial-location-data"[^>]*>(.*?)<\/script>/s)[1]);
     const expected = renderLocationContent(route, route.replace('/wedding-bands-', ''), data);
     assert.ok(html.includes(`<div data-initial-page-content="">${expected}</div>`), `${route} must use the same county layout as React`);

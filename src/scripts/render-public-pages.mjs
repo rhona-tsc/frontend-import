@@ -67,7 +67,10 @@ async function writePage(route, title, description, heading, content, location) 
     : renderStaticContent(route) || `<main class="initial-public-content">${breadcrumbs}<h1>${escape(heading)}</h1>${content}</main>`;
   const body = location ? renderCountyApp(route, route.replace('/wedding-bands-', ''), location) : renderPublicShell(route, pageContent);
   // Only preload the display face where it is used above the fold.
-  const pageTemplate = route === '/' || location ? template : template.replace(/<link\b(?=[^>]*data-font="heading")[^>]*>\s*/g, '');
+  let pageTemplate = route === '/' || location ? template : template.replace(/<link\b(?=[^>]*data-font="heading")[^>]*>\s*/g, '');
+  // County content is already complete: let the visible text font precede
+  // application downloads without delaying the consent or analytics scripts.
+  if (location) pageTemplate = pageTemplate.replace('<script type="module" ', '<script type="module" fetchpriority="low" ');
   const html = pageTemplate
     .replace(
       /<title>.*?<\/title>/s,
