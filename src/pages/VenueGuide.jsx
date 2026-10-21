@@ -50,7 +50,7 @@ const VenueGuide = () => {
         const response = await fetch(`${BACKEND}/api/venues/public`);
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || "Unable to load venue information");
-        if (active) setVenues((data.venues || []).map(venue => ({ ...venue, name: cleanVenueName(venue.name) })));
+        if (active) setVenues((data.venues || []).map(venue => ({ ...venue, name: cleanVenueName(venue.name), address: cleanVenueName(venue.address) })));
       } catch (err) {
         if (active) setError(err.message || "Unable to load venue information");
       } finally {
