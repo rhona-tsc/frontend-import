@@ -8,6 +8,7 @@ import { locationPages, locationMeta, locationCopy, contactOptions } from '../da
 import { ShopContext } from '../context/ShopContext';
 import { getBandImageAlt } from '../utils/bandImageAlt.js';
 import { cleanVenueName } from '../utils/venueName.js';
+import { gtagEvent } from '../utils/gtag.js';
 import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
 
 const initialData = slug => {
@@ -17,6 +18,7 @@ const initialData = slug => {
 };
 export default function LocationWeddingBands({ slug }) {
   const { setShowSearch } = useContext(ShopContext);
+  const openSearch = () => { gtagEvent('location_search_open', { county_slug: slug }); setShowSearch(true); };
   const config = locationPages.find(item => item.slug === slug);
   const [data, setData] = useState(() => initialData(slug));
   const [error, setError] = useState(false);
@@ -41,7 +43,7 @@ export default function LocationWeddingBands({ slug }) {
       <p className="mb-3 text-sm uppercase tracking-[0.18em] text-[#ff6677]">Live music for your celebration</p>
       <h1 className="prata-regular max-w-4xl text-4xl leading-tight sm:text-6xl">Wedding bands in {config.name}</h1>
       <p className="mt-6 max-w-3xl text-lg leading-8 text-gray-200">{config.intro}</p>
-      <div className="mt-8 flex flex-wrap gap-3"><button type="button" onClick={() => setShowSearch(true)} className="rounded-full bg-white px-6 py-3 font-semibold text-black">Add your date &amp; venue</button><a href="#bands" className="rounded-full border border-white px-6 py-3">Explore the bands</a></div>
+      <div className="mt-8 flex flex-wrap gap-3"><button type="button" onClick={openSearch} className="rounded-full bg-white px-6 py-3 font-semibold text-black">Add your date &amp; venue</button><a href="#bands" className="rounded-full border border-white px-6 py-3">Explore the bands</a></div>
       <p className="mt-6 text-sm text-gray-200">Prefer to speak to us? <a className="underline underline-offset-4" href="#contact-options">Email, WhatsApp, text or book a call</a></p>
     </section>
     <section id="bands" className="scroll-mt-24 py-14">
@@ -65,7 +67,7 @@ export default function LocationWeddingBands({ slug }) {
     </section>
     {!!current?.reviews?.length && <section className="pb-14"><h2 className="text-3xl font-semibold">What clients say about events in {config.name}</h2><div className="mt-7 grid gap-5 md:grid-cols-2">{current.reviews.map((review, index) => <figure key={review.id || `${review.actSlug}-${index}`} className="rounded-3xl border border-gray-200 p-6"><blockquote className="whitespace-pre-line leading-7 text-gray-700">“{review.comment}”</blockquote><figcaption className="mt-5 text-sm text-gray-600">{review.author} · <Link className="underline" to={`/act/${review.actSlug}`}>{review.actName}</Link>{review.eventType ? ` · ${review.eventType}` : ''}</figcaption></figure>)}</div></section>}
     <section className="rounded-3xl bg-gray-50 p-6 sm:p-10"><h2 className="text-3xl font-semibold">Your {config.name} wedding music questions</h2><div className="mt-6 space-y-7">{[...config.faqs, locationCopy.priceFaq].map(faq => <div key={faq.q}><h3 className="text-xl font-semibold">{faq.q}</h3><p className="mt-2 leading-7 text-gray-600">{faq.a}</p></div>)}</div></section>
-    <section id="contact-options" className="scroll-mt-24 mt-12 rounded-3xl border border-gray-200 p-6 sm:p-10"><h2 className="text-3xl font-semibold">Let’s find your wedding band</h2><p className="mt-4 leading-7 text-gray-600">Add your date and venue to explore bands and travel pricing, or talk through your ideas with us directly.</p><button type="button" onClick={() => setShowSearch(true)} className="mt-6 rounded-full bg-black px-6 py-3 font-semibold text-white">Add your date &amp; venue</button><p className="mt-6 text-gray-600">Prefer a conversation?</p><div className="mt-3 flex flex-wrap gap-3">{contactOptions.map(option => <a key={option.label} href={option.href} {...(option.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="rounded-full border border-gray-300 px-5 py-3 font-medium">{option.label}</a>)}</div></section>
+    <section id="contact-options" className="scroll-mt-24 mt-12 rounded-3xl border border-gray-200 p-6 sm:p-10"><h2 className="text-3xl font-semibold">Let’s find your wedding band</h2><p className="mt-4 leading-7 text-gray-600">Add your date and venue to explore bands and travel pricing, or talk through your ideas with us directly.</p><button type="button" onClick={openSearch} className="mt-6 rounded-full bg-black px-6 py-3 font-semibold text-white">Add your date &amp; venue</button><p className="mt-6 text-gray-600">Prefer a conversation?</p><div className="mt-3 flex flex-wrap gap-3">{contactOptions.map(option => <a key={option.label} href={option.href} onClick={() => gtagEvent('location_contact_click', { county_slug: slug, contact_method: option.label })} {...(option.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="rounded-full border border-gray-300 px-5 py-3 font-medium">{option.label}</a>)}</div></section>
     <section className="py-12"><h2 className="text-2xl font-semibold">Explore more locations</h2><div className="mt-5 flex flex-wrap gap-3">{locationPages.filter(item => item.slug !== slug).map(item => <Link key={item.slug} to={`/wedding-bands-${item.slug}`} className="rounded-full border border-gray-300 px-5 py-2">{item.name}</Link>)}</div></section>
   </main>;
 }
