@@ -14,6 +14,7 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
+import VenueGuide from './pages/VenueGuide';
 import App from './App';
 import LocationWeddingBands from './pages/LocationWeddingBands';
 import ActLocalConnections, { InitialActReviews } from './components/ActLocalConnections.jsx';
@@ -35,6 +36,14 @@ export function renderVenueConnections(venues) {
         </article>;
       })}
     </section>
+  </StaticRouter>);
+}
+
+export function renderVenueGuideContent() {
+  return renderToString(<StaticRouter location="/venues/">
+    <HelmetProvider context={{}}>
+      <VenueGuide />
+    </HelmetProvider>
   </StaticRouter>);
 }
 

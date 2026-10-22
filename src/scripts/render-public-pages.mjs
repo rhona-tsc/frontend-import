@@ -42,7 +42,7 @@ await build({
     rollupOptions: { output: { entryFileNames: 'entry-public.mjs' } },
   },
 });
-const { renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent, renderCountyApp, renderActLocalContent, renderVenueConnections } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
+const { renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent, renderCountyApp, renderActLocalContent, renderVenueGuideContent } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
 
 async function getAct(route) {
   const response = await fetch(`${api}/api/act/${route.split('/').pop()}`, { signal: AbortSignal.timeout(30000) });
@@ -76,6 +76,7 @@ async function writePage(route, title, description, heading, content, location) 
   const pageContent = location
     ? renderLocationContent(route, route.replace('/wedding-bands-', ''), location)
     : route === '/' ? renderHomeContent(content)
+    : route === '/venues' ? content
     : renderStaticContent(route) || `<main class="initial-public-content">${breadcrumbs}<h1>${escape(heading)}</h1>${content}</main>`;
   const body = location ? renderCountyApp(route, route.replace('/wedding-bands-', ''), location) : renderPublicShell(route, pageContent);
   // Only preload the display face where it is used above the fold.
@@ -107,11 +108,7 @@ await writePage('/about', 'About Our Live Music Agency | The Supreme Collective'
 await writePage('/contact', 'Contact | The Supreme Collective', 'Contact The Supreme Collective to discuss live music for your wedding, party or corporate event.', 'Contact The Supreme Collective', paragraph('Get in touch to discuss your event and find the right live band.') + '<p><a href="mailto:hello@thesupremecollective.co.uk">hello@thesupremecollective.co.uk</a></p><p><a href="/acts">Explore our bands</a></p>');
 await writePage('/terms', 'The Supreme Collective Terms of Service', 'Read the Terms of Service for The Supreme Collective website, musician profiles and live music services.', 'Terms of Service', '');
 await writePage('/privacy', 'Privacy Policy | The Supreme Collective', 'How The Supreme Collective handles your personal information.', 'Privacy Policy', '');
-const venueResponse = await fetch(`${api}/api/venues/public`, { signal: AbortSignal.timeout(30000) });
-if (!venueResponse.ok) throw new Error('Cannot render public venue links');
-const venueData = await venueResponse.json();
-const linkedVenues = (venueData.venues || []).filter(venue => venue.performances?.length || venue.examples?.length);
-await writePage('/venues', 'Venue Guide | The Supreme Collective', 'Practical venue and room information from previous Supreme Collective events, including access, parking, changing facilities and sound restrictions.', 'The Supreme Collective Venue Guide', paragraph('Search our venue guide for practical information gathered from venues and previous events, including room-specific sound restrictions, parking, access and changing facilities.') + renderVenueConnections(linkedVenues));
+await writePage('/venues', 'Venue Guide | The Supreme Collective', 'Practical venue and room information from previous Supreme Collective events, including access, parking, changing facilities and sound restrictions.', 'The Supreme Collective Venue Guide', renderVenueGuideContent());
 for (const {route, act, history} of acts) {
   const bio = plain(act.tscBio || act.bio);
   const meta = buildActMeta(act);

@@ -36,9 +36,28 @@ const LocationWeddingBands = lazy(() => import("./pages/LocationWeddingBands"));
 const VenueGuide = lazy(() => import("./pages/VenueGuide"));
 const VenueClaim = lazy(() => import("./pages/VenueClaim"));
 
+const VenueGuideLoading = () => (
+  <main className="mx-auto max-w-6xl pb-20 pt-6" aria-busy="true">
+    <section className="overflow-hidden rounded-[2rem] bg-black px-6 py-12 text-white sm:px-10 sm:py-16">
+      <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#ff6677]">Plan with confidence</p>
+      <h1 className="max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">The Supreme Collective Venue Guide</h1>
+      <p className="mt-5 max-w-3xl text-lg leading-7 text-gray-300">Practical details gathered from venues and our previous events, including access, parking, changing facilities and room-specific sound restrictions.</p>
+    </section>
+    <section className="mt-8 rounded-3xl border border-gray-200 bg-gray-50 p-5 sm:p-6">
+      <div className="mb-2 h-6 w-44 animate-pulse rounded bg-gray-200" />
+      <div className="h-16 animate-pulse rounded-2xl border border-gray-200 bg-white" />
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {[0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-xl border border-gray-200 bg-white" />)}
+      </div>
+    </section>
+    <p role="status" className="py-12 text-center text-gray-500">Loading venue guide…</p>
+  </main>
+);
+
 const PageLoading = ({ initialContent, initialPath }) => {
   const { pathname } = useLocation();
   const path = pathname === '/' ? '/' : pathname.replace(/\/+$/, '');
+  if (path === '/venues') return <VenueGuideLoading />;
   if (initialContent && path === initialPath) {
     return <div data-initial-page-content="" dangerouslySetInnerHTML={{ __html: initialContent }} />;
   }
