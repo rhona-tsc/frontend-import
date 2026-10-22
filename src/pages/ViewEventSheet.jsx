@@ -13,6 +13,7 @@ import { ShopContext } from "../context/ShopContext";
 import SimpleScheduleEditor from "../components/eventSheet/SimpleScheduleEditor";
 import EventSheetRepertoirePicker from "../components/eventSheet/EventSheetRepertoirePicker";
 import SEO from "../components/SEO";
+import { resolveEventSheetHydration } from "../utils/eventSheetHydration";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 const DIET_FALLBACK = "TBC";
@@ -1286,20 +1287,31 @@ const ViewEventSheet = () => {
 
             try {
               const raw = localStorage.getItem(key);
+              const cachedEventSheet = raw ? JSON.parse(raw) : null;
+              const hydrated = resolveEventSheetHydration({
+                serverEventSheet: match.eventSheet,
+                cachedEventSheet,
+              });
 
-              if (raw) {
-                const parsed = JSON.parse(raw);
+              if (hydrated.source !== "empty") {
                 setAnswers({
                   ...bookingPrefillAnswers(match),
-                  ...(parsed.answers || {}),
+                  ...hydrated.answers,
                 });
-                setComplete(parsed.complete || {});
-              } else if (match.eventSheet) {
-                setAnswers({
-                  ...bookingPrefillAnswers(match),
-                  ...(match.eventSheet.answers || {}),
-                });
-                setComplete(match.eventSheet.complete || {});
+                setComplete(hydrated.complete);
+
+                // Replace a stale local recovery copy with the authoritative
+                // server version so it cannot hide the saved sheet again.
+                if (hydrated.source === "server") {
+                  localStorage.setItem(
+                    key,
+                    JSON.stringify({
+                      ...match.eventSheet,
+                      answers: hydrated.answers,
+                      complete: hydrated.complete,
+                    }),
+                  );
+                }
               } else {
                 const src = Array.isArray(match.actsSummary)
                   ? match.actsSummary
