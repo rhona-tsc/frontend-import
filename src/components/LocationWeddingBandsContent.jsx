@@ -31,7 +31,13 @@ export default function LocationWeddingBandsContent({ slug, data, error = false,
     </section>
     <section className="rounded-3xl bg-gray-50 p-6 sm:p-10"><h2 className="text-3xl font-semibold">{config.planningTitle}</h2><ul className="mt-6 space-y-4">{config.planning.map(tip => <li className="flex gap-3 leading-7 text-gray-700" key={tip}><span aria-hidden="true">•</span><span>{tip}</span></li>)}</ul><p className="mt-6 leading-7 text-gray-600">{locationCopy.areaIntro(config)}</p></section>
     <section className="py-14"><h2 className="text-3xl font-semibold">Explore wedding venues in {config.name}</h2><p className="mt-4 leading-7 text-gray-600">{locationCopy.venueIntro(config.name)}</p>
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{(current?.venues || []).map(venue => <Link key={venue.id} to={`/venues/?venue=${encodeURIComponent(venue.id)}&county=${encodeURIComponent(venue.county)}`} className="rounded-2xl border border-gray-200 p-4 font-medium hover:border-black">{cleanVenueName(venue.name)}<span className="mt-1 block text-sm font-normal text-gray-500">View venue details →</span></Link>)}</div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{(current?.venues || []).map(venue => {
+        const hasPhoto = Boolean(venue.photoUrl);
+        return <Link key={venue.id} to={`/venues/?venue=${encodeURIComponent(venue.id)}&county=${encodeURIComponent(venue.county)}`} aria-label={`View venue details for ${cleanVenueName(venue.name)}`} className={`group relative flex min-h-48 overflow-hidden rounded-2xl border transition ${hasPhoto ? 'border-transparent bg-gray-900 text-white shadow-sm' : 'border-gray-200 bg-gray-50 text-gray-950 hover:border-black'}`} style={hasPhoto ? { backgroundImage: `url(${JSON.stringify(venue.photoUrl)})`, backgroundPosition: 'center', backgroundSize: 'cover' } : undefined}>
+          {hasPhoto && <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/55 to-black/20 transition group-hover:from-black" />}
+          <span className="relative z-10 mt-auto block p-5"><span className="block text-xl font-semibold">{cleanVenueName(venue.name)}</span><span className={`mt-2 block text-sm font-normal ${hasPhoto ? 'text-white/90' : 'text-gray-600'}`}>View venue details →</span></span>
+        </Link>;
+      })}</div>
       {current && !current.venues.length && <p className="mt-5 text-gray-600">We are adding venue records for this area. Send us your venue details for advice.</p>}
       <Link to={`/venues/?county=${encodeURIComponent(config.name === 'London' ? 'Greater London' : config.name)}`} className="mt-6 inline-block underline underline-offset-4">Explore the {config.name} venue guide</Link>
     </section>
