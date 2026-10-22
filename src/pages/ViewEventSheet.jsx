@@ -929,7 +929,9 @@ const ViewEventSheet = () => {
     );
   };
 
-  // Resolve lineup and default car count (based on members who have real plates)
+  // Resolve the lineup and default vehicle count from the booked performers.
+  // Registration plates are incomplete until musicians supply them, so they
+  // must not reduce the number of parking spaces requested from the client.
   const { lineup, defaultCars } = useMemo(() => {
     if (!booking) return { lineup: null, defaultCars: 0 };
 
@@ -961,7 +963,7 @@ const ViewEventSheet = () => {
         ? booking.items
         : [];
 
-    // Count cars = members with a real plate across all booked lineups
+    // Plate count is only a last-resort fallback for older lineup records.
     const carsFromPlates = src.reduce((sum, it) => {
       const ln = resolveLineup(acts, it) || it.lineup || null;
       const members = Array.isArray(ln?.bandMembers) ? ln.bandMembers : [];
@@ -972,7 +974,8 @@ const ViewEventSheet = () => {
       return sum + count;
     }, 0);
 
-    // Keep your previous fallbacks as a safety net, but prefer the plate count
+    // Each booked performer may need a parking space. Exclude management-only
+    // entries because they are not part of the contracted band size.
     const totalCars_byMembers =
       src.reduce((sum, it) => {
         const ln = resolveLineup(acts, it) || it.lineup || null;
@@ -990,7 +993,7 @@ const ViewEventSheet = () => {
         return sum;
       }, 0) || 0;
 
-    let cars = carsFromPlates || totalCars_byMembers;
+    let cars = totalCars_byMembers || carsFromPlates;
 
     // If still 0, keep your header/fallback logic
     if ((!cars || cars <= 0) && src.length) {
