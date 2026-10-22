@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+/* eslint-disable react/prop-types */
+import { useEffect, useMemo, useState } from "react";
 import { BACKEND } from "../apiBase";
 import SEO from '../components/SEO';
 import { cleanVenueName } from '../utils/venueName.js';
@@ -33,6 +34,28 @@ const LinkButton = ({ href, children }) => {
       {children}
     </a>
   );
+};
+
+const ClaimRequest = ({ venue }) => {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ contactName: "", contactEmail: "", contactRole: "", requestMessage: "", partnershipInterest: false });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const submit = async (event) => {
+    event.preventDefault(); setSaving(true); setMessage("");
+    try {
+      const response = await fetch(`${BACKEND}/api/venues/public/${venue._id}/claim-request`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || "Could not send this request");
+      setMessage(data.message); setOpen(false);
+    } catch (error) { setMessage(error.message); }
+    finally { setSaving(false); }
+  };
+  return <div className="mt-7 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">Represent {venue.name}?</p><p className="mt-1 text-sm text-gray-600">Claim this listing to suggest updates, add official photography and discuss working together.</p></div><button type="button" onClick={() => setOpen((value) => !value)} className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white">{open ? "Close" : "Claim or update this listing"}</button></div>
+    {message && <p className="mt-3 rounded-xl bg-white p-3 text-sm">{message}</p>}
+    {open && <form onSubmit={submit} className="mt-5 grid gap-3 md:grid-cols-2"><label className="text-sm font-medium">Your name<input required className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3" value={form.contactName} onChange={(event) => setForm({ ...form, contactName: event.target.value })} /></label><label className="text-sm font-medium">Venue work email<input required type="email" className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3" value={form.contactEmail} onChange={(event) => setForm({ ...form, contactEmail: event.target.value })} /></label><label className="text-sm font-medium md:col-span-2">Your role at the venue<input className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3" value={form.contactRole} onChange={(event) => setForm({ ...form, contactRole: event.target.value })} /></label><label className="flex items-start gap-2 text-sm md:col-span-2"><input type="checkbox" className="mt-1" checked={form.partnershipInterest} onChange={(event) => setForm({ ...form, partnershipInterest: event.target.checked })} /><span>I’m also interested in discussing a recommended-supplier partnership.</span></label><label className="text-sm font-medium md:col-span-2">Message (optional)<textarea rows={3} className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3" value={form.requestMessage} onChange={(event) => setForm({ ...form, requestMessage: event.target.value })} /></label><button disabled={saving} className="rounded-full bg-black px-5 py-3 font-semibold text-white disabled:opacity-50 md:col-span-2">{saving ? "Sending…" : "Request secure editing access"}</button></form>}
+  </div>;
 };
 
 const queryParam = name => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get(name) || '';
@@ -79,19 +102,18 @@ const VenueGuide = () => {
       const matchesFeature = !feature
         || (feature === "sound" && venueRooms.some((item) => hasText(item.soundLimitations) || hasText(item.soundLimiterDb)))
         || (feature === "changing" && venueRooms.some((item) => hasText(item.changingRoom)))
-        || (feature === "parking" && hasText(venue.parking))
-        || (feature === "access" && (hasText(venue.generalDirections) || venueRooms.some((item) => hasText(item.accessAndLoading))));
+        || (feature === "parking" && hasText(venue.parking));
       return (!venueId || venue._id === venueId) && matchesText && matchesCounty && matchesRoom && matchesFeature;
     });
   }, [county, feature, query, room, venues, venueId]);
 
   return (
     <main className="mx-auto max-w-6xl pb-20 pt-6">
-      <SEO title="Wedding & Event Venue Guide | The Supreme Collective" description="Explore practical venue information for live music, including access, parking, performance spaces and sound restrictions." path="/venues" />
+      <SEO title="Wedding & Event Venue Guide | The Supreme Collective" description="Explore wedding venues, performance spaces, parking information and room-specific sound restrictions." path="/venues" />
       <section className="overflow-hidden rounded-[2rem] bg-black px-6 py-12 text-white sm:px-10 sm:py-16">
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#ff6677]">Plan with confidence</p>
         <h1 className="max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">The Supreme Collective Venue Guide</h1>
-        <p className="mt-5 max-w-3xl text-lg leading-7 text-gray-300">Practical details gathered from venues and our previous events, including access, parking, changing facilities and room-specific sound restrictions.</p>
+        <p className="mt-5 max-w-3xl text-lg leading-7 text-gray-300">Explore venue profiles, parking information, changing facilities and room-specific sound restrictions gathered from venues and our previous events.</p>
       </section>
 
       <section className="mt-8 rounded-3xl border border-gray-200 bg-gray-50 p-5 sm:p-6">
@@ -119,7 +141,6 @@ const VenueGuide = () => {
               <option value="sound">Sound limitations recorded</option>
               <option value="changing">Changing room recorded</option>
               <option value="parking">Parking recorded</option>
-              <option value="access">Access directions recorded</option>
             </select>
           </label>
         </div>
@@ -161,11 +182,15 @@ const VenueGuide = () => {
                     <LinkButton href={venue.googleMapsUrl}>Google Maps</LinkButton>
                     <LinkButton href={venue.what3wordsUrl}>what3words</LinkButton>
                     <LinkButton href={venue.website}>Venue website</LinkButton>
+                    <LinkButton href={venue.enquiryUrl}>Enquire with venue</LinkButton>
+                    {venue.publicEmail && <a href={`mailto:${venue.publicEmail}`} className="inline-flex rounded-full border border-black px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white">Email venue</a>}
+                    {venue.publicPhone && <a href={`tel:${venue.publicPhone}`} className="inline-flex rounded-full border border-black px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white">Call venue</a>}
                   </div>
+
+                  {venue.publicDescription && <p className="mb-6 max-w-4xl whitespace-pre-line text-lg leading-8 text-gray-700">{venue.publicDescription}</p>}
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <Info label="Parking" value={venue.parking} />
-                    <Info label="Directions & arrival" value={venue.generalDirections} />
                   </div>
 
                   {!!venue.rooms?.length && <h2 className="mb-4 mt-9 text-2xl font-semibold">Rooms</h2>}
@@ -175,7 +200,6 @@ const VenueGuide = () => {
                         <h3 className="text-xl font-semibold">{room.name || "Room details"}</h3>
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
                           <Info label="Performance area" value={room.performanceArea} />
-                          <Info label="Access & loading" value={room.accessAndLoading} />
                           <Info label="Changing room" value={room.changingRoom} />
                           <Info label="Capacity" value={room.capacity} />
                           <Info label="PA, lighting & stage" value={[room.paAndLighting, room.powerAndStage].filter(Boolean).join("\n")} />
@@ -201,7 +225,8 @@ const VenueGuide = () => {
                   )}
                   {countyLink(venue.county) && <Link className="mt-5 inline-block underline underline-offset-4" to={countyLink(venue.county).href}>Explore wedding bands in {countyLink(venue.county).name}</Link>}
                   {!!venue.examples?.length && <div className="mt-7 grid gap-5">{venue.examples.map(example => <VenueEveningExample key={example.id} example={example} />)}</div>}
-                  <p className="mt-7 text-sm text-gray-500">{isVerified ? `Last verified ${new Date(venue.lastVerifiedAt).toLocaleDateString("en-GB")}.` : "This information has not yet been recently verified. Please confirm important restrictions directly with the venue."}</p>
+                  <p className="mt-7 text-sm text-gray-500">{venue.venueVerified ? `Verified by the venue${venue.claimedAt ? ` on ${new Date(venue.claimedAt).toLocaleDateString("en-GB")}` : ""}.` : isVerified ? `Last verified ${new Date(venue.lastVerifiedAt).toLocaleDateString("en-GB")}.` : "This information has not yet been recently verified. Please confirm important restrictions directly with the venue."}</p>
+                  <ClaimRequest venue={venue} />
                 </div>
               )}
             </article>

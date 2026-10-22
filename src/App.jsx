@@ -34,6 +34,7 @@ const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
 const LocationWeddingBands = lazy(() => import("./pages/LocationWeddingBands"));
 const VenueGuide = lazy(() => import("./pages/VenueGuide"));
+const VenueClaim = lazy(() => import("./pages/VenueClaim"));
 
 const PageLoading = ({ initialContent, initialPath }) => {
   const { pathname } = useLocation();
@@ -194,6 +195,7 @@ const PageLoading = ({ initialContent, initialPath }) => {
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/venues" element={<VenueGuide />} />
+              <Route path="/venues/claim/:token" element={<VenueClaim />} />
  <Route path="/blog" element={<Blog />} />
   <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="/login" element={<Login />} />
