@@ -9,6 +9,10 @@ const routes = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(match => new URL(
 let checkedFonts = false;
 for (const route of routes) {
   const html = await readFile(path.join('dist', route, 'index.html'), 'utf8');
+  assert.ok(html.indexOf('id="google-consent-defaults"') >= 0 && html.indexOf('id="google-consent-defaults"') < html.indexOf('id="usercentrics-cmp"'), `${route} must establish consent before the CMP`);
+  assert.doesNotMatch(html, /<script[^>]+src="https:\/\/www\.googletagmanager/, `${route} must defer Google downloads`);
+  assert.match(html, /<script defer src="\/google-tag-loader\.js"><\/script>/);
+  await access('dist/google-tag-loader.js');
   assert.match(html, /<div id="root" data-prerendered(?: data-hydrate="county")?>/, `${route} must be visible without JavaScript`);
   assert.match(html, /data-initial-page-content=""/, `${route} must retain content while its route loads`);
   assert.doesNotMatch(html, /visibility:\s*hidden/, `${route} must not hide initial content`);
