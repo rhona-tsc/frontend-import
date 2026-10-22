@@ -1,4 +1,5 @@
 import React from "react";
+import { isChunkLoadError, recoverBrowserChunk } from '../utils/chunkRecovery.js';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,6 +12,7 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
+    if (recoverBrowserChunk(error)) return;
     // ✅ send to your logging endpoint if you have one
     // fetch(`${import.meta.env.VITE_BACKEND_URL}/api/log-client-error`, {...})
     console.error("🚨 UI crashed:", error, info);
@@ -19,11 +21,10 @@ export default class ErrorBoundary extends React.Component {
   render() {
     if (!this.state.hasError) return this.props.children;
 
-    const msg = String(this.state.error?.message || "");
-    const isChunkFail =
-      /Failed to fetch dynamically imported module|Loading chunk|ChunkLoadError/i.test(msg);
+    const isChunkFail = isChunkLoadError(this.state.error);
+    const path = typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') || '/' : '/';
 
-    if (isChunkFail && this.props.initialPublicHtml) {
+    if (isChunkFail && this.props.initialPublicHtml && path === this.props.initialPath) {
       return (
         <div className="max-w-5xl mx-auto p-6">
           <div dangerouslySetInnerHTML={{ __html: this.props.initialPublicHtml }} />

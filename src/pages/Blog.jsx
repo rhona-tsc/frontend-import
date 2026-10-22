@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { blogPosts } from "../data/BlogPosts.js";
@@ -48,8 +47,9 @@ export default function Blog() {
                 <Link to={`/blog/${post.slug}/`}>
                   <img
                     src={post.heroImage}
-                    alt={post.title}
-                    className="h-64 w-full object-cover"
+                    alt={post.heroImageAlt || post.title}
+                    loading="lazy" decoding="async"
+                    className={`h-64 w-full ${post.heroImageFit === 'contain' ? 'object-contain bg-black' : 'object-cover'}`}
                   />
                 </Link>
               )}

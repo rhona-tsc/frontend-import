@@ -21,13 +21,6 @@
   status = 404
   force = true
 
-# ✅ SEO 301: old act URLs → new act URLs
-[[redirects]]
-  from = "/bandsforhire/*"
-  to = "/act/:splat"
-  status = 301
-  force = true
-
 # ✅ API proxy (keep ABOVE SPA fallback)
 [[redirects]]
   from = "/api/*"
@@ -42,11 +35,8 @@
   status = 301
   conditions = { Host = ["*.ngrok-free.app", "*.ngrok.io"] }
 
-# ✅ SPA fallback for app routes (kept BELOW /assets/* so missing assets still 404)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Public pages are generated at build time. Only explicitly listed private app
+# routes in _redirects may use the SPA shell; unknown public URLs stay real 404s.
 
 # 🧠 Helpful debug header + security + HTML no-cache (prevents stale HTML referencing old hashed assets)
 [[headers]]

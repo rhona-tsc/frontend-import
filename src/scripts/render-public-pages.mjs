@@ -10,6 +10,7 @@ import { cleanVenueName } from '../utils/venueName.js';
 import { locationPages, locationMeta, locationCopy, contactOptions } from '../data/locationPages.js';
 import { publicCanonicalUrl, publicHref } from '../utils/publicUrls.js';
 import { inlineInitialCss } from './criticalCss.mjs';
+import { publicActRedirects } from '../utils/publicRouteRules.js';
 
 const origin = 'https://thesupremecollective.co.uk';
 const api = (process.env.SITEMAP_API_URL || process.env.VITE_BACKEND_URL || 'https://tsc-backend-v2.onrender.com').replace(/\/$/, '');
@@ -59,6 +60,8 @@ for (let index = 0; index < actPaths.length; index += 4) {
   acts.push(...await Promise.all(actPaths.slice(index, index + 4).map(getAct)));
 }
 const bandLinks = acts.map(({route, act}) => `<li><a href="${escape(route)}">${escape(act.tscName)}</a><p>${escape(plain(act.tscDescription || act.description))}</p></li>`).join('');
+const redirectTemplate = await fs.readFile('public/_redirects', 'utf8');
+await fs.writeFile('dist/_redirects', redirectTemplate.replace('# ✅ API proxy', publicActRedirects(acts.map(item=>item.act)) + '\n\n# ✅ API proxy'));
 const paragraph = text => `<p>${escape(text)}</p>`;
 let renderedCount = 0;
 async function writePage(route, title, description, heading, content, location) {

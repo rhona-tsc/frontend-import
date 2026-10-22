@@ -83,6 +83,19 @@ html {
 
 img, video { max-width: 100%; height: auto; }
 
+/* AddressNow appends its popup outside React and assigns an inline width. */
+@media (max-width: 767px) {
+  .pcaautocomplete {
+    max-width: calc(100vw - 5rem) !important;
+    box-sizing: border-box;
+  }
+  .pcaautocomplete .pcaitem {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    height: auto !important;
+  }
+}
+
 /* Readable initial content for public pages that do not yet share a full view. */
 .initial-public-content { max-width: 72rem; margin: 0 auto; padding: 1.5rem 0 4rem; line-height: 1.75; }
 .initial-public-content h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.15; margin: 1rem 0 1.5rem; }

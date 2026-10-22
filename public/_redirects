@@ -7,12 +7,21 @@
 
 
 # Permanent replacements for legacy URLs. Keep these above the SPA fallback.
-/journal                                  /blog                             301!
-/contact-2                                /contact                          301!
-/tsc                                      /about                            301!
-/bandsforhire/motown-magic                 /act/dancefloor-magic             301!
-/bandsforhire                             /acts                             301!
-/bandsforhire/*                           /act/:splat                       301!
+/journal/jen-and-toms-wedding              /blog/jen-and-toms-wedding/        301!
+/journal/jen-and-toms-wedding/             /blog/jen-and-toms-wedding/        301!
+/journal                                  /blog/                            301!
+/journal/                                 /blog/                            301!
+/contact-2                                /contact/                         301!
+/tsc                                      /about/                           301!
+/bandsforhire/motown-magic                 /act/dancefloor-magic/            301!
+/bandsforhire                             /acts/                            301!
+/bandsforhire/                            /acts/                            301!
+/acts/london                              /wedding-bands-london/            301!
+/acts/london/                             /wedding-bands-london/            301!
+/acts/essex                               /wedding-bands-essex/             301!
+/acts/essex/                              /wedding-bands-essex/             301!
+/acts/kent                                /wedding-bands-kent/              301!
+/acts/kent/                               /wedding-bands-kent/              301!
 
 # ✅ API proxy
 /api/*  https://tsc-backend-v2.onrender.com/api/:splat  200
@@ -24,12 +33,10 @@
 # Known app routes use the React application. Unknown routes return a real 404.
 /                            /index.html  200
 /acts                        /index.html  200
-/acts/*                      /index.html  200
-/act/*                       /index.html  200
 /musician/*                  /index.html  200
 /event-sheet/*               /index.html  200
+/venues/claim/*              /index.html  200
 /blog                        /index.html  200
-/blog/*                      /index.html  200
 /about                       /index.html  200
 /contact                     /index.html  200
 /terms                       /index.html  200

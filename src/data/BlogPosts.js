@@ -1,3 +1,4 @@
+import { jenAndTomWedding } from './jenAndTomWedding.js';
 export const blogPosts = [
   {
     slug: "5-ways-live-music-transforms-an-event",
@@ -206,4 +207,5 @@ export const blogPosts = [
       },
     ],
   },
+  jenAndTomWedding,
 ];

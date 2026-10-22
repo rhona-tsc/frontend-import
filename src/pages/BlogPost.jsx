@@ -1,7 +1,8 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { blogPosts } from "../data/BlogPosts.js";
+import BlogText from '../components/BlogText.jsx';
 
 export default function BlogPost() {
   const { slug } = useParams();
@@ -82,7 +83,8 @@ export default function BlogPost() {
         <img
           src={post.heroImage}
           alt={post.heroImageAlt || post.title}
-          className="w-full rounded-3xl object-cover mb-10 max-h-[520px]"
+          width={post.heroImageWidth} height={post.heroImageHeight}
+          className={`w-full rounded-3xl mb-10 max-h-[520px] ${post.heroImageFit === 'contain' ? 'object-contain' : 'object-cover'}`}
         />
       )}
 
@@ -101,18 +103,20 @@ export default function BlogPost() {
 
   if (block.type === "image") {
     return (
-      <img
+      <figure key={index} className="my-8"><img
         key={index}
         src={block.src}
         alt={block.alt || `Illustration for ${post.title}`}
-        className="w-full rounded-3xl object-cover my-8"
-      />
+        width={block.width} height={block.height}
+        className="w-full h-auto rounded-3xl"
+        loading="lazy" decoding="async"
+      />{block.caption && <figcaption className="mt-2 text-sm text-gray-600">{block.caption}</figcaption>}</figure>
     );
   }
 
   return (
     <p key={index} className="mb-5 leading-8 text-gray-700">
-      {block.text}
+      <BlogText block={block} />
     </p>
   );
 })}

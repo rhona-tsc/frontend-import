@@ -13,6 +13,7 @@ import { ShopContext } from "../context/ShopContext";
 import { preparedListingPrice, listingPricingSignature, withPricingTimeout } from '../utils/listingPrice.js';
 import { getBandImageAlt } from '../utils/bandImageAlt.js';
 import { bandImageDelivery, bandImageSrcSet } from '../utils/bandImageDelivery.js';
+import { loadListingAct } from '../utils/loadListingAct.js';
 
 const MARGIN_RATE = 0.33;
 const applyMargin = (v) => Math.ceil((Number(v) || 0) * (1 + MARGIN_RATE));
@@ -241,7 +242,7 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
       setLoadingPrice(true);
 
       try {
-        const a = actDataRef.current;
+        let a = actDataRef.current;
         const { selectedCounty: county, selectedAddress: addr, selectedDate: dt } = ctxRef.current;
 
         const addrN = normalizeAddrStrict(addr || "");
@@ -252,7 +253,7 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
         })();
 
         const baseOnly = getBasePrice(a);
-        const hasLineups = Array.isArray(a?.lineups) && a.lineups.length > 0;
+        let hasLineups = Array.isArray(a?.lineups) && a.lineups.length > 0;
         const hasAnyLocation = !!(addrN || county);
         const hasDate = !!dateStr;
 
@@ -286,6 +287,15 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
         if (prepared) {
           if (!cancelled) safeSetPrice(prepared);
           return;
+        }
+
+        // Lightweight cards deliberately omit musician/lineup pricing fields.
+        // Fetch them only after a date + venue search, not on initial browsing.
+        if (!hasLineups) {
+          const slug = getSlug(a);
+          a = await loadListingAct(slug);
+          if (cancelled) return;
+          hasLineups = true;
         }
 
         // 3) No lineups → use the card payload only.
@@ -338,7 +348,7 @@ if (!hasLineups) {
           travelCalculated: result.travelCalculated === true,
         });
       } catch (err) {
-        console.error("❌ Failed to calculate price:", {
+        console.error(`❌ Failed to calculate price: ${err?.message || 'Unknown pricing error'}`, {
           err,
           actId,
           useCountyTravelFee: actDataRef.current?.useCountyTravelFee,

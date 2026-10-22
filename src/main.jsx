@@ -6,6 +6,11 @@ import { BrowserRouter, useLocation } from 'react-router-dom';
 import ShopProvider from './context/ShopContext';
 import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { recoverBrowserChunk } from './utils/chunkRecovery.js';
+
+window.addEventListener('vite:preloadError', event => {
+  if (recoverBrowserChunk(event.payload)) event.preventDefault();
+});
 
 function InitialSchemaLifecycle() {
   const { pathname } = useLocation();
@@ -57,7 +62,7 @@ async function startApp() {
   <InitialSchemaLifecycle />
   <HelmetProvider>
     <ShopProvider> 
-        <ErrorBoundary initialPublicHtml={initialPublicHtml}>
+        <ErrorBoundary initialPublicHtml={initialPublicHtml} initialPath={initialPath}>
       <App initialContent={initialContent} initialPath={initialPath} initialPage={initialPage} initialPagePath={initialPath} />
       </ErrorBoundary>
     </ShopProvider>
@@ -75,6 +80,7 @@ async function startApp() {
 }
 
 startApp().catch(error => {
+  if (recoverBrowserChunk(error)) return;
   console.error('Interactive page could not start:', error);
   const notice = document.createElement('p');
   notice.setAttribute('role', 'alert');
