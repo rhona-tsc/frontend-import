@@ -9,12 +9,16 @@ import { getBandImageAlt } from '../utils/bandImageAlt.js';
 import { cleanVenueName } from '../utils/venueName.js';
 import { locationPages, locationMeta, locationCopy, contactOptions } from '../data/locationPages.js';
 import { publicCanonicalUrl, publicHref } from '../utils/publicUrls.js';
+import { inlineInitialCss } from './criticalCss.mjs';
 
 const origin = 'https://thesupremecollective.co.uk';
 const api = (process.env.SITEMAP_API_URL || process.env.VITE_BACKEND_URL || 'https://tsc-backend-v2.onrender.com').replace(/\/$/, '');
 const escape = (value = '') => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const plain = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 const template = await fs.readFile('dist/index.html', 'utf8');
+const stylesheetTag = template.match(/<link\b[^>]*rel="stylesheet"[^>]*>/)[0];
+const stylesheetUrl = stylesheetTag.match(/href="([^"]+)"/)[1];
+const stylesheet = await fs.readFile(path.join('dist', stylesheetUrl), 'utf8');
 const sitemap = await fs.readFile('dist/sitemap.xml', 'utf8');
 const urls = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => new URL(m[1]));
 const actPaths = urls.map(u => u.pathname.replace(/\/+$/, '')).filter(p => p.startsWith('/act/'));
@@ -72,7 +76,7 @@ async function writePage(route, title, description, heading, content, location) 
   // County content is already complete: let the visible text font precede
   // application downloads without delaying the consent or analytics scripts.
   if (location) pageTemplate = pageTemplate.replace('<script type="module" ', '<script type="module" fetchpriority="low" ');
-  const html = pageTemplate
+  let html = pageTemplate
     .replace(
       /<title>.*?<\/title>/s,
       head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>` + (location ? `<script id="initial-location-data" data-county="${escape(location.county.toLowerCase().replace(/\s+/g, '-'))}" type="application/json">${serializeSchema(location)}</script>` : ''),
@@ -82,6 +86,7 @@ async function writePage(route, title, description, heading, content, location) 
       `<div id="root" data-prerendered${location ? ' data-hydrate="county"' : ''}>${body}</div>`,
     )
     .replace(/href="([^"]+)"/g, (_, href) => `href="${publicHref(href)}"`);
+  if (location) html = inlineInitialCss(html, stylesheet, stylesheetTag, stylesheetUrl);
   const directory = path.join('dist', route.replace(/^\//, ''));
   await fs.mkdir(directory, { recursive: true });
   await fs.writeFile(path.join(directory, 'index.html'), html);

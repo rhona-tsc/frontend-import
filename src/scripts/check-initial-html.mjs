@@ -44,6 +44,12 @@ for (const route of routes) {
   assert.ok(JSON.parse(schema[1])['@graph'].length);
   for (const asset of html.matchAll(/\bsrc="(\/assets\/[^"]+)"/g)) await access(path.join('dist', asset[1]));
   if (route.startsWith('/wedding-bands-')) {
+    const initialStyles = html.match(/<style id="initial-page-styles">([\s\S]*?)<\/style>/)?.[1];
+    assert.ok(initialStyles && Buffer.byteLength(initialStyles) <= 24000, 'County initial styles must be inline and bounded');
+    assert.match(initialStyles, /font-display:swap/);
+    assert.doesNotMatch(html.replace(/<noscript>[\s\S]*?<\/noscript>/g, ''), /<link\b[^>]*rel="stylesheet"/);
+    assert.match(html, /rel="preload" as="style"/);
+    assert.ok(html.includes(`<noscript><link rel="stylesheet"`), 'Retain CSS when JavaScript is unavailable');
     assert.match(html, /data-hydrate="county"/, 'County pages must reuse their initial React markup');
     assert.match(html, /<script type="module" fetchpriority="low"/, 'County app downloads must not outrank visible text');
     const data = JSON.parse(html.match(/<script id="initial-location-data"[^>]*>(.*?)<\/script>/s)[1]);
