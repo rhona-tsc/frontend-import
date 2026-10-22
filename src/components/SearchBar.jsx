@@ -125,7 +125,7 @@ const SearchBar = ({ embedded = false }) => {
       duration_ms: ms,
     });
 
-    navigate("/acts");
+    navigate("/acts/");
   };
 
   return (

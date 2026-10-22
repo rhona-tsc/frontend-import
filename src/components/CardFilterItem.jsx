@@ -102,7 +102,7 @@ const getSlug = (src) => {
 
 const getActUrl = (src) => {
   const slug = getSlug(src);
-  return slug ? `/act/${encodeURIComponent(slug)}` : "/acts";
+  return slug ? `/act/${encodeURIComponent(slug)}/` : "/acts";
 };
 
 // ——— helpers for fallback base calculation ———

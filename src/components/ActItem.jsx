@@ -158,7 +158,7 @@ const getSlug = (src) => {
 
 const getActUrl = (src) => {
   const slug = getSlug(src);
-  return slug ? `/act/${encodeURIComponent(slug)}` : "/act";
+  return slug ? `/act/${encodeURIComponent(slug)}/` : "/act";
 };
 
 // ──────────────────────────────────────────────────────────────────────────────

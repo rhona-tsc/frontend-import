@@ -1953,7 +1953,7 @@ useEffect(() => {
       Add an act to your cart and let’s get this show on the road!
     </p>
     <button
-      onClick={() => navigate("/acts") }
+      onClick={() => navigate("/acts/") }
       className="mt-4 px-6 py-3 rounded bg-black text-white hover:bg-[#ff6667] transition"
     >
       Browse acts
@@ -2046,7 +2046,7 @@ const availableLineups = availableLineupsRaw.filter((l) => Boolean(normLineupId(
       className="w-full h-auto max-h-64 object-cover rounded"
       loading="lazy"
       onError={(e) => (e.target.style.display = "none")}
-      onClick={() => navigate(`/act/${item.actId}`)}
+      onClick={() => navigate(`/act/${item.actId}/`)}
       style={{ cursor: "pointer" }}
     />
   </div>

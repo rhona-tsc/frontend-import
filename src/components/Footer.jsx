@@ -23,11 +23,11 @@ const Footer = () => {
           <p className="text-xl font-medium mb-5">COMPANY</p>
           <ul className="flex flex-col gap-1 text-gray-600">
              <li><Link to="/">Home</Link></li>
-  <li><Link to="/about">About Us</Link></li>
-  <li><Link to="/venues">Venue Guide</Link></li>
-  <li><Link to="/terms">Terms & Conditions</Link></li>
-  <li><Link to="/privacy">Privacy Policy</Link></li>
-  {locationPages.map(({ slug, name }) => <li key={slug}><Link to={`/wedding-bands-${slug}`}>Wedding bands in {name}</Link></li>)}
+  <li><Link to="/about/">About Us</Link></li>
+  <li><Link to="/venues/">Venue Guide</Link></li>
+  <li><Link to="/terms/">Terms & Conditions</Link></li>
+  <li><Link to="/privacy/">Privacy Policy</Link></li>
+  {locationPages.map(({ slug, name }) => <li key={slug}><Link to={`/wedding-bands-${slug}/`}>Wedding bands in {name}</Link></li>)}
           </ul>
         </div>
 

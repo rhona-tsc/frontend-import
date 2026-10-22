@@ -1,3 +1,4 @@
+import { publicCanonicalUrl as canonicalForPath } from '../utils/publicUrls.js';
 import React, { useEffect } from 'react';
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
@@ -11,12 +12,7 @@ const Privacy = () => {
 
   const location = useLocation();
 
-  const SITE_ORIGIN = "https://thesupremecollective.co.uk"; // ✅ non-www canonical
-  const canonicalForPath = (pathname = "/") => {
-    const p = String(pathname || "/").split("?")[0].split("#")[0];
-    const clean = p.startsWith("/") ? p : `/${p}`;
-    return `${SITE_ORIGIN}${clean}`;
-  };
+
 
   const effectiveDate = '03 October 2025'; // update when you materially change the policy
 

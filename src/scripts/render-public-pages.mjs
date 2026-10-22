@@ -8,6 +8,7 @@ import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
 import { getBandImageAlt } from '../utils/bandImageAlt.js';
 import { cleanVenueName } from '../utils/venueName.js';
 import { locationPages, locationMeta, locationCopy, contactOptions } from '../data/locationPages.js';
+import { publicCanonicalUrl, publicHref } from '../utils/publicUrls.js';
 
 const origin = 'https://thesupremecollective.co.uk';
 const api = (process.env.SITEMAP_API_URL || process.env.VITE_BACKEND_URL || 'https://tsc-backend-v2.onrender.com').replace(/\/$/, '');
@@ -16,7 +17,7 @@ const plain = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/\s
 const template = await fs.readFile('dist/index.html', 'utf8');
 const sitemap = await fs.readFile('dist/sitemap.xml', 'utf8');
 const urls = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => new URL(m[1]));
-const actPaths = urls.map(u => u.pathname).filter(p => p.startsWith('/act/'));
+const actPaths = urls.map(u => u.pathname.replace(/\/+$/, '')).filter(p => p.startsWith('/act/'));
 
 // Distribute the unmodified font copyright notices with the hosted files.
 await fs.mkdir('dist/font-licenses', { recursive: true });
@@ -54,7 +55,7 @@ const bandLinks = acts.map(({route, act}) => `<li><a href="${escape(route)}">${e
 const paragraph = text => `<p>${escape(text)}</p>`;
 let renderedCount = 0;
 async function writePage(route, title, description, heading, content, location) {
-  const canonical = `${origin}${route}`;
+  const canonical = publicCanonicalUrl(route);
   const act = acts.find(item => item.route === route)?.act;
   const post = blogPosts.find(item => `/blog/${item.slug}` === route);
   const schema = buildPageSchema({ route, title, description, act, post, bands: acts, location });
@@ -79,7 +80,8 @@ async function writePage(route, title, description, heading, content, location) 
     .replace(
       '<div id="root"></div>',
       `<div id="root" data-prerendered${location ? ' data-hydrate="county"' : ''}>${body}</div>`,
-    );
+    )
+    .replace(/href="([^"]+)"/g, (_, href) => `href="${publicHref(href)}"`);
   const directory = path.join('dist', route.replace(/^\//, ''));
   await fs.mkdir(directory, { recursive: true });
   await fs.writeFile(path.join(directory, 'index.html'), html);

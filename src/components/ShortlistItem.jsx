@@ -245,7 +245,7 @@ setLoveCount((prev) => {
       .replace(/^-+|-+$/g, "");
 
   const actSlug = actData?.slug || actData?.tscSlug || actData?.urlSlug || slugify(actData?.tscName);
-  const actPath = `/act/${encodeURIComponent(actSlug || actData?._id || "")}`;
+  const actPath = `/act/${encodeURIComponent(actSlug || actData?._id || "")}/`;
 
 return (
  

@@ -198,7 +198,7 @@ const EventSheetRepertoirePicker = ({
     onChange(currentLines.join("\n"));
   };
 
-  const profileUrl = actSlug ? `/act/${encodeURIComponent(actSlug)}` : "";
+  const profileUrl = actSlug ? `/act/${encodeURIComponent(actSlug)}/` : "";
   const possessiveActName = /s$/i.test(actName) ? `${actName}’` : `${actName}’s`;
 
   return (

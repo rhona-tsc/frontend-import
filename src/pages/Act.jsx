@@ -1,3 +1,4 @@
+import { publicCanonicalUrl } from '../utils/publicUrls.js';
 import React, {
   useContext,
   useState,
@@ -1284,14 +1285,14 @@ const Act = () => {
           />
           <link
             rel="canonical"
-            href={`https://thesupremecollective.co.uk${location.pathname.replace(/\/+$/, "")}`}
+            href={publicCanonicalUrl(location.pathname)}
           />
         </Helmet>
         {loadingAct ? "Loading band details..." : (
           <div>
             <h1 className="text-2xl font-semibold mb-3">{actNotFound ? "We couldn't find that band" : "We couldn't load this band"}</h1>
             <p>{actNotFound ? "This link may be out of date." : "Please try again in a moment."}</p>
-            <a href="/acts" className="underline">Explore our bands</a>
+            <a href="/acts/" className="underline">Explore our bands</a>
           </div>
         )}
       </div>
@@ -1310,10 +1311,10 @@ const Act = () => {
     ).trim() || (!isObjectId ? String(key || "").trim() : "");
 
   const canonicalPath = canonicalSlug
-    ? `/act/${encodeURIComponent(canonicalSlug)}`
-    : "/acts";
+    ? `/act/${encodeURIComponent(canonicalSlug)}/`
+    : "/acts/";
 
-  const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
+  const canonicalUrl = publicCanonicalUrl(canonicalPath);
 
   // SEO meta tags for this act
   const meta = buildActMeta(actData);

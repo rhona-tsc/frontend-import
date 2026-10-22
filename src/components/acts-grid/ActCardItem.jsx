@@ -9,9 +9,9 @@ const currency = "£";
 const buildActHref = (card) => {
   // Prefer slug if present; fall back to /act/:id
   const slug = (card?.slug || "").trim();
-  if (slug) return `/act/${encodeURIComponent(slug)}`;
+  if (slug) return `/act/${encodeURIComponent(slug)}/`;
   const id = String(card?.actId || card?._id || "");
-  return id ? `/act/${id}` : "#";
+  return id ? `/act/${id}/` : "#";
 };
 
 function AvailabilityPill({ value }) {

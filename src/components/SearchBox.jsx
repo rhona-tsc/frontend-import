@@ -344,7 +344,7 @@ SB("ls.selectedPostcode:", localStorage.getItem("selectedPostcode"));
     sessionStorage.removeItem(DISMISS_KEY);
 
     handleClose("submit_success");
-    if (isLocationPage) navigate('/acts');
+    if (isLocationPage) navigate('/acts/');
   };
 
   // ✅ Enable button if postcode is valid OR user typed a postcode into venue input

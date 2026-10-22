@@ -19,7 +19,7 @@ export default function BlogPost() {
           <meta name="robots" content="noindex,follow" />
         </Helmet>
         <h1 className="text-3xl font-semibold mb-4">Post not found</h1>
-        <Link to="/blog" className="underline">
+        <Link to="/blog/" className="underline">
           Back to blog
         </Link>
       </div>
@@ -40,11 +40,11 @@ export default function BlogPost() {
         {/* ✅ Canonical + OG should use the preferred non-www host */}
         <link
           rel="canonical"
-          href={`https://thesupremecollective.co.uk/blog/${post.slug}`}
+          href={`https://thesupremecollective.co.uk/blog/${post.slug}/`}
         />
         <meta
           property="og:url"
-          content={`https://thesupremecollective.co.uk/blog/${post.slug}`}
+          content={`https://thesupremecollective.co.uk/blog/${post.slug}/`}
         />
 
         {/* Optional but helpful for sharing */}
@@ -59,7 +59,7 @@ export default function BlogPost() {
       </Helmet>
 
       <div className="mb-8">
-        <Link to="/blog" className="text-sm underline">
+        <Link to="/blog/" className="text-sm underline">
           Back to blog
         </Link>
       </div>
@@ -127,7 +127,7 @@ export default function BlogPost() {
           for unforgettable celebrations.
         </p>
         <Link
-          to="/contact"
+          to="/contact/"
           className="inline-flex items-center rounded-full bg-[#ff6667] px-5 py-3 text-white hover:opacity-90"
         >
           Enquire now

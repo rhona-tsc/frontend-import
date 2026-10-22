@@ -1,3 +1,4 @@
+import { publicCanonicalUrl as canonicalForPath } from '../utils/publicUrls.js';
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { SEO } from '../components/SEO.jsx';
@@ -20,14 +21,7 @@ const OurPolicy = lazy(() => import('../components/OurPolicy'));
 const NewsletterBox = lazy(() => import('../components/NewsletterBox'));
 
 // 🔗 Canonical URL helper (non-www)
-const canonicalForPath = (pathname = '/') => {
-  const base = 'https://thesupremecollective.co.uk';
-  const p = String(pathname || '/');
-  // normalize: ensure leading slash, remove trailing slash (except root)
-  const withSlash = p.startsWith('/') ? p : `/${p}`;
-  const normalized = withSlash !== '/' ? withSlash.replace(/\/+$/, '') : '/';
-  return `${base}${normalized}`;
-};
+
 // 🔍 Small helpers to log Suspense fallback usage and child mounts
 const Fallback = ({ label, className }) => {
   useEffect(() => {
@@ -67,7 +61,7 @@ const FeaturedBlogSection = () => {
           </p>
 
           <Link
-            to="/blog/5-ways-live-music-transforms-an-event"
+            to="/blog/5-ways-live-music-transforms-an-event/"
             className="inline-flex rounded-full bg-[#111] px-6 py-3 text-white hover:opacity-90 transition"
           >
             Read the blog
@@ -75,7 +69,7 @@ const FeaturedBlogSection = () => {
         </div>
 
         <Link
-          to="/blog/5-ways-live-music-transforms-an-event"
+          to="/blog/5-ways-live-music-transforms-an-event/"
           className="block"
         >
           <div className="overflow-hidden rounded-[28px] bg-gray-100 aspect-[4/3]">

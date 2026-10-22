@@ -12,7 +12,7 @@ export default function Blog() {
           name="description"
           content="Read wedding entertainment inspiration, live music ideas, and planning tips from The Supreme Collective."
         />
-        <link rel="canonical" href="https://thesupremecollective.co.uk/blog" />
+        <link rel="canonical" href="https://thesupremecollective.co.uk/blog/" />
         <meta property="og:type" content="website" />
 <meta property="og:title" content="Blog | The Supreme Collective" />
 <meta
@@ -45,7 +45,7 @@ export default function Blog() {
               className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm"
             >
               {post.heroImage && (
-                <Link to={`/blog/${post.slug}`}>
+                <Link to={`/blog/${post.slug}/`}>
                   <img
                     src={post.heroImage}
                     alt={post.title}
@@ -60,7 +60,7 @@ export default function Blog() {
                 </p>
 
                 <h2 className="text-2xl font-semibold mb-3">
-                  <Link to={`/blog/${post.slug}`} className="hover:opacity-70">
+                  <Link to={`/blog/${post.slug}/`} className="hover:opacity-70">
                     {post.title}
                   </Link>
                 </h2>
@@ -68,7 +68,7 @@ export default function Blog() {
                 <p className="text-gray-600 mb-5">{post.excerpt}</p>
 
                 <Link
-                  to={`/blog/${post.slug}`}
+                  to={`/blog/${post.slug}/`}
                   className="inline-flex items-center rounded-full bg-black px-5 py-3 text-white hover:opacity-90"
                 >
                   Read the blog

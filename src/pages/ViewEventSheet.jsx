@@ -3873,7 +3873,7 @@ const ViewEventSheet = () => {
                 first?.seoSlug ||
                 "";
 
-              const profileUrl = actSlug ? `/act/${actSlug}` : null;
+              const profileUrl = actSlug ? `/act/${actSlug}/` : null;
 
               return (
                 <div>

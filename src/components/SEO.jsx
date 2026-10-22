@@ -1,4 +1,5 @@
 import { Helmet } from "react-helmet-async";
+import { publicCanonicalUrl } from '../utils/publicUrls.js';
 
 const ORIGIN = "https://thesupremecollective.co.uk";
 
@@ -18,7 +19,7 @@ export function SEO({
       ? withLeadingSlash.replace(/\/+$/, "")
       : "/";
 
-  const url = `${ORIGIN}${normalizedPath}`;
+  const url = publicCanonicalUrl(normalizedPath);
   const safeTitle = title?.trim() || "The Supreme Collective";
   const safeDesc =
     description?.trim() ||

@@ -17,8 +17,8 @@ const Terms = () => {
           name="description"
           content="Read the Terms of Service for The Supreme Collective website, musician profiles and live music services."
         />
-        <link rel="canonical" href="https://thesupremecollective.co.uk/terms" />
-        <meta property="og:url" content="https://thesupremecollective.co.uk/terms" />
+        <link rel="canonical" href="https://thesupremecollective.co.uk/terms/" />
+        <meta property="og:url" content="https://thesupremecollective.co.uk/terms/" />
       </Helmet>
 
     <div>

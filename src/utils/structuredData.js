@@ -1,4 +1,5 @@
 export const SITE_ORIGIN = 'https://thesupremecollective.co.uk';
+import { publicCanonicalUrl } from './publicUrls.js';
 
 export const buildMusicGroup = (act = {}, url, image) => {
   const current = Array.isArray(act.genre) ? act.genre : typeof act.genre === 'string' ? [act.genre] : [];
@@ -16,7 +17,8 @@ export const buildMusicGroup = (act = {}, url, image) => {
 };
 
 export const buildPageSchema = ({ route, title, description, act, post, bands = [], location }) => {
-  const url = `${SITE_ORIGIN}${route}`;
+  route = route.replace(/\/+$/, '') || '/';
+  const url = publicCanonicalUrl(route);
   const organisation = { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'The Supreme Collective', url: `${SITE_ORIGIN}/` };
   const website = { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'The Supreme Collective', url: `${SITE_ORIGIN}/`, publisher: { '@id': organisation['@id'] } };
   const type = route === '/about' ? 'AboutPage' : route === '/contact' ? 'ContactPage' : location || ['/acts', '/blog', '/venues'].includes(route) ? 'CollectionPage' : 'WebPage';
@@ -25,8 +27,8 @@ export const buildPageSchema = ({ route, title, description, act, post, bands = 
   if (route !== '/') {
     const labels = { '/acts': 'Bands', '/about': 'About Us', '/contact': 'Contact', '/blog': 'Blog', '/venues': 'Venue Guide' };
     const items = [{ name: 'Home', item: `${SITE_ORIGIN}/` }];
-    if (act || location) items.push({ name: 'Bands', item: `${SITE_ORIGIN}/acts` });
-    if (post) items.push({ name: 'Blog', item: `${SITE_ORIGIN}/blog` });
+    if (act || location) items.push({ name: 'Bands', item: `${SITE_ORIGIN}/acts/` });
+    if (post) items.push({ name: 'Blog', item: `${SITE_ORIGIN}/blog/` });
     items.push({ name: location?.county || act?.tscName || act?.name || post?.title || labels[route] || title, item: url });
     const breadcrumbs = {
       '@type': 'BreadcrumbList',
@@ -37,7 +39,7 @@ export const buildPageSchema = ({ route, title, description, act, post, bands = 
     page.breadcrumb = { '@id': breadcrumbs['@id'] };
   }
   if (location) {
-    const list = { '@type': 'ItemList', '@id': `${url}#bands`, itemListElement: (location.bands || []).slice(0, 9).map((band, index) => ({ '@type': 'ListItem', position: index + 1, name: band.name, url: `${SITE_ORIGIN}/act/${band.slug}` })) };
+    const list = { '@type': 'ItemList', '@id': `${url}#bands`, itemListElement: (location.bands || []).slice(0, 9).map((band, index) => ({ '@type': 'ListItem', position: index + 1, name: band.name, url: publicCanonicalUrl(`/act/${band.slug}`) })) };
     graph.push(list, { '@type': 'Service', '@id': `${url}#service`, name: `Wedding band hire in ${location.county}`, serviceType: 'Wedding band hire', areaServed: { '@type': 'Place', name: location.county }, provider: { '@id': organisation['@id'] }, url });
     page.mainEntity = { '@id': list['@id'] };
     page.about = { '@id': `${url}#service` };
@@ -54,7 +56,7 @@ export const buildPageSchema = ({ route, title, description, act, post, bands = 
     graph.push(article);
     page.mainEntity = { '@id': article['@id'] };
   } else if (route === '/acts') {
-    const list = { '@type': 'ItemList', '@id': `${url}#bands`, itemListElement: bands.map(({ route: bandRoute, act: band }, index) => ({ '@type': 'ListItem', position: index + 1, name: band.tscName, url: `${SITE_ORIGIN}${bandRoute}` })) };
+    const list = { '@type': 'ItemList', '@id': `${url}#bands`, itemListElement: bands.map(({ route: bandRoute, act: band }, index) => ({ '@type': 'ListItem', position: index + 1, name: band.tscName, url: publicCanonicalUrl(bandRoute) })) };
     graph.push(list);
     page.mainEntity = { '@id': list['@id'] };
   }

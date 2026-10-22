@@ -2,13 +2,18 @@ import assert from 'node:assert/strict';
 import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { publicCanonicalUrl, publicHref } from '../utils/publicUrls.js';
 
 const { renderLocationContent } = await import(pathToFileURL(path.resolve('node_modules/.cache/tsc-public-render/entry-public.mjs')).href);
 const sitemap = await readFile('dist/sitemap.xml', 'utf8');
-const routes = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(match => new URL(match[1]).pathname);
+const sitemapUrls = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(match => match[1]);
+for (const url of sitemapUrls) assert.equal(publicHref(url), url, 'Sitemap must use final public URLs');
+const routes = sitemapUrls.map(url => new URL(url).pathname.replace(/\/+$/, '') || '/');
 let checkedFonts = false;
 for (const route of routes) {
   const html = await readFile(path.join('dist', route, 'index.html'), 'utf8');
+  assert.ok(html.includes(`rel="canonical" href="${publicCanonicalUrl(route)}"`), `${route} canonical must match the sitemap`);
+  for (const match of html.matchAll(/href="([^"]+)"/g)) assert.equal(match[1], publicHref(match[1]), `${route} must link directly to public destinations`);
   assert.ok(html.indexOf('id="google-consent-defaults"') >= 0 && html.indexOf('id="google-consent-defaults"') < html.indexOf('id="usercentrics-cmp"'), `${route} must establish consent before the CMP`);
   assert.doesNotMatch(html, /<script[^>]+src="https:\/\/www\.googletagmanager/, `${route} must defer Google downloads`);
   assert.match(html, /<script defer src="\/google-tag-loader\.js"><\/script>/);

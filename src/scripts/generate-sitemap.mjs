@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { SitemapStream, streamToPromise } from "sitemap";
 import { locationPages } from '../data/locationPages.js';
+import { publicHref } from '../utils/publicUrls.js';
 
 const SITE_URL = "https://thesupremecollective.co.uk";
 const API_URL =
@@ -40,12 +41,12 @@ async function run() {
   const sm = new SitemapStream({ hostname: SITE_URL });
 
   for (const p of CORE_PAGES) {
-    sm.write(p);
+    sm.write({ ...p, url: publicHref(p.url) });
   }
 
   const slugs = await fetchActSlugs();
   for (const slug of slugs) {
-    sm.write({ url: `/act/${slug}`, changefreq: "weekly", priority: 0.7 });
+    sm.write({ url: publicHref(`/act/${slug}`), changefreq: "weekly", priority: 0.7 });
   }
 
   sm.end();

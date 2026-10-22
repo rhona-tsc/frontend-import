@@ -32,7 +32,7 @@ export default function LocationWeddingBands({ slug, initialLocation }) {
   }, [slug]);
   const current = data?.county === config.name ? data : null;
   const meta = locationMeta(config);
-  const route = `/wedding-bands-${slug}`;
+  const route = `/wedding-bands-${slug}/`;
   return <>
     <SEO {...meta} path={route} />
     <Helmet><script type="application/ld+json">{serializeSchema(buildPageSchema({ route, ...meta, location: current || { county: config.name, bands: [] } }))}</script></Helmet>

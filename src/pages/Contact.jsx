@@ -1,3 +1,4 @@
+import { publicCanonicalUrl as canonicalForPath } from '../utils/publicUrls.js';
 import React, { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -9,15 +10,7 @@ import ActSubmissionForm from "../components/ActSubmissionForm";
 const Contact = () => {
   const location = useLocation();
 
-  const canonicalForPath = (path = "/") => {
-    const base = "https://thesupremecollective.co.uk"; // ✅ non-www canonical
-    const p = String(path || "/").split("?")[0].split("#")[0];
-    // ensure leading slash
-    const clean = p.startsWith("/") ? p : `/${p}`;
-    // avoid trailing slash except root
-    const normalized = clean.length > 1 ? clean.replace(/\/+$/, "") : "/";
-    return `${base}${normalized}`;
-  };
+
 
   const canonicalUrl = canonicalForPath(location.pathname);
   const [showActForm, setShowActForm] = useState(false);

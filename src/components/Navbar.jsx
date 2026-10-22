@@ -88,23 +88,23 @@ const {
             <p>HOME</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
           </NavLink>
-          <NavLink to="/acts" className="group flex flex-col items-center gap-1">
+          <NavLink to="/acts/" className="group flex flex-col items-center gap-1">
             <p>ACTS</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
           </NavLink>
-          <NavLink to="/blog" className="group flex flex-col items-center gap-1">
+          <NavLink to="/blog/" className="group flex flex-col items-center gap-1">
             <p>BLOG</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
           </NavLink>
-          <NavLink to="/about" className="group flex flex-col items-center gap-1">
+          <NavLink to="/about/" className="group flex flex-col items-center gap-1">
             <p>ABOUT</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
           </NavLink>
-          <NavLink to="/venues" className="group flex flex-col items-center gap-1">
+          <NavLink to="/venues/" className="group flex flex-col items-center gap-1">
             <p>VENUES</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
           </NavLink>
-          <NavLink to="/contact" className="group flex flex-col items-center gap-1">
+          <NavLink to="/contact/" className="group flex flex-col items-center gap-1">
             <p>CONTACT</p>
             <span className="w-3/4 h-px bg-[#ff6677] opacity-0 group-hover:opacity-100 transition-opacity" />
           </NavLink>
@@ -114,7 +114,7 @@ const {
         <div className="justify-self-end flex items-center gap-4 sm:gap-6 max-[389px]:hidden">
                     {/* Search */}
           <button
-            onClick={() => { setShowSearch(true); navigate('/acts'); }}
+            onClick={() => { setShowSearch(true); navigate('/acts/'); }}
             className="relative p-2 rounded hover:bg-gray-100 active:scale-95"
             aria-label="Search"
           >
@@ -222,19 +222,19 @@ const {
           <NavLink onClick={() => setDrawerOpen(false)} to="/" className="block px-6 py-3 border-b">
             HOME
           </NavLink>
-          <NavLink onClick={() => setDrawerOpen(false)} to="/acts" className="block px-6 py-3 border-b">
+          <NavLink onClick={() => setDrawerOpen(false)} to="/acts/" className="block px-6 py-3 border-b">
             ACTS
           </NavLink>
-          <NavLink onClick={() => setDrawerOpen(false)} to="/blog" className="block px-6 py-3 border-b">
+          <NavLink onClick={() => setDrawerOpen(false)} to="/blog/" className="block px-6 py-3 border-b">
             BLOG
           </NavLink>
-          <NavLink onClick={() => setDrawerOpen(false)} to="/about" className="block px-6 py-3 border-b">
+          <NavLink onClick={() => setDrawerOpen(false)} to="/about/" className="block px-6 py-3 border-b">
             ABOUT
           </NavLink>
-          <NavLink onClick={() => setDrawerOpen(false)} to="/venues" className="block px-6 py-3 border-b">
+          <NavLink onClick={() => setDrawerOpen(false)} to="/venues/" className="block px-6 py-3 border-b">
             VENUES
           </NavLink>
-          <NavLink onClick={() => setDrawerOpen(false)} to="/contact" className="block px-6 py-3 border-b">
+          <NavLink onClick={() => setDrawerOpen(false)} to="/contact/" className="block px-6 py-3 border-b">
             CONTACT
           </NavLink>
         </div>

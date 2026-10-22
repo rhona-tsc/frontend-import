@@ -221,7 +221,7 @@ useEffect(() => {
       const fromActsListing = String(location.pathname || '').startsWith('/acts');
       const listUrl =
         `${location.pathname || ''}${location.search || ''}${location.hash || ''}` || '/acts';
-      const actUrl = actData?._id ? `/act/${actData._id}` : '/';
+      const actUrl = actData?._id ? `/act/${actData._id}/` : '/';
       const fallback = fromActsListing ? listUrl : actUrl;
       sessionStorage.setItem('postLoginNext', fallback);
       navigate('/login', { state: { from: fallback } });
@@ -277,7 +277,7 @@ useEffect(() => {
   return (
     <div ref={cardRef} className="relative group">
       <Link
-        to={`/act/${actData?._id}`}
+        to={`/act/${actData?._id}/`}
         onClick={scrollTop}
         className="block text-gray-700"
       >

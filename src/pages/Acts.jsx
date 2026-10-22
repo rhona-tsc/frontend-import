@@ -1,3 +1,4 @@
+import { publicCanonicalUrl as canonicalForPath } from '../utils/publicUrls.js';
 import { useContext, useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ShopContext } from "../context/ShopContext.jsx";
 import { useSearchParams, useParams, useNavigate, useLocation } from "react-router-dom";
@@ -126,13 +127,8 @@ const [priceMap, setPriceMap] = useState({}); // { [actId]: number }
 
   const location = useLocation();
 
-const CANONICAL_ORIGIN = "https://thesupremecollective.co.uk";
 
-const canonicalForPath = (pathname = "/") => {
-  const p = String(pathname || "/").split("?")[0].split("#")[0];
-  const clean = p !== "/" ? p.replace(/\/+$/, "") : "/";
-  return `${CANONICAL_ORIGIN}${clean}`;
-};
+
 
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
@@ -304,7 +300,7 @@ if (storedDate) {
   setShowSearch(false);
 
   // ensure we're on /acts (optional)
-  // navigate("/acts"); // only if you don't want the preset param in URL
+  // navigate("/acts/"); // only if you don't want the preset param in URL
 };
 
 

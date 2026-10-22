@@ -1,3 +1,4 @@
+import { publicCanonicalUrl as canonicalForPath } from '../utils/publicUrls.js';
 import React, { useEffect } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useLocation } from 'react-router-dom'
@@ -5,11 +6,7 @@ import Title from '../components/Title'
 import { assets } from '../assets/assets'
 import NewsletterBox from '../components/NewsletterBox'
 
-const SITE_ORIGIN = 'https://thesupremecollective.co.uk';
-const canonicalForPath = (path = '/') => {
-  const p = String(path || '/');
-  return `${SITE_ORIGIN}${p.startsWith('/') ? p : `/${p}`}`;
-};
+
 
 const About = () => {
   const location = useLocation();
