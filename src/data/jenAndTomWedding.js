@@ -31,6 +31,7 @@ export const jenAndTomWedding = {
     image('dancing-close-up', 'A wedding guest dancing in front of the band’s microphones and drum kit'),
     { type: 'paragraph', text: 'Wedding-day photography: Natalja Safronova. These photographs and the account above are from the 2017 celebration; venue layouts and arrangements may have changed since then.' },
     { type: 'heading', text: 'Planning your own Cambridgeshire wedding?' },
+    { type: 'paragraph', text: 'Thinking about the look of your evening party? Our wedding band lighting guide explains what to ask about stage lights, dance-floor effects and the lighting your venue already provides.', links: [{ text: 'wedding band lighting guide', href: '/blog/essential-stage-lighting-for-your-wedding-band/' }] },
     { type: 'paragraph', text: 'Explore our wedding bands in Cambridgeshire, browse the venue guide, or send us your date and venue to talk through the music for your celebration.', links: [
       { text: 'wedding bands in Cambridgeshire', href: '/wedding-bands-cambridgeshire/' },
       { text: 'venue guide', href: '/venues/?county=Cambridgeshire' },

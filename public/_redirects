@@ -7,6 +7,9 @@
 
 
 # Permanent replacements for legacy URLs. Keep these above the SPA fallback.
+# Title-derived legacy lighting address; the expired archive cannot confirm its original slug.
+/journal/essential-stage-lighting-for-your-wedding-band  /blog/essential-stage-lighting-for-your-wedding-band/  301!
+/journal/essential-stage-lighting-for-your-wedding-band/ /blog/essential-stage-lighting-for-your-wedding-band/  301!
 /journal/jen-and-toms-wedding              /blog/jen-and-toms-wedding/        301!
 /journal/jen-and-toms-wedding/             /blog/jen-and-toms-wedding/        301!
 /journal                                  /blog/                            301!
