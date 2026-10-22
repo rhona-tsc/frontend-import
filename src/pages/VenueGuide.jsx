@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { BACKEND } from "../apiBase";
 import SEO from '../components/SEO';
 import { cleanVenueName } from '../utils/venueName.js';
+import { Link } from 'react-router-dom';
+import VenueEveningExample from '../components/VenueEveningExample.jsx';
+import { countyLink, formatPerformanceMonth } from '../utils/publicPerformanceHistory.js';
 
 const hasText = (value) => String(value || "").trim().length > 0;
 const isPublicRoomName = (value) => {
@@ -32,14 +35,15 @@ const LinkButton = ({ href, children }) => {
   );
 };
 
+const queryParam = name => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get(name) || '';
 const VenueGuide = () => {
   const [venues, setVenues] = useState([]);
   const [query, setQuery] = useState("");
-  const [venueId, setVenueId] = useState(() => new URLSearchParams(window.location.search).get('venue') || '');
-  const [county, setCounty] = useState(() => new URLSearchParams(window.location.search).get('county') || "");
+  const [venueId, setVenueId] = useState(() => queryParam('venue'));
+  const [county, setCounty] = useState(() => queryParam('county'));
   const [room, setRoom] = useState("");
   const [feature, setFeature] = useState("");
-  const [expanded, setExpanded] = useState(() => new URLSearchParams(window.location.search).get('venue') || "");
+  const [expanded, setExpanded] = useState(() => queryParam('venue'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -145,7 +149,7 @@ const VenueGuide = () => {
                   <span>
                   <span className="block text-2xl font-semibold text-gray-900">{venue.name}</span>
                   <span className="mt-1 block text-gray-600">{[venue.address, venue.postcode, venue.county].filter(Boolean).join(" · ") || "Location details being added"}</span>
-                  <span className="mt-3 block text-sm text-gray-500">{(venue.rooms || []).length} {(venue.rooms || []).length === 1 ? "room" : "rooms"} recorded{venue.actsPerformed?.length ? ` · ${venue.actsPerformed.length} ${venue.actsPerformed.length === 1 ? "act has" : "acts have"} performed here` : ""}</span>
+                  <span className="mt-3 block text-sm text-gray-500">{(venue.rooms || []).length} {(venue.rooms || []).length === 1 ? "room" : "rooms"} recorded{venue.performances?.length ? ` · ${venue.performances.length} ${venue.performances.length === 1 ? "act has" : "acts have"} performed here` : ""}</span>
                   </span>
                 </span>
                 <span className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-300 text-xl transition ${isOpen ? "rotate-45 bg-black text-white" : "bg-white"}`}>+</span>
@@ -188,12 +192,15 @@ const VenueGuide = () => {
                     ))}
                   </div>
 
-                  {!!venue.actsPerformed?.length && (
+                  {!!venue.performances?.length && (
                     <div className="mt-7">
                       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Our acts that have performed here</p>
-                      <p className="mt-2 text-gray-800">{venue.actsPerformed.join(" · ")}</p>
+                      <ul className="mt-3 space-y-3">{venue.performances.map(act => <li key={act.slug}><Link className="font-medium underline underline-offset-4" to={`/act/${act.slug}/`}>{act.name}</Link><span className="ml-2 text-sm text-gray-600">{act.months.map(formatPerformanceMonth).join(' · ')}</span></li>)}</ul>
+                      <p className="mt-3 text-sm text-gray-500">From past booking and event-sheet records, grouped under each band’s current name.</p>
                     </div>
                   )}
+                  {countyLink(venue.county) && <Link className="mt-5 inline-block underline underline-offset-4" to={countyLink(venue.county).href}>Explore wedding bands in {countyLink(venue.county).name}</Link>}
+                  {!!venue.examples?.length && <div className="mt-7 grid gap-5">{venue.examples.map(example => <VenueEveningExample key={example.id} example={example} />)}</div>}
                   <p className="mt-7 text-sm text-gray-500">{isVerified ? `Last verified ${new Date(venue.lastVerifiedAt).toLocaleDateString("en-GB")}.` : "This information has not yet been recently verified. Please confirm important restrictions directly with the venue."}</p>
                 </div>
               )}

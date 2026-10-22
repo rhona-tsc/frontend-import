@@ -56,7 +56,19 @@ for (const route of routes) {
     const expected = renderLocationContent(route, route.replace('/wedding-bands-', ''), data);
     assert.ok(html.includes(`<div data-initial-page-content="">${expected}</div>`), `${route} must use the same county layout as React`);
     assert.equal((html.match(/<h1\b/g) || []).length, 1);
-    assert.equal((html.match(/<article\b/g) || []).length, Math.min(9, data.bands.length));
+    assert.equal((html.match(/<article\b/g) || []).length, Math.min(9, data.bands.length) + (data.examples || []).length);
+    if (['london', 'kent', 'essex', 'surrey', 'hertfordshire'].includes(route.replace('/wedding-bands-', ''))) {
+      assert.equal(data.examples?.length, 1, 'Each original county must have its checked example evening');
+      assert.match(html, /An example evening planned for this venue/);
+      assert.doesNotMatch(JSON.stringify(data.examples), /docs\.google|clientName|clientEmail|sourceUrl/);
+    }
+  }
+  if (route.startsWith('/act/')) {
+    const history = JSON.parse(html.match(/<script id="initial-act-local-data"[^>]*>(.*?)<\/script>/s)?.[1] || 'null');
+    assert.ok(history && history.slug === route.split('/').pop(), 'Band connection data must be available in initial HTML');
+    assert.doesNotMatch(JSON.stringify(history), /docs\.google|clientName|clientEmail|sourceUrl/);
+    if (history.venues.length) assert.match(html, /id="venues-and-locations"/);
+    if (history.reviewCounties.length) assert.match(html, /Explore bands in/);
   }
 }
 console.log(`Verified visible initial content, schemas and published images on all ${routes.length} sitemap pages.`);

@@ -41,6 +41,8 @@ import { buildActMeta } from "../utils/actSeo.js";
 import { buildMusicGroup, serializeSchema } from "../utils/structuredData.js";
 import { getBandImageAlt } from "../utils/bandImageAlt.js";
 import { getActPriceLabel } from "../utils/actPriceDisplay.js";
+import ActLocalConnections from '../components/ActLocalConnections.jsx';
+import { readInitialHistory, reviewCountyLink } from '../utils/publicPerformanceHistory.js';
 export { buildActMeta } from "../utils/actSeo.js";
 
 const retryImport = async (load) => {
@@ -76,6 +78,19 @@ const Act = () => {
   const [isTravelAvailableForSelection, setIsTravelAvailableForSelection] =
     useState(true);
   const [actData, setActData] = useState(null);
+  const [publicHistory, setPublicHistory] = useState(() => readInitialHistory(key));
+  useEffect(() => {
+    const slug = actData?.slug;
+    if (!slug) return;
+    const initial = readInitialHistory(slug);
+    setPublicHistory(initial);
+    const controller = new AbortController();
+    fetch(`${backendUrl}/api/locations/acts/${encodeURIComponent(slug)}`, { signal: controller.signal })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (!controller.signal.aborted && data?.success && data.history?.slug === slug) setPublicHistory(data.history); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [actData?.slug, backendUrl]);
   const [loadingAct, setLoadingAct] = useState(true);
   const [actError, setActError] = useState("");
   const [actNotFound, setActNotFound] = useState(false);
@@ -2573,6 +2588,7 @@ const Act = () => {
             </Suspense>
           </div>
         </div>
+        <ActLocalConnections history={publicHistory?.slug === actData.slug ? publicHistory : null} />
         {/* Reviews horizontal scroll gallery */}
         <div className="relative mt-12" id="reviews">
           <div className="text-2xl mb-2">
@@ -2619,7 +2635,7 @@ const Act = () => {
                       // map over `reviews`
                       reviews.map((review, index) => (
                         <div key={index} className="flex-shrink-0 snap-start">
-                          <ReviewCard review={review} />
+                          <ReviewCard review={review} county={reviewCountyLink(review, index, publicHistory?.slug === actData.slug ? publicHistory : null)} />
                         </div>
                       ))
                     ) : (

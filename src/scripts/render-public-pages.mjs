@@ -41,14 +41,17 @@ await build({
     rollupOptions: { output: { entryFileNames: 'entry-public.mjs' } },
   },
 });
-const { renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent, renderCountyApp } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
+const { renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent, renderCountyApp, renderActLocalContent, renderVenueConnections } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
 
 async function getAct(route) {
   const response = await fetch(`${api}/api/act/${route.split('/').pop()}`, { signal: AbortSignal.timeout(30000) });
   if (!response.ok) throw new Error(`Cannot render ${route}: HTTP ${response.status}`);
   const result = await response.json();
   if (!result.success || !result.act?.tscName) throw new Error(`Missing public band content for ${route}`);
-  return { route, act: result.act };
+  const responseHistory = await fetch(`${api}/api/locations/acts/${encodeURIComponent(result.act.slug)}`, { signal: AbortSignal.timeout(30000) });
+  if (!responseHistory.ok && responseHistory.status !== 404) throw new Error(`Cannot render band history for ${route}: HTTP ${responseHistory.status}`);
+  const historyResult = responseHistory.ok ? await responseHistory.json() : null;
+  return { route, act: result.act, history: historyResult?.history || null };
 }
 const acts = [];
 // Bound concurrency to avoid flooding the public API during a deployment.
@@ -61,6 +64,7 @@ let renderedCount = 0;
 async function writePage(route, title, description, heading, content, location) {
   const canonical = publicCanonicalUrl(route);
   const act = acts.find(item => item.route === route)?.act;
+  const history = acts.find(item => item.route === route)?.history;
   const post = blogPosts.find(item => `/blog/${item.slug}` === route);
   const schema = buildPageSchema({ route, title, description, act, post, bands: acts, location });
   const breadcrumbItems = schema['@graph'].find(item => item['@type'] === 'BreadcrumbList')?.itemListElement || [];
@@ -79,7 +83,7 @@ async function writePage(route, title, description, heading, content, location) 
   let html = pageTemplate
     .replace(
       /<title>.*?<\/title>/s,
-      head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>` + (location ? `<script id="initial-location-data" data-county="${escape(location.county.toLowerCase().replace(/\s+/g, '-'))}" type="application/json">${serializeSchema(location)}</script>` : ''),
+      head + `<script id="initial-page-schema" data-page-path="${escape(route)}" type="application/ld+json">${serializeSchema(schema)}</script>` + (location ? `<script id="initial-location-data" data-county="${escape(location.county.toLowerCase().replace(/\s+/g, '-'))}" type="application/json">${serializeSchema(location)}</script>` : '') + (history ? `<script id="initial-act-local-data" data-act-slug="${escape(act.slug)}" type="application/json">${serializeSchema(history)}</script>` : ''),
     )
     .replace(
       '<div id="root"></div>',
@@ -100,13 +104,17 @@ await writePage('/about', 'About Our Live Music Agency | The Supreme Collective'
 await writePage('/contact', 'Contact | The Supreme Collective', 'Contact The Supreme Collective to discuss live music for your wedding, party or corporate event.', 'Contact The Supreme Collective', paragraph('Get in touch to discuss your event and find the right live band.') + '<p><a href="mailto:hello@thesupremecollective.co.uk">hello@thesupremecollective.co.uk</a></p><p><a href="/acts">Explore our bands</a></p>');
 await writePage('/terms', 'The Supreme Collective Terms of Service', 'Read the Terms of Service for The Supreme Collective website, musician profiles and live music services.', 'Terms of Service', '');
 await writePage('/privacy', 'Privacy Policy | The Supreme Collective', 'How The Supreme Collective handles your personal information.', 'Privacy Policy', '');
-await writePage('/venues', 'Venue Guide | The Supreme Collective', 'Practical venue and room information from previous Supreme Collective events, including access, parking, changing facilities and sound restrictions.', 'The Supreme Collective Venue Guide', paragraph('Search our venue guide for practical information gathered from venues and previous events, including room-specific sound restrictions, parking, access and changing facilities.'));
-for (const {route, act} of acts) {
+const venueResponse = await fetch(`${api}/api/venues/public`, { signal: AbortSignal.timeout(30000) });
+if (!venueResponse.ok) throw new Error('Cannot render public venue links');
+const venueData = await venueResponse.json();
+const linkedVenues = (venueData.venues || []).filter(venue => venue.performances?.length || venue.examples?.length);
+await writePage('/venues', 'Venue Guide | The Supreme Collective', 'Practical venue and room information from previous Supreme Collective events, including access, parking, changing facilities and sound restrictions.', 'The Supreme Collective Venue Guide', paragraph('Search our venue guide for practical information gathered from venues and previous events, including room-specific sound restrictions, parking, access and changing facilities.') + renderVenueConnections(linkedVenues));
+for (const {route, act, history} of acts) {
   const bio = plain(act.tscBio || act.bio);
   const meta = buildActMeta(act);
   const photos = (act.images || []).filter(image => image?.url).map((image, index) => `<img src="${escape(image.url.replace('/upload/', '/upload/w_960,c_limit,f_auto,q_auto/'))}" alt="${escape(getBandImageAlt(image, act, index))}" width="480" style="max-width:100%;height:auto" loading="lazy">`).join('');
   const gallery = photos ? `<section><h2>${escape(act.tscName)} photographs</h2>${photos}</section>` : '';
-  await writePage(route, meta.title, meta.description, act.tscName, paragraph(plain(act.tscDescription || act.description)) + `<section><h2>About ${escape(act.tscName)}</h2>${paragraph(bio)}</section>${gallery}<p><a href="/acts">Compare our bands</a> · <a href="/contact">Contact us about your event</a></p>`);
+  await writePage(route, meta.title, meta.description, act.tscName, paragraph(plain(act.tscDescription || act.description)) + `<section><h2>About ${escape(act.tscName)}</h2>${paragraph(bio)}</section>${gallery}` + renderActLocalContent(route, act, history) + `<p><a href="/acts">Compare our bands</a> · <a href="/contact">Contact us about your event</a></p>`);
 }
 await writePage('/blog', 'Wedding & Event Music Inspiration | The Supreme Collective', 'Ideas, insights and planning tips for unforgettable live music experiences.', 'Wedding and event inspiration', blogPosts.map(post => `<article><h2><a href="/blog/${escape(post.slug)}">${escape(post.title)}</a></h2>${paragraph(post.excerpt)}</article>`).join(''));
 for (const post of blogPosts) {

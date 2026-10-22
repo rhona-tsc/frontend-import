@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { assets } from "../assets/assets";
+import { Link } from 'react-router-dom';
+import { countyLink } from '../utils/publicPerformanceHistory.js';
 
-const ReviewCard = ({ review }) => {
+const ReviewCard = ({ review, county }) => {
+  const locationLink = county || countyLink(review.eventLocation);
   const {
     clientFirstName,
     clientLastName,
@@ -84,6 +87,7 @@ const ReviewCard = ({ review }) => {
           .join(", ")}
       </p>}
       <p className="text-xs sm:text-sm text-gray-500 mt-1">{formatDate(eventDate)}</p>
+      {locationLink && <Link className="mt-2 inline-block text-xs font-medium underline underline-offset-4 sm:text-sm" to={locationLink.href}>Explore bands in {locationLink.name}</Link>}
     </div>
   </div>
 

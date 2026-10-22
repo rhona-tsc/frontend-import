@@ -16,6 +16,27 @@ import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
 import App from './App';
 import LocationWeddingBands from './pages/LocationWeddingBands';
+import ActLocalConnections, { InitialActReviews } from './components/ActLocalConnections.jsx';
+import { Link } from 'react-router-dom';
+import { countyLink, formatPerformanceMonth, venueHref } from './utils/publicPerformanceHistory.js';
+
+export function renderActLocalContent(route, act, history) {
+  return renderToString(<StaticRouter location={route}><ActLocalConnections history={history} /><InitialActReviews reviews={act.reviews || []} history={history} /></StaticRouter>);
+}
+
+export function renderVenueConnections(venues) {
+  return renderToString(<StaticRouter location="/venues/">
+    <section><h2>Explore venues and our past performances</h2>
+      {venues.map(venue => {
+        const county = countyLink(venue.county);
+        return <article key={venue._id}><h3><Link to={venueHref({ id: venue._id, county: venue.county })}>{venue.name}</Link></h3>
+          {county && <p><Link to={county.href}>Wedding bands in {county.name}</Link></p>}
+          {!!venue.performances?.length && <ul>{venue.performances.map(act => <li key={act.slug}><Link to={`/act/${act.slug}/`}>{act.name}</Link> · {act.months.map(formatPerformanceMonth).join(' · ')}</li>)}</ul>}
+        </article>;
+      })}
+    </section>
+  </StaticRouter>);
+}
 
 const publicContext = {
   token: '', cartItems: {}, cartUpdated: false,
