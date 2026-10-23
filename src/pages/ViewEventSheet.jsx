@@ -14,6 +14,7 @@ import SimpleScheduleEditor from "../components/eventSheet/SimpleScheduleEditor"
 import EventSheetRepertoirePicker from "../components/eventSheet/EventSheetRepertoirePicker";
 import SEO from "../components/SEO";
 import { resolveEventSheetHydration } from "../utils/eventSheetHydration";
+import { documentUploadError } from "../utils/protectedRequests.js";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 const DIET_FALLBACK = "TBC";
@@ -3098,8 +3099,7 @@ const ViewEventSheet = () => {
                           handleAnswer("sound_limits_doc_size", file.size);
                           handleAnswer("sound_limits_doc_type", file.type);
                         } catch (err) {
-                          console.error("Upload failed", err);
-                          alert("Upload failed — please try again.");
+                          alert(documentUploadError(err));
                         }
                       }}
                     />
@@ -3649,8 +3649,7 @@ const ViewEventSheet = () => {
                             alert("Upload failed — no URL returned.");
                           }
                         } catch (err) {
-                          console.error("Menu upload failed", err);
-                          alert("Menu upload failed — please try again.");
+                          alert(documentUploadError(err));
                         }
                       }}
                     />

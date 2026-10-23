@@ -20,3 +20,8 @@ export function attachProtectedRequestToken(config, backendUrl, getToken) {
   }
   return config;
 }
+
+export function documentUploadError(error) {
+  if (error?.response?.status === 401) return "Please sign in to your client account before uploading a document.";
+  return error?.response?.data?.message || "Upload failed — please try again.";
+}
