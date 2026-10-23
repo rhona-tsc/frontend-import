@@ -7,6 +7,13 @@
 
 
 # Permanent replacements for legacy URLs. Keep these above the SPA fallback.
+# Recovered articles, matched to dated URLs in historical Google performance reports.
+/journal/2025/4/4/sound-limiters-at-wedding-venues-what-you-need-to-know /blog/sound-limiters-at-wedding-venues-what-you-need-to-know/ 301!
+/journal/2025/4/4/sound-limiters-at-wedding-venues-what-you-need-to-know/ /blog/sound-limiters-at-wedding-venues-what-you-need-to-know/ 301!
+/journal/2017/6/10/londons-swankiest-hotels-for-your-wedding /blog/londons-swankiest-hotels-for-your-wedding/ 301!
+/journal/2017/6/10/londons-swankiest-hotels-for-your-wedding/ /blog/londons-swankiest-hotels-for-your-wedding/ 301!
+/journal/2017/5/25/get-to-know-phoebe /blog/get-to-know-phoebe/ 301!
+/journal/2017/5/25/get-to-know-phoebe/ /blog/get-to-know-phoebe/ 301!
 # Confirmed dated URL from Google's January/June 2024 performance emails.
 /journal/2017/5/8/essential-stage-lighting-for-your-wedding-band  /blog/essential-stage-lighting-for-your-wedding-band/  301!
 /journal/2017/5/8/essential-stage-lighting-for-your-wedding-band/ /blog/essential-stage-lighting-for-your-wedding-band/  301!

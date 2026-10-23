@@ -1,5 +1,6 @@
 import { jenAndTomWedding } from './jenAndTomWedding.js';
 import { stageLightingGuide } from './stageLightingGuide.js';
+import { recoveredArchivePosts } from './recoveredArchivePosts.js';
 export const blogPosts = [
   {
     slug: "5-ways-live-music-transforms-an-event",
@@ -208,6 +209,7 @@ export const blogPosts = [
       },
     ],
   },
+  ...recoveredArchivePosts,
   stageLightingGuide,
   jenAndTomWedding,
 ];

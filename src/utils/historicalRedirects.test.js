@@ -14,9 +14,9 @@ test('confirmed historical URLs redirect directly to the matching published page
   assert.ok(blogPosts.some(p => p.slug === 'essential-stage-lighting-for-your-wedding-band'));
 });
 
-test('unrecovered articles and unconfirmed retired acts are not redirected to irrelevant pages', () => {
+test('retired or add-on acts are not redirected to unrelated standalone bands', () => {
   const source = readFileSync(new URL('../../public/_redirects', import.meta.url), 'utf8');
-  for (const path of ['/journal/2025/4/4/sound-limiters-at-wedding-venues-what-you-need-to-know', '/journal/2017/5/25/get-to-know-phoebe', '/journal/2017/6/10/londons-swankiest-hotels-for-your-wedding', '/bandsforhire/simcha-band', '/bandsforhire/the-horizons', '/bandsforhire/the-treasures', '/bandsforhire/dj-ewan']) {
+  for (const path of ['/bandsforhire/simcha-band', '/bandsforhire/the-horizons', '/bandsforhire/the-treasures', '/bandsforhire/dj-ewan']) {
     assert.ok(!source.split('\n').some(line => line.trim().split(/\s+/)[0] === path));
   }
 });
