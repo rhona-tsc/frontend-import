@@ -15,6 +15,7 @@ import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
 import debounce from "lodash.debounce";
 import AuthGateModal from "../components/AuthGateModal";
+import { readCachedAct, writeCachedAct } from "../utils/actCache";
 
 export const ShopContext = createContext();
 
@@ -3069,28 +3070,29 @@ if (timesShortlistedFromServer != null) {
     selectedExtras = [],
     selectedAfternoonSets = [],
     songSuggestions = [],
+    actSnapshot = null,
   ) => {
     if (!actId) return;
 
     const actKey = String(actId);
     const providedLineupKey = lineupId ? String(lineupId) : "";
 
-    let actFull = null;
+    let actFull =
+      actSnapshot && Array.isArray(actSnapshot?.lineups)
+        ? actSnapshot
+        : null;
+
+    if (actFull) writeCachedAct(actKey, actFull);
 
     // 1) cache
-    try {
-      const cached = localStorage.getItem(`act:${actKey}:v2`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        actFull = parsed?.act || parsed;
-      }
-    } catch {}
+    if (!actFull) actFull = readCachedAct(actKey);
 
     // 2) fetch if missing lineups
     if (!Array.isArray(actFull?.lineups) || actFull.lineups.length === 0) {
       try {
         const res = await axios.get(`${backendUrl}/api/act/${actKey}`);
         actFull = res.data?.act || res.data;
+        if (actFull?._id) writeCachedAct(actKey, actFull);
       } catch (e) {
         console.warn("🛒 addToCart: could not fetch full act", actKey, e);
       }

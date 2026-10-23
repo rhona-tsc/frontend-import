@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState, useMemo, useRef } from "react";
 import axios from "axios";
 import Title from "./Title";
 import { ShopContext } from "../context/ShopContext";
+import { readCachedAct } from "../utils/actCache";
 import calculateActPricing from "../pages/utils/pricing";
 
 const CartTotal = () => {
@@ -75,6 +76,12 @@ const CartTotal = () => {
 
       const cached = actCacheRef.current.get(String(id));
       if (cached) return cached;
+
+      const stored = readCachedAct(String(id));
+      if (stored) {
+        actCacheRef.current.set(String(id), stored);
+        return stored;
+      }
 
       const candidates = [
         `${effectiveBackendUrl}/api/act/${id}`,

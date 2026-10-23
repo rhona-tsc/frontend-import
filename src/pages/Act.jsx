@@ -35,7 +35,7 @@ import {
 } from "./utils/helpersforAct";
 import useRenderTracker from "../hooks/useRenderTracker";
 import { logBadges } from "../utils/logger";
-import { readCachedAct, writeCachedAct } from "../utils/actCache";
+import { writeCachedAct } from "../utils/actCache";
 import axios from "axios";
 import { buildActMeta } from "../utils/actSeo.js";
 import { buildMusicGroup, serializeSchema } from "../utils/structuredData.js";
@@ -116,7 +116,13 @@ const Act = () => {
         const { data } = await axios.get(actFetchUrl);
         if (!data?.success || !data?.act) throw new Error("Bad payload");
 
-        if (!cancelled) setActData(data.act);
+        if (!cancelled) {
+          setActData(data.act);
+          // Cart entries are keyed by the act id, while the public act endpoint is
+          // normally opened by slug. Keep the full public act available under its
+          // id so the cart can render it without calling the protected id route.
+          if (data.act?._id) writeCachedAct(data.act._id, data.act);
+        }
       } catch (e) {
         console.error("❌ fetchAct failed:", e?.response?.data || e);
         if (!cancelled) {
@@ -1143,6 +1149,14 @@ const Act = () => {
   // 🔔 Trigger availability request when an act is added/updated in cart
   async function requestAvailabilityForCart({ reason = "cart_add" } = {}) {
     try {
+      // Local browser checks must never contact real musicians.
+      if (
+        import.meta.env.DEV &&
+        sessionStorage.getItem("suppressAvailabilityForTesting") === "1"
+      ) {
+        console.info("Availability request suppressed for local cart testing");
+        return;
+      }
       if (!actData?._id) return;
       // Prefer the user-selected lineup, else the first lineup
       const lineup =

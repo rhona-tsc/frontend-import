@@ -671,6 +671,14 @@ const handleLineupChange = async (lineup) => {
   // 🔔 Trigger availability request when adding to cart from the preview panel
   const requestAvailabilityForCart = async ({ reason = "cart_add_preview" } = {}) => {
     try {
+      // Local browser checks must never contact real musicians.
+      if (
+        import.meta.env.DEV &&
+        sessionStorage.getItem("suppressAvailabilityForTesting") === "1"
+      ) {
+        console.info("Availability request suppressed for local cart testing");
+        return false;
+      }
       if (!baseAct?._id || !selectedDate) return false;
 
       const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
@@ -1013,7 +1021,7 @@ const cleanDate =
 
                 setTimeout(async () => {
                   console.log("🛒 addToCart called from Shortlist preview:", { actId, lineupId });
-                  addToCart(actId, lineupId);
+                  addToCart(actId, lineupId, [], [], [], baseAct);
 
                   // 🔔 Fire availability trigger non-blocking (ignore errors; SSE will update badges)
                   requestAvailabilityForCart({
