@@ -21,6 +21,10 @@ for (const route of routes) {
   assert.match(html, /<div id="root" data-prerendered(?: data-hydrate="county")?>/, `${route} must be visible without JavaScript`);
   assert.match(html, /data-initial-page-content=""/, `${route} must retain content while its route loads`);
   assert.doesNotMatch(html, /visibility:\s*hidden/, `${route} must not hide initial content`);
+  assert.doesNotMatch(html, /initial-public-content/, `${route} must use its designed initial layout rather than generic SEO markup`);
+  if (!route.startsWith('/wedding-bands-')) {
+    assert.doesNotMatch(html, /aria-label="Breadcrumb"/, `${route} must not flash generic breadcrumbs before its page loads`);
+  }
   assert.doesNotMatch(html, /\/src\/assets\//, `${route} must use published image paths`);
   const fonts = [...html.matchAll(/<link\b[^>]*rel="preload"[^>]*>/g)].map(match => match[0]).filter(tag => tag.includes('as="font"'));
   assert.equal(fonts.length, route === '/' || route.startsWith('/wedding-bands-') ? 2 : 1, `${route} should only preload its critical fonts`);

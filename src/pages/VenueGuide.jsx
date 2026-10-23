@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BACKEND } from "../apiBase";
 import SEO from '../components/SEO';
-import { cleanVenueName } from '../utils/venueName.js';
+import { cleanVenueName, cleanVenueText } from '../utils/venueName.js';
 import { Link } from 'react-router-dom';
 import VenueEveningExample from '../components/VenueEveningExample.jsx';
 import { countyLink, formatPerformanceMonth } from '../utils/publicPerformanceHistory.js';
@@ -77,7 +77,7 @@ const VenueGuide = () => {
         const response = await fetch(`${BACKEND}/api/venues/public`);
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || "Unable to load venue information");
-        if (active) setVenues((data.venues || []).map(venue => ({ ...venue, name: cleanVenueName(venue.name), address: cleanVenueName(venue.address) })));
+        if (active) setVenues((data.venues || []).map(venue => ({ ...venue, name: cleanVenueName(venue.name), address: cleanVenueText(venue.address) })));
       } catch (err) {
         if (active) setError(err.message || "Unable to load venue information");
       } finally {

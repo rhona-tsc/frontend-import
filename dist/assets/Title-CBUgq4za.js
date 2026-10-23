@@ -1,0 +1,1 @@
+import{j as s}from"./index-BE2b_cDD.js";const m=({text1:e,text2:a})=>s.jsxs("div",{className:"inline-flex gap-2 items-center mb-3",children:[s.jsxs("p",{className:"text-gray-500",children:[e," ",s.jsx("span",{className:"text-gray-700 font-medium",children:a})]}),s.jsx("p",{className:"w-8 sm:w-12 h-[1px] sm:h-[2px] bg-[#ff6667]"})]});export{m as T};

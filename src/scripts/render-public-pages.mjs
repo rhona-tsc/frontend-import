@@ -42,7 +42,7 @@ await build({
     rollupOptions: { output: { entryFileNames: 'entry-public.mjs' } },
   },
 });
-const { renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent, renderCountyApp, renderActLocalContent, renderVenueGuideContent } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
+const { renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent, renderCountyApp, renderVenueGuideContent, renderActsInitialContent, renderActInitialContent } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
 
 async function getAct(route) {
   const response = await fetch(`${api}/api/act/${route.split('/').pop()}`, { signal: AbortSignal.timeout(30000) });
@@ -59,7 +59,6 @@ const acts = [];
 for (let index = 0; index < actPaths.length; index += 4) {
   acts.push(...await Promise.all(actPaths.slice(index, index + 4).map(getAct)));
 }
-const bandLinks = acts.map(({route, act}) => `<li><a href="${escape(route)}">${escape(act.tscName)}</a><p>${escape(plain(act.tscDescription || act.description))}</p></li>`).join('');
 const redirectTemplate = await fs.readFile('public/_redirects', 'utf8');
 await fs.writeFile('dist/_redirects', redirectTemplate.replace('# ✅ API proxy', publicActRedirects(acts.map(item=>item.act)) + '\n\n# ✅ API proxy'));
 const paragraph = text => `<p>${escape(text)}</p>`;
@@ -76,7 +75,7 @@ async function writePage(route, title, description, heading, content, location) 
   const pageContent = location
     ? renderLocationContent(route, route.replace('/wedding-bands-', ''), location)
     : route === '/' ? renderHomeContent(content)
-    : route === '/venues' ? content
+    : route === '/venues' || route === '/acts' || route.startsWith('/act/') ? content
     : renderStaticContent(route) || `<main class="initial-public-content">${breadcrumbs}<h1>${escape(heading)}</h1>${content}</main>`;
   const body = location ? renderCountyApp(route, route.replace('/wedding-bands-', ''), location) : renderPublicShell(route, pageContent);
   // Only preload the display face where it is used above the fold.
@@ -100,8 +99,8 @@ async function writePage(route, title, description, heading, content, location) 
   await fs.writeFile(path.join(directory, 'index.html'), html);
   renderedCount += 1;
 }
-await writePage('/', 'The Supreme Collective | Luxury Wedding & Event Bands', 'Luxury wedding and event bands across the UK. Browse acts, compare lineups, and get an instant quote.', 'Luxury Wedding & Event Bands', paragraph('Live bands for weddings, parties and corporate events across the UK. Browse our acts, watch performances and get a quote for your date and venue.') + `<ul>${bandLinks}</ul>`);
-await writePage('/acts', 'Wedding & Event Bands for Hire | The Supreme Collective', 'Explore live bands for weddings, parties and corporate events across the UK. Watch performances, compare lineups and get a quote for your date and venue.', 'Wedding & Event Bands for Hire', `<ul>${bandLinks}</ul>`);
+await writePage('/', 'The Supreme Collective | Luxury Wedding & Event Bands', 'Luxury wedding and event bands across the UK. Browse acts, compare lineups, and get an instant quote.', 'Luxury Wedding & Event Bands', '');
+await writePage('/acts', 'Wedding & Event Bands for Hire | The Supreme Collective', 'Explore live bands for weddings, parties and corporate events across the UK. Watch performances, compare lineups and get a quote for your date and venue.', 'Wedding & Event Bands for Hire', renderActsInitialContent(acts.map(item => item.act)));
 const aboutSource = await fs.readFile('src/pages/About.jsx', 'utf8');
 const aboutParagraphs = [...aboutSource.matchAll(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/g)].map(match => plain(match[1])).filter(Boolean);
 await writePage('/about', 'About Our Live Music Agency | The Supreme Collective', 'Meet The Supreme Collective, a live music agency bringing professional bands to weddings, parties and corporate events across the UK and beyond.', 'About Us', aboutParagraphs.map(paragraph).join(''));
@@ -110,11 +109,8 @@ await writePage('/terms', 'The Supreme Collective Terms of Service', 'Read the T
 await writePage('/privacy', 'Privacy Policy | The Supreme Collective', 'How The Supreme Collective handles your personal information.', 'Privacy Policy', '');
 await writePage('/venues', 'Venue Guide | The Supreme Collective', 'Practical venue and room information from previous Supreme Collective events, including access, parking, changing facilities and sound restrictions.', 'The Supreme Collective Venue Guide', renderVenueGuideContent());
 for (const {route, act, history} of acts) {
-  const bio = plain(act.tscBio || act.bio);
   const meta = buildActMeta(act);
-  const photos = (act.images || []).filter(image => image?.url).map((image, index) => `<img src="${escape(image.url.replace('/upload/', '/upload/w_960,c_limit,f_auto,q_auto/'))}" alt="${escape(getBandImageAlt(image, act, index))}" width="480" style="max-width:100%;height:auto" loading="lazy">`).join('');
-  const gallery = photos ? `<section><h2>${escape(act.tscName)} photographs</h2>${photos}</section>` : '';
-  await writePage(route, meta.title, meta.description, act.tscName, paragraph(plain(act.tscDescription || act.description)) + `<section><h2>About ${escape(act.tscName)}</h2>${paragraph(bio)}</section>${gallery}` + renderActLocalContent(route, act, history) + `<p><a href="/acts">Compare our bands</a> · <a href="/contact">Contact us about your event</a></p>`);
+  await writePage(route, meta.title, meta.description, act.tscName, renderActInitialContent(route, act, history));
 }
 await writePage('/blog', 'Wedding & Event Music Inspiration | The Supreme Collective', 'Ideas, insights and planning tips for unforgettable live music experiences.', 'Wedding and event inspiration', blogPosts.map(post => `<article><h2><a href="/blog/${escape(post.slug)}">${escape(post.title)}</a></h2>${paragraph(post.excerpt)}</article>`).join(''));
 for (const post of blogPosts) {

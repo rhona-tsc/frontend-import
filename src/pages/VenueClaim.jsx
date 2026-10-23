@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { BACKEND } from "../apiBase";
 import SEO from "../components/SEO";
+import { cleanVenueName } from "../utils/venueName.js";
 
 const fieldClass = "mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black focus:ring-2 focus:ring-black/10";
 const Field = ({ label, value, onChange, multiline = false, type = "text", placeholder = "" }) => <label className="block text-sm font-semibold text-gray-800">{label}{multiline ? <textarea rows={4} className={fieldClass} value={value || ""} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} /> : <input type={type} className={fieldClass} value={value || ""} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />}</label>;
@@ -22,7 +23,11 @@ export default function VenueClaim() {
     fetch(`${BACKEND}/api/venues/claim/${encodeURIComponent(token)}`).then(async (response) => {
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message || "This editing link is not valid");
-      if (active) { setVenue(data.venue); setForm({ ...data.venue, partnershipInterest: Boolean(data.partnershipInterest), partnershipMessage: data.partnershipMessage || "" }); }
+      if (active) {
+        const normalisedVenue = { ...data.venue, name: cleanVenueName(data.venue?.name) };
+        setVenue(normalisedVenue);
+        setForm({ ...normalisedVenue, partnershipInterest: Boolean(data.partnershipInterest), partnershipMessage: data.partnershipMessage || "" });
+      }
     }).catch((err) => active && setError(err.message)).finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [token]);
