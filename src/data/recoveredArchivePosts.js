@@ -1,6 +1,19 @@
 const paragraph = (text, links) => ({ type: 'paragraph', text, ...(links ? { links } : {}) });
 const heading = text => ({ type: 'heading', text });
 const link = (text, href) => ({ text, href });
+const photo = (file, width, height, alt, caption) => ({ type: 'image', src: `/images/blog/london-hotels/${file}.webp`, width, height, alt, caption });
+const hotelPhotos = {
+  'The Dilly, Piccadilly — formerly Le Méridien Piccadilly': photo('le-meridien-piccadilly', 1101, 735, 'Ornate gold-toned reception room with chandeliers, round dining tables and a decorated wedding stage at the former Le Méridien Piccadilly', 'Archive photograph of Le Méridien Piccadilly, now The Dilly. The decor and layout shown are historical.'),
+  'The Savoy': photo('savoy', 732, 343, 'Wedding reception tables with clear chairs and pastel flower arrangements in a pale blue and white room at The Savoy', 'Archive photograph supplied for The Savoy; not a confirmation of the room’s current layout.'),
+  'The Dorchester': photo('dorchester', 1200, 600, 'Wedding ceremony aisle between silver chairs, with white flowers, blue drapes and chandeliers at The Dorchester', 'Archive wedding ceremony photograph at The Dorchester.'),
+  'London Marriott Hotel Marble Arch': photo('marriott-marble-arch', 610, 423, 'Round wedding breakfast tables with white chair covers and tall green flower arrangements in the Marriott hotel’s chandelier-lit room', 'Archive photograph supplied for the Marriott entry in our original article.'),
+  'Sheraton Grand London Park Lane': photo('sheraton-grand', 1600, 900, 'Round dining tables and white-covered chairs facing the curtained stage in the Sheraton Grand’s Art Deco ballroom', 'Archive ballroom photograph at Sheraton Grand London Park Lane.'),
+  'The Ritz London': photo('ritz', 768, 420, 'Long formal dining table surrounded by red upholstered chairs in an ornate red-and-gold private room at The Ritz', 'Archive private-dining photograph at The Ritz London.'),
+  'The Waldorf Hilton, London': photo('waldorf-hilton', 772, 768, 'Wedding breakfast tables with green patterned chair covers beneath the Waldorf Hilton’s bright gridded glass ceiling', 'Archive wedding reception photograph at The Waldorf Hilton.'),
+  'The Landmark London': photo('landmark', 1600, 1067, 'Candlelit wedding tables with tall white flower arrangements, marble columns and chandeliers at The Landmark London', 'Archive wedding reception photograph at The Landmark London.'),
+  'Grand Sapphire, Croydon': photo('grand-sapphire', 638, 447, 'Wedding reception tables with gold chairs, chandeliers and pink ceiling lighting at Grand Sapphire', 'Archive wedding reception photograph at Grand Sapphire.'),
+  'Portman Square — formerly Radisson Blu, now Nobu Hotel London Portman Square': photo('radisson-blu-portman-square', 1280, 960, 'White-covered wedding tables and chairs beneath crystal chandeliers in the former Radisson Blu Portman Square ballroom', 'Historical Radisson Blu Portman Square photograph, before its redevelopment as Nobu. This does not show the current Nobu interior.'),
+};
 
 export const soundLimitersGuide = {
   slug: 'sound-limiters-at-wedding-venues-what-you-need-to-know',
@@ -10,6 +23,10 @@ export const soundLimitersGuide = {
   excerpt: 'Ask about sound restrictions before booking your venue: a practical guide to limiters, band setups and planning a great evening of live music.',
   category: 'Wedding Planning', author: 'Rhona Downie', authorType: 'Person',
   publishedAt: '2025-04-04', readTime: '5 min read',
+  heroImage: '/images/blog/jen-and-tom/five-piece-band.webp',
+  heroImageWidth: 2048, heroImageHeight: 1365, heroImageFit: 'contain',
+  heroImageAlt: 'Five-piece wedding band with two vocalists, guitar, bass and drums posing onstage beneath coloured lights',
+  heroImageCaption: 'Illustrative band photograph from Jen and Tom’s 2017 wedding, by Natalja Safronova. It does not show a sound limiter or indicate that this venue has one.',
   content: [
     paragraph('Planning a wedding comes with a long list of decisions. If live music is important to you, ask your venue one question early: “Do you have a sound limiter?” Knowing the answer before you book gives your musicians time to assess the room, discuss any restrictions and recommend a suitable setup.'),
     paragraph('Originally published on 4 April 2025; restored and updated on 23 October 2026. We have refreshed the technical guidance: a decibel number alone cannot tell you whether a particular band will work in a room, and equipment changes are not a guarantee of compliance.'),
@@ -25,6 +42,7 @@ export const soundLimitersGuide = {
     paragraph('Depending on the musicians, repertoire and venue requirements, options to discuss include an electronic drum kit, a quieter acoustic-drum approach, fewer onstage amplifiers, direct connections to a suitable PA, and in-ear monitoring instead of stage wedges. These are possibilities to agree with the chosen act, not equipment every band automatically supplies.'),
     paragraph('In-ear monitors can reduce the need for monitor speakers, but they do not make acoustic drums, brass, vocals or the audience silent. Likewise, connecting instruments directly to a PA does not remove the need to control the sound coming out of that PA. Ask the band what adaptations are realistic without losing the style of performance you want.'),
     heading('Questions to ask before booking'),
+    { type: 'image', src: '/images/blog/jen-and-tom/band-and-dance-floor.webp', width: 2048, height: 1365, alt: 'Wedding guests dancing in front of the live band beneath a star-lit marquee ceiling', caption: 'Planning the band and dance floor together. Illustrative 2017 photograph by Natalja Safronova; no limiter status is implied for the pictured venue.' },
     paragraph('Does the venue have a limiter, and what type is it? What is the threshold and measurement setup? Must the band use the venue’s PA or approved technician? What equipment and stage positions are permitted? Are there restrictions on drums or brass? When must live music and recorded music finish? Can the band soundcheck before guests enter, and who is responsible for operating the system?'),
     heading('Choose the venue and band together'),
     paragraph('Think about the celebration you want: a relaxed acoustic set, a compact party band or a larger lineup with brass. Share that vision and the venue’s technical requirements with us early. “We have had bands before” is useful background, but it is not confirmation that every lineup will suit the same conditions.'),
@@ -32,7 +50,7 @@ export const soundLimitersGuide = {
   ],
 };
 
-const hotel = (name, text, website) => [heading(name), paragraph(text), paragraph('Check current venue information and arrangements directly with the hotel.', [link('current venue information', website)])];
+const hotel = (name, text, website) => [heading(name), ...(hotelPhotos[name] ? [hotelPhotos[name]] : []), paragraph(text), paragraph('Check current venue information and arrangements directly with the hotel.', [link('current venue information', website)])];
 export const londonHotelsGuide = {
   slug: 'londons-swankiest-hotels-for-your-wedding',
   title: 'London’s Swankiest Hotels for Your Wedding',
@@ -41,6 +59,10 @@ export const londonHotelsGuide = {
   excerpt: 'Our original London hotel shortlist, revisited with current names and the live-music questions to ask before booking your wedding venue.',
   category: 'Wedding Venues', author: 'Rhona Downie', authorType: 'Person',
   publishedAt: '2017-06-11', readTime: '6 min read',
+  heroImage: '/images/blog/london-hotels/dorchester.webp',
+  heroImageWidth: 1200, heroImageHeight: 600, heroImageFit: 'contain',
+  heroImageAlt: 'Wedding ceremony setup at The Dorchester with a white-flower-lined aisle, silver chairs and blue-and-gold drapes',
+  heroImageCaption: 'Archive wedding photograph at The Dorchester. The venue photographs in this article show historical settings, not guaranteed current layouts.',
   content: [
     paragraph('A hotel wedding can bring the ceremony, wedding breakfast, evening party and somewhere to stay together in one place. From a band’s perspective, the most useful conversations are practical ones: where we will perform, how equipment gets into the room, when soundcheck can happen and how the evening moves from dinner to dancing.'),
     paragraph('This shortlist first appeared in June 2017, drawing on hotels and venues we had performed at. Restored on 23 October 2026, it keeps those original choices while noting two changed hotel names and linking to current venue information. Our past performance history does not imply a current partnership or preferred-supplier status. Capacities, packages, staffing, access and music policies must be checked directly; the old article’s figures and complimentary-package promises have not been carried forward.'),
@@ -69,6 +91,10 @@ export const phoebeArchive = {
   excerpt: 'A look back at Phoebe’s favourite music and her 2017 diary of performing at Joe and Kirsten’s wedding at Eastington Park.',
   category: 'Behind the Music', author: 'Rhona Downie', authorType: 'Person',
   publishedAt: '2017-05-25', readTime: '4 min read',
+  heroImage: '/images/blog/phoebe/phoebe-performing.webp',
+  heroImageWidth: 1500, heroImageHeight: 1000, heroImageFit: 'contain',
+  heroImageAlt: 'Phoebe singing into a handheld microphone with one arm raised, alongside another vocalist under red stage lighting',
+  heroImageCaption: 'Phoebe performing with another vocalist, from the original article’s archive photographs.',
   content: [
     paragraph('From our 2017 archive, restored on 23 October 2026. This interview and wedding diary describe Phoebe’s work and preferences at the time; they are not a statement of her current representation, location or availability. The diary below is Phoebe’s account, lightly edited for spelling and readability.'),
     paragraph('Our original introduction described Phoebe as an accomplished singer-songwriter with classic pop tones and an infectious love of performing. It recorded her work in the UK and Los Angeles, writing and recording with artists including Pharrell Williams, and her experience as an X Factor finalist mentored by Simon Cowell. Those biographical details are retained here as part of the original 2017 account, rather than a newly checked current biography.'),

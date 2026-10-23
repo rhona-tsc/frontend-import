@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { recoveredArchivePosts, soundLimitersGuide, londonHotelsGuide, phoebeArchive } from '../data/recoveredArchivePosts.js';
 import { blogPosts } from '../data/BlogPosts.js';
 import { buildPageSchema } from './structuredData.js';
@@ -41,4 +41,19 @@ test('hotel list retains all ten original properties with rename evidence; diary
   assert.match(diary, /Phoebe x/);
   assert.match(diary, /not Eastington Park’s current policy/);
   assert.match(diary, /tlrtEawdygU/);
+});
+
+test('archive images are present, described and captioned without implying current interiors or a limiter', () => {
+  for (const post of recoveredArchivePosts) {
+    assert.ok(post.heroImage && post.heroImageAlt && post.heroImageCaption);
+    assert.ok(post.heroImageWidth && post.heroImageHeight);
+    assert.ok(existsSync(new URL('../../public' + post.heroImage, import.meta.url)));
+    for (const block of post.content.filter(b => b.type === 'image')) {
+      assert.ok(block.alt && block.caption && block.width && block.height);
+      assert.ok(existsSync(new URL('../../public' + block.src, import.meta.url)));
+    }
+  }
+  assert.equal(londonHotelsGuide.content.filter(b => b.type === 'image').length, 10);
+  assert.match(soundLimitersGuide.heroImageCaption, /does not show a sound limiter/);
+  assert.match(londonHotelsGuide.content.find(b => b.src?.includes('radisson')).caption, /does not show the current Nobu interior/);
 });

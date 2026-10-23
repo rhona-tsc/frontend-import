@@ -80,12 +80,15 @@ export default function BlogPost() {
       </header>
 
       {post.heroImage && (
+        <figure className="mb-10">
         <img
           src={post.heroImage}
           alt={post.heroImageAlt || post.title}
           width={post.heroImageWidth} height={post.heroImageHeight}
-          className={`w-full rounded-3xl mb-10 max-h-[520px] ${post.heroImageFit === 'contain' ? 'object-contain' : 'object-cover'}`}
+          className={`w-full rounded-3xl max-h-[520px] ${post.heroImageFit === 'contain' ? 'object-contain' : 'object-cover'}`}
         />
+        {post.heroImageCaption && <figcaption className="mt-2 text-sm text-gray-600">{post.heroImageCaption}</figcaption>}
+        </figure>
       )}
 
       <div className="prose prose-lg max-w-none">
@@ -103,7 +106,7 @@ export default function BlogPost() {
 
   if (block.type === "image") {
     return (
-      <figure key={index} className="my-8"><img
+      <figure key={index} className="my-8 mx-auto" style={block.width ? { maxWidth: block.width } : undefined}><img
         key={index}
         src={block.src}
         alt={block.alt || `Illustration for ${post.title}`}
