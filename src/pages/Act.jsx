@@ -165,6 +165,8 @@ const Act = () => {
 
   const [isYesForSelectedDate, setIsYesForSelectedDate] = useState(null);
   const [selectedLineup, setSelectedLineup] = useState("");
+  const emailLineupPresetRef = useRef("");
+  const emailLineupEnquiryRef = useRef("");
   const [video, setVideo] = useState("");
   const navigate = useNavigate();
   const storedPlace = sessionStorage.getItem("selectedPlace") || "";
@@ -174,6 +176,41 @@ const Act = () => {
   // 🧹 Track locally cleared availability badges
   const [clearedBadges, setClearedBadges] = useState(new Set());
   const [price, setPrice] = useState(null);
+
+  // Availability emails can deep-link to a specific larger lineup. Preserve the
+  // enquiry's date and venue and select that exact lineup without contacting any
+  // musicians merely because the client opened the link.
+  useEffect(() => {
+    if (!actData?._id || !Array.isArray(actData?.lineups)) return;
+
+    const presetKey = `${actData._id}|${location.search}`;
+    if (emailLineupPresetRef.current === presetKey) return;
+
+    const query = new URLSearchParams(location.search || "");
+    const date = String(query.get("date") || "").trim();
+    const address = String(query.get("address") || "").trim();
+    const lineupId = String(query.get("lineup") || "").trim();
+
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) setSelectedDate(date);
+    if (address) setSelectedAddress(address);
+
+    if (lineupId) {
+      const matchedLineup = actData.lineups.find(
+        (lineup) =>
+          String(lineup?._id || "") === lineupId ||
+          String(lineup?.lineupId || "") === lineupId,
+      );
+      if (matchedLineup) setSelectedLineup(matchedLineup);
+    }
+
+    emailLineupPresetRef.current = presetKey;
+  }, [
+    actData?._id,
+    actData?.lineups,
+    location.search,
+    setSelectedAddress,
+    setSelectedDate,
+  ]);
   // UI shimmer while price computes
   const [isPriceLoading, setIsPriceLoading] = useState(false);
   // 🔎 Prefer reviews, fall back to tscReviews/testimonials
@@ -543,6 +580,49 @@ const Act = () => {
       new CustomEvent("tsc:auth_gate", { detail: { msg: "..." } }),
     );
   };
+
+  useEffect(() => {
+    if (!actData?._id || !Array.isArray(actData?.lineups)) return;
+
+    const query = new URLSearchParams(location.search || "");
+    if (query.get("enquire") !== "1") return;
+
+    const lineupId = String(query.get("lineup") || "").trim();
+    const requestKey = `${actData._id}|${lineupId}|${location.search}`;
+    if (!lineupId || emailLineupEnquiryRef.current === requestKey) return;
+
+    const matchedLineup = actData.lineups.find(
+      (lineup) =>
+        String(lineup?._id || "") === lineupId ||
+        String(lineup?.lineupId || "") === lineupId,
+    );
+    if (!matchedLineup) return;
+
+    emailLineupEnquiryRef.current = requestKey;
+    setSelectedLineup(matchedLineup);
+
+    const pending = {
+      actId: String(actData._id),
+      lineupId,
+      selectedExtras: [],
+      selectedAfternoonSets: [],
+      songSuggestions: [],
+    };
+
+    if (!userId) {
+      sessionStorage.setItem("pendingCartPayload", JSON.stringify(pending));
+      promptLogin(
+        "Please log in to enquire about this larger lineup.",
+        null,
+        "/cart",
+      );
+      return;
+    }
+
+    Promise.resolve(addToCart(actData._id, lineupId)).then(() => {
+      navigate("/cart");
+    });
+  }, [actData?._id, actData?.lineups, location.search, userId]);
 
   // Derive what you actually render
   const visibleBadges = React.useMemo(() => {
