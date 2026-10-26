@@ -587,6 +587,13 @@ const Act = () => {
     const query = new URLSearchParams(location.search || "");
     if (query.get("enquire") !== "1") return;
 
+    const queryDate = String(query.get("date") || "").trim();
+    const queryAddress = String(query.get("address") || "").trim();
+    const currentDate = String(selectedDate || "").slice(0, 10);
+    if (queryDate && currentDate !== queryDate) return;
+    if (queryAddress && String(selectedAddress || "").trim() !== queryAddress)
+      return;
+
     const lineupId = String(query.get("lineup") || "").trim();
     const requestKey = `${actData._id}|${lineupId}|${location.search}`;
     if (!lineupId || emailLineupEnquiryRef.current === requestKey) return;
@@ -607,7 +614,11 @@ const Act = () => {
       selectedExtras: [],
       selectedAfternoonSets: [],
       songSuggestions: [],
+      requestAvailability: true,
+      availabilityReason: "email_lineup_upgrade",
     };
+
+    sessionStorage.setItem("lineupEnquiryNotice", "pending");
 
     if (!userId) {
       sessionStorage.setItem("pendingCartPayload", JSON.stringify(pending));
@@ -619,10 +630,26 @@ const Act = () => {
       return;
     }
 
-    Promise.resolve(addToCart(actData._id, lineupId)).then(() => {
+    (async () => {
+      await addToCart(actData._id, lineupId);
+      const requested = await requestAvailabilityForCart({
+        reason: "email_lineup_upgrade",
+        lineupOverride: matchedLineup,
+      });
+      sessionStorage.setItem(
+        "lineupEnquiryNotice",
+        requested ? "requested" : "pending",
+      );
       navigate("/cart");
-    });
-  }, [actData?._id, actData?.lineups, location.search, userId]);
+    })();
+  }, [
+    actData?._id,
+    actData?.lineups,
+    location.search,
+    selectedAddress,
+    selectedDate,
+    userId,
+  ]);
 
   // Derive what you actually render
   const visibleBadges = React.useMemo(() => {
@@ -1227,7 +1254,10 @@ const Act = () => {
   }
 
   // 🔔 Trigger availability request when an act is added/updated in cart
-  async function requestAvailabilityForCart({ reason = "cart_add" } = {}) {
+  async function requestAvailabilityForCart({
+    reason = "cart_add",
+    lineupOverride = null,
+  } = {}) {
     try {
       // Local browser checks must never contact real musicians.
       if (
@@ -1235,22 +1265,23 @@ const Act = () => {
         sessionStorage.getItem("suppressAvailabilityForTesting") === "1"
       ) {
         console.info("Availability request suppressed for local cart testing");
-        return;
+        return false;
       }
-      if (!actData?._id) return;
+      if (!actData?._id) return false;
       // Prefer the user-selected lineup, else the first lineup
       const lineup =
+        lineupOverride ||
         selectedLineup ||
         (Array.isArray(actData?.lineups) ? actData.lineups[0] : null);
       const lineupId = lineup?._id || lineup?.lineupId;
-      if (!lineupId) return;
+      if (!lineupId) return false;
 
       const dateISO = selectedDate
         ? new Date(selectedDate).toISOString().slice(0, 10)
         : null;
       if (!dateISO) {
         console.warn("⚠️ Availability request skipped: no selectedDate set");
-        return;
+        return false;
       }
       const address =
         typeof selectedAddress === "string" ? selectedAddress.trim() : "";
@@ -1294,7 +1325,7 @@ const Act = () => {
               } catch {}
             }, 250);
             console.log(`✅ Availability request ok via ${path}`);
-            return;
+            return true;
           } else {
             const errText = await resp.text().catch(() => "");
             console.warn(`❕ Availability ${path} -> ${resp.status}`, errText);
@@ -1303,8 +1334,10 @@ const Act = () => {
           console.error(`❌ Availability fetch error for ${path}:`, e);
         }
       }
+      return false;
     } catch (err) {
       console.warn("⚠️ Availability request failed (non-blocking)", err);
+      return false;
     }
   }
 

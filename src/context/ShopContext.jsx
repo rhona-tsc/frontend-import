@@ -2243,6 +2243,14 @@ async function getActCardsData() {
           Array.isArray(p.songSuggestions) ? p.songSuggestions : [],
         );
 
+        if (p.requestAvailability === true) {
+          await requestVocalistAvailability({
+            actId: p.actId,
+            lineupId: p.lineupId,
+          });
+          sessionStorage.setItem("lineupEnquiryNotice", "requested");
+        }
+
         try {
           toast(
             <CustomToast type="success" message="Act added to your cart." />,

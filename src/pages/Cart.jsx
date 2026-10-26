@@ -153,6 +153,11 @@ const toArray = (val) => (Array.isArray(val) ? val : val ? [val] : []);
 const isValid24 = (s) => typeof s === "string" && /^[0-9a-f]{24}$/i.test(s);
 
 const Cart = () => {
+  const [lineupEnquiryNotice] = useState(() => {
+    const value = sessionStorage.getItem("lineupEnquiryNotice") || "";
+    if (value) sessionStorage.removeItem("lineupEnquiryNotice");
+    return value;
+  });
   const {
     acts,
     cartItems,
@@ -1887,6 +1892,17 @@ useEffect(() => {
         <Title text1={"BOOKING"} text2={"DETAILS"} />
       </div>
 
+      {lineupEnquiryNotice ? (
+        <div className="mx-2 mb-5 rounded-lg border border-blue-200 bg-blue-50 px-5 py-4 text-blue-950">
+          <p className="font-semibold">Your larger-lineup enquiry has been received.</p>
+          <p className="mt-1 text-sm leading-6">
+            We’re checking the additional performers now and will email you as
+            soon as we’ve confirmed the full lineup’s availability. This is
+            still an enquiry and is not a confirmed booking yet.
+          </p>
+        </div>
+      ) : null}
+
 
       {selectedDate && selectedAddress ? (
         <>
@@ -3087,5 +3103,3 @@ function useMergedUpdateExtras(cartItems, setCartItems) {
 }
 
 export default Cart;
-
-  
