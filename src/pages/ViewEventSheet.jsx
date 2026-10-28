@@ -12,6 +12,11 @@ import axios from "axios";
 import { ShopContext } from "../context/ShopContext";
 import SimpleScheduleEditor from "../components/eventSheet/SimpleScheduleEditor";
 import EventSheetRepertoirePicker from "../components/eventSheet/EventSheetRepertoirePicker";
+import {
+  getEventSheetMusicianId,
+  resolveEventSheetDeputyVocalist,
+} from "../utils/eventSheetRepertoireSource";
+import { isEntertainmentNationBooking } from "../utils/eventSheetBookingSource";
 import SEO from "../components/SEO";
 import { resolveEventSheetHydration } from "../utils/eventSheetHydration";
 import { documentUploadError } from "../utils/protectedRequests.js";
@@ -3800,6 +3805,14 @@ const ViewEventSheet = () => {
                 "";
 
               const profileUrl = actSlug ? `/act/${actSlug}/` : null;
+              const deputyVocalist = resolveEventSheetDeputyVocalist(booking);
+              const deputyProfileId = getEventSheetMusicianId(deputyVocalist);
+              const repertoireProfileUrl = deputyProfileId
+                ? `/musician/${encodeURIComponent(deputyProfileId)}/`
+                : profileUrl;
+              const repertoireLabel = deputyVocalist
+                ? "booked vocalist’s repertoire"
+                : "band’s repertoire";
 
               return (
                 <div>
@@ -3812,17 +3825,17 @@ const ViewEventSheet = () => {
                     <strong>around 28–32 songs</strong> across a 2-hour evening
                     set. Feel free to list as few or as many favourites as you
                     like from the{" "}
-                    {profileUrl ? (
+                    {repertoireProfileUrl ? (
                       <a
-                        href={profileUrl}
+                        href={repertoireProfileUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="text-[#ff6667] underline hover:opacity-80"
                       >
-                        band’s repertoire
+                        {repertoireLabel}
                       </a>
                     ) : (
-                      <>band’s repertoire</>
+                      <>{repertoireLabel}</>
                     )}
                     . The final setlist is curated by the band so the night
                     flows — they’ll accommodate as many requests as possible and
@@ -4355,13 +4368,15 @@ const ViewEventSheet = () => {
                   </span>
                 </div>
 
-                <div className="flex justify-between">
-                  <span>Deposit paid</span>
-                  <span>
-                    {currencySymbol(booking?.currency)}
-                    {Number(depositAmount || 0).toFixed(2)}
-                  </span>
-                </div>
+                {!isEntertainmentNationBooking(booking) && (
+                  <div className="flex justify-between">
+                    <span>Deposit paid</span>
+                    <span>
+                      {currencySymbol(booking?.currency)}
+                      {Number(depositAmount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex justify-between font-bold mt-4">
                   <p>Outstanding balance</p>

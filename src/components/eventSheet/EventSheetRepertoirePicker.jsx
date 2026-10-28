@@ -3,6 +3,11 @@ import PropTypes from "prop-types";
 import axios from "axios";
 import ActRepertoire from "../ActRepertoire";
 import { resolveEventSheetActNames } from "../../utils/eventSheetActNames";
+import {
+  getEventSheetMusicianId,
+  getEventSheetMusicianName,
+  resolveEventSheetDeputyVocalist,
+} from "../../utils/eventSheetRepertoireSource";
 
 const slugifyActValue = (value = "") =>
   String(value || "")
@@ -63,6 +68,11 @@ const EventSheetRepertoirePicker = ({
 
   const { bookedName: actName, publicName: publicActName } =
     resolveEventSheetActNames({ booking, firstAct });
+  const deputyVocalist = useMemo(
+    () => resolveEventSheetDeputyVocalist(booking),
+    [booking],
+  );
+  const deputyProfileKey = getEventSheetMusicianId(deputyVocalist);
 
   const contextualAct = useMemo(
     () =>
@@ -82,13 +92,15 @@ const EventSheetRepertoirePicker = ({
   );
 
   const inlineSongs = useMemo(() => {
-    const candidates = [
-      firstAct?.selectedSongs,
-      firstAct?.act?.selectedSongs,
-      contextualAct?.selectedSongs,
-    ];
+    const candidates = deputyVocalist
+      ? [deputyVocalist?.selectedSongs, deputyVocalist?.repertoire]
+      : [
+          firstAct?.selectedSongs,
+          firstAct?.act?.selectedSongs,
+          contextualAct?.selectedSongs,
+        ];
     return candidates.find((songs) => Array.isArray(songs) && songs.length) || [];
-  }, [contextualAct, firstAct]);
+  }, [contextualAct, deputyVocalist, firstAct]);
 
   const actSlug =
     firstAct?.actSlug ||
@@ -102,40 +114,48 @@ const EventSheetRepertoirePicker = ({
     contextualAct?.slug ||
     slugifyActValue(publicActName);
 
-  const profile = loadedProfile.slug === actSlug ? loadedProfile.data : null;
-  const loading = loadState.slug === actSlug && loadState.loading;
-  const loadError = loadState.slug === actSlug ? loadState.error : "";
+  const profileKey = deputyVocalist ? deputyProfileKey : actSlug;
+  const profile = loadedProfile.slug === profileKey ? loadedProfile.data : null;
+  const loading = loadState.slug === profileKey && loadState.loading;
+  const loadError = loadState.slug === profileKey ? loadState.error : "";
 
   useEffect(() => {
-    if (!isOpen || inlineSongs.length || profile || !backendUrl || !actSlug) return;
+    if (!isOpen || inlineSongs.length || profile || !backendUrl || !profileKey) return;
 
     let cancelled = false;
-    setLoadState({ slug: actSlug, loading: true, error: "" });
+    setLoadState({ slug: profileKey, loading: true, error: "" });
+
+    const profileEndpoint = deputyVocalist
+      ? `${backendUrl}/api/musician/profile/${encodeURIComponent(profileKey)}`
+      : `${backendUrl}/api/act/${encodeURIComponent(profileKey)}`;
 
     axios
-      .get(`${backendUrl}/api/act/${encodeURIComponent(actSlug)}`)
+      .get(profileEndpoint)
       .then((response) => {
         if (cancelled) return;
-        const nextProfile = response?.data?.act || response?.data;
+        const nextProfile =
+          response?.data?.musician || response?.data?.act || response?.data;
         if (!nextProfile || response?.data?.success === false) {
-          throw new Error("Act profile not found");
+          throw new Error(
+            deputyVocalist ? "Vocalist profile not found" : "Act profile not found",
+          );
         }
-        setLoadedProfile({ slug: actSlug, data: nextProfile });
+        setLoadedProfile({ slug: profileKey, data: nextProfile });
       })
       .catch((error) => {
         if (!cancelled) {
           console.warn("Repertoire load failed:", error?.message);
           setLoadState({
-            slug: actSlug,
+            slug: profileKey,
             loading: false,
-            error: "We couldn’t load the repertoire here just now.",
+            error: `We couldn’t load the ${deputyVocalist ? "vocalist’s" : "band’s"} repertoire here just now.`,
           });
         }
       })
       .finally(() => {
         if (!cancelled) {
           setLoadState((current) =>
-            current.slug === actSlug
+              current.slug === profileKey
               ? { ...current, loading: false }
               : current,
           );
@@ -145,7 +165,7 @@ const EventSheetRepertoirePicker = ({
     return () => {
       cancelled = true;
     };
-  }, [actSlug, backendUrl, inlineSongs.length, isOpen, profile]);
+  }, [backendUrl, deputyVocalist, inlineSongs.length, isOpen, profile, profileKey]);
 
   const songs = useMemo(
     () =>
@@ -194,8 +214,22 @@ const EventSheetRepertoirePicker = ({
     onChange(currentLines.join("\n"));
   };
 
-  const profileUrl = actSlug ? `/act/${encodeURIComponent(actSlug)}/` : "";
-  const possessiveActName = /s$/i.test(actName) ? `${actName}’` : `${actName}’s`;
+  const vocalistName =
+    [profile?.firstName, profile?.lastName].filter(Boolean).join(" ").trim() ||
+    profile?.name ||
+    getEventSheetMusicianName(deputyVocalist);
+  const repertoireName = deputyVocalist ? vocalistName : actName;
+  const vocalistSlug = profile?.musicianSlug || deputyProfileKey;
+  const profileUrl = deputyVocalist
+    ? vocalistSlug
+      ? `/musician/${encodeURIComponent(vocalistSlug)}/`
+      : ""
+    : actSlug
+      ? `/act/${encodeURIComponent(actSlug)}/`
+      : "";
+  const possessiveActName = /s$/i.test(repertoireName)
+    ? `${repertoireName}’`
+    : `${repertoireName}’s`;
 
   return (
     <details
@@ -209,7 +243,9 @@ const EventSheetRepertoirePicker = ({
 
       <div className="border-t bg-white p-3">
         {loading && (
-          <p className="text-sm text-gray-600">Loading the band’s repertoire…</p>
+          <p className="text-sm text-gray-600">
+            Loading the {deputyVocalist ? "vocalist’s" : "band’s"} repertoire…
+          </p>
         )}
 
         {!loading && loadError && (
@@ -222,7 +258,7 @@ const EventSheetRepertoirePicker = ({
                 rel="noreferrer"
                 className="text-[#ff6667] underline hover:opacity-80"
               >
-                Open the act profile instead
+                Open the {deputyVocalist ? "vocalist" : "act"} profile instead
               </a>
             )}
           </p>
@@ -230,7 +266,7 @@ const EventSheetRepertoirePicker = ({
 
         {!loading && !loadError && songs.length === 0 && isOpen && (
           <p className="text-sm text-gray-600">
-            No repertoire has been published for this act yet.
+            No repertoire has been published for this {deputyVocalist ? "vocalist" : "act"} yet.
           </p>
         )}
 
@@ -243,9 +279,12 @@ const EventSheetRepertoirePicker = ({
               </p>
             )}
             <ActRepertoire
-              key={actSlug}
+              key={profileKey}
               selectedSongs={songs}
-              actData={profile || contextualAct || { tscName: actName }}
+              actData={{
+                ...(profile || contextualAct || {}),
+                tscName: repertoireName,
+              }}
               favourites={favourites}
               toggleFavourite={toggleSong}
               showHeader={false}
