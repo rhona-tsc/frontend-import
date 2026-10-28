@@ -1,4 +1,3 @@
-import React from "react";
 import { assets } from "../assets/assets";
 import { Link } from "react-router-dom";
 import { locationPages } from '../data/locationPages.js';
@@ -22,12 +21,11 @@ const Footer = () => {
         <div>
           <p className="text-xl font-medium mb-5">COMPANY</p>
           <ul className="flex flex-col gap-1 text-gray-600">
-             <li><Link to="/">Home</Link></li>
-  <li><Link to="/about/">About Us</Link></li>
-  <li><Link to="/venues/">Venue Guide</Link></li>
-  <li><Link to="/terms/">Terms & Conditions</Link></li>
-  <li><Link to="/privacy/">Privacy Policy</Link></li>
-  {locationPages.map(({ slug, name }) => <li key={slug}><Link to={`/wedding-bands-${slug}/`}>Wedding bands in {name}</Link></li>)}
+            <li><Link to="/">Home</Link></li>
+            <li><Link to="/about/">About Us</Link></li>
+            <li><Link to="/venues/">Venue Guide</Link></li>
+            <li><Link to="/terms/">Terms & Conditions</Link></li>
+            <li><Link to="/privacy/">Privacy Policy</Link></li>
           </ul>
         </div>
 
@@ -40,6 +38,25 @@ const Footer = () => {
           </ul>
         </div>
       </div>
+
+      <nav className="mb-10 w-full" aria-label="Wedding band location quick links">
+        <p className="mb-4 text-xl font-medium">QUICK LINKS</p>
+        <div className="flex w-full flex-wrap items-center gap-y-2 text-sm text-gray-600">
+          {locationPages.map(({ slug, name }, index) => (
+            <span key={slug} className="inline-flex items-center whitespace-nowrap">
+              <Link
+                to={`/wedding-bands-${slug}/`}
+                className="transition-colors hover:text-black"
+              >
+                Wedding bands in {name}
+              </Link>
+              {index < locationPages.length - 1 && (
+                <span className="mx-2 text-gray-400" aria-hidden="true">|</span>
+              )}
+            </span>
+          ))}
+        </div>
+      </nav>
 
       <div>
         <hr />

@@ -6,6 +6,7 @@ import { resolveEventSheetActNames } from "../../utils/eventSheetActNames";
 import {
   getEventSheetMusicianId,
   getEventSheetMusicianName,
+  getEventSheetMusicianPublicName,
   resolveEventSheetDeputyVocalist,
 } from "../../utils/eventSheetRepertoireSource";
 
@@ -215,8 +216,7 @@ const EventSheetRepertoirePicker = ({
   };
 
   const vocalistName =
-    [profile?.firstName, profile?.lastName].filter(Boolean).join(" ").trim() ||
-    profile?.name ||
+    getEventSheetMusicianPublicName(profile, deputyVocalist) ||
     getEventSheetMusicianName(deputyVocalist);
   const repertoireName = deputyVocalist ? vocalistName : actName;
   const vocalistSlug = profile?.musicianSlug || deputyProfileKey;

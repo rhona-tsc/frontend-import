@@ -1,7 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { resolveEventSheetDeputyVocalist } from "./eventSheetRepertoireSource.js";
+import {
+  getEventSheetMusicianPublicName,
+  resolveEventSheetDeputyVocalist,
+} from "./eventSheetRepertoireSource.js";
+
+test("uses the public profile initial in the repertoire heading", () => {
+  assert.equal(
+    getEventSheetMusicianPublicName(
+      { firstName: "Annie", lastName: "Afrilu", musicianSlug: "annie-v" },
+      {},
+    ),
+    "Annie V",
+  );
+});
 
 test("uses the confirmed deputy vocalist instead of the original band vocalist", () => {
   const annie = {
