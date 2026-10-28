@@ -7,7 +7,17 @@
 
 
 # Permanent replacements for legacy URLs. Keep these above the SPA fallback.
-# Title-derived legacy lighting address; the expired archive cannot confirm its original slug.
+# Recovered articles, matched to dated URLs in historical Google performance reports.
+/journal/2025/4/4/sound-limiters-at-wedding-venues-what-you-need-to-know /blog/sound-limiters-at-wedding-venues-what-you-need-to-know/ 301!
+/journal/2025/4/4/sound-limiters-at-wedding-venues-what-you-need-to-know/ /blog/sound-limiters-at-wedding-venues-what-you-need-to-know/ 301!
+/journal/2017/6/10/londons-swankiest-hotels-for-your-wedding /blog/londons-swankiest-hotels-for-your-wedding/ 301!
+/journal/2017/6/10/londons-swankiest-hotels-for-your-wedding/ /blog/londons-swankiest-hotels-for-your-wedding/ 301!
+/journal/2017/5/25/get-to-know-phoebe /blog/get-to-know-phoebe/ 301!
+/journal/2017/5/25/get-to-know-phoebe/ /blog/get-to-know-phoebe/ 301!
+# Confirmed dated URL from Google's January/June 2024 performance emails.
+/journal/2017/5/8/essential-stage-lighting-for-your-wedding-band  /blog/essential-stage-lighting-for-your-wedding-band/  301!
+/journal/2017/5/8/essential-stage-lighting-for-your-wedding-band/ /blog/essential-stage-lighting-for-your-wedding-band/  301!
+# Keep the undated fallback for links shared without the publication date.
 /journal/essential-stage-lighting-for-your-wedding-band  /blog/essential-stage-lighting-for-your-wedding-band/  301!
 /journal/essential-stage-lighting-for-your-wedding-band/ /blog/essential-stage-lighting-for-your-wedding-band/  301!
 /journal/jen-and-toms-wedding              /blog/jen-and-toms-wedding/        301!
@@ -17,6 +27,9 @@
 /contact-2                                /contact/                         301!
 /tsc                                      /about/                           301!
 /bandsforhire/motown-magic                 /act/dancefloor-magic/            301!
+# Confirmed joined spelling in Google's October 2024 and August 2025 reports.
+/bandsforhire/themonstars                  /act/the-monstars/                301!
+/bandsforhire/themonstars/                 /act/the-monstars/                301!
 /bandsforhire                             /acts/                            301!
 /bandsforhire/                            /acts/                            301!
 /acts/london                              /wedding-bands-london/            301!

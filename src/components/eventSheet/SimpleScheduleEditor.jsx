@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { buildDefaultScheduleRows } from "../../utils/eventSheetScheduleRows.js";
 
 const makeRow = (activity, time = "", notes = "") => ({
   id: `schedule_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
@@ -94,54 +95,28 @@ export default function SimpleScheduleEditor({
       booking?.changeTime || answers.contracted_change_time,
       15,
     );
-    const setupEnd = Number.isFinite(arrivalMinutes)
-      ? arrivalMinutes + setupMinutes
-      : null;
-    const soundcheckEnd = Number.isFinite(setupEnd)
-      ? setupEnd + soundcheckMinutes
-      : null;
-    const changeEnd = Number.isFinite(soundcheckEnd)
-      ? soundcheckEnd + changeMinutes
-      : null;
     const range = (start, end) =>
       Number.isFinite(start) && Number.isFinite(end)
         ? `${timeFromMinutes(start)}–${timeFromMinutes(end)}`
         : "";
-    const liveStart = normaliseTime(
-      answers.schedule_simple_start || performance.startTime,
-    );
-    const liveFinish = normaliseTime(
-      performance.finishTime || answers.schedule_simple_finish_time,
-    );
-    const performancePlan = normaliseTime(
-      booking?.performancePlan ||
-        firstAct?.performancePlan ||
-        answers.contracted_performance_plan ||
-        "2 × 60 minutes or 3 × 40 minutes",
-    );
+    const defaultRows = buildDefaultScheduleRows({
+      booking: {
+        ...booking,
+        performancePlan:
+          booking?.performancePlan ||
+          firstAct?.performancePlan ||
+          answers.contracted_performance_plan,
+      },
+      arrival,
+      arrivalMinutes,
+      setupMinutes,
+      soundcheckMinutes,
+      changeMinutes,
+      range,
+    });
 
     handleAnswer("schedule_table_rows", [
-      makeRow("Band arrival", arrival),
-      makeRow(
-        "Setup",
-        range(arrivalMinutes, setupEnd),
-        `${setupMinutes} minutes`,
-      ),
-      makeRow(
-        "Soundcheck",
-        range(setupEnd, soundcheckEnd),
-        `${soundcheckMinutes} minutes`,
-      ),
-      makeRow(
-        "Change time",
-        range(soundcheckEnd, changeEnd),
-        `${changeMinutes} minutes`,
-      ),
-      makeRow(
-        "Live sets",
-        liveStart && liveFinish ? `${liveStart}–${liveFinish}` : liveStart,
-        performancePlan,
-      ),
+      ...defaultRows.map((row) => makeRow(row.activity, row.time, row.notes)),
       ...legacyCustomRows,
     ]);
   }, [

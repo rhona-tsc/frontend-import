@@ -15,6 +15,11 @@ import EventSheetRepertoirePicker from "../components/eventSheet/EventSheetReper
 import SEO from "../components/SEO";
 import { resolveEventSheetHydration } from "../utils/eventSheetHydration";
 import { documentUploadError } from "../utils/protectedRequests.js";
+import {
+  mergeEventSheetBookingRefresh,
+  resolveEventSheetActMedia,
+} from "../utils/eventSheetActMedia.js";
+import { resolveEventSheetActNames } from "../utils/eventSheetActNames.js";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 const DIET_FALLBACK = "TBC";
@@ -214,7 +219,14 @@ const ViewEventSheet = () => {
     () => getActEquipmentInfo(acts, booking),
     [acts, booking],
   );
-  const tscName = actInfo.tscName || "the band";
+  const tscName = useMemo(() => {
+    const firstAct =
+      (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]) ||
+      (Array.isArray(booking?.items) && booking.items[0]) ||
+      {};
+
+    return resolveEventSheetActNames({ booking, firstAct }).bookedName;
+  }, [booking]);
 
   // Equipment help text
   const equipmentHelp = useMemo(() => {
@@ -1066,69 +1078,7 @@ const ViewEventSheet = () => {
   }, [booking, acts, answers.contracted_lineup]);
 
   const actMedia = useMemo(() => {
-    const first =
-      (Array.isArray(booking?.actsSummary) && booking.actsSummary[0]) ||
-      (Array.isArray(booking?.items) && booking.items[0]) ||
-      {};
-    const normaliseName = (value = "") =>
-      String(value).trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    const firstActName =
-      first?.tscName ||
-      first?.actName ||
-      first?.name ||
-      booking?.actTscName ||
-      booking?.actName ||
-      booking?.tscName ||
-      "";
-    const act =
-      (acts || []).find(
-        (candidate) => String(candidate?._id) === String(first?.actId),
-      ) ||
-      (acts || []).find((candidate) =>
-        [candidate?.tscName, candidate?.name]
-          .map(normaliseName)
-          .filter(Boolean)
-          .includes(normaliseName(firstActName)),
-      ) ||
-      first?.act ||
-      {};
-    const urlOf = (value) =>
-      typeof value === "string" ? value : value?.url || value?.secure_url || "";
-    const images = [
-      first?.images?.[0],
-      first?.coverImage?.[0],
-      first?.profileImage?.[0],
-      act?.images?.[0],
-      first?.image,
-      act?.images?.[1],
-      act?.gallery?.[0],
-      act?.gallery?.[1],
-      act?.galleryImages?.[0],
-      act?.galleryImages?.[1],
-      act?.galleryOne,
-      act?.galleryTwo,
-    ]
-      .map(urlOf)
-      .filter(Boolean);
-    const videos = [
-      first?.promoVideo,
-      first?.promoVideoUrl,
-      first?.video,
-      ...(Array.isArray(first?.tscVideos) ? first.tscVideos : []),
-      ...(Array.isArray(first?.videos) ? first.videos : []),
-      ...(Array.isArray(first?.promoVideos) ? first.promoVideos : []),
-      act?.promoVideo,
-      act?.promoVideoUrl,
-      act?.video,
-      ...(Array.isArray(act?.tscVideos) ? act.tscVideos : []),
-      ...(Array.isArray(act?.videos) ? act.videos : []),
-    ]
-      .map(urlOf)
-      .filter(Boolean);
-    return {
-      images: [...new Set(images)].slice(0, 3),
-      videos: [...new Set(videos)],
-    };
+    return resolveEventSheetActMedia({ booking, acts });
   }, [acts, booking]);
 
   const videoThumbnail = (url = "") => {
@@ -1407,33 +1357,7 @@ const ViewEventSheet = () => {
               return prev;
             }
 
-            const preserveAllocation = (nextItems, previousItems) =>
-              Array.isArray(nextItems) && nextItems.length
-                ? nextItems
-                : Array.isArray(previousItems)
-                  ? previousItems
-                  : [];
-
-            return {
-              ...prev,
-              ...updated,
-              eventSheet: {
-                ...(prev.eventSheet || {}),
-                ...(updated.eventSheet || {}),
-              },
-              assignedMusicians: preserveAllocation(
-                updated.assignedMusicians,
-                prev.assignedMusicians,
-              ),
-              bookingMusicians: preserveAllocation(
-                updated.bookingMusicians,
-                prev.bookingMusicians,
-              ),
-              bandLineup: preserveAllocation(
-                updated.bandLineup,
-                prev.bandLineup,
-              ),
-            };
+            return mergeEventSheetBookingRefresh(prev, updated);
           });
         }
       } catch (e) {

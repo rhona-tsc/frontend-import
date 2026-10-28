@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import axios from "axios";
 import ActRepertoire from "../ActRepertoire";
+import { resolveEventSheetActNames } from "../../utils/eventSheetActNames";
 
 const slugifyActValue = (value = "") =>
   String(value || "")
@@ -60,13 +61,8 @@ const EventSheetRepertoirePicker = ({
     [booking],
   );
 
-  const actName =
-    firstAct?.tscName ||
-    firstAct?.actName ||
-    firstAct?.name ||
-    booking?.actTscName ||
-    booking?.actName ||
-    "the band";
+  const { bookedName: actName, publicName: publicActName } =
+    resolveEventSheetActNames({ booking, firstAct });
 
   const contextualAct = useMemo(
     () =>
@@ -79,10 +75,10 @@ const EventSheetRepertoirePicker = ({
         [candidate?.tscName, candidate?.name]
           .map(normaliseActName)
           .filter(Boolean)
-          .includes(normaliseActName(actName)),
+          .includes(normaliseActName(publicActName)),
       ) ||
       null,
-    [acts, firstAct, actName],
+    [acts, firstAct, publicActName],
   );
 
   const inlineSongs = useMemo(() => {
@@ -104,7 +100,7 @@ const EventSheetRepertoirePicker = ({
     contextualAct?.actSlug ||
     contextualAct?.seoSlug ||
     contextualAct?.slug ||
-    slugifyActValue(actName);
+    slugifyActValue(publicActName);
 
   const profile = loadedProfile.slug === actSlug ? loadedProfile.data : null;
   const loading = loadState.slug === actSlug && loadState.loading;
