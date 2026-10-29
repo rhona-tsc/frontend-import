@@ -25,6 +25,10 @@ import {
   resolveEventSheetActMedia,
 } from "../utils/eventSheetActMedia.js";
 import { resolveEventSheetActNames } from "../utils/eventSheetActNames.js";
+import {
+  applyAuthoritativeEventType,
+  resolveEventSheetEventType,
+} from "../utils/eventSheetEventType.js";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 const DIET_FALLBACK = "TBC";
@@ -1253,10 +1257,12 @@ const ViewEventSheet = () => {
               });
 
               if (hydrated.source !== "empty") {
-                setAnswers({
-                  ...bookingPrefillAnswers(match),
-                  ...hydrated.answers,
-                });
+                setAnswers(
+                  applyAuthoritativeEventType(match, {
+                    ...bookingPrefillAnswers(match),
+                    ...hydrated.answers,
+                  }),
+                );
                 setComplete(hydrated.complete);
 
                 // Replace a stale local recovery copy with the authoritative
@@ -1886,8 +1892,9 @@ const ViewEventSheet = () => {
     const changingRoomBlocksComplete = crRequiredByLineup && crAnswerNo;
 
     // derive event type safely (covers multiple shapes)
-    const eventTypeRaw = String(
-      answers.event_type || booking?.eventType || booking?.event_type || "",
+    const eventTypeRaw = resolveEventSheetEventType(
+      booking,
+      answers,
     ).toLowerCase();
 
     const isWedding = /wedding/.test(eventTypeRaw);
