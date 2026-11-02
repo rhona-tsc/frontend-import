@@ -34,6 +34,7 @@ const RelatedActs = ({
   instruments = [],
   vocalist = "",
   leadRole = "",
+  lineupSizes = [],
   currentActId,
   currentActSlug,
 }) => {
@@ -42,7 +43,7 @@ const RelatedActs = ({
   const maxToShow = useMaxToShow();
 
   // 🔎 DEBUG (toggle off when done)
-  const DEBUG_RELATED_ACTS = true;
+  const DEBUG_RELATED_ACTS = import.meta?.env?.DEV ?? false;
   const lastDebugSigRef = useRef("");
 
   const getSlug = (a) =>
@@ -100,6 +101,28 @@ const RelatedActs = ({
         .map((x) => String(x).toLowerCase().trim())
         .filter(Boolean);
 
+    const numericLineupSizes = (value) => {
+      const values = Array.isArray(value) ? value : value ? [value] : [];
+      return Array.from(
+        new Set(
+          values
+            .map((item) => {
+              if (typeof item === "number") return item;
+              if (item && typeof item === "object") {
+                const explicit = item.actSize ?? item.act_size ?? item.size;
+                const match = String(explicit || "").match(/\d+/);
+                if (match) return Number(match[0]);
+                if (Array.isArray(item.bandMembers)) return item.bandMembers.length;
+                return null;
+              }
+              const match = String(item || "").match(/\d+/);
+              return match ? Number(match[0]) : null;
+            })
+            .filter((size) => Number.isFinite(size) && size > 0),
+        ),
+      ).sort((a, b) => a - b);
+    };
+
     // ---- LeadRole token logic ----
     const normalizeRoleWord = (w) => {
       const s = String(w || "").toLowerCase().trim();
@@ -150,6 +173,7 @@ const RelatedActs = ({
     const gWant = norm(genres);
     const iWant = norm(instruments);
     const vWant = String(vocalist || "").toLowerCase().trim();
+    const lineupWant = numericLineupSizes(lineupSizes);
 
     // e.g. "Vocalist-Guitarist" => ["vocalist","guitarist"]
     const leadWant = tokenizeRole(leadRole || "")
@@ -203,7 +227,30 @@ const RelatedActs = ({
 
       const vocalistExact = vWant && vHave === vWant ? 1 : 0;
 
+      const lineupHave = numericLineupSizes(
+        Array.isArray(a?.lineupSizes) && a.lineupSizes.length
+          ? a.lineupSizes
+          : a?.lineups,
+      );
+      const exactLineupMatches = lineupWant.filter((size) =>
+        lineupHave.includes(size),
+      ).length;
+      const nearestLineupDistance =
+        lineupWant.length && lineupHave.length
+          ? Math.min(
+              ...lineupWant.flatMap((wanted) =>
+                lineupHave.map((candidate) => Math.abs(wanted - candidate)),
+              ),
+            )
+          : null;
+      const lineupScore = exactLineupMatches
+        ? 20 + (exactLineupMatches - 1) * 5
+        : nearestLineupDistance != null
+          ? Math.max(0, 10 - nearestLineupDistance * 3)
+          : 0;
+
       const total =
+        lineupScore +
         genreMatches * 10 +
         leadRoleScore +
         vocalistExact * 1 +
@@ -215,6 +262,10 @@ const RelatedActs = ({
         leadRoleScore,
         leadRoleWhy,
         instrumentMatched,
+        lineupScore,
+        exactLineupMatches,
+        nearestLineupDistance,
+        lineupHave,
         gHave,
         iHave,
         vHave,
@@ -232,7 +283,7 @@ const RelatedActs = ({
           scoredCount: 0,
           positiveCount: 0,
           finalCount: 0,
-          wants: { gWant, iWant, vWant, leadRole, leadWant },
+          wants: { gWant, iWant, vWant, leadRole, leadWant, lineupWant },
           sampleCardKeys: [],
           sampleCardPreview: [],
           scoreTable: [],
@@ -259,12 +310,16 @@ const afterStatus = afterCurrent.filter((a) => !a?.status || isVisibleStatus(a.s
 
     const positive = scored.filter((a) => (a?._score || 0) > 0);
 
-    const fallback = [...afterStatus]
-      .sort((A, B) => Number(B?.loveCount || 0) - Number(A?.loveCount || 0))
-      .slice(0, maxToShow);
-
-    const items = (positive.length ? [...positive] : fallback)
-      .sort((A, B) => Number(B?._score || 0) - Number(A?._score || 0))
+    const items = [...scored]
+      .sort((A, B) => {
+        const scoreDifference = Number(B?._score || 0) - Number(A?._score || 0);
+        if (scoreDifference) return scoreDifference;
+        const lineupDifference =
+          Number(B?._scoreBreakdown?.lineupScore || 0) -
+          Number(A?._scoreBreakdown?.lineupScore || 0);
+        if (lineupDifference) return lineupDifference;
+        return Number(B?.loveCount || 0) - Number(A?.loveCount || 0);
+      })
       .slice(0, maxToShow);
 
     // 🧾 Build a readable table for console.table
@@ -282,6 +337,12 @@ const afterStatus = afterCurrent.filter((a) => !a?.status || isVisibleStatus(a.s
           genreMatches: b.genreMatches ?? 0,
           leadRoleScore: b.leadRoleScore ?? 0,
           instrumentMatched: b.instrumentMatched ?? 0,
+          lineupScore: b.lineupScore ?? 0,
+          exactLineupMatches: b.exactLineupMatches ?? 0,
+          nearestLineupDistance: b.nearestLineupDistance,
+          candidateLineupSizes: Array.isArray(b.lineupHave)
+            ? b.lineupHave.join(" | ")
+            : "",
           candidateGenres: Array.isArray(b.gHave) ? b.gHave.join(" | ") : "",
           candidateInstruments: Array.isArray(b.iHave) ? b.iHave.join(" | ") : "",
           candidateVocalist: b.vHave || "",
@@ -309,15 +370,15 @@ const afterStatus = afterCurrent.filter((a) => !a?.status || isVisibleStatus(a.s
       scoredCount: scored.length,
       positiveCount: positive.length,
       finalCount: items.length,
-      wants: { gWant, iWant, vWant, leadRole, leadWant },
+      wants: { gWant, iWant, vWant, leadRole, leadWant, lineupWant },
       sampleCardKeys: list[0] ? Object.keys(list[0]) : [],
       sampleCardPreview,
       scoreTable,
-      usedFallback: positive.length === 0,
+      usedFallback: positive.length < Math.min(maxToShow, afterStatus.length),
     };
 
     return { items, debug };
-}, [deferredCards, genres, instruments, vocalist, leadRole, currentActId, currentActSlug, maxToShow]);
+}, [deferredCards, genres, instruments, vocalist, leadRole, lineupSizes, currentActId, currentActSlug, maxToShow]);
   const related = memo.items;
   const dbg = memo.debug;
 
@@ -361,7 +422,7 @@ const afterStatus = afterCurrent.filter((a) => !a?.status || isVisibleStatus(a.s
       `[RelatedActs] cards=${sigObj.deferredLen} related=${Array.isArray(related) ? related.length : 0}`
     );
 
-    console.log("props:", { genres, instruments, vocalist, leadRole, currentActId, maxToShow });
+    console.log("props:", { genres, instruments, vocalist, leadRole, lineupSizes, currentActId, maxToShow });
 
     console.log("actCards:", {
       type: sigObj.actCardsType,
@@ -400,8 +461,7 @@ const afterStatus = afterCurrent.filter((a) => !a?.status || isVisibleStatus(a.s
 
     if (dbg?.usedFallback) {
       console.warn(
-        "[RelatedActs] usedFallback=true because positiveCount=0. " +
-          "That usually means the cards payload is missing genres/instruments/vocalist/leadRole fields (or they’re empty)."
+        "[RelatedActs] Lower-scoring acts were used to fill every visible card slot."
       );
     }
 
@@ -416,6 +476,7 @@ const afterStatus = afterCurrent.filter((a) => !a?.status || isVisibleStatus(a.s
     instruments,
     vocalist,
     leadRole,
+    lineupSizes,
     currentActId,
     maxToShow,
   ]);

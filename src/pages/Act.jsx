@@ -3033,6 +3033,7 @@ const Act = () => {
               instruments={actData.instruments || actData.instrumentation || []}
               vocalist={actData.vocalist || ""}
               leadRole={leadRole || ""}
+              lineupSizes={actData.lineups || []}
               currentActId={actData._id}
               currentActSlug={
                 actData.slug || actData.tscSlug || actData.routeSlug || ""
