@@ -64,7 +64,15 @@
     Cache-Control = "public, max-age=31536000, immutable"
     Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
 
-    [[headers]]
+# The Google loader has a stable URL, so cache it without marking it immutable.
+# Browsers refresh it weekly while Netlify can reuse it between deployments.
+[[headers]]
+  for = "/google-tag-loader.js"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
+    Netlify-CDN-Cache-Control = "public, max-age=31536000, must-revalidate"
+
+[[headers]]
   for = "/__assets_404__"
   [headers.values]
     Cache-Control = "no-store"
