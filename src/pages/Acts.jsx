@@ -8,6 +8,11 @@ import Title from "../components/Title";
 import CardFilterItem from "../components/CardFilterItem";
 import { assets } from "../assets/assets";
 import { scheduleSearchPrompt } from "../utils/scheduleSearchPrompt.js";
+import {
+  matchesSetlistControl,
+  SETLIST_CONTROL_LABELS,
+  SETLIST_CONTROL_OPTIONS,
+} from "../utils/setlistControl.js";
 import calculateActPricing from './utils/pricing.jsx';
 
 // --- DEBUG HELPERS ---------------------------------------------------------
@@ -134,6 +139,7 @@ const [priceMap, setPriceMap] = useState({}); // { [actId]: number }
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
   const [genre, setGenre] = useState([]);
+  const [setlistControl, setSetlistControl] = useState([]);
   const [isGenreSelected, setIsGenreSelected] = useState(false); // Track if any checkbox is checked
   const [isActSizeSelected, setIsActSizeSelected] = useState(false); // Track if any checkbox is checked
   const [isDjServicesSelected, setIsDjServicesSelected] = useState(false); // Track if any checkbox is checked
@@ -174,6 +180,7 @@ const [priceMap, setPriceMap] = useState({}); // { [actId]: number }
   const [filterProducts, setFilterProducts] = useState([]);
 const [enrichedCards, setEnrichedCards] = useState([]);
   const [showActSizeFilter, setShowActSizeFilter] = useState(false);
+  const [showSetlistControlFilter, setShowSetlistControlFilter] = useState(false);
   const [showWirelessFilter, setShowWirelessFilter] = useState(false);
   const navigate = useNavigate();
     // Full act objects (with lineups) from ShopContext — used for pricing
@@ -464,6 +471,7 @@ const hasStoredLocation = () => {
         genres_norm,
         lineupSizes: add.lineupSizes || add.act_sizes || c.lineupSizes || [],
         instruments: add.instruments || c.instruments || [],
+        setlist: add.setlist ?? c.setlist ?? "",
         pliAmount: add.pliAmount ?? c.pliAmount ?? null,
         paTrue: typeof add.paTrue === "boolean" ? add.paTrue : c.paTrue,
         lightTrue:
@@ -503,6 +511,7 @@ const hasStoredLocation = () => {
     paAndLights,
     pli,
     extraServices,
+    setlistControl,
     songSearch,
     actSearch,
   ]);
@@ -521,6 +530,7 @@ const hasStoredLocation = () => {
     djServices,
     actSearch,
     songSearch,
+    setlistControl,
     includeStatuses: [
       "approved",
       "live",
@@ -790,6 +800,18 @@ const hasStoredLocation = () => {
     });
   };
 
+  const toggleSetlistControl = (e) => {
+    const value = e.target.value;
+    const checked = e.target.checked;
+    setSetlistControl((prev) => {
+      const after = checked
+        ? uniqPush(prev, value)
+        : prev.filter((item) => item !== value);
+      logToggle("SETLIST CONTROL", { value, checked, before: prev, after });
+      return after;
+    });
+  };
+
   const toggleDjServices = (e) => {
     const value = e.target.value;
     const checked = e.target.checked;
@@ -903,6 +925,7 @@ const hasStoredLocation = () => {
   };
 
   const labelMap = {
+    ...SETLIST_CONTROL_LABELS,
     electric_drums: "Has electric drum kit",
     iems: "Uses in-ear monitoring",
     can_you_make_act_acoustic: "Can make act acoustic",
@@ -1625,6 +1648,14 @@ if (shouldApplyCountyTravelFilter) {
   });
 }
 
+    if (setlistControl.length > 0) {
+      actsCopy = actsCopy.filter((act) => matchesSetlistControl(act, setlistControl));
+      ACTS_DBG("after setlist-control filter", {
+        selected: setlistControl,
+        remain: actsCopy.length,
+      });
+    }
+
     // ───────────────────────────────────────────────────────────────────────────────
     // 🎚️ GENRE FILTER (single source of truth)
     // ───────────────────────────────────────────────────────────────────────────────
@@ -2204,6 +2235,11 @@ const removeFilterPill = (item) => {
     return;
   }
 
+  if (setlistControl.includes(item)) {
+    setSetlistControl((prev) => prev.filter((x) => x !== item));
+    return;
+  }
+
   if (djServices.includes(item)) {
     setDjServices((prev) => prev.filter((x) => x !== item));
     return;
@@ -2393,11 +2429,15 @@ const filterKey = useMemo(() => {
     availLoading: !!availLoading,
     availMapKey, // ✅ stable
     sortType,
+    fullActsSetlistKey: (fullActsFromCtx || [])
+      .map((act) => `${act?._id || act?.actId || ''}:${act?.setlist || ''}`)
+      .join('|'),
   });
 }, [
   actsFilterPageCards,
   genre,
   act_size,
+  setlistControl,
   djServices,
   instruments,
   wireless,
@@ -2414,6 +2454,7 @@ const filterKey = useMemo(() => {
   availLoading,
   availMapKey, // ✅ use this, remove `availableMap`
   sortType,
+  fullActsFromCtx,
 ]);
 
 useEffect(() => {
@@ -2766,6 +2807,38 @@ return (
                       </label>
                     </div>
                   )}{" "}
+                </div>
+              )}
+
+              {/* ------- SETLIST CONTROL ------- */}
+              <p
+                onClick={() => setShowSetlistControlFilter(!showSetlistControlFilter)}
+                className="mb-3 mt-3 text-sm font-medium flex items-center cursor-pointer gap-2"
+              >
+                SETLIST CONTROL
+                <img
+                  className={`h-3 transition-transform duration-300 ${
+                    showSetlistControlFilter ? "rotate-90" : ""
+                  }`}
+                  src={assets.dropdown_icon}
+                  alt=""
+                />
+              </p>
+
+              {showSetlistControlFilter && (
+                <div className="flex flex-col gap-2 text-sm font-light w-11/12 text-gray-700">
+                  {SETLIST_CONTROL_OPTIONS.map((option) => (
+                    <label className="flex gap-2" key={option.value}>
+                      <input
+                        className="w-3"
+                        type="checkbox"
+                        value={option.value}
+                        onChange={toggleSetlistControl}
+                        checked={setlistControl.includes(option.value)}
+                      />{' '}
+                      {option.label}
+                    </label>
+                  ))}
                 </div>
               )}
 
@@ -3988,6 +4061,7 @@ return (
           <div>
             {(genre.length > 0 ||
               act_size.length > 0 ||
+              setlistControl.length > 0 ||
               djServices.length > 0 ||
               songSearch.length > 0 ||
               actSearch.length > 0 ||
@@ -4008,6 +4082,7 @@ return (
                 {[
                   ...genre,
                   ...act_size,
+                  ...setlistControl,
                   ...djServices,
                   ...instruments,
                   ...wireless,

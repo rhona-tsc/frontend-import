@@ -10,5 +10,10 @@ test('the wedding band setlist guide is published with the tracked repertoire ke
   const opening = post.content.slice(0, 8).map(block => block.text || '').join(' ');
   assert.match(opening, /wedding band repertoire/i);
   assert.match(post.metaDescription, /wedding band’s setlist/i);
+  assert.equal(post.heroImage, '/images/blog/wedding-band-setlist-the-dreamers.jpeg');
+  assert.deepEqual(post.heroImageCredit, {
+    label: 'The Dreamers',
+    href: '/act/the-dreamers/',
+  });
   assert.ok(post.content.some(block => block.links?.some(link => link.href === '/acts/')));
 });

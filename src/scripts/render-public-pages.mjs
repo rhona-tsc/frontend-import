@@ -114,8 +114,14 @@ for (const {route, act, history} of acts) {
 }
 await writePage('/blog', 'Wedding & Event Music Inspiration | The Supreme Collective', 'Ideas, insights and planning tips for unforgettable live music experiences.', 'Wedding and event inspiration', blogPosts.map(post => `<article><h2><a href="/blog/${escape(post.slug)}">${escape(post.title)}</a></h2>${paragraph(post.excerpt)}</article>`).join(''));
 for (const post of blogPosts) {
-  const blogImage = (src, alt, width, height, caption, hero = false) => `<figure style="${width ? `max-width:${Number(width)}px;` : ''}margin:2rem auto"><img src="${escape(src)}" alt="${escape(alt)}"${width && height ? ` width="${Number(width)}" height="${Number(height)}"` : ''} style="max-width:100%;height:auto;${hero ? 'max-height:520px;object-fit:contain;' : ''}"${hero ? '' : ' loading="lazy" decoding="async"'}>${caption ? `<figcaption>${escape(caption)}</figcaption>` : ''}</figure>`;
-  const hero = post.heroImage ? blogImage(post.heroImage, post.heroImageAlt || post.title, post.heroImageWidth, post.heroImageHeight, post.heroImageCaption, true) : '';
+  const blogImage = (src, alt, width, height, caption, hero = false, credit = null) => {
+    const creditHtml = credit?.href && credit?.label
+      ? `${caption ? ' ' : ''}Photo: <a href="${escape(credit.href)}">${escape(credit.label)}</a>.`
+      : '';
+    const captionHtml = caption || creditHtml ? `<figcaption>${escape(caption)}${creditHtml}</figcaption>` : '';
+    return `<figure style="${width ? `max-width:${Number(width)}px;` : ''}margin:2rem auto"><img src="${escape(src)}" alt="${escape(alt)}"${width && height ? ` width="${Number(width)}" height="${Number(height)}"` : ''} style="max-width:100%;height:auto;${hero ? 'max-height:520px;object-fit:contain;' : ''}"${hero ? '' : ' loading="lazy" decoding="async"'}>${captionHtml}</figure>`;
+  };
+  const hero = post.heroImage ? blogImage(post.heroImage, post.heroImageAlt || post.title, post.heroImageWidth, post.heroImageHeight, post.heroImageCaption, true, post.heroImageCredit) : '';
   const content = hero + (post.content || []).map(item => item.type === 'heading' ? `<h2>${escape(item.text)}</h2>` : item.type === 'subheading' ? `<h3>${escape(item.text)}</h3>` : item.type === 'list' ? `<ul>${item.items.map(listItem => `<li>${escape(listItem)}</li>`).join('')}</ul>` : item.type === 'image' ? blogImage(item.src, item.alt || `Illustration for ${post.title}`, item.width, item.height, item.caption) : item.text ? paragraph(item.text) : '').join('');
   await writePage(`/blog/${post.slug}`, post.metaTitle || post.title, post.metaDescription || post.excerpt, post.title, content);
 }

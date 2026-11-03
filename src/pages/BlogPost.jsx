@@ -87,7 +87,16 @@ export default function BlogPost() {
           width={post.heroImageWidth} height={post.heroImageHeight}
           className={`w-full rounded-3xl max-h-[520px] ${post.heroImageFit === 'contain' ? 'object-contain' : 'object-cover'}`}
         />
-        {post.heroImageCaption && <figcaption className="mt-2 text-sm text-gray-600">{post.heroImageCaption}</figcaption>}
+        {(post.heroImageCaption || post.heroImageCredit) && (
+          <figcaption className="mt-2 text-sm text-gray-600">
+            {post.heroImageCaption}{post.heroImageCaption && post.heroImageCredit ? ' ' : ''}
+            {post.heroImageCredit && (
+              <>
+                Photo: <Link className="underline" to={post.heroImageCredit.href}>{post.heroImageCredit.label}</Link>.
+              </>
+            )}
+          </figcaption>
+        )}
         </figure>
       )}
 
