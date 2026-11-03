@@ -84,7 +84,10 @@ const currencySymbol = (code) => {
 };
 
 const splitPersonName = (value = "") => {
-  const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
+  const primaryContact = String(value || "")
+    .trim()
+    .split(/\s*(?:\/|&|\band\b)\s*/i)[0];
+  const parts = primaryContact.split(/\s+/).filter(Boolean);
   return { first: parts[0] || "", last: parts.slice(1).join(" ") };
 };
 
@@ -111,9 +114,21 @@ const sanitizeForSave = (obj) => {
 // Known contract/booking facts sit underneath saved answers, so client edits
 // are preserved while a new event sheet is no longer presented as blank.
 const bookingPrefillAnswers = (booking = {}) => {
-  const contact = splitPersonName(
-    booking.clientFirstNames || booking.bookerName || booking.clientName || "",
-  );
+  const bookerNameCandidates = [
+    [booking.clientFirstNames, booking.clientLastName]
+      .filter(Boolean)
+      .join(" "),
+    booking.bookerName,
+    booking.clientName,
+    booking.clientFullName,
+    booking.contactName,
+    booking.clientFirstNames,
+  ].filter((value) => String(value || "").trim());
+  const contactName =
+    bookerNameCandidates.find(
+      (value) => splitPersonName(value).last,
+    ) || bookerNameCandidates[0] || "";
+  const contact = splitPersonName(contactName);
   const performance = booking.performanceTimes || {};
   const firstAct = Array.isArray(booking.actsSummary)
     ? booking.actsSummary[0] || {}
@@ -145,6 +160,17 @@ const bookingPrefillAnswers = (booking = {}) => {
     schedule_simple_finish_time:
       performance.finishTime || firstPerformance.finishTime || booking.finishTime || "",
   }).filter(([, value]) => value !== "" && value != null));
+};
+
+const mergeBookingPrefillAnswers = (booking = {}, savedAnswers = {}) => {
+  const prefill = bookingPrefillAnswers(booking);
+  const merged = { ...(savedAnswers || {}) };
+
+  Object.entries(prefill).forEach(([key, value]) => {
+    if (String(merged[key] ?? "").trim() === "") merged[key] = value;
+  });
+
+  return merged;
 };
 
 // --- Equipment description helpers (pull from acts in context) ---
@@ -1258,10 +1284,10 @@ const ViewEventSheet = () => {
 
               if (hydrated.source !== "empty") {
                 setAnswers(
-                  applyAuthoritativeEventType(match, {
-                    ...bookingPrefillAnswers(match),
-                    ...hydrated.answers,
-                  }),
+                  applyAuthoritativeEventType(
+                    match,
+                    mergeBookingPrefillAnswers(match, hydrated.answers),
+                  ),
                 );
                 setComplete(hydrated.complete);
 
@@ -1302,7 +1328,7 @@ const ViewEventSheet = () => {
                   ? { song_suggestions: suggestionsText }
                   : {};
 
-                setAnswers({ ...bookingPrefillAnswers(match), ...seeded });
+                setAnswers(mergeBookingPrefillAnswers(match, seeded));
                 setComplete({});
               }
             } catch (err) {
@@ -1981,7 +2007,7 @@ const ViewEventSheet = () => {
         : {
             id: "booker_details",
             title: "Booker Details",
-            help: "Who is our main point of contact for this booking?",
+            help: "Who booked the band?",
             fields: [
               { key: "booker_first", label: "First name", type: "text" },
               { key: "booker_last", label: "Last name", type: "text" },
@@ -1989,12 +2015,6 @@ const ViewEventSheet = () => {
                 key: "booker_company",
                 label: "Company (optional)",
                 type: "text",
-              },
-              {
-                key: "introduced_as",
-                label: "Announcement wording (optional)",
-                type: "text",
-                placeholder: "e.g. Awards host to announce...",
               },
             ],
           };
@@ -2266,6 +2286,57 @@ const ViewEventSheet = () => {
                     .filter(Boolean)
                 : [];
 
+              const RegistrationRequestBlock = () => (
+                <div className="gap-3 mt-3">
+                  <label className="text-sm text-gray-700 mb-2 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="accent-[#ff6667]"
+                      checked={!!answers.need_registrations}
+                      onChange={(e) =>
+                        handleAnswer("need_registrations", e.target.checked)
+                      }
+                    />
+                    Does your venue require the band's vehicle registration
+                    numbers?
+                  </label>
+
+                  {answers.need_registrations && (
+                    <div className="mt-2 rounded border bg-gray-50 p-3">
+                      <div className="text-sm font-semibold mb-2">
+                        Band vehicle registrations
+                      </div>
+
+                      {regRows.length > 0 ? (
+                        <ul className="text-sm text-gray-800 space-y-1">
+                          {regRows.map((row, index) => (
+                            <li
+                              key={`${row.plate}-${index}`}
+                              className="flex justify-between gap-3"
+                            >
+                              <span className="truncate">
+                                {row.name}
+                                {row.instrument ? ` — ${row.instrument}` : ""}
+                              </span>
+                              <span className="font-mono">
+                                {row.plate === "NO_CAR"
+                                  ? "No vehicle"
+                                  : row.plate}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-sm text-gray-600">
+                          We don’t have registration plates on file for this
+                          lineup yet. We’ll email them to you shortly.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+
               const ParkingPaymentBlock = () => {
                 const totalPence = Math.round(totalCost * 100);
 
@@ -2423,58 +2494,7 @@ const ViewEventSheet = () => {
                         </div>
                       </div>
 
-                      <div className="gap-3 mt-3">
-                        <label className="text-sm text-gray-700 mb-2 flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="accent-[#ff6667]"
-                            checked={!!answers.need_registrations}
-                            onChange={(e) =>
-                              handleAnswer(
-                                "need_registrations",
-                                e.target.checked,
-                              )
-                            }
-                          />
-                          Does your venue require the band's vehicle
-                          registration numbers?
-                        </label>
-
-                        {answers.need_registrations && (
-                          <div className="mt-2 rounded border bg-gray-50 p-3">
-                            <div className="text-sm font-semibold mb-2">
-                              Band vehicle registrations
-                            </div>
-
-                            {regRows.length > 0 ? (
-                              <ul className="text-sm text-gray-800 space-y-1">
-                                {regRows.map((r, i) => (
-                                  <li
-                                    key={`${r.plate}-${i}`}
-                                    className="flex justify-between gap-3"
-                                  >
-                                    <span className="truncate">
-                                      {r.name}
-                                      {r.instrument ? ` — ${r.instrument}` : ""}
-                                    </span>
-                                    <span className="font-mono">
-                                      {r.plate === "NO_CAR"
-                                        ? "No vehicle"
-                                        : r.plate}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <div className="text-sm text-gray-600">
-                                We don’t have registration plates on file for
-                                this lineup yet. We’ll email them to you
-                                shortly.
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <RegistrationRequestBlock />
                     </div>
                   )}
 
@@ -2571,6 +2591,8 @@ const ViewEventSheet = () => {
                           />
                         </div>
                       </div>
+
+                      <RegistrationRequestBlock />
 
                       {paidParkingCars > 0 && (
                         <>
@@ -3166,11 +3188,7 @@ const ViewEventSheet = () => {
       {
         id: "points_of_contact",
         title: "Points of Contact",
-        help: (() => {
-          const info = getActEquipmentInfo(acts, booking);
-          const name = info?.tscName || "the act";
-          return `Please provide points of contact on the day (name, mobile, and role). For example, ${name}'s point of contact. You can add multiple personal or venue contacts. The band's emergency line and event code are shown below.`;
-        })(),
+        help: "Please provide points of contact on the day (name, mobile, and role). You can add multiple personal or venue contacts. The band's emergency line and event code are shown below.",
         fields: [
           {
             key: "poc_combined",
