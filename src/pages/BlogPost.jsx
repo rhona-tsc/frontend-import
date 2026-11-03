@@ -104,6 +104,22 @@ export default function BlogPost() {
     );
   }
 
+  if (block.type === "subheading") {
+    return (
+      <h3 key={index} className="mt-8 mb-3 text-xl md:text-2xl font-semibold">
+        {block.text}
+      </h3>
+    );
+  }
+
+  if (block.type === "list") {
+    return (
+      <ul key={index} className="mb-6 list-disc space-y-2 pl-6 text-gray-700">
+        {block.items.map((item) => <li key={item}>{item}</li>)}
+      </ul>
+    );
+  }
+
   if (block.type === "image") {
     return (
       <figure key={index} className="my-8 mx-auto" style={block.width ? { maxWidth: block.width } : undefined}><img

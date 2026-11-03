@@ -1,7 +1,9 @@
 import { jenAndTomWedding } from './jenAndTomWedding.js';
 import { stageLightingGuide } from './stageLightingGuide.js';
 import { recoveredArchivePosts } from './recoveredArchivePosts.js';
+import { weddingBandSetlistGuide } from './weddingBandSetlistGuide.js';
 export const blogPosts = [
+  weddingBandSetlistGuide,
   {
     slug: "5-ways-live-music-transforms-an-event",
     title: "5 Ways Live Music Transforms an Event",
