@@ -33,6 +33,41 @@ import {
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 const DIET_FALLBACK = "TBC";
 
+const formatOrdinalDate = (value) => {
+  const isoMatch = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const date =
+    value instanceof Date
+      ? value
+      : isoMatch
+        ? new Date(
+            Number(isoMatch[1]),
+            Number(isoMatch[2]) - 1,
+            Number(isoMatch[3]),
+            12,
+          )
+        : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const day = date.getDate();
+  const remainder = day % 100;
+  const suffix =
+    remainder >= 11 && remainder <= 13
+      ? "th"
+      : day % 10 === 1
+        ? "st"
+        : day % 10 === 2
+          ? "nd"
+          : day % 10 === 3
+            ? "rd"
+            : "th";
+
+  return `${day}${suffix} ${date.toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+  })}`;
+};
+
 const getThursdayInWeekBefore = (bookingValue = {}) => {
   const booking = bookingValue || {};
   const rawDate =
@@ -70,11 +105,7 @@ const getThursdayInWeekBefore = (bookingValue = {}) => {
   const deadline = new Date(eventDate);
   deadline.setDate(deadline.getDate() - daysSinceMonday - 4);
 
-  return deadline.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  return formatOrdinalDate(deadline);
 };
 
 const currencySymbol = (code) => {
@@ -4200,7 +4231,7 @@ const ViewEventSheet = () => {
             </p>
             <p className="text-gray-700">
               <strong>Date:</strong>{" "}
-              {eventDate ? eventDate.toLocaleDateString("en-GB") : "—"}
+              {eventDate ? formatOrdinalDate(eventDate) : "—"}
             </p>
             <p className="text-gray-700">
               <strong>Event Type:</strong> {booking.eventType || "—"}
