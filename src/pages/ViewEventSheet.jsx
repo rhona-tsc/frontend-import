@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, {
   useEffect,
   useMemo,
@@ -2107,7 +2108,7 @@ const ViewEventSheet = () => {
                           <div className="relative aspect-video overflow-hidden bg-gray-900">
                             {thumbnail ? (
                               <img
-                                src={thumbnail}
+                                src={cloudinaryImage(thumbnail, 1200)}
                                 alt={`Promo video ${index + 1} thumbnail`}
                                 loading="lazy"
                                 className="h-full w-full object-cover transition group-hover:scale-105"
@@ -2469,7 +2470,7 @@ const ViewEventSheet = () => {
                         Parking screenshot for the band
                       </div>
                       <img
-                        src={answers.parking_screenshot_url}
+                        src={cloudinaryImage(answers.parking_screenshot_url, 1200)}
                         alt={
                           answers.parking_screenshot_name ||
                           "Parking screenshot"
@@ -4372,7 +4373,7 @@ const ViewEventSheet = () => {
                     {actMedia.images.map((url, imageIndex) => (
                       <img
                         key={url}
-                        src={url}
+                        src={cloudinaryImage(url, 160)}
                         alt={`${it.actName} promotional ${imageIndex + 1}`}
                         className="w-20 h-20 object-cover rounded"
                         onError={(e) => (e.currentTarget.style.display = "none")}

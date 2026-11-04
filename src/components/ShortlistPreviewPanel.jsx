@@ -823,13 +823,11 @@ useEffect(() => {
       <img
         key={i}
         className="w-4"
-        src={
-          avgRating >= i
+        src={avgRating >= i
             ? assets.star_icon
             : avgRating >= i - 0.5
               ? assets.star_half_icon
-              : assets.star_dull_icon
-        }
+              : assets.star_dull_icon}
         alt={`Star ${i}`}
       />
     ))}

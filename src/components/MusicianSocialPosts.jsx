@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import { useRef } from "react";
 import PropTypes from "prop-types";
 import Title from "./Title";
@@ -58,7 +59,7 @@ const MusicianSocialPosts = ({ posts }) => {
             className="relative h-[220px] min-w-[180px] flex-none snap-start overflow-hidden bg-black sm:h-[260px] sm:min-w-[210px] lg:h-[280px] lg:min-w-[225px]"
           >
             <img
-              src={post.imageUrl}
+              src={cloudinaryImage(post.imageUrl, 1200)}
               alt={`${post.platform} performance highlight`}
               className="h-full w-full object-cover"
               loading="lazy"

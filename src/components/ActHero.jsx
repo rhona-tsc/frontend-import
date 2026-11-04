@@ -7,7 +7,7 @@ import { getBandImageAlt } from "../utils/bandImageAlt.js";
 
 /** Cloudinary helper: injects transforms */
 const cld = (url, { w, h, crop = "fill", gravity = "auto", q = "auto", fmt = "auto" } = {}) => {
-  if (typeof url !== "string" || !url.includes("/upload/")) return url || "";
+  if (typeof url !== "string" || !/^https?:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url)) return url || "";
   const parts = [`f_${fmt}`, `q_${q}`, "dpr_auto", `c_${crop}`, `g_${gravity}`];
   if (w) parts.push(`w_${w}`);
   if (h) parts.push(`h_${h}`);

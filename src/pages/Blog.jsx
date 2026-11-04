@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { blogPosts } from "../data/BlogPosts.js";
@@ -46,7 +47,7 @@ export default function Blog() {
               {post.heroImage && (
                 <Link to={`/blog/${post.slug}/`}>
                   <img
-                    src={post.heroImage}
+                    src={cloudinaryImage(post.heroImage, 1200)}
                     alt={post.heroImageAlt || post.title}
                     loading="lazy" decoding="async"
                     className={`h-64 w-full ${post.heroImageFit === 'contain' ? 'object-contain bg-black' : 'object-cover'}`}

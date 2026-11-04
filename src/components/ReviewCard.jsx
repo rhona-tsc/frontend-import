@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import { useState } from "react";
 import { assets } from "../assets/assets";
 import { Link } from 'react-router-dom';
@@ -59,13 +60,11 @@ const ReviewCard = ({ review, county }) => {
       <img
         key={i}
         className="w-3 sm:w-4"
-        src={
-          rating >= i
+        src={rating >= i
             ? assets.star_icon
             : rating >= i - 0.5
             ? assets.star_half_icon
-            : assets.star_dull_icon
-        }
+            : assets.star_dull_icon}
         alt={`Star ${i}`}
       />
     ))}
@@ -136,7 +135,7 @@ const ReviewCard = ({ review, county }) => {
               </div>
             ) : (
               <img
-                src={mediaUrl}
+                src={cloudinaryImage(mediaUrl, 960)}
                 alt={`Event media ${index + 1}`}
                 className="rounded-md cursor-pointer hover:scale-105 transition-transform object-cover w-full h-16 sm:h-20"
                 onClick={() => {

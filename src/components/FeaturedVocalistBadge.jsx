@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import { assets } from "../assets/assets"; // top-level import
 const PUBLIC_SITE_BASE =
   import.meta.env.VITE_FRONTEND_URL || window.location.origin;
@@ -45,7 +46,7 @@ export function FeaturedVocalistBadge({
       >
         {imgSrc ? (
           <img
-            src={imgSrc}
+            src={cloudinaryImage(imgSrc, 1200)}
             alt=""
             className="absolute rounded-full object-cover shadow-sm"
             style={{
@@ -60,7 +61,7 @@ export function FeaturedVocalistBadge({
         ) : null}
 
         <img
-          src={ringSrc}
+          src={cloudinaryImage(ringSrc, 1200)}
           alt=""
           className="absolute inset-0 w-full h-full pointer-events-none"
           draggable={false}

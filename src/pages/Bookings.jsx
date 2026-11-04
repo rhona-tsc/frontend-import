@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
@@ -240,7 +241,7 @@ const Bookings = () => {
           >
             <div className="flex items-start gap-4 text-sm p-3">
               {r.image ? (
-                <img className="w-16 sm:w-20 h-16 sm:h-20 object-cover rounded" src={r.image} alt={r.actName} />
+                <img className="w-16 sm:w-20 h-16 sm:h-20 object-cover rounded" src={cloudinaryImage(r.image, 160)} alt={r.actName} />
               ) : (
                 <div className="w-16 sm:w-20 h-16 sm:h-20 bg-gray-200 rounded" />
               )}

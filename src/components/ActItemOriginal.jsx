@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useState, useEffect, useContext, useCallback, useMemo, useDeferredValue } from 'react';
 import { toast } from 'react-toastify';
 import CustomToast from './CustomToast';
@@ -11,7 +12,7 @@ import useRenderTracker from '../hooks/useRenderTracker'; // 👈 add this impor
 // Cloudinary helper: add responsive transforms
 const cld = (url, { w = 600, h = 400, crop = 'fill', gravity = 'auto' } = {}) => {
   if (typeof url !== 'string') return '';
-  if (!url.includes('/upload/')) return url || '';
+  if (!/^https?:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url)) return url || '';
   return url.replace(
     '/upload/',
     `/upload/f_auto,q_auto,dpr_auto,c_${crop},g_${gravity},w_${w},h_${h}/`
@@ -293,7 +294,7 @@ useEffect(() => {
                 width="600"
                 height="400"
                 className="h-full w-full object-cover hover:scale-110 transition ease-in-out"
-                src={resolvedImage}
+                src={cloudinaryImage(resolvedImage, 960)}
                 alt={actData?.tscName || 'Act'}
               />
             );

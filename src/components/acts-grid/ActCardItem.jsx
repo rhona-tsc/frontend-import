@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../../utils/cloudinaryImage.js";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ShopContext } from "../../context/ShopContext";
@@ -90,7 +91,7 @@ export default function ActCardItem({ card }) {
       <Link to={href} className="block aspect-[16/10] bg-gray-100 overflow-hidden">
         {card?.imageUrl ? (
           <img
-            src={card.imageUrl}
+            src={cloudinaryImage(card.imageUrl, 1200)}
             alt={card?.tscName || card?.name || "Act"}
             className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform"
             loading="lazy"

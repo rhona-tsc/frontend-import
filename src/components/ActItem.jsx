@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 // frontend/src/components/ActItem.jsx
 import React, {
   useState,
@@ -611,7 +612,7 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
         <div className="overflow-hidden aspect-[524/636] w-full bg-gray-100">
           <img
             className="block h-full w-full object-cover hover:scale-110 transition ease-in-out"
-            src={resolvedImage}
+            src={cloudinaryImage(resolvedImage, 960)}
             alt={getBandImageAlt(resolvedImage, actData)}
           />
         </div>

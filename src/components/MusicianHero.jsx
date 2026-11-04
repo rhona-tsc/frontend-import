@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useState, useEffect, useMemo, memo } from "react";
 import PropTypes from "prop-types";
 
@@ -178,7 +179,7 @@ const MusicianHero = ({
 
         {heroImage && (
           <img
-            src={heroImage}
+            src={cloudinaryImage(heroImage, 1200)}
             alt={title ? `${title} hero` : "Musician hero"}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
               isLoaded ? "opacity-100" : "opacity-0"

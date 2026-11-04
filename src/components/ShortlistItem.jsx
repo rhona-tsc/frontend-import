@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useState, useContext, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -318,7 +319,7 @@ return (
               <img
                 loading="lazy"
                 className="absolute inset-0 w-full h-full object-cover"
-                src={images?.[0]?.url || '/placeholder.jpg'}
+                src={cloudinaryImage(images?.[0]?.url || '/placeholder.jpg', 960)}
                 alt="Thumbnail"
               />
             )}

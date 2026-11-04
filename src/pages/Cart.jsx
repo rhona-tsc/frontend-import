@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import {
   useContext,
   useEffect,
@@ -2057,7 +2058,7 @@ const availableLineups = availableLineupsRaw.filter((l) => Boolean(normLineupId(
 {item.image && (
   <div className="w-full md:w-auto">
     <img
-      src={item.image?.url || item.image || ""}
+      src={cloudinaryImage(item.image?.url || item.image || "", 1200)}
       alt={item.actName}
       className="w-full h-auto max-h-64 object-cover rounded"
       loading="lazy"

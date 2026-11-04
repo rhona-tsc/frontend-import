@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import { publicCanonicalUrl } from '../utils/publicUrls.js';
 import React, {
   useContext,
@@ -344,7 +345,7 @@ const Act = () => {
       q = "auto:good", // good quality at small size
     } = {},
   ) => {
-    if (!url || !url.includes("/upload/")) return url || "";
+    if (!url || !/^https?:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url)) return url || "";
     const t = [
       "f_auto", // AVIF/WebP/JPEG automatically
       `q_${q}`, // quality
@@ -1492,21 +1493,7 @@ const Act = () => {
 
   // 🖼️ Cloudinary helper for gallery images: NEVER crop (preserve full image)
   // Uses c_limit so the full image is shown, regardless of landscape/portrait.
-  const cldGallery = (url, w = 1200) => {
-    const u = String(url || "").trim();
-    if (!u) return "";
-
-    // If this isn't a Cloudinary delivery URL, return as-is
-    if (!u.includes("/image/upload/")) return u;
-
-    // Insert transformations right after /upload/
-    // c_limit preserves aspect ratio and avoids center-cropping
-    const transform = `c_limit,w_${Math.round(w)},q_auto,f_auto`;
-
-    // If URL already has transformations after /upload/, we still prefer our safe ones.
-    // Strategy: always insert ours immediately after /upload/.
-    return u.replace("/image/upload/", `/image/upload/${transform}/`);
-  };
+  const cldGallery = (url, w = 1200) => cloudinaryImage(url, w);
 
   const selectedVideoUrl = video || videos?.[0]?.url || "";
   const selectedVideoId = extractVideoId(selectedVideoUrl);
@@ -1725,13 +1712,11 @@ const Act = () => {
                   <img
                     key={i}
                     className="w-3.5"
-                    src={
-                      avgRating >= i
+                    src={avgRating >= i
                         ? assets.star_icon
                         : avgRating >= i - 0.5
                           ? assets.star_half_icon
-                          : assets.star_dull_icon
-                    }
+                          : assets.star_dull_icon}
                     alt={`Star ${i}`}
                   />
                 ))}
@@ -2197,13 +2182,11 @@ const Act = () => {
                 <img
                   key={i}
                   className="w-3.5"
-                  src={
-                    avgRating >= i
+                  src={avgRating >= i
                       ? assets.star_icon
                       : avgRating >= i - 0.5
                         ? assets.star_half_icon
-                        : assets.star_dull_icon
-                  }
+                        : assets.star_dull_icon}
                   alt={`Star ${i}`}
                 />
               ))}
@@ -2730,7 +2713,7 @@ const Act = () => {
             {actData.images?.[1]?.url && (
               <div className="absolute inset-0 z-0">
                 <img
-                  src={actData.images[1].url}
+                  src={cloudinaryImage(actData.images[1].url, 1200)}
                   alt="Reviews background"
                   className="w-full h-full object-cover opacity-10"
                 />

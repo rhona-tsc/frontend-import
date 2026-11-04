@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import { useState } from "react";
 import { assets } from "../assets/assets";
 
@@ -138,7 +139,7 @@ const effectiveProfileUrl =
       >
         {hasValidUrl && (
           <img
-            src={imgSrc}
+            src={cloudinaryImage(imgSrc, 1200)}
             alt=""
             className="absolute rounded-full object-cover shadow-sm"
             style={{
@@ -152,7 +153,7 @@ const effectiveProfileUrl =
           />
         )}
         <img
-          src={ringSrc}
+          src={cloudinaryImage(ringSrc, 1200)}
           alt=""
           className="absolute inset-0 w-full h-full pointer-events-none"
           draggable={false}

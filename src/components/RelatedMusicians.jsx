@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 // frontend/src/components/RelatedMusicians.jsx
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -115,7 +116,7 @@ const RelatedMusicians = ({ currentActId }) => {
                   >
                     {img ? (
                       <img
-                        src={img}
+                        src={cloudinaryImage(img, 960)}
                         alt={name}
                         className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
                         loading="lazy"

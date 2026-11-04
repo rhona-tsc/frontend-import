@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useState } from "react";
 import { BACKEND } from "../apiBase";
@@ -166,7 +167,7 @@ const VenueGuide = () => {
             <article key={venue._id} className="overflow-hidden rounded-3xl border border-gray-200 bg-[#fafafa] shadow-sm">
               <button type="button" onClick={() => setExpanded(isOpen ? "" : venue._id)} className="flex w-full items-start justify-between gap-5 p-6 text-left sm:p-8" aria-expanded={isOpen}>
                 <span className="flex min-w-0 flex-1 flex-col gap-5 sm:flex-row sm:items-center">
-                  {venue.photoUrl && <img src={venue.photoUrl} alt={venue.photoAlt || `${venue.name} wedding venue`} loading="lazy" width="240" height="150" className="aspect-[8/5] w-full shrink-0 rounded-2xl object-cover sm:w-48" />}
+                  {venue.photoUrl && <img src={cloudinaryImage(venue.photoUrl, 384)} alt={venue.photoAlt || `${venue.name} wedding venue`} loading="lazy" width="240" height="150" className="aspect-[8/5] w-full shrink-0 rounded-2xl object-cover sm:w-48" />}
                   <span>
                   <span className="block text-2xl font-semibold text-gray-900">{venue.name}</span>
                   <span className="mt-1 block text-gray-600">{[venue.address, venue.postcode, venue.county].filter(Boolean).join(" · ") || "Location details being added"}</span>

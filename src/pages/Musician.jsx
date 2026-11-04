@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, {
   useContext,
   useState,
@@ -1062,7 +1063,7 @@ const Musician = () => {
                         >
                           {selectedPoster ? (
                             <img
-                              src={selectedPoster}
+                              src={cloudinaryImage(selectedPoster, 1200)}
                               alt="Video poster"
                               className="w-full h-full object-cover"
                               loading="lazy"
@@ -1128,7 +1129,7 @@ const Musician = () => {
                               {thumbnail ? (
                                 <img
                                   className="h-full w-full object-cover"
-                                  src={thumbnail}
+                                  src={cloudinaryImage(thumbnail, 1200)}
                                   alt=""
                                   loading="lazy"
                                 />
@@ -1708,7 +1709,7 @@ const Musician = () => {
                         className="group mb-1 block w-full break-inside-avoid overflow-hidden bg-transparent text-left"
                       >
                         <img
-                          src={image.url}
+                          src={cloudinaryImage(image.url, 1200)}
                           alt={`${image.label} photograph ${index + 1}`}
                           className="block h-auto w-full transition duration-300 group-hover:brightness-95"
                           loading="lazy"
@@ -1740,7 +1741,7 @@ const Musician = () => {
                     ×
                   </button>
                   <img
-                    src={selectedGalleryImage.url}
+                    src={cloudinaryImage(selectedGalleryImage.url, 1920)}
                     alt={`${selectedGalleryImage.label} photograph`}
                     className="max-h-full max-w-full object-contain"
                     onClick={(event) => event.stopPropagation()}

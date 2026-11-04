@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -82,7 +83,7 @@ export default function BlogPost() {
       {post.heroImage && (
         <figure className="mb-10">
         <img
-          src={post.heroImage}
+          src={cloudinaryImage(post.heroImage, 1200)}
           alt={post.heroImageAlt || post.title}
           width={post.heroImageWidth} height={post.heroImageHeight}
           className={`w-full rounded-3xl max-h-[520px] ${post.heroImageFit === 'contain' ? 'object-contain' : 'object-cover'}`}
@@ -133,7 +134,7 @@ export default function BlogPost() {
     return (
       <figure key={index} className="my-8 mx-auto" style={block.width ? { maxWidth: block.width } : undefined}><img
         key={index}
-        src={block.src}
+        src={cloudinaryImage(block.src, 1200)}
         alt={block.alt || `Illustration for ${post.title}`}
         width={block.width} height={block.height}
         className="w-full h-auto rounded-3xl"

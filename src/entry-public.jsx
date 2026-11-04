@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "./utils/cloudinaryImage.js";
 // Build-time rendering only. Never include this entry in the browser bundle.
 import React from 'react';
 import { renderToString } from 'react-dom/server';
@@ -53,7 +54,7 @@ export function renderActInitialContent(route, act, history) {
   return renderToString(<StaticRouter location={route}>
     <main className="pb-20 pt-6" aria-busy="true">
       <section className="relative mx-auto aspect-[16/8] min-h-[360px] max-w-7xl overflow-hidden rounded-[2rem] bg-gray-900">
-        {image && <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75" />}
+        {image && <img src={cloudinaryImage(image, 1200)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75" />}
         <div className="absolute inset-0 bg-black/35" />
         <div className="absolute inset-0 grid place-items-center px-6 text-center text-white">
           <div className="max-w-3xl rounded-2xl bg-black/50 p-6">
