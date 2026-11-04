@@ -28,6 +28,14 @@
   status = 200
   force = true
 
+# Branded band event-sheet links proxy to the durable PDF endpoint while
+# keeping thesupremecollective.co.uk/sheet/... in the browser address bar.
+[[redirects]]
+  from = "/sheet/*"
+  to = "https://tsc-backend-v2.onrender.com/api/booking/band-sheet/:splat"
+  status = 200
+  force = true
+
 # 🔒 Redirect any accidental ngrok traffic to your live backend
 [[redirects]]
   from = "/*"

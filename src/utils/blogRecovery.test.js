@@ -21,4 +21,5 @@ test('legacy article redirects directly and missing public paths are not SPA rew
  assert.match(redirects,/^\/musician\/\*\s+\/index.html/m);
  assert.match(redirects,/^\/event-sheet\/\*\s+\/index.html/m);
  assert.match(redirects,/^\/venues\/claim\/\*\s+\/index.html/m);
+ assert.match(redirects,/^\/sheet\/\*\s+https:\/\/tsc-backend-v2\.onrender\.com\/api\/booking\/band-sheet\/:splat\s+200!/m);
 });
