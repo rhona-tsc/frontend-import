@@ -1,11 +1,12 @@
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import PropTypes from "prop-types";
 import Title from "./Title";
 
 const MusicianSocialPosts = ({ posts }) => {
   const carouselRef = useRef(null);
-  const imagePosts = posts.filter((post) => Boolean(post.imageUrl));
+  const [failedImages, setFailedImages] = useState(() => new Set());
+  const imagePosts = posts.filter((post) => post.imageUrl && !failedImages.has(post.imageUrl));
 
   if (!imagePosts.length) return null;
 
@@ -63,6 +64,7 @@ const MusicianSocialPosts = ({ posts }) => {
               alt={`${post.platform} performance highlight`}
               className="h-full w-full object-cover"
               loading="lazy"
+              onError={() => setFailedImages((previous) => new Set([...previous, post.imageUrl]))}
               referrerPolicy="no-referrer"
             />
           </div>
@@ -77,7 +79,7 @@ MusicianSocialPosts.propTypes = {
     PropTypes.shape({
       key: PropTypes.string.isRequired,
       platform: PropTypes.string.isRequired,
-      embedUrl: PropTypes.string.isRequired,
+      embedUrl: PropTypes.string,
       imageUrl: PropTypes.string,
       linkUrl: PropTypes.string,
       aspectClass: PropTypes.string,

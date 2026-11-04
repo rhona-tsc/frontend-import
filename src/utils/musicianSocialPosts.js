@@ -71,6 +71,24 @@ const parseStoredSocialPost = (item) => {
 
   const platform = String(item.platform || "").toLowerCase();
   const mediaUrl = cleanUrl(item.mediaUrl);
+  if (platform === "instagram") {
+    const imageUrl = cleanUrl(
+      String(item.mediaType).toLowerCase() === "video"
+        ? item.thumbnailUrl
+        : mediaUrl || item.thumbnailUrl,
+    );
+    try {
+      if (new URL(imageUrl).protocol !== "https:") return null;
+    } catch {
+      return null;
+    }
+    return {
+      key: `instagram-import-${item._id || imageUrl}`,
+      platform: "Instagram",
+      imageUrl,
+      aspectClass: "aspect-[4/5]",
+    };
+  }
   if (platform === "tiktok" && mediaUrl) {
     let parsedUrl;
     try {
@@ -122,6 +140,5 @@ export const getMusicianSocialPosts = (musician) => {
       if (!post || seen.has(post.key)) return false;
       seen.add(post.key);
       return true;
-    })
-    .slice(0, 6);
+    });
 };
