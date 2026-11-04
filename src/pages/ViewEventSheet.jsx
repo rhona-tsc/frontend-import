@@ -29,6 +29,7 @@ import {
   applyAuthoritativeEventType,
   resolveEventSheetEventType,
 } from "../utils/eventSheetEventType.js";
+import { getParkingVehicleMessage } from "../utils/eventSheetParking.js";
 
 const esDebug = (...args) => console.log("🧾[EventSheet]", ...args);
 const DIET_FALLBACK = "TBC";
@@ -2228,8 +2229,8 @@ const ViewEventSheet = () => {
         title: "Parking",
         help: (
           <>
-            Parking is required for all band vehicles. If you need the band’s
-            car registrations, tick the box below and we’ll email them to you.
+            {getParkingVehicleMessage(defaultCars)} If you need the band’s car
+            registrations, tick the box below and we’ll email them to you.
           </>
         ),
         fields: [
