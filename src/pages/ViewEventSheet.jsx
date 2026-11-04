@@ -3088,97 +3088,173 @@ const ViewEventSheet = () => {
                           handleAnswer("sound_limits_doc_url", url);
                           handleAnswer("sound_limits_doc_size", file.size);
                           handleAnswer("sound_limits_doc_type", file.type);
+                          handleAnswer("sound_limits_doc_purpose", "");
+                          handleAnswer(
+                            "sound_limits_doc_needs_signing",
+                            false,
+                          );
+                          handleAnswer(
+                            "sound_limits_doc_needs_signing_request_at",
+                            "",
+                          );
                         } catch (err) {
                           alert(documentUploadError(err));
                         }
                       }}
                     />
 
-                    {/* Checkbox for doc signing */}
-                    <input
-                      type="checkbox"
-                      className="accent-[#ff6667]"
-                      checked={!!answers.sound_limits_doc_needs_signing}
-                      onChange={async (e) => {
-                        const checked = e.target.checked;
-                        handleAnswer("sound_limits_doc_needs_signing", checked);
-                        if (!checked || !booking) return;
-
-                        const body = {
-                          _id: booking._id || null,
-                          bookingId: booking.bookingId || null,
-                          to: "hello@thesupremecollective.co.uk",
-                          subject: `Doc signing requested – ${booking.bookingId || booking._id}`,
-                          docName: answers.sound_limits_doc_name,
-                          docUrl: answers.sound_limits_doc_url, // should now be HTTPS (from /api/upload/doc)
-                          venueEmail: (
-                            answers.sound_limits_doc_venue_email || ""
-                          ).trim(),
-                        };
-
-                        try {
-                          await axios.post(
-                            `${backendUrl}/api/notifications/doc-signing-request`,
-                            body,
-                          );
-                          alert(
-                            "We’ve emailed the team (and your venue if provided) to arrange signatures. ✅",
-                          );
-                          handleAnswer(
-                            "sound_limits_doc_needs_signing_request_at",
-                            new Date().toISOString(),
-                          );
-                        } catch (err) {
-                          console.warn("Doc notify failed", err);
-                          alert(
-                            "Couldn’t auto-notify just now. We’ve flagged this in your sheet.",
-                          );
-                          handleAnswer(
-                            "sound_limits_doc_needs_signing_request_at",
-                            new Date().toISOString(),
-                          );
-                        }
-                      }}
-                    />
-                    <p className="text-xs text-gray-600 mt-1">
-                      Checking this will email{" "}
-                      <strong>hello@thesupremecollective.co.uk</strong> with
-                      your document so The Supreme Collective can arrange
-                      signatures from {tscName}. We'll send you a signed copy
-                      back to you once complete. If you'd like us to send it to
-                      your venue as well, please pop their email address below.
-                    </p>
-
-                    <div className="mt-2">
-                      <label className="text-sm text-gray-700 mb-1 block">
-                        Venue email (optional)
-                      </label>
-                      <input
-                        type="email"
-                        className="border rounded px-2 py-1 text-sm w-full md:w-96"
-                        placeholder="events@venue.co.uk"
-                        value={answers.sound_limits_doc_venue_email || ""}
-                        onChange={(e) =>
-                          handleAnswer(
-                            "sound_limits_doc_venue_email",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
                     {answers.sound_limits_doc_url && (
-                      <div className="mt-2 text-sm text-gray-700 flex items-center gap-2">
-                        <a
-                          href={answers.sound_limits_doc_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[#ff6667] underline hover:opacity-80"
-                        >
-                          {answers.sound_limits_doc_name || "View document"}
-                        </a>
-                        <span className="text-xs text-gray-500">
-                          {answers.sound_limits_doc_type || ""}
-                        </span>
+                      <div className="mt-3 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                          <span className="font-semibold">Uploaded:</span>
+                          <a
+                            href={answers.sound_limits_doc_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#ff6667] underline hover:opacity-80"
+                          >
+                            {answers.sound_limits_doc_name || "View document"}
+                          </a>
+                          <span className="text-xs text-gray-500">
+                            {answers.sound_limits_doc_type || ""}
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-sm font-semibold text-gray-800">
+                            What does the band need to do with this document?
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className={`rounded-md border px-4 py-2 text-sm font-semibold transition ${
+                                answers.sound_limits_doc_purpose ===
+                                  "information" &&
+                                !answers.sound_limits_doc_needs_signing
+                                  ? "border-[#ff6667] bg-[#fff1f1] text-[#b83d40]"
+                                  : "border-gray-300 bg-white text-gray-700 hover:border-[#ff6667]"
+                              }`}
+                              onClick={() => {
+                                handleAnswer(
+                                  "sound_limits_doc_purpose",
+                                  "information",
+                                );
+                                handleAnswer(
+                                  "sound_limits_doc_needs_signing",
+                                  false,
+                                );
+                              }}
+                            >
+                              For information only
+                            </button>
+                            <button
+                              type="button"
+                              className={`rounded-md border px-4 py-2 text-sm font-semibold transition ${
+                                answers.sound_limits_doc_purpose === "signing" ||
+                                answers.sound_limits_doc_needs_signing
+                                  ? "border-[#ff6667] bg-[#fff1f1] text-[#b83d40]"
+                                  : "border-gray-300 bg-white text-gray-700 hover:border-[#ff6667]"
+                              }`}
+                              onClick={() => {
+                                handleAnswer(
+                                  "sound_limits_doc_purpose",
+                                  "signing",
+                                );
+                                handleAnswer(
+                                  "sound_limits_doc_needs_signing",
+                                  true,
+                                );
+                              }}
+                            >
+                              Needs signing
+                            </button>
+                          </div>
+                          <p className="mt-2 text-xs text-gray-600">
+                            Information-only documents will be shared with the
+                            band. All uploaded venue documents are included as
+                            an appendix to the band's PDF event sheet.
+                          </p>
+                        </div>
+
+                        {(answers.sound_limits_doc_purpose === "signing" ||
+                          answers.sound_limits_doc_needs_signing) && (
+                          <div className="space-y-3 rounded-md border border-[#ffd0d1] bg-white p-4">
+                            <p className="text-sm text-gray-700">
+                              If this is a supplier agreement or another venue
+                              document that needs signing, click the button
+                              below. The Supreme Collective will arrange the
+                              signatures from {tscName} and send the signed
+                              copy back to you.
+                            </p>
+                            <div>
+                              <label className="mb-1 block text-sm text-gray-700">
+                                Venue email (optional)
+                              </label>
+                              <input
+                                type="email"
+                                className="w-full rounded border px-2 py-2 text-sm md:w-96"
+                                placeholder="events@venue.co.uk"
+                                value={
+                                  answers.sound_limits_doc_venue_email || ""
+                                }
+                                onChange={(e) =>
+                                  handleAnswer(
+                                    "sound_limits_doc_venue_email",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                Add this if you would also like the signed copy
+                                sent directly to the venue.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="rounded-md bg-[#ff6667] px-4 py-2 text-sm font-semibold text-white hover:bg-[#f25659]"
+                              onClick={async () => {
+                                if (!booking) return;
+                                const body = {
+                                  _id: booking._id || null,
+                                  bookingId: booking.bookingId || null,
+                                  to: "hello@thesupremecollective.co.uk",
+                                  subject: `Doc signing requested – ${booking.bookingId || booking._id}`,
+                                  docName: answers.sound_limits_doc_name,
+                                  docUrl: answers.sound_limits_doc_url,
+                                  venueEmail: (
+                                    answers.sound_limits_doc_venue_email || ""
+                                  ).trim(),
+                                };
+
+                                try {
+                                  await axios.post(
+                                    `${backendUrl}/api/notifications/doc-signing-request`,
+                                    body,
+                                  );
+                                  handleAnswer(
+                                    "sound_limits_doc_needs_signing_request_at",
+                                    new Date().toISOString(),
+                                  );
+                                  alert(
+                                    "We’ve sent the document to The Supreme Collective to arrange signatures. ✅",
+                                  );
+                                } catch (err) {
+                                  console.warn("Doc notify failed", err);
+                                  alert(
+                                    "We couldn’t send the signing request just now. Please try again.",
+                                  );
+                                }
+                              }}
+                            >
+                              Send document for signing
+                            </button>
+                            {answers.sound_limits_doc_needs_signing_request_at && (
+                              <p className="text-xs font-semibold text-green-700">
+                                Signing request sent.
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
