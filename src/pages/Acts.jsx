@@ -453,7 +453,7 @@ const hasStoredLocation = () => {
     if (!cards.length || !enrich.length) return cards;
 
     const byId = new Map(
-      enrich.map((x) => [String(x._id || x.actId || x.id), x])
+      enrich.map((x) => [String(x.actId || x._id || x.id), x])
     );
 
     return cards.map((c) => {
@@ -1456,7 +1456,7 @@ let approvedCards = serverIds
         };
       });
 
-      setFilterProducts(quickCards);
+      setFilterProducts(quickCards.filter(act => matchesSetlistControl(act, setlistControl)));
       try {
         ACTS_DBG("No full acts yet — showing cards only", {
           len: quickCards.length,

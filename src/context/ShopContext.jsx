@@ -438,6 +438,7 @@ const updateLoveCountEverywhere = (actId, newCount) => {
                 ? [{ url: image }]
                 : [],
         status: srcItem?.status ?? fallbackCard?.status ?? "",
+        setlist: srcItem?.setlist ?? fallbackCard?.setlist ?? "",
         lineups: Array.isArray(srcItem?.lineups) ? srcItem.lineups : [],
         hasLineups:
           typeof srcItem?.hasLineups === "boolean"
@@ -476,6 +477,7 @@ const updateLoveCountEverywhere = (actId, newCount) => {
             slug: c.slug ?? "",
             images: c.imageUrl ? [{ url: c.imageUrl }] : [],
             status: c.status ?? "",
+            setlist: c.setlist ?? "",
             lineups: [],
             basePrice: c.basePrice ?? null,
             baseOnly: c.baseOnly ?? null,
@@ -532,6 +534,7 @@ const updateLoveCountEverywhere = (actId, newCount) => {
         slug: srcItem?.slug ?? fallbackCard?.slug ?? "",
         images: image ? [{ url: image }] : [],
         status: srcItem?.status ?? fallbackCard?.status ?? "",
+        setlist: srcItem?.setlist ?? fallbackCard?.setlist ?? "",
         lineups: Array.isArray(srcItem?.lineups) ? srcItem.lineups : [],
         hasLineups:
           typeof srcItem?.hasLineups === "boolean"
@@ -570,6 +573,7 @@ const updateLoveCountEverywhere = (actId, newCount) => {
             slug: c.slug ?? "",
             images: c.imageUrl ? [{ url: c.imageUrl }] : [],
             status: c.status ?? "",
+            setlist: c.setlist ?? "",
             lineups: [],
             basePrice: c.basePrice ?? null,
             baseOnly: c.baseOnly ?? null,
@@ -692,6 +696,7 @@ const getActsPageCards = React.useCallback(async () => {
       updatedAt: c?.updatedAt || null,
       bestseller: Boolean(c?.bestseller ?? c?.bestSeller),
       genres: Array.isArray(c?.genres) ? c.genres : [],
+      setlist: c?.setlist ?? "",
       instruments: Array.isArray(c?.instruments) ? c.instruments : [],
       leadRole: c?.leadRole || "",
       vocalist: c?.vocalist || "",
@@ -865,6 +870,7 @@ async function fetchActsForGrid() {
         : Array.isArray(a?.genre)
           ? a.genre
           : [],
+      setlist: a?.setlist ?? "",
       instruments: Array.isArray(a?.instruments) ? a.instruments : [],
       leadRole: a?.leadRole || "",
       vocalist: a?.vocalist || "",
@@ -959,6 +965,7 @@ loveCount: Number(a?.loveCount ?? a?.numberOfShortlistsIn ?? 0) || 0,
         availabilityBadge: c?.availabilityBadge || null,
         status: c?.status || "",
         genres: Array.isArray(c?.genres) ? c.genres : [],
+        setlist: c?.setlist ?? "",
         instruments: Array.isArray(c?.instruments) ? c.instruments : [],
         leadRole: c?.leadRole || "",
         vocalist: c?.vocalist || "",
@@ -1056,6 +1063,7 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
       availabilityBadge: c?.availabilityBadge || c?.badge || null,
       status: c?.status || c?.st || "",
       genres: Array.isArray(c?.genres) ? c.genres : [],
+      setlist: c?.setlist ?? "",
       instruments: Array.isArray(c?.instruments) ? c.instruments : [],
       leadRole: c?.leadRole || "",
       vocalist: c?.vocalist || "",
@@ -1216,6 +1224,7 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
       numberOfShortlistsIn: Number(a?.numberOfShortlistsIn || 0) || 0,
       status: a?.status || "",
       genres,
+      setlist: a?.setlist ?? "",
       hasPLI,
       hasPAT,
       hasPA,
@@ -1459,6 +1468,7 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
 
         // extra fields commonly used in filters
         genres,
+        setlist: a?.setlist ?? "",
         lineupSizes,
         hasPLI,
         hasPAT,
@@ -1568,6 +1578,7 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
           lineupSizes: Array.isArray(c.lineupSizes)
             ? c.lineupSizes.filter(Boolean)
             : [],
+          setlist: c.setlist ?? "",
           instruments: Array.isArray(c.instruments)
             ? c.instruments.filter(Boolean)
             : [],
