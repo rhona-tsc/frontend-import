@@ -1,3 +1,5 @@
+import { describeEventSheetLineup } from "../utils/eventSheetLineup.js";
+import { resolveEventSheetPayments } from "../utils/eventSheetPayments.js";
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, {
   useEffect,
@@ -17,7 +19,7 @@ import {
   getEventSheetMusicianId,
   resolveEventSheetDeputyVocalist,
 } from "../utils/eventSheetRepertoireSource";
-import { isEntertainmentNationBooking } from "../utils/eventSheetBookingSource";
+import { isEntertainmentNationBooking, isDirectTscBooking } from "../utils/eventSheetBookingSource";
 import SEO from "../components/SEO";
 import { resolveEventSheetHydration } from "../utils/eventSheetHydration";
 import { documentUploadError } from "../utils/protectedRequests.js";
@@ -303,6 +305,9 @@ const ViewEventSheet = () => {
   }, [actInfo]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [openingBalancePayment, setOpeningBalancePayment] = useState(false);
+  const [balancePaymentNotice, setBalancePaymentNotice] = useState("");
+  const verifiedBalanceSessionRef = useRef(null);
   const [notifying, setNotifying] = useState(false);
   const [answers, setAnswers] = useState({});
   const [complete, setComplete] = useState({});
@@ -777,107 +782,10 @@ const ViewEventSheet = () => {
     });
   }, [booking]);
 
-  // Booking-level totals
-  // Keep original booking total separate from post-booking add-ons
-  // so extras are not counted twice.
-  const bookingTotal = useMemo(() => {
-    const modelTotal = Number(
-      booking?.totals?.bookingTotal ??
-        booking?.totals?.contractTotal ??
-        booking?.totals?.fullAmount ??
-        booking?.grossValue ??
-        booking?.fee ??
-        NaN,
-    );
-
-    if (Number.isFinite(modelTotal) && modelTotal > 0) return modelTotal;
-
-    return enrichedItems.reduce((sum, item) => {
-      const baseOnly =
-        Number(item?.basePrice ?? NaN) || Number(item?.price ?? NaN) || 0;
-
-      return sum + baseOnly;
-    }, 0);
-  }, [booking, enrichedItems]);
-
-  const depositAmount = Number(
-    booking?.totals?.depositAmount ??
-      booking?.payments?.depositChargedAmount ??
-      booking?.payments?.depositAmount ??
-      0,
+  const { bookingTotal, addOnsPostBooking, fullAmount, depositAmount, remainingAmount, isPaidInFull } = useMemo(
+    () => resolveEventSheetPayments(booking, enrichedItems),
+    [booking, enrichedItems],
   );
-
-  const addOnsPostBooking = useMemo(() => {
-    const modelAddOns = Number(
-      booking?.totals?.addOnsPostBooking ??
-        booking?.totals?.postBookingAddOns ??
-        booking?.totals?.extrasTotal ??
-        NaN,
-    );
-
-    if (Number.isFinite(modelAddOns) && modelAddOns > 0) return modelAddOns;
-
-    return enrichedItems.reduce((sum, item) => {
-      const extrasTotal = Array.isArray(item?.extras)
-        ? item.extras.reduce(
-            (extraSum, extra) =>
-              extraSum +
-              (Number(extra?.price || 0) || 0) *
-                (Number(extra?.quantity || 1) || 1),
-            0,
-          )
-        : 0;
-
-      return sum + extrasTotal;
-    }, 0);
-  }, [booking, enrichedItems]);
-
-  const fullAmount = useMemo(() => {
-    return Number(bookingTotal || 0) + Number(addOnsPostBooking || 0);
-  }, [bookingTotal, addOnsPostBooking]);
-
-  const isBookingMarkedPaid = useMemo(() => {
-    const paymentStatus = String(booking?.paymentStatus || "").toLowerCase();
-    const balanceStatus = String(booking?.balanceStatus || "").toLowerCase();
-
-    return (
-      booking?.balancePaid === true ||
-      booking?.totals?.balancePaid === true ||
-      paymentStatus === "paid" ||
-      balanceStatus === "paid"
-    );
-  }, [booking]);
-
-  const remainingAmount = useMemo(() => {
-    if (isBookingMarkedPaid) return 0;
-
-    const explicitRemaining =
-      booking?.totals?.remainingAmount ??
-      booking?.totals?.outstandingBalance ??
-      booking?.remainingAmount;
-    const modelRemaining = Number(
-      explicitRemaining ??
-        (booking?.balanceAmountPence != null
-          ? Number(booking.balanceAmountPence) / 100
-          : NaN),
-    );
-
-    if (Number.isFinite(modelRemaining) && modelRemaining >= 0) {
-      return modelRemaining;
-    }
-
-    const chargedAmount = Number(booking?.totals?.chargedAmount ?? NaN);
-
-    if (Number.isFinite(chargedAmount) && chargedAmount > 0) {
-      return Math.max(0, Number(fullAmount || 0) - chargedAmount);
-    }
-
-    return Math.max(0, Number(fullAmount || 0) - Number(depositAmount || 0));
-  }, [booking, fullAmount, depositAmount, isBookingMarkedPaid]);
-
-  const isPaidInFull =
-    isBookingMarkedPaid ||
-    (Number(fullAmount || 0) > 0 && remainingAmount <= 0.01);
 
   // Pro-rate deposit across items for a per-item view
   const detailedItems = useMemo(() => {
@@ -919,65 +827,6 @@ const ViewEventSheet = () => {
       "—"
     );
   }, [booking, answers.venue_name]);
-
-  // Make a friendly instrument list from a lineup, including essential service roles
-  const describeLineup = (lineup = {}) => {
-    try {
-      const members = Array.isArray(lineup.bandMembers)
-        ? lineup.bandMembers
-        : [];
-      if (!members.length) return "";
-      const cap = (s = "") =>
-        String(s).replace(/\b\w/g, (c) => c.toUpperCase());
-
-      const isEssential = (m = {}) => {
-        if (m.isEssential === true) return true;
-        const roles = Array.isArray(m.additionalRoles) ? m.additionalRoles : [];
-        return roles.some((r) => r?.isEssential === true);
-      };
-
-      const formatWithAnd = (arr = []) => {
-        const uniq = [...new Set(arr.filter(Boolean))];
-        if (uniq.length === 0) return "";
-        if (uniq.length === 1) return uniq[0];
-        if (uniq.length === 2) return `${uniq[0]} & ${uniq[1]}`;
-        return `${uniq.slice(0, -1).join(", ")} & ${uniq[uniq.length - 1]}`;
-      };
-
-      // Instruments from essential performers only
-      const instruments = members
-        .filter(isEssential)
-        .map((m) => cap(m.instrument || "").trim())
-        .filter(Boolean);
-
-      const weight = (s) => {
-        const x = s.toLowerCase();
-        if (x.includes("vocal")) return 0;
-        if (x === "drums" || x.includes("drum")) return 999;
-        return 100;
-      };
-      const uniqueInstruments = [...new Set(instruments)].sort(
-        (a, b) => weight(a) - weight(b),
-      );
-      if (!uniqueInstruments.length) return "";
-
-      const instrumentsStr = formatWithAnd(uniqueInstruments);
-
-      // Essential service roles (e.g., Sound Engineering, Band Management)
-      const roles = members.flatMap((m) =>
-        (m.additionalRoles || [])
-          .filter((r) => r?.isEssential)
-          .map((r) => cap(r.role || r.title || "Unnamed Service")),
-      );
-      const rolesStr = formatWithAnd(roles);
-      const rolesTail = rolesStr ? ` (including ${rolesStr} services)` : "";
-
-      // Return instruments plus roles tail; caller wraps with parentheses
-      return `${instrumentsStr}${rolesTail}`;
-    } catch {
-      return "";
-    }
-  };
 
   // Find the full lineup object for a booking item using acts in context
   const resolveLineup = (actsList = [], item = {}) => {
@@ -1125,7 +974,9 @@ const ViewEventSheet = () => {
           (Array.isArray(lineup?.bandMembers)
             ? `${lineup.bandMembers.length}-Piece`
             : "");
-        const desc = lineup ? describeLineup(lineup) : "";
+        // Describe the contracted snapshot even if the act's public lineup changes.
+        const bookedMembers = it.lineup?.bandMembers?.length ? it.lineup.bandMembers : it.bandMembers;
+        const desc = describeEventSheetLineup(bookedMembers?.length ? { bandMembers: bookedMembers } : lineup);
         const labelAlreadyDescribesRoles = /\([^)]{5,}\)/.test(label);
         return [
           label,
@@ -1505,31 +1356,66 @@ const ViewEventSheet = () => {
     }, 0);
   }, [booking]);
 
-  const handleOpenBalanceInvoice = async () => {
-    if (!booking) return;
+  // Verify the returned session with Stripe before reflecting a settled balance.
+  useEffect(() => {
+    const sessionId = new URLSearchParams(window.location.search).get("session_id");
+    const returnedFromBalance = new URLSearchParams(window.location.search).get("balancePaid") === "1";
+    if (!booking?._id || !returnedFromBalance || !sessionId || verifiedBalanceSessionRef.current === sessionId) return;
+    verifiedBalanceSessionRef.current = sessionId;
+    const idOrRef = booking.bookingId || booking._id;
+    setBalancePaymentNotice("Checking payment confirmation…");
+    axios.get(`${backendUrl}/api/invoices/balance-status/${encodeURIComponent(idOrRef)}`, {
+      params: { session_id: sessionId },
+    }).then(async ({ data }) => {
+      if (!data.success || !data.paid) {
+        setBalancePaymentNotice("Payment confirmation is pending. Please contact us before paying again.");
+        return;
+      }
+      const response = await axios.get(`${backendUrl}/api/booking/by-ref/${encodeURIComponent(idOrRef)}`);
+      const updated = response.data?.booking || response.data;
+      if (updated?._id) setBooking((previous) => mergeEventSheetBookingRefresh(previous, updated));
+      setBalancePaymentNotice("Your balance payment has been confirmed. Thank you.");
+    }).catch(() => {
+      setBalancePaymentNotice("We couldn’t confirm the payment yet. Please contact us before paying again.");
+    });
+  }, [booking?._id, booking?.bookingId, backendUrl]);
 
+  const handleOpenBalanceInvoice = async () => {
+    if (!booking || openingBalancePayment) return;
+    setOpeningBalancePayment(true);
+    setBalancePaymentNotice("");
     try {
       await persist(false);
-
-      const invoiceRef = booking.bookingBoardId;
-      if (!invoiceRef) {
-        throw new Error("No invoice is linked to this booking.");
+      if (isDirectTscBooking(booking)) {
+        const idOrRef = booking.bookingId || booking._id;
+        const { data } = await axios.get(
+          `${backendUrl}/api/invoices/balance-link/${encodeURIComponent(idOrRef)}`,
+        );
+        if (data.paid) {
+          setBalancePaymentNotice("This balance is already paid. Please refresh to see the latest payment details.");
+          return;
+        }
+        const paymentUrl = new URL(data.url);
+        if (!data.success || paymentUrl.protocol !== "https:" ||
+            !["checkout.stripe.com", "invoice.stripe.com"].includes(paymentUrl.hostname)) {
+          throw new Error("The payment link was not a Stripe checkout link.");
+        }
+        window.location.assign(paymentUrl.href);
+        return;
       }
-
+      const invoiceRef = booking.bookingBoardId;
+      if (!invoiceRef) throw new Error("No invoice is linked to this booking.");
       const response = await axios.get(
         `${backendUrl}/api/invoices/board-invoice/${encodeURIComponent(invoiceRef)}`,
         { responseType: "blob" },
       );
       const contentType = String(response.headers?.["content-type"] || "");
-      if (!contentType.toLowerCase().includes("application/pdf")) {
-        throw new Error("The invoice response was not a PDF.");
-      }
-
-      const invoiceUrl = URL.createObjectURL(response.data);
-      window.location.assign(invoiceUrl);
-    } catch (e) {
-      console.warn("invoice-open error:", e?.response?.data || e?.message);
-      alert("Couldn’t open the invoice right now.");
+      if (!contentType.toLowerCase().includes("application/pdf")) throw new Error("The invoice response was not a PDF.");
+      window.location.assign(URL.createObjectURL(response.data));
+    } catch {
+      setBalancePaymentNotice("We couldn’t open your payment details. Please contact us before making a payment.");
+    } finally {
+      setOpeningBalancePayment(false);
     }
   };
 
@@ -4520,6 +4406,7 @@ const ViewEventSheet = () => {
                   </p>
                 </div>
 
+                {balancePaymentNotice && <p role="status" className="mt-3 text-sm">{balancePaymentNotice}</p>}
                 {/* Pay button */}
                 {!READ_ONLY &&
                   !isPaidInFull &&
@@ -4527,9 +4414,10 @@ const ViewEventSheet = () => {
                     <div className="mt-3 flex justify-end">
                       <button
                         onClick={handleOpenBalanceInvoice}
+                        disabled={openingBalancePayment}
                         className="px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667] transition-colors"
                       >
-                        Pay Balance
+                        {openingBalancePayment ? "Opening…" : "Pay Balance"}
                       </button>
                     </div>
                   )}
