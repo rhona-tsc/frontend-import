@@ -830,6 +830,7 @@ const ViewEventSheet = () => {
 
   // Find the full lineup object for a booking item using acts in context
   const resolveLineup = (actsList = [], item = {}) => {
+    if (item.lineup?.hasAdditionalMusicians) return item.lineup;
     const act = (actsList || []).find(
       (a) => String(a._id) === String(item.actId),
     );
@@ -1476,7 +1477,7 @@ const ViewEventSheet = () => {
         first.lineupLabel || first.lineupName || first.actSize || first.lineup?.actSize || "",
       ).toLowerCase();
 
-      const lineup = act
+      const lineup = first.lineup?.hasAdditionalMusicians ? first.lineup : act
         ? (act.lineups || []).find((l) => {
             return (
               String(l._id) === String(bookedLineupId) ||
@@ -1590,7 +1591,7 @@ const ViewEventSheet = () => {
         first.lineupLabel || first.lineupName || first.actSize || first.lineup?.actSize || "",
       ).toLowerCase();
 
-      const lineup = act
+      const lineup = first.lineup?.hasAdditionalMusicians ? first.lineup : act
         ? (act.lineups || []).find((l) => {
             return (
               String(l._id) === String(bookedLineupId) ||
