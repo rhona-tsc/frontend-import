@@ -5,6 +5,10 @@ const normaliseSource = (value = "") =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
+export const isEncoreBooking = (booking = {}) => booking.paymentArrangement?.provider === "Encore" ||
+  [booking.agent, booking.bookingSource, booking.source, booking.importMetadata?.source]
+    .some(value => ["encore", "encore pdf"].includes(normaliseSource(value)));
+
 export const isEntertainmentNationBooking = (booking = {}) =>
   [
     booking?.agent,

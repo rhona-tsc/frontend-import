@@ -19,7 +19,7 @@ import {
   getEventSheetMusicianId,
   resolveEventSheetDeputyVocalist,
 } from "../utils/eventSheetRepertoireSource";
-import { isEntertainmentNationBooking, isDirectTscBooking } from "../utils/eventSheetBookingSource";
+import { isEntertainmentNationBooking, isDirectTscBooking, isEncoreBooking } from "../utils/eventSheetBookingSource";
 import SEO from "../components/SEO";
 import { resolveEventSheetHydration } from "../utils/eventSheetHydration";
 import { documentUploadError } from "../utils/protectedRequests.js";
@@ -182,7 +182,7 @@ const bookingPrefillAnswers = (booking = {}) => {
     act_name:
       booking.actTscName || booking.actName || firstAct.tscName || firstAct.actName || "",
     contracted_lineup:
-      booking.lineupSelected || booking.lineupLabel || firstAct.lineupLabel || "",
+      booking.lineupLabel || booking.lineupSelected || firstAct.lineupLabel || "",
     contracted_performance_plan:
       booking.performancePlan || firstAct.performancePlan || "",
     contracted_setup_time: booking.setupTime || "",
@@ -1403,10 +1403,18 @@ const ViewEventSheet = () => {
         window.location.assign(paymentUrl.href);
         return;
       }
+      if (isEncoreBooking(booking) && booking.extrasPaymentUrl) {
+        const paymentUrl = new URL(booking.extrasPaymentUrl);
+        if (paymentUrl.protocol !== "https:" || !["checkout.stripe.com", "invoice.stripe.com"].includes(paymentUrl.hostname)) {
+          throw new Error("The extras payment link needs checking.");
+        }
+        window.location.assign(paymentUrl.href);
+        return;
+      }
       const invoiceRef = booking.bookingBoardId;
       if (!invoiceRef) throw new Error("No invoice is linked to this booking.");
       const response = await axios.get(
-        `${backendUrl}/api/invoices/board-invoice/${encodeURIComponent(invoiceRef)}`,
+        `${backendUrl}/api/invoices/board-invoice/${encodeURIComponent(invoiceRef)}${isEncoreBooking(booking) ? "?invoiceType=extras" : ""}`,
         { responseType: "blob" },
       );
       const contentType = String(response.headers?.["content-type"] || "");
@@ -4388,7 +4396,13 @@ const ViewEventSheet = () => {
                   </span>
                 </div>
 
-                {!isEntertainmentNationBooking(booking) && (
+                {isEncoreBooking(booking) && (
+                  <div className="flex justify-between">
+                    <span>Payment arranged through Encore</span>
+                    <span>{currencySymbol(booking?.currency)}{Number(bookingTotal || 0).toFixed(2)}</span>
+                  </div>
+                )}
+                {!isEntertainmentNationBooking(booking) && !isEncoreBooking(booking) && (
                   <div className="flex justify-between">
                     <span>Deposit paid</span>
                     <span>

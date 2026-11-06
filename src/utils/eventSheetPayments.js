@@ -8,6 +8,15 @@ const round = value => Math.round(value * 100) / 100;
 
 export function resolveEventSheetPayments(booking = {}, items = []) {
   const totals = booking?.totals || {};
+  const arrangement = booking?.paymentArrangement || totals.paymentArrangement;
+  if (arrangement?.provider === 'Encore') {
+    const bookingTotal = firstMoney(arrangement.arrangedAmount, totals.bookingTotal) ?? 0;
+    const addOnsPostBooking = firstMoney(totals.addOnsPostBooking) ?? 0;
+    const remainingAmount = arrangement.extrasPaid === true ? 0
+      : firstMoney(totals.remainingAmount, totals.outstandingBalance) ?? addOnsPostBooking;
+    return { bookingTotal, addOnsPostBooking, fullAmount: round(bookingTotal + addOnsPostBooking),
+      depositAmount: 0, remainingAmount, isPaidInFull: remainingAmount <= 0.01 };
+  }
   const original = firstMoney(totals.bookingTotal, totals.contractTotal);
   const storedFull = money(totals.fullAmount);
   // Selected extras describe the contracted service. Their presence is not

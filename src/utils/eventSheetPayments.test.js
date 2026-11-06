@@ -50,3 +50,16 @@ test('missing totals use the inclusive item total and do not create later add-on
   assert.equal(result.bookingTotal, 2972); assert.equal(result.addOnsPostBooking, 0);
   assert.equal(resolveEventSheetPayments(null).isPaidInFull, false);
 });
+
+test('Encore displays only extras as client liability, ignoring original paid/deposit flags', () => {
+  const booking = { agent: 'Encore', balancePaid: true, balanceStatus: 'paid',
+    paymentArrangement: { provider: 'Encore', arrangedAmount: 2615, extrasPaid: false },
+    totals: { bookingTotal: 2615, fullAmount: 3255, addOnsPostBooking: 640, depositAmount: 563, remainingAmount: 640 } };
+  assert.deepEqual(resolveEventSheetPayments(booking), { bookingTotal: 2615, addOnsPostBooking: 640,
+    fullAmount: 3255, depositAmount: 0, remainingAmount: 640, isPaidInFull: false });
+  booking.paymentArrangement.extrasPaid = true;
+  assert.equal(resolveEventSheetPayments(booking).remainingAmount, 0);
+  booking.paymentArrangement.extrasPaid = false;
+  booking.totals.addOnsPostBooking = 0; booking.totals.remainingAmount = 0;
+  assert.equal(resolveEventSheetPayments(booking).isPaidInFull, true);
+});
