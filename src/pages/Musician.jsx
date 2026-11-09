@@ -271,6 +271,46 @@ const getMusicianVideos = (musician) => {
   };
 };
 
+const publicVideoAvailabilityCache = new Map();
+
+const isPublicVideoAvailable = async (video) => {
+  const url = String(video?.url || "").trim();
+  const embeddedVideo = getVideoEmbed(url);
+  if (!url || !embeddedVideo) return false;
+
+  // noembed checks the source video itself, rather than merely accepting a
+  // syntactically valid YouTube/Vimeo URL. This prevents deleted or private
+  // videos from leaving a broken player on a public profile.
+  if (!["YouTube", "Vimeo"].includes(embeddedVideo.provider)) return true;
+  if (publicVideoAvailabilityCache.has(url)) {
+    return publicVideoAvailabilityCache.get(url);
+  }
+
+  const check = (async () => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(
+        `https://noembed.com/embed?url=${encodeURIComponent(url)}`,
+        { signal: controller.signal },
+      );
+      if (!response.ok) return false;
+      const result = await response.json();
+      return !result?.error && Boolean(result?.html || result?.title);
+    } catch {
+      // Fail closed: a video is only made public after its provider confirms
+      // it is playable. A temporary check failure therefore cannot expose a
+      // broken or unavailable player.
+      return false;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  })();
+
+  publicVideoAvailabilityCache.set(url, check);
+  return check;
+};
+
 export const buildMusicianMeta = (musician) => {
   const firstName = (musician?.firstName || "").trim();
   const lastName = (musician?.lastName || "").trim();
@@ -521,6 +561,55 @@ const Musician = () => {
 
   const [selectedLineup, setSelectedLineup] = useState("");
   const [video, setVideo] = useState("");
+  const [availablePublicVideoUrls, setAvailablePublicVideoUrls] = useState(
+    () => new Set(),
+  );
+
+  const publicVideos = React.useMemo(() => {
+    const groups = getMusicianVideos(actData);
+    const keepAvailable = (items) =>
+      items.filter((item) => availablePublicVideoUrls.has(item?.url));
+    const functionVideos = keepAvailable(groups.functionVideos);
+    const originalVideos = keepAvailable(groups.originalVideos);
+    return {
+      functionVideos,
+      originalVideos,
+      allVideos: keepAvailable(groups.allVideos),
+    };
+  }, [actData, availablePublicVideoUrls]);
+
+  useEffect(() => {
+    const candidates = getMusicianVideos(actData).allVideos;
+    let cancelled = false;
+
+    setAvailablePublicVideoUrls(new Set());
+    if (!candidates.length) {
+      setVideo("");
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    Promise.all(
+      candidates.map(async (candidate) => ({
+        url: candidate.url,
+        available: await isPublicVideoAvailable(candidate),
+      })),
+    ).then((results) => {
+      if (cancelled) return;
+      const availableUrls = new Set(
+        results.filter((result) => result.available).map((result) => result.url),
+      );
+      setAvailablePublicVideoUrls(availableUrls);
+      const firstAvailable = candidates.find((item) => availableUrls.has(item.url));
+      setVideo(firstAvailable?.url || "");
+      setVideoVisible(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [actData]);
 
   const formatDate = (dateString) => {
     if (!dateString) return "No date selected";
@@ -796,7 +885,7 @@ const Musician = () => {
       };
     }
 
-    const videosArr = getMusicianVideos(actData).allVideos;
+    const videosArr = publicVideos.allVideos;
 
     const hasVideos = videosArr.length > 0;
 
@@ -947,7 +1036,7 @@ const Musician = () => {
       audioTracks,
       bio,
     };
-  }, [actData, isPrivileged]);
+  }, [actData, isPrivileged, publicVideos]);
 
   // Tiny conditional wrapper
   const Section = ({ when, children }) => (when ? <>{children}</> : null);
@@ -1022,7 +1111,7 @@ const Musician = () => {
                   />
                 </div>
                 {(() => {
-                  const allVideoLinks = getMusicianVideos(actData).allVideos;
+                  const allVideoLinks = publicVideos.allVideos;
 
                   const selectedUrl = video || allVideoLinks[0]?.url || "";
                   const selectedVideo = getVideoEmbed(selectedUrl);
@@ -1098,7 +1187,7 @@ const Musician = () => {
               {/* Thumbnails */}
               {(() => {
                 const { functionVideos: covers, originalVideos: originals } =
-                  getMusicianVideos(actData);
+                  publicVideos;
 
                 const Row = ({ label, items }) => {
                   if (!items.length) return null;
