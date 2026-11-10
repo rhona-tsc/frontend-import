@@ -7,6 +7,15 @@ export const officialSocialProfiles = [
 ];
 
 export const artistProfiles = {
+  'afrodeziacz': ['https://encoremusicians.com/Afrodeziacz'],
+  'soul-eras': ['https://encoremusicians.com/Soul-Eras'],
+  'funk-royale': ['https://encoremusicians.com/Funk-Royale'],
+  'motown-luxe': ['https://encoremusicians.com/Motown-Luxe'],
+  'band-salsa': ['https://encoremusicians.com/Band-Salsa'],
+  'eleventh-hour': ['https://encoremusicians.com/th-Hour'],
+  'on-the-rocks': ['https://encoremusicians.com/On-The-Rocks-Wedding-Band'],
+  'the-south-west-bounce': ['https://encoremusicians.com/The-South-West-Bounce'],
+  'rnb-knights': ['https://encoremusicians.com/RnB-Knightly'],
   'indigo-delight': ['https://encoremusicians.com/Indigo-Delight'],
   'the-dreamers': ['https://encoremusicians.com/The-Dreamers'],
   'high-voltage': ['https://encoremusicians.com/The-MonStars'],
