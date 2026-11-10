@@ -8,6 +8,8 @@ import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { recoverBrowserChunk } from './utils/chunkRecovery.js';
 import axios from 'axios';
+import { startMarketingAttribution } from './utils/marketingAttribution.js';
+startMarketingAttribution();
 import { attachProtectedRequestToken } from './utils/protectedRequests.js';
 
 axios.interceptors.request.use(config => attachProtectedRequestToken(

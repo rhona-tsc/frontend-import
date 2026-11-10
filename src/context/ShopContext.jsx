@@ -1,3 +1,4 @@
+import { getMarketingAttribution } from '../utils/marketingAttribution.js';
 import { trackEnquiryResponse } from "../utils/businessConversions.js";
 // frontend/src/context/ShopContext.jsx
 import React, {
@@ -2369,7 +2370,7 @@ async function getActCardsData() {
         // Make the API call
         const base = String(backendUrl || "").replace(/\/+$/, "");
         const url = `${base}/api/availability/request`;
-        const response = await axios.post(url, payload, {
+        const response = await axios.post(url, { ...payload, attribution: getMarketingAttribution() }, {
           headers: { accept: "application/json" }, timeout: 15000,
         });
         trackEnquiryResponse(response.data);
@@ -2901,6 +2902,7 @@ async function getActCardsData() {
         // 🩵 Only sync date/address (and any downstream availability) when BOTH are present
         if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
           const enquiryResponse = await axios.post(`${backendUrl}/api/availability/request`, {
+            attribution: getMarketingAttribution(),
             actId: idStr,
             dateISO: selectedDateFinal,
             formattedAddress: selectedAddressFinal,
