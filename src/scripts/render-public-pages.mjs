@@ -71,6 +71,8 @@ async function writePage(route, title, description, heading, content, location) 
   const schema = buildPageSchema({ route, title, description, act, post, bands: acts, location });
   const breadcrumbItems = schema['@graph'].find(item => item['@type'] === 'BreadcrumbList')?.itemListElement || [];
   const breadcrumbs = breadcrumbItems.length ? `<nav aria-label="Breadcrumb">${breadcrumbItems.map(item => `<a href="${escape(item.item)}">${escape(item.name)}</a>`).join(' / ')}</nav>` : '';
+  const image = act?.images?.find(item => item?.url)?.url || post?.heroImage;
+  const imageMeta = image ? `<meta data-rh="true" property="og:image" content="${escape(new URL(image, origin).href)}">` : '';
   const head = `<title data-rh="true">${escape(title)}</title><meta data-rh="true" name="description" content="${escape(description)}"><link data-rh="true" rel="canonical" href="${escape(canonical)}"><meta data-rh="true" property="og:title" content="${escape(title)}"><meta data-rh="true" property="og:description" content="${escape(description)}"><meta data-rh="true" property="og:url" content="${escape(canonical)}">`;
   const pageContent = location
     ? renderLocationContent(route, route.replace('/wedding-bands-', ''), location)
@@ -93,6 +95,7 @@ async function writePage(route, title, description, heading, content, location) 
       `<div id="root" data-prerendered${location ? ' data-hydrate="county"' : ''}>${body}</div>`,
     )
     .replace(/href="([^"]+)"/g, (_, href) => `href="${publicHref(href)}"`);
+  if (imageMeta) html = html.replace('</head>', `${imageMeta}</head>`);
   if (location) html = inlineInitialCss(html, stylesheet, stylesheetTag, stylesheetUrl);
   const directory = path.join('dist', route.replace(/^\//, ''));
   await fs.mkdir(directory, { recursive: true });

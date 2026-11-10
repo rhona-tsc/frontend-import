@@ -1,7 +1,9 @@
 export const SITE_ORIGIN = 'https://thesupremecollective.co.uk';
 import { publicCanonicalUrl } from './publicUrls.js';
+import { contentDate } from './contentDates.js';
 
 export const buildMusicGroup = (act = {}, url, image) => {
+  image = image || act.images?.find(item => item?.url)?.url;
   const current = Array.isArray(act.genre) ? act.genre : typeof act.genre === 'string' ? [act.genre] : [];
   const fallback = Array.isArray(act.genres) ? act.genres : [];
   const genres = (current.some(value => String(value || '').trim()) ? current : fallback)
@@ -11,6 +13,7 @@ export const buildMusicGroup = (act = {}, url, image) => {
     '@id': `${url}#music-group`,
     name: act.tscName || act.name,
     url,
+    ...((act.tscDescription || act.description) ? { description: act.tscDescription || act.description } : {}),
     ...(genres.length ? { genre: [...new Set(genres)] } : {}),
     ...(image ? { image } : {}),
   };
@@ -19,10 +22,12 @@ export const buildMusicGroup = (act = {}, url, image) => {
 export const buildPageSchema = ({ route, title, description, act, post, bands = [], location }) => {
   route = route.replace(/\/+$/, '') || '/';
   const url = publicCanonicalUrl(route);
-  const organisation = { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'The Supreme Collective', url: `${SITE_ORIGIN}/` };
+  const organisation = { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'The Supreme Collective', url: `${SITE_ORIGIN}/`, email: 'hello@thesupremecollective.co.uk', telephone: '+44 203 576 5322' };
   const website = { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'The Supreme Collective', url: `${SITE_ORIGIN}/`, publisher: { '@id': organisation['@id'] } };
   const type = route === '/about' ? 'AboutPage' : route === '/contact' ? 'ContactPage' : location || ['/acts', '/blog', '/venues'].includes(route) ? 'CollectionPage' : 'WebPage';
   const page = { '@type': type, '@id': `${url}#webpage`, url, name: title, description, isPartOf: { '@id': website['@id'] } };
+  const modified = contentDate(act?.updatedAt || post?.updatedAt || post?.modifiedAt);
+  if (modified) page.dateModified = modified;
   const graph = [organisation, website, page];
   if (route !== '/') {
     const labels = { '/acts': 'Bands', '/about': 'About Us', '/contact': 'Contact', '/blog': 'Blog', '/venues': 'Venue Guide' };

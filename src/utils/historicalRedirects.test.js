@@ -16,7 +16,7 @@ test('confirmed historical URLs redirect directly to the matching published page
 
 test('retired or add-on acts are not redirected to unrelated standalone bands', () => {
   const source = readFileSync(new URL('../../public/_redirects', import.meta.url), 'utf8');
-  for (const path of ['/bandsforhire/simcha-band', '/bandsforhire/the-horizons', '/bandsforhire/the-treasures', '/bandsforhire/dj-ewan']) {
+  for (const path of ['/bandsforhire/simcha-band', '/bandsforhire/the-horizons', '/bandsforhire/the-treasures', '/bandsforhire/dj-ewan', '/bandsforhire/riot-dogs', '/bandsforhire/garage-wedding-bands']) {
     assert.ok(!source.split('\n').some(line => line.trim().split(/\s+/)[0] === path));
   }
 });

@@ -1,3 +1,8 @@
+# Canonical host and protocol rules precede every path rewrite.
+http://www.thesupremecollective.co.uk/* https://thesupremecollective.co.uk/:splat 301!
+http://thesupremecollective.co.uk/* https://thesupremecollective.co.uk/:splat 301!
+https://www.thesupremecollective.co.uk/* https://thesupremecollective.co.uk/:splat 301!
+
 # ✅ Old filtered URLs that no longer exist on the new site
 # Return a real 404 instead of redirecting them to /act, which can look like a soft 404 to Google.
 /bandsforhire                               genres=:genres                            /404  404

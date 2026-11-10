@@ -65,6 +65,21 @@ export function renderActInitialContent(route, act, history) {
         </div>
       </section>
       <p role="status" className="py-10 text-center text-gray-500">Loading band details…</p>
+      <section className="mx-auto max-w-7xl space-y-6 px-6 pb-10" aria-label="Band information">
+        {act.tscBio && <div><h2 className="mb-4 text-2xl font-semibold">About {act.tscName}</h2>
+          {/* The same approved biography is displayed on the interactive act page. */}
+          <div dangerouslySetInnerHTML={{ __html: act.tscBio }} />
+        </div>}
+        {act.lineups?.some(lineup => lineup.actSize) && <div>
+          <h2 className="mb-3 text-2xl font-semibold">Lineup options</h2>
+          <ul className="list-inside list-disc">{[...new Set(act.lineups.map(lineup => lineup.actSize).filter(Boolean))].map(size => <li key={size}>{size}</li>)}</ul>
+        </div>}
+        {Array.isArray(act.numberOfSets) && act.numberOfSets.some((sets, index) => Number(sets) > 0 && Number(act.lengthOfSets?.[index]) > 0) && <div>
+          <h2 className="mb-3 text-2xl font-semibold">Live performance options</h2>
+          <ul className="list-inside list-disc">{act.numberOfSets.map((sets, index) => Number(sets) > 0 && Number(act.lengthOfSets?.[index]) > 0
+            ? <li key={index}>Up to {sets} sets of {act.lengthOfSets[index]} minutes</li> : null)}</ul>
+        </div>}
+      </section>
       <ActLocalConnections history={history} />
       <InitialActReviews reviews={act.reviews || []} history={history} />
     </main>

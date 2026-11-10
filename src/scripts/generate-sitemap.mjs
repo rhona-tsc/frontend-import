@@ -3,6 +3,7 @@ import path from "path";
 import { SitemapStream, streamToPromise } from "sitemap";
 import { locationPages } from '../data/locationPages.js';
 import { publicHref } from '../utils/publicUrls.js';
+import { contentDate } from '../utils/contentDates.js';
 
 const SITE_URL = "https://thesupremecollective.co.uk";
 const API_URL =
@@ -23,30 +24,33 @@ const CORE_PAGES = [
 ];
 
 async function fetchActSlugs() {
-  const res = await fetch(`${API_URL}/api/sitemap/act-slugs`);
+  const res = await fetch(`${API_URL}/api/sitemap/act-slugs`, { signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error(`Failed to fetch act slugs: ${res.status}`);
 
   const slugs = await res.json();
 
-  return (Array.isArray(slugs) ? slugs : []).filter((slug) => {
-    const cleanSlug = String(slug || "").trim().toLowerCase();
-    if (!cleanSlug) return false;
-    if (cleanSlug === "test-soul-allegiance") return false;
-    if (cleanSlug.startsWith("test-")) return false;
-    return true;
-  });
+  if (!Array.isArray(slugs)) throw new Error('Invalid published act inventory');
+  return [...new Set(slugs.map(slug => String(slug || '').trim().toLowerCase()))]
+    .filter(slug => /^[a-z0-9-]+$/.test(slug) && !slug.startsWith('test-'));
 }
 
 async function run() {
   const sm = new SitemapStream({ hostname: SITE_URL });
 
   for (const p of CORE_PAGES) {
-    sm.write({ ...p, url: publicHref(p.url) });
+    sm.write({ url: publicHref(p.url) });
   }
 
   const slugs = await fetchActSlugs();
-  for (const slug of slugs) {
-    sm.write({ url: publicHref(`/act/${slug}`), changefreq: "weekly", priority: 0.7 });
+  for (let index = 0; index < slugs.length; index += 4) {
+    const entries = await Promise.all(slugs.slice(index, index + 4).map(async slug => {
+      const response = await fetch(`${API_URL}/api/act/${slug}`, { signal: AbortSignal.timeout(30000) });
+      if (!response.ok) throw new Error(`Published act ${slug}: HTTP ${response.status}`);
+      const data = await response.json();
+      if (!data.success || data.act?.slug !== slug) throw new Error(`Published act mismatch: ${slug}`);
+      return { url: publicHref(`/act/${slug}`), lastmod: contentDate(data.act.updatedAt) };
+    }));
+    entries.forEach(entry => sm.write(entry));
   }
 
   sm.end();
