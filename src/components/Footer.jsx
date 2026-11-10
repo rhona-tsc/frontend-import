@@ -1,5 +1,6 @@
 import { assets } from "../assets/assets";
 import { Link } from "react-router-dom";
+import { genrePages } from '../data/genrePages.js';
 import { locationPages } from '../data/locationPages.js';
 
 const Footer = () => {
@@ -39,6 +40,10 @@ const Footer = () => {
         </div>
       </div>
 
+      <nav className="mb-8" aria-label="Wedding band music styles">
+        <p className="mb-3 text-xl font-medium">MUSIC STYLES</p>
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">{genrePages.map(page => <Link key={page.slug} to={`/${page.slug}/`} className="hover:text-black">{page.name}</Link>)}</div>
+      </nav>
       <nav className="mb-10 w-full" aria-label="Wedding band location quick links">
         <p className="mb-4 text-xl font-medium">QUICK LINKS</p>
         <div className="flex w-full flex-wrap items-center gap-y-2 text-sm text-gray-600">

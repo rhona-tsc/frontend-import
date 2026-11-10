@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'vite';
+import { genrePages, genreMeta } from '../data/genrePages.js';
 import { blogPosts } from '../data/BlogPosts.js';
 import { buildActMeta } from '../utils/actSeo.js';
 import { buildPageSchema, serializeSchema } from '../utils/structuredData.js';
@@ -42,7 +43,7 @@ await build({
     rollupOptions: { output: { entryFileNames: 'entry-public.mjs' } },
   },
 });
-const { renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent, renderCountyApp, renderVenueGuideContent, renderActsInitialContent, renderActInitialContent } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
+const { renderGenreContent, renderLocationContent, renderPublicShell, renderHomeContent, renderStaticContent, renderCountyApp, renderVenueGuideContent, renderActsInitialContent, renderActInitialContent } = await import(pathToFileURL(path.join(rendererDirectory, 'entry-public.mjs')).href);
 
 async function getAct(route) {
   const response = await fetch(`${api}/api/act/${route.split('/').pop()}`, { signal: AbortSignal.timeout(30000) });
@@ -68,7 +69,8 @@ async function writePage(route, title, description, heading, content, location) 
   const act = acts.find(item => item.route === route)?.act;
   const history = acts.find(item => item.route === route)?.history;
   const post = blogPosts.find(item => `/blog/${item.slug}` === route);
-  const schema = buildPageSchema({ route, title, description, act, post, bands: acts, location });
+  const genre = genrePages.find(page => route === `/${page.slug}`);
+  const schema = buildPageSchema({ route, title, description, act, post, bands: acts, location, genre });
   const breadcrumbItems = schema['@graph'].find(item => item['@type'] === 'BreadcrumbList')?.itemListElement || [];
   const breadcrumbs = breadcrumbItems.length ? `<nav aria-label="Breadcrumb">${breadcrumbItems.map(item => `<a href="${escape(item.item)}">${escape(item.name)}</a>`).join(' / ')}</nav>` : '';
   const image = act?.images?.find(item => item?.url)?.url || post?.heroImage;
@@ -77,6 +79,7 @@ async function writePage(route, title, description, heading, content, location) 
   const pageContent = location
     ? renderLocationContent(route, route.replace('/wedding-bands-', ''), location)
     : route === '/' ? renderHomeContent(content)
+    : genre ? content
     : route === '/venues' || route === '/acts' || route.startsWith('/act/') ? content
     : renderStaticContent(route) || `<main class="initial-public-content">${breadcrumbs}<h1>${escape(heading)}</h1>${content}</main>`;
   const body = location ? renderCountyApp(route, route.replace('/wedding-bands-', ''), location) : renderPublicShell(route, pageContent);
@@ -104,6 +107,10 @@ async function writePage(route, title, description, heading, content, location) 
 }
 await writePage('/', 'The Supreme Collective | Luxury Wedding & Event Bands', 'Luxury wedding and event bands across the UK. Browse acts, compare lineups, and get an instant quote.', 'Luxury Wedding & Event Bands', '');
 await writePage('/acts', 'Wedding & Event Bands for Hire | The Supreme Collective', 'Explore live bands for weddings, parties and corporate events across the UK. Watch performances, compare lineups and get a quote for your date and venue.', 'Wedding & Event Bands for Hire', renderActsInitialContent(acts.map(item => item.act)));
+for (const page of genrePages) {
+  const meta = genreMeta(page);
+  await writePage(`/${page.slug}`, meta.title, meta.description, page.name, renderGenreContent(page.slug));
+}
 const aboutSource = await fs.readFile('src/pages/About.jsx', 'utf8');
 const aboutParagraphs = [...aboutSource.matchAll(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/g)].map(match => plain(match[1])).filter(Boolean);
 await writePage('/about', 'About Our Live Music Agency | The Supreme Collective', 'Meet The Supreme Collective, a live music agency bringing professional bands to weddings, parties and corporate events across the UK and beyond.', 'About Us', aboutParagraphs.map(paragraph).join(''));

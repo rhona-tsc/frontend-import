@@ -3,6 +3,10 @@ http://www.thesupremecollective.co.uk/* https://thesupremecollective.co.uk/:spla
 http://thesupremecollective.co.uk/* https://thesupremecollective.co.uk/:splat 301!
 https://www.thesupremecollective.co.uk/* https://thesupremecollective.co.uk/:splat 301!
 
+# Genre guides use the same directory-page canonical convention.
+/funk-soul-wedding-bands /funk-soul-wedding-bands/ 301!
+/uk-garage-wedding-bands /uk-garage-wedding-bands/ 301!
+
 # ✅ Old filtered URLs that no longer exist on the new site
 # Return a real 404 instead of redirecting them to /act, which can look like a soft 404 to Google.
 /bandsforhire                               genres=:genres                            /404  404

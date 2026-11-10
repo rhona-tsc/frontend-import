@@ -19,12 +19,12 @@ export const buildMusicGroup = (act = {}, url, image) => {
   };
 };
 
-export const buildPageSchema = ({ route, title, description, act, post, bands = [], location }) => {
+export const buildPageSchema = ({ route, title, description, act, post, bands = [], location, genre }) => {
   route = route.replace(/\/+$/, '') || '/';
   const url = publicCanonicalUrl(route);
   const organisation = { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'The Supreme Collective', url: `${SITE_ORIGIN}/`, email: 'hello@thesupremecollective.co.uk', telephone: '+44 203 576 5322' };
   const website = { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'The Supreme Collective', url: `${SITE_ORIGIN}/`, publisher: { '@id': organisation['@id'] } };
-  const type = route === '/about' ? 'AboutPage' : route === '/contact' ? 'ContactPage' : location || ['/acts', '/blog', '/venues'].includes(route) ? 'CollectionPage' : 'WebPage';
+  const type = route === '/about' ? 'AboutPage' : route === '/contact' ? 'ContactPage' : location || genre || ['/acts', '/blog', '/venues'].includes(route) ? 'CollectionPage' : 'WebPage';
   const page = { '@type': type, '@id': `${url}#webpage`, url, name: title, description, isPartOf: { '@id': website['@id'] } };
   const modified = contentDate(act?.updatedAt || post?.updatedAt || post?.modifiedAt);
   if (modified) page.dateModified = modified;
@@ -32,9 +32,9 @@ export const buildPageSchema = ({ route, title, description, act, post, bands = 
   if (route !== '/') {
     const labels = { '/acts': 'Bands', '/about': 'About Us', '/contact': 'Contact', '/blog': 'Blog', '/venues': 'Venue Guide' };
     const items = [{ name: 'Home', item: `${SITE_ORIGIN}/` }];
-    if (act || location) items.push({ name: 'Bands', item: `${SITE_ORIGIN}/acts/` });
+    if (act || location || genre) items.push({ name: 'Bands', item: `${SITE_ORIGIN}/acts/` });
     if (post) items.push({ name: 'Blog', item: `${SITE_ORIGIN}/blog/` });
-    items.push({ name: location?.county || act?.tscName || act?.name || post?.title || labels[route] || title, item: url });
+    items.push({ name: genre?.name || location?.county || act?.tscName || act?.name || post?.title || labels[route] || title, item: url });
     const breadcrumbs = {
       '@type': 'BreadcrumbList',
       '@id': `${url}#breadcrumbs`,
@@ -43,7 +43,12 @@ export const buildPageSchema = ({ route, title, description, act, post, bands = 
     graph.push(breadcrumbs);
     page.breadcrumb = { '@id': breadcrumbs['@id'] };
   }
-  if (location) {
+  if (genre) {
+    const list = { '@type': 'ItemList', '@id': `${url}#bands`, itemListElement: genre.bands.map((band, index) => ({ '@type': 'ListItem', position: index + 1, name: band.name, url: publicCanonicalUrl(`/act/${band.slug}`) })) };
+    graph.push(list);
+    page.mainEntity = { '@id': list['@id'] };
+    page.publisher = { '@id': organisation['@id'] };
+  } else if (location) {
     const list = { '@type': 'ItemList', '@id': `${url}#bands`, itemListElement: (location.bands || []).slice(0, 9).map((band, index) => ({ '@type': 'ListItem', position: index + 1, name: band.name, url: publicCanonicalUrl(`/act/${band.slug}`) })) };
     graph.push(list, { '@type': 'Service', '@id': `${url}#service`, name: `Wedding band hire in ${location.county}`, serviceType: 'Wedding band hire', areaServed: { '@type': 'Place', name: location.county }, provider: { '@id': organisation['@id'] }, url });
     page.mainEntity = { '@id': list['@id'] };

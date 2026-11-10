@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { SitemapStream, streamToPromise } from "sitemap";
+import { genrePages } from '../data/genrePages.js';
 import { locationPages } from '../data/locationPages.js';
 import { publicHref } from '../utils/publicUrls.js';
 import { contentDate } from '../utils/contentDates.js';
@@ -20,6 +21,7 @@ const CORE_PAGES = [
   { url: "/venues", changefreq: "weekly", priority: 0.7 },
   { url: "/privacy", changefreq: "yearly", priority: 0.3 },
   { url: "/terms", changefreq: "yearly", priority: 0.3 },
+  ...genrePages.map(({ slug }) => ({ url: `/${slug}` })),
   ...locationPages.map(({ slug }) => ({ url: `/wedding-bands-${slug}`, changefreq: 'weekly', priority: 0.8 })),
 ];
 

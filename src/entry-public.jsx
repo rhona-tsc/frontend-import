@@ -17,6 +17,11 @@ import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
 import VenueGuide from './pages/VenueGuide';
 import App from './App';
+import { GenreWeddingBandsContent, GenreBandLinks } from './pages/GenreWeddingBands.jsx';
+
+export function renderGenreContent(slug) {
+  return renderToString(<StaticRouter location={`/${slug}/`}><GenreWeddingBandsContent slug={slug} /></StaticRouter>);
+}
 import LocationWeddingBands from './pages/LocationWeddingBands';
 import ActLocalConnections, { InitialActReviews } from './components/ActLocalConnections.jsx';
 
@@ -80,6 +85,7 @@ export function renderActInitialContent(route, act, history) {
             ? <li key={index}>Up to {sets} sets of {act.lengthOfSets[index]} minutes</li> : null)}</ul>
         </div>}
       </section>
+      <GenreBandLinks slug={act.slug} />
       <ActLocalConnections history={history} />
       <InitialActReviews reviews={act.reviews || []} history={history} />
     </main>
