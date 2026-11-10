@@ -144,6 +144,23 @@ export const locationPages = [
   },
 ];
 
+// Practical questions for the nine counties selected in the organic-search review.
+// These explain what to check; they do not claim that every venue has these restrictions.
+const countyPlanningFaqs = {
+  surrey: { q: 'What should we check if our Surrey venue has a sound limiter?', a: 'Ask the venue for its sound limit, where it is measured and whether it cuts the power. Share those details before choosing your lineup so we can check suitable bands and equipment with the act.' },
+  berkshire: { q: 'What information helps you quote for a Berkshire wedding?', a: 'Send your wedding date, venue and postcode, preferred band or music style, and the parts of the day that need music. Include access times and your music finish time so we can confirm travel, setup and any extras in the quote.' },
+  hertfordshire: { q: 'Can a band set up in the same room as our wedding breakfast?', a: 'Tell us when the room becomes available and whether guests will still be there during setup. We will check how much setup and soundcheck time the act needs and help plan the changeover with your Hertfordshire venue.' },
+  essex: { q: 'Can we choose a UK garage or R&B band for our Essex wedding?', a: 'Yes. Explore the performances and song lists on our artist pages to compare UK garage, R&B and other styles. Tell us your favourite songs and your Essex venue so we can check the right act, lineup and availability.' },
+  buckinghamshire: { q: 'What should we plan for live music in a marquee?', a: 'Before booking, confirm a dry, covered performance area, suitable power, a safe level floor and access for loading equipment. Share the plans for your Buckinghamshire marquee with us so the act can confirm its requirements.' },
+  kent: { q: 'What should we ask a Kent venue before booking a live band?', a: 'Check whether live amplified music is permitted, the music finish time, any sound limiter and the available performance space. Share the venue contact and your timings so we can check the practical details with your chosen band.' },
+  'west-sussex': { q: 'Can our band move between the drinks reception and evening room?', a: 'Some acts offer separate daytime and evening options. Let us know where each part of your West Sussex wedding takes place, including any outdoor space, so we can confirm equipment, power and changeover time before quoting.' },
+  'east-sussex': { q: 'How do we plan the live sets around our venue’s music finish time?', a: 'Share your East Sussex venue’s music curfew, first dance time and other evening plans when you enquire. We will check the chosen act’s set lengths and breaks, then help agree a schedule that fits the permitted hours.' },
+  oxfordshire: { q: 'What access does a wedding band need at an Oxfordshire barn or rural venue?', a: 'Tell us about parking, unloading distance, stairs and when the performance area becomes available. For rural venues, include the exact postcode and venue contact so the act can plan travel and setup before your day.' },
+};
+for (const page of locationPages) {
+  if (countyPlanningFaqs[page.slug]) page.faqs.push(countyPlanningFaqs[page.slug]);
+}
+
 export const contactOptions = [
   { label: 'Email us', href: 'mailto:hello@thesupremecollective.co.uk' },
   { label: 'WhatsApp', href: 'https://wa.me/447594223200', external: true },

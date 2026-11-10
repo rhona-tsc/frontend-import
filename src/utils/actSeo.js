@@ -30,8 +30,13 @@ export const buildActMeta = (act = {}) => {
   const name = String(act.tscName || act.name || 'Live Band').trim();
   const slug = String(act.slug || act.tscSlug || '').trim().toLowerCase();
   const style = ACT_SEO_STYLES[slug] || 'Live Wedding & Event Band';
+  const approvedDescription = String(act.tscDescription || act.description || '')
+    .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const description = approvedDescription.length > 165
+    ? `${approvedDescription.slice(0, 162).replace(/\s+\S*$/, '').replace(/[.,;:!?—–-]+$/, '')}…`
+    : approvedDescription;
   return {
     title: `${name} | ${style} | The Supreme Collective`,
-    description: `Book ${name} for your wedding, party or corporate event. Explore ${style.toLowerCase()} performances, compare lineups and get a quote for your date and venue.`,
+    description: description || `Book ${name} for weddings and events. Watch ${style.toLowerCase()} performances, explore lineups and enquire about your date.`,
   };
 };
