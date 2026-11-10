@@ -1,3 +1,5 @@
+import VocalistChoices from "../components/VocalistChoices.jsx";
+import { choiceKey } from "../utils/vocalistChoices.js";
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import {
   useContext,
@@ -15,7 +17,7 @@ import CustomToast from "../components/CustomToast";
 import { ShopContext } from "../context/ShopContext";
 import Title from "../components/Title";
 import CartTotal from "../components/CartTotal";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import calculateActPricing from "./utils/pricing";
 import CustomTimePicker from "../components/CustomTimePicker";
 import "keen-slider/keen-slider.min.css";
@@ -165,6 +167,7 @@ const Cart = () => {
     setCartData,
     selectedDate,
     selectedAddress,
+    setSelectedDate, setSelectedAddress, addToCart,
     removeFromCart,
     setShowSearch,
     setCartItems,
@@ -181,6 +184,23 @@ useEffect(() => {
 }, [cartItems, acts]);
 
 
+
+  const location = useLocation();
+  const importedLinkRef = useRef("");
+  useEffect(() => {
+    const raw = new URLSearchParams(location.search).get("payload");
+    if (!raw || importedLinkRef.current === raw) return;
+    importedLinkRef.current = raw;
+    try {
+      const payload = JSON.parse(raw);
+      if (!/^[a-f0-9]{24}$/i.test(payload.actId || "") || !/^[a-f0-9]{24}$/i.test(payload.lineupId || "") ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(payload.selectedDate || "") || !String(payload.selectedAddress || "").trim()) return;
+      setSelectedDate(payload.selectedDate); setSelectedAddress(payload.selectedAddress);
+      sessionStorage.setItem("selectedDate", payload.selectedDate);
+      sessionStorage.setItem("selectedAddress", payload.selectedAddress);
+      if (!cartItems?.[payload.actId]?.[payload.lineupId]) addToCart(payload.actId, payload.lineupId);
+    } catch { /* Invalid links leave the existing cart intact. */ }
+  }, [location.search]);
 
   const changingLineupRef = useRef(false);
 
@@ -325,28 +345,6 @@ const resolveLineupForCart = useCallback((act, lineupId) => {
   return found || list[0] || null; // fallback to first lineup
 }, []);
 
-  // Seed: ensure each act's featured lead (if any) is selected exactly once and locked
-  useEffect(() => {
-    if (!selectedDate || !cartItems) return;
-    const clean = selectedDate.slice(0, 10);
-
-    Object.keys(cartItems || {}).forEach((actId) => {
-      const already = seededLeadsRef.current.has(String(actId));
-      const badges = availabilityBadgesByAct?.[actId] || {};
-      const leadId = getLeadIdForDate({ availabilityBadges: badges }, selectedDate, badges);
-      if (!leadId) return;
-
-      const current = toArray(selectedVocalists?.[actId]);
-     if (!current.includes(leadId)) {
-  ensureLeadIncluded(actId, leadId);
-}
-      if (!already) {
-        seededLeadsRef.current.add(String(actId));
-      }
-    });
-  }, [availabilityBadgesByAct, cartItems, selectedDate, selectedVocalists, toggleVocalistForAct]);
-
-
       useEffect(() => {
     if (actData) {
       console.log("🎭 [Act.jsx] actData loaded:", {
@@ -487,6 +485,11 @@ const canProceedToBooking = Boolean(
   hasUkPostcode(selectedAddress)
 );
 
+const [vocalReady, setVocalReady] = useState({});
+const handleVocalStatus = useCallback((key, ready) => {
+  setVocalReady(prev => prev[key] === ready ? prev : { ...prev, [key]: ready });
+}, []);
+
 const handleProceedToBooking = () => {
   if (!selectedDate || !selectedAddress) {
     toast(<CustomToast type="error" message="Please select a date and venue address." />);
@@ -505,6 +508,12 @@ const handleProceedToBooking = () => {
     return;
   }
 
+  const complete = Object.entries(cartItems || {}).every(([actId, lineups]) =>
+    Object.keys(lineups || {}).every(lineupId => vocalReady[choiceKey(actId, lineupId, selectedDate, selectedAddress)] === true));
+  if (!complete) {
+    toast(<CustomToast type="error" message="Please complete your confirmed vocal lineup before continuing." />);
+    return;
+  }
   commitStandardTimesIfMissing();
   navigate("/place-booking");
 };
@@ -2087,225 +2096,10 @@ const availableLineups = availableLineupsRaw.filter((l) => Boolean(normLineupId(
     const id = String(musicianId || "").trim();
     return id ? `${PUBLIC_SITE_BASE}/musician/${encodeURIComponent(id)}` : "";
   };
-  const norm = (v) => String(v || "").trim().toLowerCase();
-
-  const isYes = (d) => {
-    const s = norm(d?.state || d?.reply);
-    return s === "yes";
-  };
-
-  const isUnavailable = (d) => norm(d?.state || d?.reply) === "unavailable";
-  // Availability badge chooser — per-item, using per-act badges map
-  const allBadges = (availabilityBadgesByAct?.[item.actId]) || (item.actData?.availabilityBadges) || {};
-  const cleanDate = (selectedDate || "").slice(0, 10);
-  const badgeKey = Object.keys(allBadges).find(k => k.includes(cleanDate));
-  const badge = badgeKey ? allBadges[badgeKey] : null;
-  const slots = Array.isArray(badge?.slots) ? badge.slots : [];
-
-  // --- DEBUG GROUP LOGS ---
-  console.group(
-    `%c[VOCAL-UI]%c ${item.actName} (${item.actId}) – ${cleanDate}`,
-    'color:#8b5cf6;font-weight:bold',
-    'color:inherit'
-  );
-  console.log('[raw badges]', {
-    actId: item.actId,
-    cleanDate,
-    keys: Object.keys(allBadges || {}),
-    badgeKey,
-    hasBadge: !!badge,
-    slotsCount: slots.length,
-  });
-
-  // Build a unique selection of ALL people who positively replied (lead + deputies)
-  const seen = new Set();
-  const selection = [];
-
-  const pushUnique = (p, extra = {}) => {
-    const musicianId = String(
-      p?.musicianId || p?.id || p?._id || ""
-    ).trim();
-    if (!musicianId || seen.has(musicianId)) return;
-    seen.add(musicianId);
-
-    const resolvedProfileUrl = buildMusicianHref(
-      musicianId,
-      p?.profileUrl || extra?.profileUrl || ""
-    );
-
-    selection.push({
-      isDeputy: !!p?.isDeputy || !!extra.isDeputy,
-      musicianId,
-      photoUrl:
-        p?.photoUrl ||
-        p?.profilePhoto ||
-        p?.imageUrl ||
-        p?.profilePicture ||
-        p?.musicianProfileImage ||
-        "",
-      profileUrl: resolvedProfileUrl,
-      setAt: p?.setAt || p?.repliedAt || null,
-      vocalistName:
-        p?.vocalistName ||
-        p?.resolvedName ||
-        p?.displayName ||
-        p?.name ||
-        `${p?.firstName || ""} ${p?.lastName || ""}`.trim(),
-    });
-  };
-
-  // Include LEADS with positive replies
-  slots.forEach((slot) => {
-    const primary = slot?.primary || null;
-
-    if (
-      primary &&
-      primary.isDeputy === false &&
-      !isUnavailable(primary) &&
-      isYes(primary) &&
-      isHttp(primary?.photoUrl)
-    ) {
-      pushUnique(
-        {
-          ...primary,
-          vocalistName:
-            primary?.vocalistName || slot?.vocalistName || primary?.displayName || "",
-          setAt: primary?.setAt || slot?.setAt || null,
-        },
-        { isDeputy: false }
-      );
-    }
-
-    const deps = Array.isArray(slot?.deputies) ? slot.deputies : [];
-    deps.forEach((dep) => {
-      if (!isUnavailable(dep) && isYes(dep) && isHttp(dep?.photoUrl)) {
-        pushUnique(dep, { isDeputy: true });
-      }
-    });
-  });
-
-  console.log('[selection]', selection.map(p => ({ id: p.musicianId, type: p.isDeputy ? 'deputy' : 'lead' })));
-
-  // Prefer badge slot count (each slot = a vocalist position), fallback to lineup-based detection
-  const slotCount = Array.isArray(slots) ? slots.length : 0;
-  const requiredVocalCount = Math.max(1, slotCount || getRequiredVocalCount(item.actData, item.lineup));
-  const leadIdForDate = getLeadIdForDate(item.actData, selectedDate, allBadges);
-  console.log('[caps]', { slotCount, requiredVocalCount, leadIdForDate });
-
-  // Per-act selection for this item
-  const actSel = toArray(selectedVocalists?.[item.actId]);
-  const chosenCount = actSel.length;
-  const titlePlural = requiredVocalCount > 1 ? "vocalists" : "vocalist";
-  console.log('[state]', { actSel, chosenCount, titlePlural });
-
-  // click handler that enforces max & keeps lead locked, shows toast on selection
-  const handlePick = (person, isSelected, isLocked) => {
-    const musicianId = person.musicianId;
-    if (isLocked) return; // lead is locked (unclickable)
-
-    const lockedIds = leadIdForDate ? new Set([leadIdForDate]) : new Set();
-    const selectedSet = new Set(actSel);
-    lockedIds.forEach((id) => selectedSet.add(id));
-
-    const selecting = !isSelected;
-    if (selecting) {
-      const willHave = new Set(selectedSet);
-      willHave.add(musicianId);
-      if (willHave.size > requiredVocalCount) {
-        toast?.info?.(`You can choose up to ${requiredVocalCount} ${titlePlural}.`);
-        return;
-      }
-
-      const who = (person.vocalistName || '').trim() || 'Vocalist';
-      const phr = requiredVocalCount > 1 ? 'one of your vocalists' : 'your vocalist';
-      try { toast(<CustomToast type="success" message={`${who} is selected as ${phr}.`} />); } catch {}
-    }
-
-    toggleVocalistForAct(item.actId, musicianId);
-  };
-
-  if (!selection.length) {
-    console.log('⚪ no selection available — nothing to render');
-    console.groupEnd();
-    return null;
-  }
-
-  console.groupEnd();
- return (
-  <div className="mt-2">
-    {/* Header */}
-    <div className="flex flex-col gap-0.5">
-      <h3 className="text-base font-semibold text-gray-700 leading-tight">
-        Choose your {titlePlural}
-      </h3>
-
-      {requiredVocalCount > 1 && (
-        <p className="text-sm text-gray-500">
-          ({Math.min(chosenCount, requiredVocalCount)}/{requiredVocalCount} selected)
-        </p>
-      )}
-    </div>
-
-    {/* Badges */}
-    <div className="mt-3 flex flex-wrap gap-4">
-      {selection.slice(0, 8).map((person, idx) => {
-        const isLeadLocked = person.musicianId === leadIdForDate;
-        const isSelected = isLeadLocked ? true : actSel.includes(person.musicianId);
-        const keyId = `${(selectedDate || "").slice(0, 10)}_${person.musicianId || idx}`;
-
-        return (
-          <div
-            key={keyId}
-            role="button"
-            tabIndex={0}
-            aria-pressed={isSelected}
-            className="inline-block focus:outline-none"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!isLeadLocked) handlePick(person, isSelected, isLeadLocked);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!isLeadLocked) handlePick(person, isSelected, isLeadLocked);
-              }
-            }}
-            style={{ cursor: isLeadLocked ? "not-allowed" : "pointer" }}
-          >
-            <FeaturedVocalistBadgeForCart
-              pictureSource={person}
-              imageUrl={person.photoUrl}
-              profileUrl={person.profileUrl}
-              size={120}
-              variant={person.isDeputy ? "deputy" : "lead"}
-              musicianId={person.musicianId}
-              cacheBuster={person.setAt}
-              isSelected={isSelected}
-              disabled={isLeadLocked}
-              actContext={item.actName}
-              dateContext={selectedDate}
-            />
-          </div>
-        );
-      })}
-    </div>
-
-    {/* Helper note (under badges) */}
-    {requiredVocalCount > 1 && selection.length < requiredVocalCount && (
-      <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-        <p className="text-sm text-gray-600 leading-relaxed">
-          Can’t see all {requiredVocalCount} vocalists right now? You’re welcome to book with{" "}
-          <span className="font-semibold text-gray-700">
-            {Math.min(chosenCount || 1, requiredVocalCount)} selected
-          </span>{" "}
-          — we’ll allocate the other lead vocalist if they’re available, or a like-for-like deputy.
-        </p>
-      </div>
-    )}
-  </div>
-);
+  return <VocalistChoices key={choiceKey(item.actId, item.lineupId, selectedDate, selectedAddress)} actId={String(item.actId)} lineupId={String(item.lineupId)}
+    date={selectedDate} address={selectedAddress} selected={toArray(selectedVocalists?.[item.actId])}
+    onChange={ids => setSelectedVocalists(prev => ({ ...prev, [item.actId]: ids }))}
+    onStatus={handleVocalStatus} refreshKey={availabilityBadgesByAct} />;
 })()}
 </div>
 
