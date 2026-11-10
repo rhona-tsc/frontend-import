@@ -45,6 +45,7 @@ import { buildActMeta } from "../utils/actSeo.js";
 import { buildMusicGroup, serializeSchema } from "../utils/structuredData.js";
 import { getBandImageAlt } from "../utils/bandImageAlt.js";
 import { getActPriceLabel } from "../utils/actPriceDisplay.js";
+import { GenreBandLinks } from './GenreWeddingBands.jsx';
 import ActLocalConnections from '../components/ActLocalConnections.jsx';
 import { readInitialHistory, reviewCountyLink } from '../utils/publicPerformanceHistory.js';
 export { buildActMeta } from "../utils/actSeo.js";
@@ -2413,6 +2414,7 @@ const Act = () => {
             </Suspense>
           </div>
         </div>
+        <GenreBandLinks slug={actData.slug} />
         <ActLocalConnections history={publicHistory?.slug === actData.slug ? publicHistory : null} />
         {/* Reviews horizontal scroll gallery */}
         <div className="relative mt-12" id="reviews">

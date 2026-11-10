@@ -1,5 +1,5 @@
 export const PUBLIC_ORIGIN = 'https://thesupremecollective.co.uk';
-const publicRoute = /^\/(?:acts|about|contact|blog|venues(?:\/claim\/[^/]+)?|privacy|terms|wedding-bands-[a-z-]+|act\/[^/]+|blog\/[^/]+)$/;
+const publicRoute = /^\/(?:funk-soul-wedding-bands|uk-garage-wedding-bands|acts|about|contact|blog|venues(?:\/claim\/[^/]+)?|privacy|terms|wedding-bands-[a-z-]+|act\/[^/]+|blog\/[^/]+)$/;
 
 // Netlify serves these pre-rendered directory pages at trailing-slash URLs.
 // Leave private routes, assets, external destinations and query values alone.

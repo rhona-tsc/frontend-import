@@ -3,6 +3,7 @@ import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { publicCanonicalUrl, publicHref } from '../utils/publicUrls.js';
+import { genrePages } from '../data/genrePages.js';
 
 const { renderLocationContent } = await import(pathToFileURL(path.resolve('node_modules/.cache/tsc-public-render/entry-public.mjs')).href);
 const sitemap = await readFile('dist/sitemap.xml', 'utf8');
@@ -46,6 +47,19 @@ for (const route of routes) {
   assert.equal((html.match(/id="initial-page-schema"/g) || []).length, 1, `${route} must retain one initial schema graph`);
   const schema = html.match(/<script id="initial-page-schema"[^>]*>(.*?)<\/script>/s);
   assert.ok(JSON.parse(schema[1])['@graph'].length);
+  const genre = genrePages.find(page => route === `/${page.slug}`);
+  if (genre) {
+    assert.equal((html.match(/<h1\b/g) || []).length, 1, 'Genre guides have one main heading');
+    const graph = JSON.parse(schema[1])['@graph'];
+    assert.ok(graph.some(item => item['@type'] === 'CollectionPage' && item.url === publicCanonicalUrl(route)));
+    assert.deepEqual(graph.find(item => item['@type'] === 'ItemList').itemListElement.map(item => item.url), genre.bands.map(band => publicCanonicalUrl(`/act/${band.slug}`)));
+    assert.doesNotMatch(html, /noindex/i);
+    for (const band of genre.bands) {
+      assert.ok(html.includes(`href="/act/${band.slug}/"`), 'Genre guides link directly to their artists');
+      if (band.image) assert.ok(html.includes(band.image.split('/upload/')[1]), 'Published band photos are included');
+    }
+    for (const faq of genre.faqs) assert.ok(html.includes(faq.q), 'FAQs must be visible without JavaScript');
+  }
   for (const asset of html.matchAll(/\bsrc="(\/assets\/[^"]+)"/g)) await access(path.join('dist', asset[1]));
   if (route.startsWith('/wedding-bands-')) {
     const initialStyles = html.match(/<style id="initial-page-styles">([\s\S]*?)<\/style>/)?.[1];

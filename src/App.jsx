@@ -9,6 +9,7 @@ import { Routes, Route, useLocation } from "react-router-dom";
 import AuthGateModal from "./components/AuthGateModal";
 import ScrollToTop from "./components/ScrollToTop";
 import { Helmet } from "react-helmet-async";
+import { genrePages } from "./data/genrePages.js";
 import { locationPages } from "./data/locationPages.js";
 
 // Keep the shared shell available while downloading only the requested page.
@@ -33,6 +34,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
 const LocationWeddingBands = lazy(() => import("./pages/LocationWeddingBands"));
+const GenreWeddingBands = lazy(() => import("./pages/GenreWeddingBands"));
 const VenueGuide = lazy(() => import("./pages/VenueGuide"));
 const VenueClaim = lazy(() => import("./pages/VenueClaim"));
 
@@ -205,6 +207,7 @@ const PageLoading = ({ initialContent, initialPath }) => {
               <Route path="/about" element={<About />} />
               <Route path="/act/:key" element={<Act />} />
               <Route path="/acts/:preset" element={<Acts />} />
+              {genrePages.map(({ slug }) => <Route key={slug} path={`/${slug}`} element={<GenreWeddingBands slug={slug} />} />)}
               {locationPages.map(({ slug }) => <Route key={slug} path={`/wedding-bands-${slug}`} element={<LocationWeddingBands slug={slug} />} />)}
               <Route path="/bookings" element={<Bookings />} />
               <Route path="/cart" element={<Cart />} />

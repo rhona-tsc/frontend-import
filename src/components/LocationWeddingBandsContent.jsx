@@ -1,6 +1,7 @@
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
+import { genrePages } from '../data/genrePages.js';
 import { locationPages, locationCopy, contactOptions } from '../data/locationPages.js';
 import { getBandImageAlt } from '../utils/bandImageAlt.js';
 import { cleanVenueName } from '../utils/venueName.js';
@@ -31,6 +32,12 @@ export default function LocationWeddingBandsContent({ slug, data, error = false,
         </div></article>)}</div>
       <Link to="/acts/" className="mt-7 inline-block rounded-full border border-black px-6 py-3">Explore all our bands</Link>
     </section>
+    {current && ['essex', 'surrey', 'buckinghamshire'].includes(slug) && <section className="mb-12">
+      <h2 className="text-3xl font-semibold">Compare music styles and venue experience</h2>
+      <p className="mt-4 leading-7 text-gray-600">Use the music style as a starting point, then watch each band’s performances and compare its lineup choices. Previous venue experience helps with planning; availability for your date still needs to be checked.</p>
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-gray-200"><table className="w-full text-left text-sm"><caption className="sr-only">Wedding band comparison for {config.name}</caption><thead className="bg-gray-100"><tr><th scope="col" className="p-4">Band</th><th scope="col" className="p-4">Music styles</th><th scope="col" className="p-4">Venue planning</th></tr></thead><tbody>{current.bands.slice(0, 9).map(band => <tr key={band.slug} className="border-t border-gray-200"><th scope="row" className="p-4"><Link className="underline" to={`/act/${band.slug}/`}>{band.name}</Link></th><td className="p-4">{band.genres?.join(', ') || 'See band profile'}</td><td className="p-4">{band.hasVenueExperience ? `Previous venue experience in ${config.name}` : 'Discuss your venue with our team'}</td></tr>)}</tbody></table></div>
+      <div className="mt-5 flex flex-wrap gap-5">{genrePages.map(page => <Link key={page.slug} className="underline" to={`/${page.slug}/`}>{page.name}</Link>)}</div>
+    </section>}
     <section className="rounded-3xl bg-gray-50 p-6 sm:p-10"><h2 className="text-3xl font-semibold">{config.planningTitle}</h2><ul className="mt-6 space-y-4">{config.planning.map(tip => <li className="flex gap-3 leading-7 text-gray-700" key={tip}><span aria-hidden="true">•</span><span>{tip}</span></li>)}</ul><p className="mt-6 leading-7 text-gray-600">{locationCopy.areaIntro(config)}</p></section>
     <section className="py-14"><h2 className="text-3xl font-semibold">Explore wedding venues in {config.name}</h2><p className="mt-4 leading-7 text-gray-600">{locationCopy.venueIntro(config.name)}</p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{(current?.venues || []).map(venue => {
