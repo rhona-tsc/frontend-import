@@ -1,6 +1,7 @@
 import { assets } from "../assets/assets";
 import { Link } from "react-router-dom";
 import { genrePages } from '../data/genrePages.js';
+import { officialSocialProfiles } from '../data/officialProfiles.js';
 import { locationPages } from '../data/locationPages.js';
 
 const Footer = () => {
@@ -37,6 +38,9 @@ const Footer = () => {
             <li>+44 7594 223200</li>
             <li>hello@thesupremecollective.co.uk</li>
           </ul>
+          <nav aria-label="The Supreme Collective social profiles" className="mt-4 flex flex-wrap gap-4 text-gray-600">
+            {officialSocialProfiles.map(profile => <a key={profile.name} href={profile.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">{profile.name}</a>)}
+          </nav>
         </div>
       </div>
 

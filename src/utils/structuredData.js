@@ -1,6 +1,7 @@
 export const SITE_ORIGIN = 'https://thesupremecollective.co.uk';
 import { publicCanonicalUrl } from './publicUrls.js';
 import { contentDate } from './contentDates.js';
+import { officialSocialProfiles, artistProfiles } from '../data/officialProfiles.js';
 
 export const buildMusicGroup = (act = {}, url, image) => {
   image = image || act.images?.find(item => item?.url)?.url;
@@ -16,6 +17,7 @@ export const buildMusicGroup = (act = {}, url, image) => {
     ...((act.tscDescription || act.description) ? { description: act.tscDescription || act.description } : {}),
     ...(genres.length ? { genre: [...new Set(genres)] } : {}),
     ...(image ? { image } : {}),
+    ...(artistProfiles[act.slug] ? { sameAs: artistProfiles[act.slug] } : {}),
   };
 };
 
@@ -23,6 +25,8 @@ export const buildPageSchema = ({ route, title, description, act, post, bands = 
   route = route.replace(/\/+$/, '') || '/';
   const url = publicCanonicalUrl(route);
   const organisation = { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'The Supreme Collective', url: `${SITE_ORIGIN}/`, email: 'hello@thesupremecollective.co.uk', telephone: '+44 203 576 5322' };
+  organisation.description = 'A live music agency representing individual bands for weddings, parties and corporate events.';
+  organisation.sameAs = officialSocialProfiles.map(profile => profile.url);
   const website = { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'The Supreme Collective', url: `${SITE_ORIGIN}/`, publisher: { '@id': organisation['@id'] } };
   const type = route === '/about' ? 'AboutPage' : route === '/contact' ? 'ContactPage' : location || genre || ['/acts', '/blog', '/venues'].includes(route) ? 'CollectionPage' : 'WebPage';
   const page = { '@type': type, '@id': `${url}#webpage`, url, name: title, description, isPartOf: { '@id': website['@id'] } };
