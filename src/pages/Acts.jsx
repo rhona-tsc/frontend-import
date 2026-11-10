@@ -14,6 +14,7 @@ import {
   SETLIST_CONTROL_OPTIONS,
 } from "../utils/setlistControl.js";
 import calculateActPricing from './utils/pricing.jsx';
+import { matchesActGenres } from '../utils/actGenres.js';
 
 // --- DEBUG HELPERS ---------------------------------------------------------
 const ACTS_DBG = (...args) => console.log("🎯 [Acts]", ...args);
@@ -138,7 +139,7 @@ const [priceMap, setPriceMap] = useState({}); // { [actId]: number }
 
   const [showFilter, setShowFilter] = useState(false);
   const [showGenreFilter, setShowGenreFilter] = useState(false);
-  const [genre, setGenre] = useState([]);
+  const [genre, setGenre] = useState(() => PRESETS[searchParams.get('preset')]?.genres || []);
   const [setlistControl, setSetlistControl] = useState([]);
   const [isGenreSelected, setIsGenreSelected] = useState(false); // Track if any checkbox is checked
   const [isActSizeSelected, setIsActSizeSelected] = useState(false); // Track if any checkbox is checked
@@ -1223,30 +1224,7 @@ const getEffectiveAddress = () =>
     const selectedGenres = Array.isArray(genre) ? genre : [];
     const selectedNorm = selectedGenres.map(NORM);
 
-    const matchByGenre = (card) => {
-      const src =
-        Array.isArray(card?.genres_norm) && card.genres_norm.length
-          ? card.genres_norm
-          : (() => {
-              const rawArr = Array.isArray(card?.genres)
-                ? card.genres
-                : Array.isArray(card?.genre)
-                  ? card.genre
-                  : typeof card?.genre === "string"
-                    ? [card.genre]
-                    : Array.isArray(card?.genres_raw)
-                      ? card.genres_raw
-                      : Array.isArray(card?.genresNormalized)
-                        ? card.genresNormalized
-                        : [];
-              return flat1(rawArr);
-            })();
-      const norm = src.map(NORM);
-      // If the card has no genre, do not filter it out
-      if (!norm.length || norm.every((g) => !g)) return true;
-      // Otherwise, require exact match
-      return selectedNorm.every((sel) => norm.includes(sel));
-    };
+    const matchByGenre = (card) => matchesActGenres(card, selectedGenres);
 
     // ───────────────────────────────────────────────────────────────────────────────
     // Availability gate (skip only that part if loading)
@@ -1456,7 +1434,9 @@ let approvedCards = serverIds
         };
       });
 
-      setFilterProducts(quickCards.filter(act => matchesSetlistControl(act, setlistControl)));
+      if (runId === filterRunIdRef.current) {
+        setFilterProducts(quickCards.filter(act => matchByGenre(act) && matchesSetlistControl(act, setlistControl)));
+      }
       try {
         ACTS_DBG("No full acts yet — showing cards only", {
           len: quickCards.length,
@@ -2203,7 +2183,7 @@ useEffect(() => {
     sessionStorage.setItem(AUTO_OPEN_KEY, '1');
     return;
   }
-  if (preset || hasAnyLocation() || sessionStorage.getItem(AUTO_OPEN_KEY) === '1' || sessionStorage.getItem('acts:searchboxDismissed') === '1') return;
+  if (preset || PRESETS[searchParams.get('preset')] || hasAnyLocation() || sessionStorage.getItem(AUTO_OPEN_KEY) === '1' || sessionStorage.getItem('acts:searchboxDismissed') === '1') return;
   return scheduleSearchPrompt({
     window,
     shouldOpen: () => !hasAnyLocation() && sessionStorage.getItem('acts:searchboxDismissed') !== '1',
@@ -2214,7 +2194,7 @@ useEffect(() => {
   });
   // Stored location is read again when the timer fires.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [preset, showSearch, selectedAddress, selectedCounty, setShowSearch]);
+}, [preset, searchParams, showSearch, selectedAddress, selectedCounty, setShowSearch]);
 
 
 const removeFilterPill = (item) => {
@@ -4010,7 +3990,7 @@ return (
         {/* RIGHT: Results */}
         <main className="col-span-12 md:col-span-8 lg:col-span-9">
           <div className="text-center md:text-left py-2">
-            <Title text1="ALL" text2="ACTS" />
+            <Title text1={genre.length === 1 && genre[0] === 'Soul & Motown' ? 'SOUL & MOTOWN' : 'ALL'} text2={genre.length === 1 && genre[0] === 'Soul & Motown' ? 'BANDS' : 'ACTS'} />
           </div>
 
           {/* Current Address in State */}
