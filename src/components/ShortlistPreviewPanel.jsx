@@ -1,3 +1,4 @@
+import { getMarketingAttribution } from '../utils/marketingAttribution.js';
 import BandAvailability from "./BandAvailability.jsx";
 import { trackEnquiryResponse } from "../utils/businessConversions.js";
 import React, { useState, useEffect, useContext } from "react";
@@ -714,7 +715,7 @@ const handleLineupChange = async (lineup) => {
               "Content-Type": "application/json",
               accept: "application/json",
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ ...payload, attribution: getMarketingAttribution() }),
           });
           if (res.ok) {
             trackEnquiryResponse(await res.json());

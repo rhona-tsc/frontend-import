@@ -1,3 +1,4 @@
+import { getMarketingAttribution } from '../utils/marketingAttribution.js';
 import BandAvailability from "../components/BandAvailability.jsx";
 import { trackEnquiryResponse } from "../utils/businessConversions.js";
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
@@ -1319,7 +1320,7 @@ const Act = () => {
               "Content-Type": "application/json",
               accept: "application/json",
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ ...payload, attribution: getMarketingAttribution() }),
           });
           if (resp.ok) {
             trackEnquiryResponse(await resp.json());

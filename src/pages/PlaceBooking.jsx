@@ -1,3 +1,4 @@
+import { getMarketingAttribution } from '../utils/marketingAttribution.js';
 // Make sure to install react-signature-canvas:
 // npm install react-signature-canvas
 
@@ -722,6 +723,7 @@ const PlaceBooking = () => {
         : null;
 
       const stripeResponse = await axios.post(endpoint, {
+        attribution: getMarketingAttribution(),
         cartDetails: cartDetailsSingle,
         actsSummary,
 
