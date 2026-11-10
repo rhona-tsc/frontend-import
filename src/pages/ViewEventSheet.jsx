@@ -1,4 +1,4 @@
-import { describeEventSheetLineup } from "../utils/eventSheetLineup.js";
+import { describeEventSheetLineup, formatEventSheetLineup } from "../utils/eventSheetLineup.js";
 import { resolveEventSheetPayments } from "../utils/eventSheetPayments.js";
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, {
@@ -978,13 +978,7 @@ const ViewEventSheet = () => {
         // Describe the contracted snapshot even if the act's public lineup changes.
         const bookedMembers = it.lineup?.bandMembers?.length ? it.lineup.bandMembers : it.bandMembers;
         const desc = describeEventSheetLineup(bookedMembers?.length ? { bandMembers: bookedMembers } : lineup);
-        const labelAlreadyDescribesRoles = /\([^)]{5,}\)/.test(label);
-        return [
-          label,
-          desc && !labelAlreadyDescribesRoles ? ` - ${desc}` : "",
-        ]
-          .filter(Boolean)
-          .join(" ");
+        return formatEventSheetLineup(label, desc);
       })
       .filter(Boolean);
 

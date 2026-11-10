@@ -20,3 +20,12 @@ test('a solo vocalist stays singular and missing lineups have no invented parts'
   assert.equal(describeEventSheetLineup({ bandMembers: [member('Lead Female Vocal')] }), 'Lead Female Vocal');
   assert.equal(describeEventSheetLineup(), ''); assert.equal(describeEventSheetLineup(null), '');
 });
+
+
+test('overview does not append instruments to a descriptive imported booking label', async () => {
+  const { formatEventSheetLineup } = await import('./eventSheetLineup.js');
+  const label = '5 Piece Band: Female Lead Vocals, Guitar, Keys, Bass and Drums';
+  assert.equal(formatEventSheetLineup(label, 'Female Lead Vocals; Guitar; Keys; Bass; Drums'), label);
+  assert.equal(formatEventSheetLineup('5 Piece Band', 'Vocals, Guitar & Drums'), '5 Piece Band - Vocals, Guitar & Drums');
+  assert.equal(formatEventSheetLineup('5 Piece (Vocals, Guitar & Drums)', 'Vocals, Guitar & Drums'), '5 Piece (Vocals, Guitar & Drums)');
+});

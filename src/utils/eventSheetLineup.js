@@ -25,3 +25,10 @@ export function describeEventSheetLineup(lineup = {}) {
     .map(role => title(role.role || role.title || 'Unnamed Service'))))];
   return `${join(instruments)}${services.length ? ` (including ${join(services)} services)` : ''}`;
 }
+
+// Booking labels can already contain a full instrument list (including legacy imports).
+export function formatEventSheetLineup(label = '', description = '') {
+  const text = String(label || '').trim();
+  const described = /\([^)]{5,}\)/.test(text) || /:\s*\S/.test(text);
+  return [text, description && !described ? description : ''].filter(Boolean).join(' - ');
+}
