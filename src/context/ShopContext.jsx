@@ -1,3 +1,4 @@
+import { trackEnquiryResponse } from "../utils/businessConversions.js";
 // frontend/src/context/ShopContext.jsx
 import React, {
   createContext,
@@ -306,7 +307,12 @@ const updateLoveCountEverywhere = (actId, newCount) => {
   }, [cartItems]);
 
   const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [selectedVocalists, setSelectedVocalists] = useState({});
+  const [selectedVocalists, setSelectedVocalists] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem("tsc:selectedVocalists") || "{}"); } catch { return {}; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem("tsc:selectedVocalists", JSON.stringify(selectedVocalists)); } catch {}
+  }, [selectedVocalists]);
   const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
   // --- User / shortlist (single sources of truth) ---
@@ -1668,6 +1674,13 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
     }));
   };
 
+  useEffect(() => {
+    const eventKey = `${selectedDate || ""}|${selectedAddress || ""}`;
+    const previous = sessionStorage.getItem("tsc:vocalistEvent");
+    if (previous && previous !== eventKey) setSelectedVocalists({});
+    sessionStorage.setItem("tsc:vocalistEvent", eventKey);
+  }, [selectedDate, selectedAddress]);
+
   const ensureLeadIncluded = useCallback((actId, leadId) => {
     setSelectedVocalists((prev) => {
       const s = new Set(toArray(prev?.[actId]));
@@ -2356,10 +2369,10 @@ async function getActCardsData() {
         // Make the API call
         const base = String(backendUrl || "").replace(/\/+$/, "");
         const url = `${base}/api/availability/request`;
-        await axios.post(url, payload, {
-          headers: { accept: "application/json" },
-          timeout: 15000,
+        const response = await axios.post(url, payload, {
+          headers: { accept: "application/json" }, timeout: 15000,
         });
+        trackEnquiryResponse(response.data);
       } catch (err) {
         console.warn(
           "⚠️ requestVocalistAvailability failed:",
@@ -2576,54 +2589,8 @@ async function getActCardsData() {
           normalizedType === "availability_deputy_yes" ||
           payload.isDeputy === true;
 
-        const shortDate = formatShortDate(payload.dateISO);
-        const nameForToast =
-          shortDisplayName(payload.musicianName) ||
-          (isDeputy ? "Deputy" : "Lead vocalist");
-        const toastMsg = isDeputy
-          ? `${nameForToast} is available to perform with ${payload.actName} on ${shortDate}.`
-          : `${nameForToast} from ${payload.actName} is available for ${shortDate}.`;
-
-        // Helpers for lead: prefer richer "first + last initial" over bare first-name
-        const keyLead = `${payload?.actId || ""}|${payload?.dateISO || ""}`;
-        const hasSurname = /\s/.test(String(payload?.musicianName || ""));
-
-        const pushToast = () => {
-          if (normalizedType === "leadYes") {
-            if (shouldToast("leadYes", payload)) {
-              toast(<CustomToast type="success" message={toastMsg} />);
-            }
-          } else if (normalizedType === "availability_deputy_yes") {
-            if (shouldToast("availability_deputy_yes", payload)) {
-              toast(<CustomToast type="success" message={toastMsg} />);
-            }
-          }
-        };
-
-        if (normalizedType === "leadYes") {
-          if (hasSurname) {
-            // ✅ Prefer this richer event: cancel any pending bare-first timer, then toast.
-            const t = pendingLeadTimers.get(keyLead);
-            if (t) {
-              clearTimeout(t);
-              pendingLeadTimers.delete(keyLead);
-            }
-            pushToast();
-          } else {
-            // ⏳ Bare first name — queue briefly in case a richer one lands shortly.
-            if (!pendingLeadTimers.has(keyLead)) {
-              const t = setTimeout(() => {
-                pendingLeadTimers.delete(keyLead);
-                pushToast();
-              }, 600);
-              pendingLeadTimers.set(keyLead, t);
-            }
-          }
-        } else if (normalizedType === "availability_deputy_yes") {
-          // Deputies toast immediately (deduped by musician)
-          pushToast();
-        }
-
+        // Individual replies refresh availability silently. The scoped cart and
+        // band-level email present readiness only when every vocal role is covered.
         await refreshActById(payload.actId);
       });
 
@@ -2933,12 +2900,13 @@ async function getActCardsData() {
 
         // 🩵 Only sync date/address (and any downstream availability) when BOTH are present
         if (selectedDateFinal && selectedAddressFinal && isActAllowed(idStr)) {
-          await axios.patch(`${backendUrl}/api/shortlist/update`, {
+          const enquiryResponse = await axios.post(`${backendUrl}/api/availability/request`, {
             actId: idStr,
             dateISO: selectedDateFinal,
             formattedAddress: selectedAddressFinal,
             ...clientPayload,
           });
+          trackEnquiryResponse(enquiryResponse.data);
         }
       }
 

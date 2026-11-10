@@ -1,3 +1,5 @@
+import BandAvailability from "./BandAvailability.jsx";
+import { trackEnquiryResponse } from "../utils/businessConversions.js";
 import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { assets } from "../assets/assets";
@@ -698,6 +700,7 @@ const handleLineupChange = async (lineup) => {
       };
 
       const endpoints = [
+        "/api/availability/request",
         "/api/availability/trigger-request",
         "/api/availability/trigger",
         "/api/v2/availability/trigger-request",
@@ -714,6 +717,7 @@ const handleLineupChange = async (lineup) => {
             body: JSON.stringify(payload),
           });
           if (res.ok) {
+            trackEnquiryResponse(await res.json());
             return true; // success on the first working endpoint
           }
         } catch (err) {
@@ -863,79 +867,8 @@ useEffect(() => {
 </div>
 
 <div className="my-3 mt-5">
-  {(() => {
-    const allBadges = baseAct?.availabilityBadges;
-    if (!allBadges || !selectedDate) return null;
-
-const cleanDate =
-  typeof selectedDate === "string"
-    ? selectedDate.slice(0, 10)
-    : new Date(selectedDate).toISOString().slice(0, 10);    const matchedKey = Object.keys(allBadges).find((k) => k.includes(cleanDate));
-    if (!matchedKey) return null;
-
-    const badgeForDate = allBadges[matchedKey];
-    const slots = Array.isArray(badgeForDate?.slots) ? badgeForDate.slots : [];
-    if (!slots.length) return null;
-
-    const short = (full) => {
-      const parts = String(full || "").trim().split(/\s+/);
-      if (!parts.length) return "";
-      if (parts.length === 1) return parts[0];
-      const lastInitial = parts[parts.length - 1]?.[0]?.toUpperCase() || "";
-      return `${parts[0]} ${lastInitial}`;
-    };
-
-    return (
-      <div className="flex items-center gap-3 mt-2 flex-wrap">
-        {slots.map((slot) => {
-          const cacheBuster =
-            slot?.primary?.setAt || slot?.setAt || badgeForDate?.setAt || "";
-
-          return (
-            <React.Fragment key={`${matchedKey}_slot_${slot.slotIndex}`}>
-              {/* Primary bubble (auto-switches to covering deputy with YES) */}
-              <VocalistFeaturedAvailable
-                slot={slot}
-                size={140}
-                cacheBuster={cacheBuster}
-                className="mt-2"
-              />
-
-              {/* Deputies — show their own names */}
-              {Array.isArray(slot.deputies) &&
-                slot.deputies.map((dep, i) => {
-                  const rawDeputyName =
-                    (typeof dep.vocalistName === "string" && dep.vocalistName.trim()) ? dep.vocalistName.trim() :
-                    (typeof dep.displayName === "string" && dep.displayName.trim()) ? dep.displayName.trim() :
-                    (typeof dep.preferredName === "string" && dep.preferredName.trim()) ? dep.preferredName.trim() :
-                    "";
-
-                  const displayName = short(rawDeputyName);
-
-                  return (
-                    <FeaturedVocalistBadge
-                      key={`${matchedKey}_slot_${slot.slotIndex}_dep_${dep.musicianId || i}`}
-                      imageUrl={dep.photoUrl || assets?.placeholderMusician}
-                      size={120}
-                      cacheBuster={dep.setAt || dep.repliedAt || slot.setAt || ""}
-                      className="mt-2"
-                      musicianId={dep.musicianId}
-                      profileUrl={buildMusicianProfileUrl({
-  profileUrl: dep.profileUrl,
-  musicianSlug: dep.musicianSlug,
-  musicianId: dep.musicianId,
-})}
-                      variant="deputy"
-                      displayName={displayName}
-                    />
-                  );
-                })}
-            </React.Fragment>
-          );
-        })}
-      </div>
-    );
-  })()}
+  <BandAvailability actId={baseAct?._id} lineupId={selectedLineup?._id || selectedLineup?.lineupId}
+    date={selectedDate} address={selectedAddress} refreshKey={baseAct?.availabilityBadges} />
 </div>
 
           <div className="mt-10 text-2xl ">

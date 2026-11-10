@@ -1,7 +1,7 @@
+import { trackBusinessConversion } from "../utils/businessConversions.js";
 // src/pages/BookingSuccess.jsx
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { useContext } from "react";
 import { ShopContext } from "../context/ShopContext";
 import SEO from "../components/SEO";
@@ -11,122 +11,65 @@ const BookingSuccess = () => {
   const [booking, setBooking] = useState(null);
   const [eventSheetDue, setEventSheetDue] = useState(null);
   const [balanceDue, setBalanceDue] = useState(null);
-  const [stripeSessionId, setStripeSessionId] = useState(null);
   const { setCartItems } = useContext(ShopContext);
 
-  // 1) One-shot server finalize (guarded + cleans URL)
+  const [verification, setVerification] = useState("checking");
+  const [verificationMessage, setVerificationMessage] = useState("");
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get('session_id');
-    if (!sessionId) return;
-
-    // keep for conversion tracking + idempotency
-    setStripeSessionId(sessionId);
-
-    // idempotency: guard per-sessionId so back/refresh doesn't re-trigger
-    const guardKey = `bookingComplete:${sessionId}`;
-    if (sessionStorage.getItem(guardKey) === '1') return;
-
+    let cancelled = false;
+    const sessionId = new URLSearchParams(location.search).get("session_id") ||
+      sessionStorage.getItem("tsc:lastCheckoutSession");
+    if (!sessionId) { setVerification("unverified"); return; }
+    sessionStorage.setItem("tsc:lastCheckoutSession", sessionId);
     (async () => {
       try {
-        await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/booking/booking-complete?session_id=${encodeURIComponent(sessionId)}`,
-          { method: 'GET', credentials: 'include' }
-        );
-        sessionStorage.setItem(guardKey, '1');
-      } catch (e) {
-        console.warn('booking-complete call failed:', e);
-      } finally {
-        // remove session_id from the URL so back/forward won't call again
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, '', cleanUrl);
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/booking/measurement?session_id=${encodeURIComponent(sessionId)}`,
+          { credentials: "include", cache: "no-store" });
+        const result = await response.json();
+        if (!response.ok || result.verified !== true) throw new Error(result.message || "Your payment is still being checked.");
+        if (cancelled) return;
+        setVerification("verified");
+        setBooking({ bookingId: result.bookingRef, date: result.eventDate });
+        trackBusinessConversion(result.measurement);
+        setCartItems({});
+        localStorage.removeItem("cart");
+        if (result.eventDate) {
+          const event = new Date(result.eventDate);
+          const sheet = new Date(event); sheet.setMonth(sheet.getMonth() - 1);
+          const balance = new Date(event); balance.setDate(balance.getDate() - 14);
+          const opts = { year: 'numeric', month: 'long', day: 'numeric' };
+          setEventSheetDue(sheet.toLocaleDateString('en-GB', opts));
+          setBalanceDue(balance.toLocaleDateString('en-GB', opts));
+        }
+        // Finalization is independently payment-verified on the server. Keep the
+        // session in the URL until successful, allowing a failed request to retry.
+        const guard = `bookingComplete:${sessionId}`;
+        if (sessionStorage.getItem(guard) !== "1") {
+          const finalized = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/booking/booking-complete?session_id=${encodeURIComponent(sessionId)}`,
+            { credentials: "include" });
+          if (!finalized.ok) throw new Error("Payment received. We're still preparing your booking confirmation.");
+          sessionStorage.setItem(guard, "1");
+        }
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch (error) {
+        if (!cancelled) {
+          setVerificationMessage(error.message);
+          setVerification((current) => current === "verified" ? current : "unverified");
+        }
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [location.search, setCartItems]);
 
-  useEffect(() => {
-  setCartItems({});
-  localStorage.removeItem("cart");
-}, []);
-
-
-
-  useEffect(() => {
-    // Fire the Google Ads conversion once per *payment success*.
-    // Prefer a stable per-purchase key (Stripe session id), otherwise fall back to booking id.
-    const purchaseKey = stripeSessionId || booking?.stripeSessionId || booking?.bookingId || booking?._id;
-    if (!purchaseKey) return;
-
-    const guardKey = `gads_purchase_fired:${purchaseKey}`;
-    if (sessionStorage.getItem(guardKey) === "1") return;
-
-    // If you have totals, record the amount actually charged on this checkout.
-    const totals = booking?.totals || {};
-    const value = Number(
-      totals.chargedAmount ?? totals.depositAmount ?? totals.fullAmount ?? 0
-    );
-    const currency = String(booking?.currency || "GBP").toUpperCase();
-
-    // ✅ Replace CONVERSION_LABEL with the label Google gives you for this conversion action.
-    window.gtag?.("event", "conversion", {
-      send_to: 'AW-17648722186/-9gFCJKSq9gbEIrCyN9B',
-      value,
-      currency,
-      transaction_id: String(purchaseKey),
-    });
-
-    sessionStorage.setItem(guardKey, "1");
-  }, [stripeSessionId, booking]);
-
-
-
-
- 
-
-  // 2) Load the newest booking for the logged-in user (or by ref in state)
-  useEffect(() => {
-    const stateRef = location.state?.bookingRef || location.state?.bookingId || null;
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const userId = user?._id;
-
-    (async () => {
-      try {
-        let b = null;
-
-        if (stateRef) {
-          // try by human bookingRef first, then by _id
-          try {
-            const r = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/booking/by-ref/${stateRef}`);
-            b = r?.data?.booking || Array.isArray(r?.data) ? r.data[0] : r?.data;
-          } catch {}
-          if (!b && /^[0-9a-f]{24}$/i.test(stateRef)) {
-            const r = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/booking/booking/${stateRef}`);
-            b = r?.data || null;
-          }
-        }
-
-        if (!b && userId) {
-          const r = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/booking/user/${userId}`);
-          const list = Array.isArray(r?.data) ? r.data : (r?.data?.bookings || r?.data?.data || []);
-          b = list?.[0] || null; // newest
-        }
-
-        if (b?.date) {
-          const event = new Date(b.date);
-          const d1 = new Date(event);
-          d1.setMonth(d1.getMonth() - 1);
-          setEventSheetDue(d1.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }));
-          const d2 = new Date(event);
-          d2.setDate(d2.getDate() - 14);
-          setBalanceDue(d2.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }));
-        }
-
-        setBooking(b || null);
-      } catch (e) {
-        console.warn('Failed to load booking for success page', e?.message);
-      }
-    })();
-  }, [location.state]);
+  if (verification !== "verified") return (
+    <div className="p-10 text-center max-w-2xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-4">{verification === "checking" ? "Checking your payment…" : "We’re checking your booking"}</h1>
+      <p>{verificationMessage || "A booking is confirmed once payment has been verified."}</p>
+      {verification === "unverified" && <button className="mt-6 underline" onClick={() => window.location.reload()}>Check again</button>}
+      <p className="mt-6"><Link to="/contact">Contact our bookings team</Link></p>
+    </div>
+  );
 
   return (
     <>
@@ -139,12 +82,13 @@ const BookingSuccess = () => {
     <div className="p-10 text-center max-w-2xl mx-auto">
       <h1 className="text-3xl font-bold mb-4">🎉 Booking Confirmed!</h1>
       <p className="mb-4">
-        Thank you for your payment. Your confirmation and signed contract have been sent to your email.
+        Thank you — your payment has been verified. Your confirmation and signed contract will arrive by email.
       </p>
       <p className="mb-4">
         When you’re ready, head to your Event Sheet to add key details — it auto-saves and keeps everyone aligned.
       </p>
 
+      {verificationMessage && <p className="mb-4">{verificationMessage}</p>}
       {/* Use the same link pattern as Client_Dashboard */}
       {booking ? (
         <div className="mb-6">
