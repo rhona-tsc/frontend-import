@@ -291,7 +291,7 @@ const CardFilterItem = ({ actData, timesShortlisted, standalone = false, onPrice
 
         // Lightweight cards deliberately omit musician/lineup pricing fields.
         // Fetch them only after a date + venue search, not on initial browsing.
-        if (!hasLineups) {
+        if (!hasLineups || a?.supplierPricing) {
           const slug = getSlug(a);
           a = await loadListingAct(slug);
           if (cancelled) return;

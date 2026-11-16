@@ -1,3 +1,4 @@
+import { loadListingAct } from '../utils/loadListingAct.js';
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 // frontend/src/components/ActItem.jsx
 import React, {
@@ -372,7 +373,7 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
     const run = async () => {
       setLoadingPrice(true);
       try {
-        const a = actDataRef.current;
+        let a = actDataRef.current;
         const { selectedCounty: county, selectedAddress: addr, selectedDate: dt } = ctxRef.current;
 
         const addrN = normalizeAddrStrict(addr || "");
@@ -383,7 +384,7 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
         })();
 
         const baseOnly = getBasePrice(a);
-        const hasLineups = Array.isArray(a?.lineups) && a.lineups.length > 0;
+        let hasLineups = Array.isArray(a?.lineups) && a.lineups.length > 0;
         const hasAnyLocation = !!(addrN || county);
         const hasDate = !!dateStr;
 
@@ -441,6 +442,13 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
 
           if (!cancelled) safeSetPrice(null);
           return;
+        }
+
+        // Use current lineup identifiers and master rates rather than stale card inputs.
+        if (!hasLineups || a?.supplierPricing) {
+          a = await loadListingAct(getSlug(a));
+          if (cancelled) return;
+          hasLineups = Array.isArray(a.lineups) && a.lineups.length > 0;
         }
 
         // 3) No lineups → use the card payload only.
