@@ -488,7 +488,7 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
           return;
         }
 
-        safeSetPrice({ ...result, total: applyMargin(result.total), travelCalculated: true });
+        safeSetPrice({ ...result, total: result.marginApplied ? result.total : applyMargin(result.total), travelCalculated: true });
       } catch (err) {
         console.error("❌ Failed to calculate price:", {
           err,

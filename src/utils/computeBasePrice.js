@@ -1,3 +1,4 @@
+import { minimumSupplierPrice } from './supplierPricing.js';
 // utils/computeBasePrice.js
 const num = (v) => Number(String(v ?? "").replace(/[^0-9.+-]/g, "")) || 0;
 const asArr = (v) => Array.isArray(v) ? v : [];
@@ -16,6 +17,8 @@ const essentialRolesFee = (m) =>
   asArr(m?.additionalRoles).reduce((s, r) => s + (r?.isEssential ? num(r?.additionalFee ?? r?.fee) : 0), 0);
 
 export function computeBasePriceFromAct(act, { debug = false, label = "" } = {}) {
+  const masterMinimum = minimumSupplierPrice(act);
+  if (masterMinimum != null) return masterMinimum;
   const lineups = asArr(act?.lineups);
 
   // Prefer stored base_fee totals if present (fast + consistent with your DB intent)

@@ -17,7 +17,7 @@ export const preparedListingPrice = act => {
 export const listingPricingSignature = act => JSON.stringify([
   act?.formattedPrice, act?.basePrice, act?.minDisplayPrice,
   act?.__card?.basePrice, act?.__card?.minDisplayPrice,
-  act?.lineups, act?.countyFees, act?.useCountyTravelFee,
+  act?.supplierPricing, act?.lineups, act?.countyFees, act?.useCountyTravelFee,
   act?.useMUTravelRates, act?.costPerMile, act?.travelModel,
 ]);
 

@@ -1,3 +1,4 @@
+import { supplierQuote } from '../../utils/supplierPricing.js';
 // frontend/src/pages/utils/pricing.jsx
 import outcodeToCounty from "./outcodeToCounty";
 import getTravelV2 from "./travelV2";
@@ -222,6 +223,9 @@ const calculateActPricing = async (
   const guessedFromOutcode = countyFromOutcode(outcodeFromAddress);
   const cleanedSelectedCounty = sanitizeCountyInput(selectedCounty);
   const derivedCounty = cleanedSelectedCounty || guessedFromOutcode || "";
+
+  const masterQuote = supplierQuote(act, smallestLineup, derivedCounty);
+  if (masterQuote !== undefined) { console.groupEnd(); return masterQuote; }
 
   console.log("📍 County inputs/derivation:", {
     selectedCounty: selectedCounty ?? null,

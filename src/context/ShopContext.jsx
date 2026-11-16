@@ -1,3 +1,4 @@
+import { minimumSupplierPrice } from '../utils/supplierPricing.js';
 import { getMarketingAttribution } from '../utils/marketingAttribution.js';
 import { trackEnquiryResponse } from "../utils/businessConversions.js";
 // frontend/src/context/ShopContext.jsx
@@ -740,7 +741,7 @@ const getActsPageCards = React.useCallback(async () => {
       ? [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0]
       : null;
 
-    const lineupBase = Number(smallest?.base_fee?.[0]?.total_fee);
+    const lineupBase = minimumSupplierPrice(a) ?? Number(smallest?.base_fee?.[0]?.total_fee);
     const basePrice = Number.isFinite(lineupBase)
       ? Math.ceil(lineupBase * 1.33)
       : null;
@@ -753,6 +754,8 @@ const getActsPageCards = React.useCallback(async () => {
       imageUrl: pickImage(a),
       images: pickImage(a) ? [{ url: pickImage(a) }] : [],
       basePrice,
+      supplierPricing: a.supplierPricing,
+      minDisplayPrice: a.minDisplayPrice,
       loveCount:
   Number(
     a?.loveCount ?? a?.timesShortlisted ?? a?.numberOfShortlistsIn ?? 0,
@@ -851,7 +854,7 @@ async function fetchActsForGrid() {
       return [...ls].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
     })();
 
-    const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
+    const lineupBase = minimumSupplierPrice(a) ?? Number(smallestLineup?.base_fee?.[0]?.total_fee);
     const basePrice = Number.isFinite(lineupBase)
       ? Math.ceil(lineupBase * 1.33)
       : null;
@@ -864,6 +867,7 @@ async function fetchActsForGrid() {
       imageUrl: pickImage(a),
       images: pickImage(a) ? [{ url: pickImage(a) }] : [],
       basePrice,
+      supplierPricing: a.supplierPricing,
       createdAt: a?.createdAt || null,
       updatedAt: a?.updatedAt || null,
       bestseller: Boolean(a?.bestseller ?? a?.bestSeller),
@@ -1102,7 +1106,7 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
       return [...lineups].sort((x, y) => sizeOf(x) - sizeOf(y))[0] || null;
     })();
 
-    const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
+    const lineupBase = minimumSupplierPrice(a) ?? Number(smallestLineup?.base_fee?.[0]?.total_fee);
     const basePrice = Number.isFinite(lineupBase)
       ? Math.ceil(lineupBase * 1.33)
       : null;
@@ -1226,6 +1230,8 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
       imageUrl: pickImage(a),
       images: pickImage(a) ? [{ url: pickImage(a) }] : [],
       basePrice,
+      supplierPricing: a.supplierPricing,
+      minDisplayPrice: a.minDisplayPrice,
       loveCount: Number(a?.loveCount ?? a?.numberOfShortlistsIn ?? 0) || 0,
       timesShortlisted: Number(a?.timesShortlisted || 0) || 0,
       numberOfShortlistsIn: Number(a?.numberOfShortlistsIn || 0) || 0,
@@ -1334,7 +1340,7 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
       })();
 
       // --- base fee from smallest lineup with a 33% mark up (site rule) ---
-      const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
+      const lineupBase = minimumSupplierPrice(a) ?? Number(smallestLineup?.base_fee?.[0]?.total_fee);
       const basePrice = Number.isFinite(lineupBase)
         ? Math.ceil(lineupBase * 1.33)
         : null;
@@ -1469,6 +1475,8 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
         tscName: a?.tscName || a?.name || "",
         imageUrl: pickImage(a),
         basePrice,
+        supplierPricing: a.supplierPricing,
+        minDisplayPrice: a.minDisplayPrice,
         timesShortlisted: Number(a?.timesShortlisted || 0) || 0,
         numberOfShortlistsIn: Number(a?.numberOfShortlistsIn || 0) || 0,
         status: a?.status || "",

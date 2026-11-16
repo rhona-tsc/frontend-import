@@ -522,6 +522,10 @@ const PlaceBooking = () => {
               selectedDate,
               lineup,
             );
+            if (res?.decision?.startsWith('master-') && (!res.travelCalculated || !(res.total > 0))) {
+              alert('Please contact us to confirm a price for this lineup and location before booking.');
+              return;
+            }
             fee = toNumberPrice(res?.fee || 0);
             travel = toNumberPrice(res?.travel || 0);
             travelCalculated = !!res?.travelCalculated;

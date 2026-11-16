@@ -1,3 +1,4 @@
+import { customerPrice } from '../utils/supplierPricing.js';
 import VocalistChoices from "../components/VocalistChoices.jsx";
 import { choiceKey } from "../utils/vocalistChoices.js";
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
@@ -643,7 +644,7 @@ useEffect(() => {
 
         let adjustedTotal = 0;
         try {
-          const { total } =
+          const pricingResult =
             (await calculateActPricing?.(
               actData,
               countyFromAddress,
@@ -651,8 +652,7 @@ useEffect(() => {
               selectedDate,
               lineup
             )) || {};
-const net = Number(total) || 0;
-adjustedTotal = Math.ceil(net * 1.33);
+adjustedTotal = customerPrice(pricingResult);
         } catch (err) {
           console.warn("💸 Price calc failed:", err?.message);
         }
@@ -764,8 +764,7 @@ const clearFinishOverride = useCallback(
               selectedDate,
               lineup
             );
-const net = Number(res?.total) || 0;
-subtotalWithMargin = Math.ceil(net * 1.33);
+subtotalWithMargin = customerPrice(res);
           } catch (e) {
             console.warn(
               "💸 calculateActPricing failed (keeping item but with £0):",
@@ -929,7 +928,7 @@ const basePrice = subtotalWithMargin; // already gross
     });
 
     const selectedCounty = selectedAddress?.split(",").slice(-2)[0]?.trim() || "";
-    const { total } = await calculateActPricing(
+    const pricingResult = await calculateActPricing(
       act,
       selectedCounty,
       selectedAddress,
@@ -937,16 +936,16 @@ const basePrice = subtotalWithMargin; // already gross
       lineup
     );
 
+    const total = pricingResult?.total;
     console.log("[pricing]", {
       netTotal: Number(total) || 0,
-      gross133: Math.ceil((Number(total) || 0) * 1.33),
+      gross133: customerPrice(pricingResult),
       selectedCounty,
       selectedAddress,
       selectedDate,
     });
 
-    const net = Number(total) || 0;
-    const priceWithMargin = Math.ceil(net * 1.33);
+    const priceWithMargin = customerPrice(pricingResult);
     const basePrice = priceWithMargin;
 
     // 1) Move the node in cartItems (old key -> new key) FIRST so effects rebuild cartDetails reliably
