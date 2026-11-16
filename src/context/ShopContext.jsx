@@ -697,6 +697,7 @@ const getActsPageCards = React.useCallback(async () => {
             ? [{ url: imageUrl }]
             : [],
       basePrice: num(c?.basePrice ?? c?.p),
+      minDisplayPrice: num(c?.minDisplayPrice),
       availabilityBadge: c?.availabilityBadge || c?.badge || null,
       status: c?.status || c?.st || "",
       createdAt: c?.createdAt || null,
