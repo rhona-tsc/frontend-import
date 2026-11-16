@@ -1,3 +1,4 @@
+import { websiteActView } from '../utils/websiteLineups.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -53,7 +54,7 @@ async function getAct(route) {
   const responseHistory = await fetch(`${api}/api/locations/acts/${encodeURIComponent(result.act.slug)}`, { signal: AbortSignal.timeout(30000) });
   if (!responseHistory.ok && responseHistory.status !== 404) throw new Error(`Cannot render band history for ${route}: HTTP ${responseHistory.status}`);
   const historyResult = responseHistory.ok ? await responseHistory.json() : null;
-  return { route, act: result.act, history: historyResult?.history || null };
+  return { route, act: websiteActView(result.act), history: historyResult?.history || null };
 }
 const acts = [];
 // Bound concurrency to avoid flooding the public API during a deployment.

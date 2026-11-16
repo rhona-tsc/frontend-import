@@ -1,3 +1,4 @@
+import { websiteActView } from '../utils/websiteLineups.js';
 import { getMarketingAttribution } from '../utils/marketingAttribution.js';
 import BandAvailability from "../components/BandAvailability.jsx";
 import { trackEnquiryResponse } from "../utils/businessConversions.js";
@@ -122,7 +123,7 @@ const Act = () => {
         if (!data?.success || !data?.act) throw new Error("Bad payload");
 
         if (!cancelled) {
-          setActData(data.act);
+          setActData(websiteActView(data.act));
           // Cart entries are keyed by the act id, while the public act endpoint is
           // normally opened by slug. Keep the full public act available under its
           // id so the cart can render it without calling the protected id route.

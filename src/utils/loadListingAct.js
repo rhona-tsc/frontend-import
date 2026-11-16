@@ -1,3 +1,4 @@
+import { websiteActView } from './websiteLineups.js';
 export function createListingActLoader(fetchAct, concurrency = 4) {
   const pending = new Map(); const queue = []; let active = 0;
   const drain = () => {
@@ -22,5 +23,5 @@ export const loadListingAct = createListingActLoader(async slug => {
   if (!response.ok) throw new Error('Band pricing details unavailable');
   const result = await response.json();
   if (!result.success || result.act?.slug !== slug || !result.act?.lineups?.length) throw new Error('Band pricing details missing');
-  return result.act;
+  return websiteActView(result.act);
 });
