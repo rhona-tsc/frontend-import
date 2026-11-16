@@ -475,7 +475,7 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
 
         const result = await calculateActPricing(
           a,
-          hasCountyTable ? county : null,
+          (a?.supplierPricing || hasCountyTable) ? county : null,
           addrN,     // normalized address
           dateStr,   // ISO date
           lineup

@@ -329,7 +329,7 @@ if (!hasLineups) {
 
         const result = await withPricingTimeout(() => calculateActPricing(
           a,
-          hasCountyTable ? county : null,
+          (a?.supplierPricing || hasCountyTable) ? county : null,
           addrN,
           dateStr,
           lineup

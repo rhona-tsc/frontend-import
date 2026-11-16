@@ -455,7 +455,7 @@ const Act = () => {
     try {
       const result = await calculateActPricing(
         actData,
-        hasCountyTable ? selectedCounty : null,
+        (actData?.supplierPricing || hasCountyTable) ? selectedCounty : null,
         selectedAddress,
         selectedDate,
         lineup,
@@ -1078,7 +1078,7 @@ const Act = () => {
       lineupId: lineup?._id || lineup?.lineupId,
       dateISO: selectedDate,
       address: selectedAddress || "",
-      county: hasCountyTable ? selectedCounty : "",
+      county: (actData?.supplierPricing || hasCountyTable) ? selectedCounty : "",
     });
 
     console.log("Price Cache Key:", key);
@@ -1100,7 +1100,7 @@ const Act = () => {
         console.log("🚀 Calling calculateActPricing()", {
           actId: actData?._id,
           actName: actData?.tscName || actData?.name,
-          countyPassedToPricing: hasCountyTable ? selectedCounty : null,
+          countyPassedToPricing: (actData?.supplierPricing || hasCountyTable) ? selectedCounty : null,
           selectedCounty,
           selectedAddress,
           selectedDate,
@@ -1114,7 +1114,7 @@ const Act = () => {
 
         const pricingResults = await calculateActPricing(
           actData,
-          hasCountyTable ? selectedCounty : null,
+          (actData?.supplierPricing || hasCountyTable) ? selectedCounty : null,
           selectedAddress,
           selectedDate,
           lineup,

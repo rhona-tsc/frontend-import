@@ -111,7 +111,7 @@ useEffect(() => {
     lineupId: lineup?._id || lineup?.lineupId,
     dateISO: selectedDate,
     address: selectedAddress || '',
-    county: hasCountyTable ? selectedCounty : '',
+    county: (actData?.supplierPricing || hasCountyTable) ? selectedCounty : '',
   });
 
   // 3) Serve from cache if present
@@ -130,7 +130,7 @@ useEffect(() => {
     try {
       const result = await calculateActPricing(
         actData,
-        hasCountyTable ? selectedCounty : null, // only pass county if valid
+        (actData?.supplierPricing || hasCountyTable) ? selectedCounty : null, // only pass county if valid
         selectedAddress,
         selectedDate,
         lineup
