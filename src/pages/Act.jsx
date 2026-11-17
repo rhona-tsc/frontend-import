@@ -1167,6 +1167,7 @@ const Act = () => {
 
         const statePrice = {
           total: final.total,
+          directBookingSaving: final.directBookingSaving,
           travelCalculated: !!final.travelCalculated,
           travelFeeTotal: final.travelFeeTotal ?? 0,
         };
@@ -1941,7 +1942,7 @@ const Act = () => {
                 )}
               </p>
               {hasPricingDetails && !travelUnavailableMessage && price?.total > 0 && price?.directBookingSaving > 0 && <p className="px-3 pb-3 text-sm text-gray-700">Includes your £{price.directBookingSaving} direct booking saving.</p>}
-            {!hasPricingDetails && <button type="button" onClick={() => setShowSearch(true)} className="mx-3 mb-3 rounded-full border border-black px-5 py-3 text-sm font-medium underline underline-offset-4 hover:bg-gray-50">Add your location and date for an accurate price</button>}
+              {!hasPricingDetails && <button type="button" onClick={() => setShowSearch(true)} className="mx-3 mb-3 rounded-full border border-black px-5 py-3 text-sm font-medium underline underline-offset-4 hover:bg-gray-50">Add your location and date for an accurate price</button>}
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">
                   {generateDescription(safeSelectedLineup) || "Add a Linuep"}
