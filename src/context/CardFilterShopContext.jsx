@@ -1,3 +1,4 @@
+import { minimumCustomerPrice } from '../utils/supplierPricing.js';
 // frontend/src/context/CardFilterShopContext.jsx
 import React, {
   createContext,
@@ -183,9 +184,9 @@ async function fetchActsForGrid() {
     })();
 
     const lineupBase = Number(smallestLineup?.base_fee?.[0]?.total_fee);
-    const basePrice = Number.isFinite(lineupBase)
+    const basePrice = minimumCustomerPrice(a) ?? (Number.isFinite(lineupBase)
       ? Math.ceil(lineupBase * 1.33)
-      : null;
+      : null);
 
     return {
       actId: String(a?._id || a?.actId || ""),

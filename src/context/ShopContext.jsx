@@ -1,4 +1,4 @@
-import { minimumSupplierPrice } from '../utils/supplierPricing.js';
+import { minimumSupplierPrice, minimumCustomerPrice } from '../utils/supplierPricing.js';
 import { getMarketingAttribution } from '../utils/marketingAttribution.js';
 import { trackEnquiryResponse } from "../utils/businessConversions.js";
 // frontend/src/context/ShopContext.jsx
@@ -743,9 +743,9 @@ const getActsPageCards = React.useCallback(async () => {
       : null;
 
     const lineupBase = minimumSupplierPrice(a) ?? Number(smallest?.base_fee?.[0]?.total_fee);
-    const basePrice = Number.isFinite(lineupBase)
+    const basePrice = minimumCustomerPrice(a) ?? (Number.isFinite(lineupBase)
       ? Math.ceil(lineupBase * 1.33)
-      : null;
+      : null);
 
     return {
       actId: String(a?._id || ""),
@@ -856,9 +856,9 @@ async function fetchActsForGrid() {
     })();
 
     const lineupBase = minimumSupplierPrice(a) ?? Number(smallestLineup?.base_fee?.[0]?.total_fee);
-    const basePrice = Number.isFinite(lineupBase)
+    const basePrice = minimumCustomerPrice(a) ?? (Number.isFinite(lineupBase)
       ? Math.ceil(lineupBase * 1.33)
-      : null;
+      : null);
 
     return {
       actId: String(a?._id || a?.actId || ""),
@@ -1108,9 +1108,9 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
     })();
 
     const lineupBase = minimumSupplierPrice(a) ?? Number(smallestLineup?.base_fee?.[0]?.total_fee);
-    const basePrice = Number.isFinite(lineupBase)
+    const basePrice = minimumCustomerPrice(a) ?? (Number.isFinite(lineupBase)
       ? Math.ceil(lineupBase * 1.33)
-      : null;
+      : null);
 
     const genres = Array.isArray(a?.genres)
       ? a.genres.filter(Boolean)
@@ -1342,9 +1342,9 @@ const getFilterCardActsPageCards = React.useCallback(async () => {
 
       // --- base fee from smallest lineup with a 33% mark up (site rule) ---
       const lineupBase = minimumSupplierPrice(a) ?? Number(smallestLineup?.base_fee?.[0]?.total_fee);
-      const basePrice = Number.isFinite(lineupBase)
+      const basePrice = minimumCustomerPrice(a) ?? (Number.isFinite(lineupBase)
         ? Math.ceil(lineupBase * 1.33)
-        : null;
+        : null);
 
       // --- genres (support both `genres` and `genre`) ---
       const genres = Array.isArray(a?.genres)

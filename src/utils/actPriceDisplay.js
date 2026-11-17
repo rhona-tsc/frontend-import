@@ -1,3 +1,4 @@
+import { minimumCustomerPrice } from './supplierPricing.js';
 import { computeBasePriceFromAct } from './computeBasePrice.js';
 
 const positivePrice = value => {
@@ -7,6 +8,8 @@ const positivePrice = value => {
 };
 
 export const getActStartingPrice = act => {
+  const masterPrice = minimumCustomerPrice(act);
+  if (masterPrice != null) return masterPrice;
   // Explicit display prices are already customer-facing; don't mark them up again.
   for (const value of [act?.minDisplayPrice, act?.formattedPrice?.minDisplayPrice, act?.formattedPrice?.min, act?.formattedPrice?.total]) {
     const price = positivePrice(value);

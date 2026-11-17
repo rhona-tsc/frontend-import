@@ -1940,7 +1940,8 @@ const Act = () => {
                   actPriceLabel || 'Price on enquiry'
                 )}
               </p>
-              {!hasPricingDetails && <button type="button" onClick={() => setShowSearch(true)} className="mx-3 mb-3 rounded-full border border-black px-5 py-3 text-sm font-medium underline underline-offset-4 hover:bg-gray-50">Add your location and date for an accurate price</button>}
+              {hasPricingDetails && !travelUnavailableMessage && price?.total > 0 && price?.directBookingSaving > 0 && <p className="px-3 pb-3 text-sm text-gray-700">Includes your £{price.directBookingSaving} direct booking saving.</p>}
+            {!hasPricingDetails && <button type="button" onClick={() => setShowSearch(true)} className="mx-3 mb-3 rounded-full border border-black px-5 py-3 text-sm font-medium underline underline-offset-4 hover:bg-gray-50">Add your location and date for an accurate price</button>}
               <div className="flex flex-col gap-4 my-2">
                 <p className="text-lg text-gray-600 m-3">
                   {generateDescription(safeSelectedLineup) || "Add a Linuep"}
@@ -2095,6 +2096,7 @@ const Act = () => {
             <p className="mt-5 text-3xl font-medium p-3">
               {hasPricingDetails && travelUnavailableMessage ? <span className="text-base font-medium text-red-600">{travelUnavailableMessage}</span> : actPriceLabel || 'Price on enquiry'}
             </p>
+            {hasPricingDetails && !travelUnavailableMessage && price?.total > 0 && price?.directBookingSaving > 0 && <p className="px-3 pb-3 text-sm text-gray-700">Includes your £{price.directBookingSaving} direct booking saving.</p>}
             {!hasPricingDetails && <button type="button" onClick={() => setShowSearch(true)} className="mx-3 mb-3 rounded-full border border-black px-5 py-3 text-sm font-medium underline underline-offset-4 hover:bg-gray-50">Add your location and date for an accurate price</button>}
 
             {/* ✅ Lineup Selection (Now Updates Price Instantly) */}
