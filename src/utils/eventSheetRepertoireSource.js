@@ -29,6 +29,18 @@ const firstNonEmptyArray = (...values) =>
 export const getEventSheetMusicianName = memberName;
 export const getEventSheetMusicianId = memberId;
 
+export const resolveEventSheetVocalists = (booking = {}) => {
+  const members = firstNonEmptyArray(booking.assignedMusicians, booking.bookingMusicians, booking.bandLineup);
+  const seen = new Set();
+  return members.filter(member => {
+    const id = memberId(member);
+    const role = clean(member.role || member.instrument);
+    if (!id || seen.has(id) || !isConfirmed(member) || !(/lead.*vocal|vocal.*lead|\bMC\b|rapper/i.test(role))) return false;
+    seen.add(id);
+    return true;
+  });
+};
+
 export const getEventSheetMusicianPublicName = (profile = {}, member = {}) => {
   const preferred = clean(
     profile?.stageName ||

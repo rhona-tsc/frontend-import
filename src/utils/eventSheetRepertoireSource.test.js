@@ -4,7 +4,16 @@ import assert from "node:assert/strict";
 import {
   getEventSheetMusicianPublicName,
   resolveEventSheetDeputyVocalist,
+  resolveEventSheetVocalists,
 } from "./eventSheetRepertoireSource.js";
+
+test('includes both a confirmed lead vocalist and MC, but excludes offers and duplicates', () => {
+  const kimi = { musicianId: 'kimi', role: 'Lead Female Vocal', status: 'confirmed' };
+  const rya = { musicianId: 'rya', role: 'MC/Rapper', status: 'accepted' };
+  assert.deepEqual(resolveEventSheetVocalists({ assignedMusicians: [kimi, rya, rya,
+    { musicianId: 'pending', role: 'Lead Vocal', status: 'offered' },
+    { musicianId: 'drums', role: 'Drums', status: 'confirmed' }] }), [kimi, rya]);
+});
 
 test("uses the public profile initial in the repertoire heading", () => {
   assert.equal(

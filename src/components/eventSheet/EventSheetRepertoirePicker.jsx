@@ -8,6 +8,7 @@ import {
   getEventSheetMusicianName,
   getEventSheetMusicianPublicName,
   resolveEventSheetDeputyVocalist,
+  resolveEventSheetVocalists,
 } from "../../utils/eventSheetRepertoireSource";
 
 const slugifyActValue = (value = "") =>
@@ -43,13 +44,14 @@ const normaliseActName = (value = "") =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-const EventSheetRepertoirePicker = ({
+const SingleRepertoirePicker = ({
   backendUrl,
   booking,
   acts = [],
   value = "",
   onChange,
   readOnly = false,
+  vocalist,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loadedProfile, setLoadedProfile] = useState({ slug: "", data: null });
@@ -70,8 +72,8 @@ const EventSheetRepertoirePicker = ({
   const { bookedName: actName, publicName: publicActName } =
     resolveEventSheetActNames({ booking, firstAct });
   const deputyVocalist = useMemo(
-    () => resolveEventSheetDeputyVocalist(booking),
-    [booking],
+    () => vocalist || resolveEventSheetDeputyVocalist(booking),
+    [booking, vocalist],
   );
   const deputyProfileKey = getEventSheetMusicianId(deputyVocalist);
 
@@ -298,13 +300,21 @@ const EventSheetRepertoirePicker = ({
   );
 };
 
-EventSheetRepertoirePicker.propTypes = {
+SingleRepertoirePicker.propTypes = {
   backendUrl: PropTypes.string,
   booking: PropTypes.object,
   acts: PropTypes.array,
   value: PropTypes.string,
   onChange: PropTypes.func,
   readOnly: PropTypes.bool,
+  vocalist: PropTypes.object,
 };
+
+const EventSheetRepertoirePicker = props => {
+  const vocalists = resolveEventSheetVocalists(props.booking);
+  if (vocalists.length < 2) return <SingleRepertoirePicker {...props} />;
+  return <>{vocalists.map(vocalist => <SingleRepertoirePicker key={getEventSheetMusicianId(vocalist)} {...props} vocalist={vocalist} />)}</>;
+};
+EventSheetRepertoirePicker.propTypes = SingleRepertoirePicker.propTypes;
 
 export default EventSheetRepertoirePicker;
