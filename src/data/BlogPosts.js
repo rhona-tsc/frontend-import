@@ -1,8 +1,10 @@
+import { partyBandHornsGuide } from './partyBandHornsGuide.js';
 import { jenAndTomWedding } from './jenAndTomWedding.js';
 import { stageLightingGuide } from './stageLightingGuide.js';
 import { recoveredArchivePosts } from './recoveredArchivePosts.js';
 import { weddingBandSetlistGuide } from './weddingBandSetlistGuide.js';
 export const blogPosts = [
+  partyBandHornsGuide,
   weddingBandSetlistGuide,
   {
     slug: "5-ways-live-music-transforms-an-event",

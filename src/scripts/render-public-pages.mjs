@@ -64,6 +64,18 @@ for (let index = 0; index < actPaths.length; index += 4) {
 const redirectTemplate = await fs.readFile('public/_redirects', 'utf8');
 await fs.writeFile('dist/_redirects', redirectTemplate.replace('# ✅ API proxy', publicActRedirects(acts.map(item=>item.act)) + '\n\n# ✅ API proxy'));
 const paragraph = text => `<p>${escape(text)}</p>`;
+// Match BlogText links in the HTML served before JavaScript loads.
+const blogParagraph = block => {
+  let rest = block.text || '';
+  let html = '';
+  for (const link of block.links || []) {
+    const index = rest.indexOf(link.text);
+    if (index < 0) continue;
+    html += escape(rest.slice(0, index)) + `<a href="${escape(link.href)}">${escape(link.text)}</a>`;
+    rest = rest.slice(index + link.text.length);
+  }
+  return `<p>${html}${escape(rest)}</p>`;
+};
 let renderedCount = 0;
 async function writePage(route, title, description, heading, content, location) {
   const canonical = publicCanonicalUrl(route);
@@ -133,7 +145,7 @@ for (const post of blogPosts) {
     return `<figure style="${width ? `max-width:${Number(width)}px;` : ''}margin:2rem auto"><img src="${escape(src)}" alt="${escape(alt)}"${width && height ? ` width="${Number(width)}" height="${Number(height)}"` : ''} style="max-width:100%;height:auto;${hero ? 'max-height:520px;object-fit:contain;' : ''}"${hero ? '' : ' loading="lazy" decoding="async"'}>${captionHtml}</figure>`;
   };
   const hero = post.heroImage ? blogImage(post.heroImage, post.heroImageAlt || post.title, post.heroImageWidth, post.heroImageHeight, post.heroImageCaption, true, post.heroImageCredit) : '';
-  const content = hero + (post.content || []).map(item => item.type === 'heading' ? `<h2>${escape(item.text)}</h2>` : item.type === 'subheading' ? `<h3>${escape(item.text)}</h3>` : item.type === 'list' ? `<ul>${item.items.map(listItem => `<li>${escape(listItem)}</li>`).join('')}</ul>` : item.type === 'image' ? blogImage(item.src, item.alt || `Illustration for ${post.title}`, item.width, item.height, item.caption) : item.text ? paragraph(item.text) : '').join('');
+  const content = hero + (post.content || []).map(item => item.type === 'heading' ? `<h2>${escape(item.text)}</h2>` : item.type === 'subheading' ? `<h3>${escape(item.text)}</h3>` : item.type === 'list' ? `<ul>${item.items.map(listItem => `<li>${escape(listItem)}</li>`).join('')}</ul>` : item.type === 'image' ? blogImage(item.src, item.alt || `Illustration for ${post.title}`, item.width, item.height, item.caption) : item.text ? blogParagraph(item) : '').join('');
   await writePage(`/blog/${post.slug}`, post.metaTitle || post.title, post.metaDescription || post.excerpt, post.title, content);
 }
 const locationResponse = await fetch(`${api}/api/locations/public`, { signal: AbortSignal.timeout(30000) });
