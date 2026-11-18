@@ -92,3 +92,14 @@ export const mergeEventSheetBookingRefresh = (previous, updated) => {
   };
 };
 
+
+// Contact provisioning returns a core booking, not the allocation-aware
+// payment projection. Merge only the contact fields from that response.
+export const mergeEventSheetEmergencyContactRefresh = (previous, updated) => ({
+  ...previous,
+  contactRouting: { ...(previous?.contactRouting || {}), ...(updated?.contactRouting || {}) },
+  eventSheet: {
+    ...(previous?.eventSheet || {}),
+    ...(updated?.eventSheet?.emergencyContact ? { emergencyContact: updated.eventSheet.emergencyContact } : {}),
+  },
+});

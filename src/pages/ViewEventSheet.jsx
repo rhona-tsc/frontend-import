@@ -1,5 +1,5 @@
 import { describeEventSheetLineup, formatEventSheetLineup } from "../utils/eventSheetLineup.js";
-import { resolveEventSheetPayments } from "../utils/eventSheetPayments.js";
+import { resolveEventSheetPayments, usesIssuedBalanceInvoice } from "../utils/eventSheetPayments.js";
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, {
   useEffect,
@@ -25,6 +25,7 @@ import { resolveEventSheetHydration } from "../utils/eventSheetHydration";
 import { documentUploadError } from "../utils/protectedRequests.js";
 import {
   mergeEventSheetBookingRefresh,
+  mergeEventSheetEmergencyContactRefresh,
   resolveEventSheetActMedia,
 } from "../utils/eventSheetActMedia.js";
 import { resolveEventSheetActNames } from "../utils/eventSheetActNames.js";
@@ -1273,7 +1274,7 @@ const ViewEventSheet = () => {
               return prev;
             }
 
-            return mergeEventSheetBookingRefresh(prev, updated);
+            return mergeEventSheetEmergencyContactRefresh(prev, updated);
           });
         }
       } catch (e) {
@@ -1381,7 +1382,7 @@ const ViewEventSheet = () => {
     setBalancePaymentNotice("");
     try {
       await persist(false);
-      if (isDirectTscBooking(booking)) {
+      if (isDirectTscBooking(booking) && !usesIssuedBalanceInvoice(booking)) {
         const idOrRef = booking.bookingId || booking._id;
         const { data } = await axios.get(
           `${backendUrl}/api/invoices/balance-link/${encodeURIComponent(idOrRef)}`,

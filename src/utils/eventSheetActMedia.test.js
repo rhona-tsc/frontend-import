@@ -44,3 +44,13 @@ test("emergency contact refresh preserves act media and booked name", () => {
   assert.equal(merged.actsSummary[0].tscVideos[0].url, "https://youtu.be/promo");
   assert.equal(merged.contactRouting.ivrCode, "1234");
 });
+
+import { mergeEventSheetEmergencyContactRefresh } from './eventSheetActMedia.js';
+test('contact refresh cannot overwrite the paid deposit, balance, invoice method or saved answers',()=>{
+ const previous={totals:{depositAmount:500,remainingAmount:3110},balancePaymentMethod:'invoice',eventSheet:{answers:{free_notes:'NYD lunch'},emergencyContact:{number:'old'}}};
+ const merged=mergeEventSheetEmergencyContactRefresh(previous,{totals:{depositAmount:0,remainingAmount:3610},balancePaymentMethod:'stripe',eventSheet:{answers:{},emergencyContact:{number:'new'}}});
+ assert.deepEqual(merged.totals,previous.totals);
+ assert.equal(merged.balancePaymentMethod,'invoice');
+ assert.equal(merged.eventSheet.answers.free_notes,'NYD lunch');
+ assert.equal(merged.eventSheet.emergencyContact.number,'new');
+});

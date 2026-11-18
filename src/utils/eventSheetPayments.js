@@ -41,3 +41,5 @@ export function resolveEventSheetPayments(booking = {}, items = []) {
   return { bookingTotal, addOnsPostBooking, fullAmount, depositAmount, remainingAmount,
     isPaidInFull: isBookingMarkedPaid || (fullAmount > 0 && remainingAmount <= 0.01) };
 }
+
+export const usesIssuedBalanceInvoice = booking => booking?.balancePaymentMethod === 'invoice';

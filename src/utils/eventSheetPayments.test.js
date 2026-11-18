@@ -63,3 +63,6 @@ test('Encore displays only extras as client liability, ignoring original paid/de
   booking.totals.addOnsPostBooking = 0; booking.totals.remainingAmount = 0;
   assert.equal(resolveEventSheetPayments(booking).isPaidInFull, true);
 });
+
+import {usesIssuedBalanceInvoice} from './eventSheetPayments.js';
+test('bank-transfer booking uses the issued invoice without changing ordinary checkout bookings',()=>{assert.equal(usesIssuedBalanceInvoice({balancePaymentMethod:'invoice'}),true);assert.equal(usesIssuedBalanceInvoice({agent:'Direct'}),false);assert.equal(usesIssuedBalanceInvoice({agent:'Encore'}),false);});
