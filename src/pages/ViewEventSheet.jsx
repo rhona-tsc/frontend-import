@@ -4371,7 +4371,7 @@ const ViewEventSheet = () => {
                 <div className="flex justify-between">
                   <span>Original booking total</span>
                   <span>
-                    {currencySymbol(booking?.currency)}
+                    {currencySymbol(booking?.totals?.currency || booking?.currency)}
                     {Number(bookingTotal || 0).toFixed(2)}
                   </span>
                 </div>
@@ -4379,7 +4379,7 @@ const ViewEventSheet = () => {
                 <div className="flex justify-between">
                   <span>Add-ons post booking</span>
                   <span>
-                    {currencySymbol(booking?.currency)}
+                    {currencySymbol(booking?.totals?.currency || booking?.currency)}
                     {Number(addOnsPostBooking || 0).toFixed(2)}
                   </span>
                 </div>
@@ -4387,7 +4387,7 @@ const ViewEventSheet = () => {
                 <div className="flex justify-between font-medium">
                   <span>Updated booking total</span>
                   <span>
-                    {currencySymbol(booking?.currency)}
+                    {currencySymbol(booking?.totals?.currency || booking?.currency)}
                     {Number(fullAmount || 0).toFixed(2)}
                   </span>
                 </div>
@@ -4395,14 +4395,14 @@ const ViewEventSheet = () => {
                 {isEncoreBooking(booking) && (
                   <div className="flex justify-between">
                     <span>Payment arranged through Encore</span>
-                    <span>{currencySymbol(booking?.currency)}{Number(bookingTotal || 0).toFixed(2)}</span>
+                    <span>{currencySymbol(booking?.totals?.currency || booking?.currency)}{Number(bookingTotal || 0).toFixed(2)}</span>
                   </div>
                 )}
                 {!isEntertainmentNationBooking(booking) && !isEncoreBooking(booking) && (
                   <div className="flex justify-between">
                     <span>Deposit paid</span>
                     <span>
-                      {currencySymbol(booking?.currency)}
+                      {currencySymbol(booking?.totals?.currency || booking?.currency)}
                       {Number(depositAmount || 0).toFixed(2)}
                     </span>
                   </div>
@@ -4411,7 +4411,7 @@ const ViewEventSheet = () => {
                 <div className="flex justify-between font-bold mt-4">
                   <p>Outstanding balance</p>
                   <p>
-                    {currencySymbol(booking?.currency)}
+                    {currencySymbol(booking?.totals?.currency || booking?.currency)}
                     {Number(remainingAmount || 0).toFixed(2)}
                   </p>
                 </div>
