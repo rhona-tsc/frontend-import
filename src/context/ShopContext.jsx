@@ -1,3 +1,4 @@
+import { newBalanceDueISO } from '../utils/balanceDueDate.js';
 import { minimumSupplierPrice, minimumCustomerPrice } from '../utils/supplierPricing.js';
 import { getMarketingAttribution } from '../utils/marketingAttribution.js';
 import { trackEnquiryResponse } from "../utils/businessConversions.js";
@@ -2974,21 +2975,12 @@ if (timesShortlistedFromServer != null) {
 
   // ============ Invoicing helpers ============
   const computeBalanceDueDate = (eventISO) => {
-    try {
-      if (!eventISO) return null;
-      const d = new Date(eventISO);
-      if (Number.isNaN(d.getTime())) return null;
-      d.setDate(d.getDate() - 14);
-      // Normalise to 00:00 local time
-      d.setHours(0, 0, 0, 0);
-      return d.toISOString();
-    } catch {
-      return null;
-    }
+    const due = newBalanceDueISO({eventDateISO:eventISO, agent:'Direct'});
+    return due ? `${due}T12:00:00.000Z` : null;
   };
 
   /**
-   * Schedule a balance invoice (due 14 days before the event) and set up reminders.
+   * Schedule a balance invoice (due under the booking payment terms) and set up reminders.
    * The backend endpoint should:
    *  - create/update an invoice in DB with status="scheduled" and dueDate
    *  - create reminder jobs (e.g. 7d and 3d before due date + on due date)

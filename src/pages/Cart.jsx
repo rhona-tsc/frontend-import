@@ -2771,7 +2771,7 @@ const availableLineups = availableLineupsRaw.filter((l) => Boolean(normLineupId(
             </li>
             <li>
               If your event is more than 28 days away, you’ll pay a deposit now
-              and the remaining balance is due 14 days before your event. If
+              and the remaining balance is due on or before the Thursday at least four weeks before your event (or the preceding working day if closed). If
               your event is 28 days or fewer away, the full amount is payable at
               the time of booking.
             </li>

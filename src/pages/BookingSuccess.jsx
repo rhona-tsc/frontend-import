@@ -35,12 +35,10 @@ const BookingSuccess = () => {
         setCartItems({});
         localStorage.removeItem("cart");
         if (result.eventDate) {
-          const event = new Date(result.eventDate);
-          const sheet = new Date(event); sheet.setMonth(sheet.getMonth() - 1);
-          const balance = new Date(event); balance.setDate(balance.getDate() - 14);
-          const opts = { year: 'numeric', month: 'long', day: 'numeric' };
-          setEventSheetDue(sheet.toLocaleDateString('en-GB', opts));
-          setBalanceDue(balance.toLocaleDateString('en-GB', opts));
+          const format = iso => iso ? new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric',timeZone:'UTC'}) : null;
+          setEventSheetDue(format(result.eventSheetDueDateISO));
+          setBalanceDue(format(result.balanceDueDateISO));
+
         }
         // Finalization is independently payment-verified on the server. Keep the
         // session in the URL until successful, allowing a failed request to retry.
@@ -108,8 +106,8 @@ const BookingSuccess = () => {
       <div className="text-center mt-6 border-t pt-4 text-sm">
         <p className="font-semibold mb-2">Key Dates for Your Diary:</p>
         <ul className="list-disc list-inside">
-          <li>Event Sheet due: <strong>{eventSheetDue || '4 weeks before your event'}</strong></li>
-          <li>Balance payment due: <strong>{balanceDue || '2 weeks before your event'}</strong></li>
+          <li>Event Sheet due: <strong>{eventSheetDue || 'See your event sheet'}</strong></li>
+          <li>Balance payment due: <strong>{balanceDue || 'See your booking invoice'}</strong></li>
         </ul>
       </div>
 

@@ -166,7 +166,7 @@ const Terms = () => {
           <p><strong>3 | Payment of Booking Fees</strong></p>
           <ul className="list-disc pl-6 space-y-2">
             <li>The Deposit is due upon booking.</li>
-            <li>The Balance (remaining fee owed) is due one week before the event day and is paid to the Agent.</li>
+            <li>The balance is due on or before the Thursday at least four weeks before the event, or the preceding working day if closed. For direct bookings made within 28 days of the event, full payment is due at booking. Separately agreed agency payment terms and Encore payment arrangements remain as stated in your booking.</li>
           </ul>
 
           <p><strong>4 | Late/Failure Payment of Balance</strong></p>
