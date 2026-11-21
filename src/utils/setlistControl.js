@@ -2,6 +2,7 @@ export const SETLIST_CONTROL_OPTIONS = [
   { value: 'smallTailoring', label: 'Signature Setlist' },
   { value: 'mediumTailoring', label: 'Collaborative Setlist' },
   { value: 'largeTailoring', label: 'Fully Tailored Setlist' },
+  { value: 'showband', label: 'Structured Showband Sets' },
 ];
 
 export const SETLIST_CONTROL_LABELS = Object.fromEntries(
