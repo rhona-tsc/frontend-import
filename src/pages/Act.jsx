@@ -1982,7 +1982,7 @@ const Act = () => {
                 <p className="text-gray-600 text-lg ml-3">Including:</p>
                 <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
                   <li>
-                    {actData?.setlist === "showband" ? ("Two structured 60-minute showband sets, with medleys and slick song transitions") : (<>Up to {actData?.numberOfSets?.[0]}x
+                    {actData?.setlist === "showband" ? ("2 x 60 or 3 x 40 minutes of live music, blending polished showband sections with your favourites") : (<>Up to {actData?.numberOfSets?.[0]}x
                     {actData?.lengthOfSets?.[0]}
                     mins or {actData?.numberOfSets?.[1]}x
                     {actData?.lengthOfSets?.[1]}
@@ -2025,7 +2025,7 @@ const Act = () => {
                         : `${actData.offRepertoireRequests} additional ‘off-repertoire’ song requests (e.g. often the first dance or your favourite songs)`}
                     </li>
                   )}
-                  {actData?.setlist === "showband" && (<li>Share all your repertoire favourites. Your selections make up around one third of the performance; the band crafts the remaining music, medleys and running order for your bespoke show.</li>)}
+                  {actData?.setlist === "showband" && (<li>Share all your repertoire favourites. Two structured showband sections bring tried-and-tested songs, medleys and slick transitions; the remaining performance time is shaped around selected client favourites.</li>)}
                   {actData?.setlist === "smallTailoring" && (
                     <li>
                       A signature setlist curated by the band — guaranteed
@@ -2131,7 +2131,7 @@ const Act = () => {
               <p className="text-gray-600 text-lg ml-3">Including:</p>
               <ul className="list-disc pl-5 text-lg text-gray-600 ml-3">
                 <li>
-                  {actData?.setlist === "showband" ? ("Two structured 60-minute showband sets, with medleys and slick song transitions") : (<>Up to {actData?.numberOfSets?.[0] || "?"}x
+                  {actData?.setlist === "showband" ? ("2 x 60 or 3 x 40 minutes of live music, blending polished showband sections with your favourites") : (<>Up to {actData?.numberOfSets?.[0] || "?"}x
                   {actData?.lengthOfSets?.[0] || "?"}mins or{" "}
                   {actData?.numberOfSets?.[1] || "?"}x
                   {actData?.lengthOfSets?.[1] || "?"}mins live performance</>)}
@@ -2173,7 +2173,7 @@ const Act = () => {
                       : `${numberToWords(actData.offRepertoireRequests)} additional ‘off-repertoire’ song requests (e.g. often the first dance or your favourite songs)`}
                   </li>
                 )}
-                {actData?.setlist === "showband" && (<li>Share all your repertoire favourites. Your selections make up around one third of the performance; the band crafts the remaining music, medleys and running order for your bespoke show.</li>)}
+                {actData?.setlist === "showband" && (<li>Share all your repertoire favourites. Two structured showband sections bring tried-and-tested songs, medleys and slick transitions; the remaining performance time is shaped around selected client favourites.</li>)}
                 {actData?.setlist === "smallTailoring" && (
                   <li>
                     A signature setlist curated by the band — guaranteed

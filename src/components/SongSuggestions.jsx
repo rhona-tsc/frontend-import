@@ -6,7 +6,7 @@ import CustomToast from "./CustomToast";
 import { toast } from "react-toastify";
 
 const setlistDescriptions = {
-  showband: ' crafts two structured showband sets, with client favourites making up around one third of the performance. The band curates the remaining music, medleys and running order.',
+  showband: ' blends two polished showband sections of tried-and-tested songs, medleys and slick transitions with a bespoke element shaped around selected client favourites. Both 2 x 60 and 3 x 40-minute formats are available.',
   smallTailoring: ' performs our signature setlist that we know works brilliantly with any audience.',
   mediumTailoring: ' blends client favourites with our signature hits — usually around 50% client picks, 50% proven crowd-pleasers.',
   largeTailoring: ' endeavours to accommodate as many client suggestions as possible — typically 90-100% of the set is built from client suggestions.'
