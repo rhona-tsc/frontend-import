@@ -125,7 +125,11 @@ const ActRepertoire = ({
 
         {showIntro && (
           <p className="text-gray-600 text-[17px] mt-2 mb-4 p-2">
-            Use the filters below to explore {actData?.tscName || 'the act'}’s repertoire of {selectedSongs?.length || ''} songs and find your favourites. Heart the songs from {actData?.tscName || 'the act'}’s repertoire that you’d love to hear, pop them in the cart and we’ll pass them to {actData?.tscName || 'the act'} upon booking — and don’t worry, you’ll still be able to amend your favourite song suggestions after booking too!
+            {actData?.setlist === 'showband' ? (
+              <>Explore {actData?.tscName || 'the band'}’s repertoire of {selectedSongs?.length || ''} songs and heart all your favourites. We’ll pass your suggestions to the band to shape a bespoke show. Your selections make up around one third of the live performance; the band curates the remaining music, medleys and running order across two structured showband sets. Final song choices are agreed in advance.</>
+            ) : (
+              <>Use the filters below to explore {actData?.tscName || 'the act'}’s repertoire of {selectedSongs?.length || ''} songs and find your favourites. Heart the songs from {actData?.tscName || 'the act'}’s repertoire that you’d love to hear, pop them in the cart and we’ll pass them to {actData?.tscName || 'the act'} upon booking — and don’t worry, you’ll still be able to amend your favourite song suggestions after booking too!</>
+            )}
           </p>
         )}
 
