@@ -192,15 +192,33 @@ useEffect(() => {
     const raw = new URLSearchParams(location.search).get("payload");
     if (!raw || importedLinkRef.current === raw) return;
     importedLinkRef.current = raw;
-    try {
-      const payload = JSON.parse(raw);
-      if (!/^[a-f0-9]{24}$/i.test(payload.actId || "") || !/^[a-f0-9]{24}$/i.test(payload.lineupId || "") ||
-          !/^\d{4}-\d{2}-\d{2}$/.test(payload.selectedDate || "") || !String(payload.selectedAddress || "").trim()) return;
-      setSelectedDate(payload.selectedDate); setSelectedAddress(payload.selectedAddress);
-      sessionStorage.setItem("selectedDate", payload.selectedDate);
-      sessionStorage.setItem("selectedAddress", payload.selectedAddress);
-      if (!cartItems?.[payload.actId]?.[payload.lineupId]) addToCart(payload.actId, payload.lineupId);
-    } catch { /* Invalid links leave the existing cart intact. */ }
+    let cancelled = false;
+    (async () => {
+      try {
+        const payload = JSON.parse(raw);
+        if (!/^[a-f0-9]{24}$/i.test(payload.actId || "") || !/^[a-f0-9]{24}$/i.test(payload.lineupId || "") ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(payload.selectedDate || "") || !String(payload.selectedAddress || "").trim()) return;
+        const base = String(import.meta.env.VITE_BACKEND_URL || '').replace(/\/+$/, '');
+        const { data } = await axios.get(`${base}/api/act/enquiry-lineup-link`, { params: {
+          actId: payload.actId, lineupId: payload.lineupId, date: payload.selectedDate, address: payload.selectedAddress,
+        } });
+        if (cancelled) return;
+        if (!data?.success) throw new Error('Please reply to your enquiry email to confirm this quote.');
+        if (data.bespoke) {
+          if (/^https:\/\/encoremusicians\.com\/jobs\/[a-z0-9]{5}$/i.test(data.url || '') || /^mailto:hello@thesupremecollective\.co\.uk\?subject=/.test(data.url || '')) {
+            window.location.assign(data.url);
+          }
+          return;
+        }
+        setSelectedDate(payload.selectedDate); setSelectedAddress(payload.selectedAddress);
+        sessionStorage.setItem("selectedDate", payload.selectedDate);
+        sessionStorage.setItem("selectedAddress", payload.selectedAddress);
+        if (!cartItems?.[payload.actId]?.[payload.lineupId]) addToCart(payload.actId, payload.lineupId);
+      } catch (error) {
+        if (!cancelled) toast.error(error?.response?.data?.message || 'Please reply to your enquiry email to confirm this quote.');
+      }
+    })();
+    return () => { cancelled = true; if (importedLinkRef.current === raw) importedLinkRef.current = ''; };
   }, [location.search]);
 
   const changingLineupRef = useRef(false);
@@ -343,7 +361,7 @@ const resolveLineupForCart = useCallback((act, lineupId) => {
   const list = Array.isArray(act?.lineups) ? act.lineups : [];
 
   const found = list.find((l) => String(l?._id || l?.lineupId) === id);
-  return found || list[0] || null; // fallback to first lineup
+  return found || null; // Never substitute a different lineup for an existing quote.
 }, []);
 
       useEffect(() => {

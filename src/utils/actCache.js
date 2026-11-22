@@ -1,5 +1,5 @@
 // src/utils/actCache.js
-const K = (id) => `act:${id}:v2`;
+const K = (id) => `act:${id}:v3`;
 const TTL = 1000 * 60 * 60 * 24; // 24h
 
 export function readCachedAct(id){
