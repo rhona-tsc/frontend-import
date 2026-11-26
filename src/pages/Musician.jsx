@@ -1,3 +1,4 @@
+import {renderBioBold} from '../utils/musicianBioFormatting.js';
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, {
   useContext,
@@ -108,12 +109,12 @@ const formatBioHtml = (value = "") => {
   const raw = String(value || "").trim();
   const looksLikeHtml =
     /<\/?[a-z][\s\S]*>/i.test(raw) || /&lt;<\/?[a-z][\s\S]*&gt;/i.test(raw);
-  if (looksLikeHtml) return raw;
+  if (looksLikeHtml) return renderBioBold(raw);
 
   return splitLongBioIntoParagraphs(raw)
     .map((paragraph) => {
       const escaped = escapeBioHtml(paragraph);
-      const withBold = escaped.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      const withBold = renderBioBold(escaped);
       return `<p style="margin:0 0 1em">${withBold}</p>`;
     })
     .join("");

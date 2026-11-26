@@ -1,3 +1,4 @@
+import { identifyScheduleRows } from '../../utils/eventSheetScheduleIdentity.js';
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { buildDefaultScheduleRows } from "../../utils/eventSheetScheduleRows.js";
 
@@ -46,9 +47,18 @@ export default function SimpleScheduleEditor({
     };
   }, [booking, getPerformanceTimesFromBooking]);
 
-  const rows = Array.isArray(answers.schedule_table_rows)
-    ? answers.schedule_table_rows
-    : [];
+  const savedScheduleRows = answers.schedule_table_rows;
+  const rows = useMemo(() => identifyScheduleRows(
+    Array.isArray(savedScheduleRows) ? savedScheduleRows : [],
+    String(booking?._id || booking?.bookingId || "schedule"),
+  ), [savedScheduleRows, booking?._id, booking?.bookingId]);
+
+  useEffect(() => {
+    if (!readOnly && Array.isArray(savedScheduleRows)
+      && rows.some((row, index) => row.id !== savedScheduleRows[index]?.id)) {
+      handleAnswer("schedule_table_rows", rows);
+    }
+  }, [rows, savedScheduleRows, readOnly, handleAnswer]);
 
   useEffect(() => {
     const bookingKey = String(booking?._id || booking?.bookingId || "booking");

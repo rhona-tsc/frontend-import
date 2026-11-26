@@ -3393,12 +3393,8 @@ const ViewEventSheet = () => {
 
                     {!emergencyNumber && !ivrCode && (
                       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">
-                        No emergency number/code set on this booking yet. An
-                        admin can add it by populating
-                        <code className="mx-1">
-                          booking.contactRouting
-                        </code>{" "}
-                        (proxyNumber, ivrCode, activeFrom/Until, targets).
+                        Your event emergency contact is being arranged. Please contact
+                        Rhona if you need help before the number appears here.
                       </p>
                     )}
                   </div>
