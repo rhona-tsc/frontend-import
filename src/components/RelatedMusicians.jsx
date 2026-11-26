@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { cloudinaryImage } from '../utils/cloudinaryImage.js';
 
-function ConnectionCarousel({ title, description, cards }) {
+function ConnectionCarousel({ title, titleLead, titleEmphasis, description, cards }) {
   const track = useRef(null);
   const id = useId();
   const [position, setPosition] = useState({ previous: false, next: false });
@@ -21,8 +21,8 @@ function ConnectionCarousel({ title, description, cards }) {
   return (
     <section aria-labelledby={id} className="mt-14">
       <div className="flex items-end justify-between gap-4 mb-5">
-        <div>
-          <h2 id={id} className="text-xl sm:text-2xl font-semibold text-gray-800">{title}</h2>
+        <div className="min-w-0">
+          <h2 id={id} className="mb-3 inline-flex items-center gap-2 text-xl sm:text-2xl font-normal uppercase"><span className="text-gray-500">{titleLead} <span className="font-medium text-gray-700">{titleEmphasis}</span></span><span aria-hidden="true" className="h-px w-8 shrink-0 bg-[#ff6667] sm:h-[2px] sm:w-12" /></h2>
           <p className="text-sm text-gray-500 mt-1">{description}</p>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -60,8 +60,8 @@ export default function RelatedMusicians({ currentActId }) {
   }, [currentActId]);
   if (!connections) return null;
   return <div className="w-full">
-    <ConnectionCarousel title="Cover bands they’re in" description="Regular members of these Supreme Collective bands." cards={connections.regularBands} />
-    <ConnectionCarousel title="Bands they dep for" description="Deputy performers for these Supreme Collective bands." cards={connections.deputyBands} />
-    <ConnectionCarousel title="Musicians they’ve performed with" description="Meet the musicians they’ve shared the stage with at completed TSC events." cards={connections.musicians} />
+    <ConnectionCarousel title="Cover bands they’re in" titleLead="Cover bands" titleEmphasis="they’re in" description="Regular members of these Supreme Collective bands." cards={connections.regularBands} />
+    <ConnectionCarousel title="Bands they dep for" titleLead="Bands" titleEmphasis="they dep for" description="Deputy performers for these Supreme Collective bands." cards={connections.deputyBands} />
+    <ConnectionCarousel title="Musicians they’ve performed with" titleLead="Musicians" titleEmphasis="they’ve performed with" description="Meet the musicians they’ve shared the stage with at completed TSC events." cards={connections.musicians} />
   </div>;
 }
