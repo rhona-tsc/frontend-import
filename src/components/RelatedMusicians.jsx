@@ -46,7 +46,7 @@ function ConnectionCarousel({ title, titleLead, titleEmphasis, description, card
   );
 }
 
-export default function RelatedMusicians({ currentActId }) {
+export default function RelatedMusicians({ currentActId, musicianName = "This musician" }) {
   const [connections, setConnections] = useState(null);
   useEffect(() => {
     setConnections(null);
@@ -60,8 +60,8 @@ export default function RelatedMusicians({ currentActId }) {
   }, [currentActId]);
   if (!connections) return null;
   return <div className="w-full">
-    <ConnectionCarousel title="Cover bands they’re in" titleLead="Cover bands" titleEmphasis="they’re in" description="Regular members of these Supreme Collective bands." cards={connections.regularBands} />
-    <ConnectionCarousel title="Bands they dep for" titleLead="Bands" titleEmphasis="they dep for" description="Deputy performers for these Supreme Collective bands." cards={connections.deputyBands} />
-    <ConnectionCarousel title="Musicians they’ve performed with" titleLead="Musicians" titleEmphasis="they’ve performed with" description="Meet the musicians they’ve shared the stage with at completed TSC events." cards={connections.musicians} />
+    <ConnectionCarousel title={`Cover bands ${musicianName}’s in`} titleLead="Cover bands" titleEmphasis={`${musicianName}’s in`} description={`${musicianName} is a regular member of these Supreme Collective bands.`} cards={connections.regularBands} />
+    <ConnectionCarousel title={`Bands ${musicianName} deps for`} titleLead="Bands" titleEmphasis={`${musicianName} deps for`} description={`${musicianName} is a deputy performer for these Supreme Collective bands.`} cards={connections.deputyBands} />
+    <ConnectionCarousel title={`Musicians ${musicianName}’s performed with`} titleLead="Musicians" titleEmphasis={`${musicianName}’s performed with`} description="Meet the musicians they’ve shared the stage with at TSC events." cards={connections.musicians} />
   </div>;
 }

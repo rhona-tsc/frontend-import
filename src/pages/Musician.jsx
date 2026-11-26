@@ -1921,6 +1921,7 @@ const Musician = () => {
               }
             >
               <RelatedMusicians
+                musicianName={displayShortName(actData)}
                 genres={
                   Array.isArray(actData?.vocals?.genres)
                     ? actData.vocals.genres
