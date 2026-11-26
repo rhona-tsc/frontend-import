@@ -1,154 +1,67 @@
-import { cloudinaryImage } from "../utils/cloudinaryImage.js";
-// frontend/src/components/RelatedMusicians.jsx
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import Title from "./Title";
-import axios from "axios";
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { cloudinaryImage } from '../utils/cloudinaryImage.js';
 
-/**
- * Musicians PERFORMED WITH (co-booked on same gigs)
- *
- * Backend expectation (any one of these may exist; we try them in order):
- *   GET /api/musician/performed-with/:musicianId
- *   GET /api/musicians/performed-with/:musicianId
- *
- * Response shape:
- *   { musicians: [ { _id, musicianSlug, firstName, lastName, tscName, profilePhoto, profilePicture, additionalImages, instrumentation } ] }
- *   or directly an array of musicians
- */
-const RelatedMusicians = ({ currentActId }) => {
-  const [performedWith, setPerformedWith] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "";
-
+function ConnectionCarousel({ title, description, cards }) {
+  const track = useRef(null);
+  const id = useId();
+  const [position, setPosition] = useState({ previous: false, next: false });
   useEffect(() => {
-    let abort = false;
-
-    const fetchPerformedWith = async () => {
-      if (!currentActId) {
-        setPerformedWith([]);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-
-      const base = backendUrl ? backendUrl.replace(/\/$/, "") : "";
-      const tryUrls = [
-        `${base}/api/musician/performed-with/${currentActId}`,
-        `${base}/api/musicians/performed-with/${currentActId}`,
-        `/api/musician/performed-with/${currentActId}`,
-        `/api/musicians/performed-with/${currentActId}`,
-      ];
-
-      for (const url of tryUrls) {
-        try {
-          const { data } = await axios.get(url);
-          if (abort) return;
-          const list = Array.isArray(data?.musicians)
-            ? data.musicians
-            : Array.isArray(data)
-            ? data
-            : [];
-          setPerformedWith(list);
-          setLoading(false);
-          return; // success
-        } catch (e) {
-          // try next URL
-        }
-      }
-
-      if (!abort) {
-        setPerformedWith([]);
-        setLoading(false);
-      }
-    };
-
-    fetchPerformedWith();
-    return () => {
-      abort = true;
-    };
-  }, [backendUrl, currentActId]);
-
-  const displayName = (m) =>
-    [`${m?.firstName || ""}`, `${m?.lastName || ""}`].join(" ").trim() ||
-    m?.tscName ||
-    "Musician";
-
-  const displayImage = (m) =>
-    m?.profilePhoto ||
-    m?.profilePicture ||
-    (Array.isArray(m?.additionalImages)
-      ? typeof m.additionalImages[0] === "string"
-        ? m.additionalImages[0]
-        : m.additionalImages[0]?.url || ""
-      : "") ||
-    "";
-
-  const toMusicianHref = (m) =>
-    `/musician/${encodeURIComponent(m?.musicianSlug || m?._id || "")}`;
-
+    const el = track.current;
+    if (!el) return;
+    const update = () => setPosition({ previous: el.scrollLeft > 2, next: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 });
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => { el.removeEventListener('scroll', update); observer.disconnect(); };
+  }, [cards]);
+  if (!cards?.length) return null;
+  const move = direction => track.current?.scrollBy({ left: direction * track.current.clientWidth * 0.85, behavior: 'smooth' });
   return (
-    <div>
-      {performedWith.length > 0 && (
-      <div className="text-center text-3xl py-2 mt-12">
-        <Title text1={"MUSICIANS"} text2={"PERFORMED WITH"} />
+    <section aria-labelledby={id} className="mt-14">
+      <div className="flex items-end justify-between gap-4 mb-5">
+        <div>
+          <h2 id={id} className="text-xl sm:text-2xl font-semibold text-gray-800">{title}</h2>
+          <p className="text-sm text-gray-500 mt-1">{description}</p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <button type="button" onClick={() => move(-1)} disabled={!position.previous} aria-label={`Previous ${title.toLowerCase()}`} className="w-10 h-10 border border-gray-300 rounded-full text-xl disabled:opacity-25 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">←</button>
+          <button type="button" onClick={() => move(1)} disabled={!position.next} aria-label={`Next ${title.toLowerCase()}`} className="w-10 h-10 border border-gray-300 rounded-full text-xl disabled:opacity-25 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">→</button>
+        </div>
       </div>
-      )}
-
-      {performedWith.length > 0 && (
-        loading ? (
-          <p className="text-center text-gray-500 mt-5">Loading…</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6">
-            {performedWith.map((m) => {
-              const img = displayImage(m);
-              const name = displayName(m);
-              return (
-                <Link
-                  key={m._id}
-                  to={toMusicianHref(m)}
-                  className="block group border rounded overflow-hidden bg-white hover:shadow-md transition-shadow"
-                >
-                  <div
-                    className="w-full aspect-[4/3] bg-gray-100 overflow-hidden"
-                    aria-hidden="true"
-                  >
-                    {img ? (
-                      <img
-                        src={cloudinaryImage(img, 960)}
-                        alt={name}
-                        className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                        No image
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <div className="font-medium text-gray-900 line-clamp-1">
-                      {name}
-                    </div>
-                    {Array.isArray(m?.instrumentation) &&
-                      m.instrumentation.length > 0 && (
-                        <div className="text-xs text-gray-500 mt-1 line-clamp-1">
-                          {m.instrumentation
-                            .map((i) => i?.instrument)
-                            .filter(Boolean)
-                            .join(", ")}
-                        </div>
-                      )}
-                  </div>
-                </Link>
-              );
-            })}
+      <div ref={track} role="list" aria-label={title} tabIndex={0} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+        {cards.map(card => (
+          <div role="listitem" key={card._id} className="w-[72%] sm:w-60 lg:w-64 shrink-0 snap-start">
+            <Link to={card.href} className="group block h-full overflow-hidden rounded-xl border border-gray-200 bg-white hover:shadow-md transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+              <div className="aspect-[4/3] overflow-hidden bg-gray-100">
+                {card.image ? <img src={cloudinaryImage(card.image, 640)} alt={card.name} loading="lazy" className="w-full h-full object-cover transition-transform group-hover:scale-105" /> : <div aria-hidden="true" className="w-full h-full flex items-center justify-center text-4xl text-gray-400">♪</div>}
+              </div>
+              <div className="p-4"><h3 className="font-semibold text-gray-900">{card.name}</h3>{card.role && <p className="text-sm text-gray-500 mt-1">{card.role}</p>}<span className="inline-block text-sm text-gray-600 mt-3">View profile →</span></div>
+            </Link>
           </div>
-        )
-      )}
-    </div>
+        ))}
+      </div>
+    </section>
   );
-};
+}
 
-export default RelatedMusicians;
+export default function RelatedMusicians({ currentActId }) {
+  const [connections, setConnections] = useState(null);
+  useEffect(() => {
+    setConnections(null);
+    if (!currentActId) return;
+    const controller = new AbortController();
+    const base = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+    fetch(`${base}/api/musician/profile/${encodeURIComponent(currentActId)}/connections`, { signal: controller.signal })
+      .then(response => { if (!response.ok) throw new Error('Connections unavailable'); return response.json(); })
+      .then(setConnections).catch(error => { if (error.name !== 'AbortError') console.error('Could not load musician connections'); });
+    return () => controller.abort();
+  }, [currentActId]);
+  if (!connections) return null;
+  return <div className="w-full">
+    <ConnectionCarousel title="Cover bands they’re in" description="Regular members of these Supreme Collective bands." cards={connections.regularBands} />
+    <ConnectionCarousel title="Bands they dep for" description="Deputy performers for these Supreme Collective bands." cards={connections.deputyBands} />
+    <ConnectionCarousel title="Musicians they’ve performed with" description="Meet the musicians they’ve shared the stage with at completed TSC events." cards={connections.musicians} />
+  </div>;
+}

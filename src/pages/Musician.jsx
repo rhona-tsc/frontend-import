@@ -1913,7 +1913,7 @@ const Musician = () => {
         </div>
 
         {/* ===== RELATED MUSICIANS (full width) ===== */}
-        <Section when={content.hasRelated}>
+        <Section when={Boolean(actData?._id)}>
           <div className="w-full mt-12">
             <Suspense
               fallback={
