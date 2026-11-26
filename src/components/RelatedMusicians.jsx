@@ -59,9 +59,10 @@ export default function RelatedMusicians({ currentActId, musicianName = "This mu
     return () => controller.abort();
   }, [currentActId]);
   if (!connections) return null;
+  const musiciansWithPhotos = (connections.musicians || []).filter(card => typeof card.image === 'string' && card.image.trim());
   return <div className="w-full">
     <ConnectionCarousel title={`Cover bands ${musicianName}’s in`} titleLead="Cover bands" titleEmphasis={`${musicianName}’s in`} description={`${musicianName} is a regular member of these Supreme Collective bands.`} cards={connections.regularBands} />
     <ConnectionCarousel title={`Bands ${musicianName} deps for`} titleLead="Bands" titleEmphasis={`${musicianName} deps for`} description={`${musicianName} is a deputy performer for these Supreme Collective bands.`} cards={connections.deputyBands} />
-    <ConnectionCarousel title={`Musicians ${musicianName}’s performed with`} titleLead="Musicians" titleEmphasis={`${musicianName}’s performed with`} description="Meet the musicians they’ve shared the stage with at TSC events." cards={connections.musicians} />
+    <ConnectionCarousel title={`Musicians ${musicianName}’s performed with`} titleLead="Musicians" titleEmphasis={`${musicianName}’s performed with`} description="Meet the musicians they’ve shared the stage with at TSC events." cards={musiciansWithPhotos} />
   </div>;
 }
