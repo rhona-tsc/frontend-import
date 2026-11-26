@@ -1227,60 +1227,28 @@ const ViewEventSheet = () => {
     })();
   }, [routeId, resolvedUserId, backendUrl]);
 
-  // after `setBooking(match || null);` (i.e., once a booking is in state)
-  // add a new effect:
+  // Refresh once per loaded booking, even when a code already exists: the
+  // confirmed lineup and saved musician phone numbers may have changed.
   useEffect(() => {
     if (!booking?._id) return;
-
-    const hasNum = !!(
-      booking.eventSheet?.emergencyContact?.number ||
-      booking.contactRouting?.proxyNumber
-    );
-    const hasCode = !!(
-      booking.eventSheet?.emergencyContact?.ivrCode ||
-      booking.contactRouting?.ivrCode
-    );
-
-    if (hasNum && hasCode) return;
-
     const idOrRef = booking.bookingId || booking._id;
-
+    let cancelled = false;
     (async () => {
       try {
         const resp = await axios.post(
           `${backendUrl}/api/booking/${encodeURIComponent(idOrRef)}/ensure-emergency-contact`,
         );
         const updated = resp?.data?.booking;
-
-        if (updated?._id) {
-          setBooking((prev) => {
-            if (!prev) return updated;
-
-            const prevNum =
-              prev.eventSheet?.emergencyContact?.number ||
-              prev.contactRouting?.proxyNumber;
-            const prevCode =
-              prev.eventSheet?.emergencyContact?.ivrCode ||
-              prev.contactRouting?.ivrCode;
-
-            const nextNum =
-              updated.eventSheet?.emergencyContact?.number ||
-              updated.contactRouting?.proxyNumber;
-            const nextCode =
-              updated.eventSheet?.emergencyContact?.ivrCode ||
-              updated.contactRouting?.ivrCode;
-
-            if (prevNum === nextNum && prevCode === nextCode) {
-              return prev;
-            }
-
-            return mergeEventSheetEmergencyContactRefresh(prev, updated);
-          });
+        if (!cancelled && updated?._id) {
+          setBooking((prev) => prev?._id === updated._id
+            ? mergeEventSheetEmergencyContactRefresh(prev, updated)
+            : prev);
         }
       } catch (e) {
         console.warn("ensure-emergency-contact failed:", e?.message || e);
       }
     })();
+    return () => { cancelled = true; };
   }, [booking?._id, booking?.bookingId, backendUrl]);
 
   // On return from Stripe (?parkingPaid=1 or ?parkingCanceled=1),

@@ -54,3 +54,11 @@ test('contact refresh cannot overwrite the paid deposit, balance, invoice method
  assert.equal(merged.eventSheet.answers.free_notes,'NYD lunch');
  assert.equal(merged.eventSheet.emergencyContact.number,'new');
 });
+
+test('refreshes band contacts even when the emergency number and code stay the same', () => {
+ const previous = {contactRouting:{proxyNumber:'+447882963384',ivrCode:'12345',targets:[{name:'Previous player'}]},eventSheet:{answers:{notes:'Keep this'}}};
+ const updated = {contactRouting:{proxyNumber:'+447882963384',ivrCode:'12345',targets:[{name:'Confirmed replacement'}]}};
+ const merged = mergeEventSheetEmergencyContactRefresh(previous, updated);
+ assert.deepEqual(merged.contactRouting.targets, updated.contactRouting.targets);
+ assert.equal(merged.eventSheet.answers.notes, 'Keep this');
+});
