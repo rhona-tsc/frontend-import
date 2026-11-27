@@ -1,3 +1,4 @@
+import { hasContent } from '../utils/actSectionContent.js';
 import React, { useState } from "react";
 import { assets } from "../assets/assets";
 
@@ -171,6 +172,16 @@ const generateDescription = (lineup) => {
   return `${countLabel}: ${instrumentsStr}${rolesStr}`;
 };
 
+  const powerRows = [
+    ['PA & Sound', hasContent(paSystem) ? (paDescriptions[paSystem] || paSystem) : null],
+    ['Lighting', hasContent(lightingSystem) ? (lightingDescriptions[lightingSystem] || lightingSystem) : null],
+    ['Electricity Requirements', selectedLineup?.electricityRequirements || electricityRequirements],
+  ].filter(([, value]) => hasContent(value));
+  const versatility = ['db','acoustic','ampless','iems','eDrums','withoutDrums','anotherVocalist','roamingPercussion'].some(key => hasContent(selectedLineup?.[key]));
+  const hasRider = ['spaceRequired','hotMeal','changingRoom','parking','coverOverhead','dryAndLevel','rider'].some(key => hasContent(selectedLineup?.[key]));
+  const hasAssurances = usesGenericRiskAssessment === true || patCert === true || pli === true;
+  const setupRows = [['Setup', selectedLineup?.setupTime], ['Soundcheck', selectedLineup?.soundcheckTime], ['Packdown', selectedLineup?.packdownTime]].filter(([,value]) => hasContent(value));
+
   return (
     <section className="bg-white p-6 border rounded shadow-sm space-y-6">
       <p className="text-gray-600 text-[17px]">
@@ -179,7 +190,7 @@ const generateDescription = (lineup) => {
         understand exactly what to expect and how {tscName} will seamlessly fit
         into your special day.
       </p>
-      <h2 className="text-xl font-semibold  border-b-2 border-gray-300 pb-1 mb-3 text-gray-600">
+      {numberOfSets?.[0] > 0 && lengthOfSets?.[0] > 0 && <><h2 className="text-xl font-semibold  border-b-2 border-gray-300 pb-1 mb-3 text-gray-600">
         Key Timings for a Smooth Event
       </h2>
       <div className="text-gray-600 text-[17px]">
@@ -200,52 +211,23 @@ const generateDescription = (lineup) => {
         )}
       </div>
 
-      <div className="text-gray-600 text-[17px]">
-        <strong>Setup & Packdown:</strong> {tscName} takes{" "}
-        {lineups?.[0]?.setupTime || "TBC"} mins to setup (loading in, putting
-        things in place, and plugging everything in),{" "}
-        {lineups?.[0]?.soundcheckTime || "TBC"} mins to soundcheck (the louder
-        bit where the band will perform songs at full volume level to get the
-        acoustics right for your space), and{" "}
-        {lineups?.[0]?.packdownTime || "TBC"} mins to packdown.
-      </div>
+      </>}
+      {setupRows.length > 0 && <div className="text-gray-600 text-[17px]">
+        <strong>Setup & Packdown:</strong> {setupRows.map(([label, value]) => `${label}: ${value} minutes`).join('; ')}.
+      </div>}
 
-      <div className="text-gray-600 text-[17px]">
-        <strong>Other Timings:</strong> Please kindly note that{" "}
-        {actData.tscName} requests a 30 minute meal break, and 15 minutes to
-        change into their perfoming outfits.
-      </div>
-
-      <h2 className="text-xl font-semibold  border-b-2 border-gray-300 pb-1 mb-3 text-gray-600">
-        Power, Sound & Lighting
-      </h2>
-      <div className="text-gray-600 text-[17px]">
-        <strong>PA & Sound:</strong>{" "}
-        {paSystem
-          ? `${paDescriptions[paSystem] || "Description not available"}`
-          : "Not specified"}
-      </div>
-
-      <div className="text-gray-600 text-[17px]">
-        <strong>Lighting:</strong>{" "}
-        {lightingSystem
-          ? `${lightingDescriptions[lightingSystem] || "Description not available"}`
-          : "Not specified"}
-      </div>
-
-      <div className="text-gray-600 text-[17px]">
-        <strong>Electricity Requirements:</strong> Requires access to{" "}
-        {lineups?.[0]?.electricityRequirements ||
-          electricityRequirements ||
-          "Not specified"}
-      </div>
+      {powerRows.length > 0 && <>
+        <h2 className="text-xl font-semibold border-b-2 border-gray-300 pb-1 mb-3 text-gray-600">Power, Sound & Lighting</h2>
+        {powerRows.map(([label, value]) => <div key={label} className="text-gray-600 text-[17px]"><strong>{label}:</strong> {value}</div>)}
+      </>}
+      {hasAssurances && <>
       <h2 className="text-xl font-semibold border-b-2 border-gray-300 pb-1 mb-4 text-gray-600">
         Peace of Mind, Guaranteed
       </h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
         {/* Risk Assessment */}
-        <div className="flex items-start gap-3 min-w-0">
+        {usesGenericRiskAssessment === true && <div className="flex items-start gap-3 min-w-0">
           <img
             src={assets.tick}
             alt="Tick icon"
@@ -261,6 +243,7 @@ const generateDescription = (lineup) => {
           </div>
         </div>
 
+        }
         {/* PAT Certified */}
         {patCert && (
           <div className="flex items-start gap-3 min-w-0">
@@ -311,7 +294,8 @@ const generateDescription = (lineup) => {
         </div>
       </div>
 
-      {lineups?.length > 0 && (
+      </>}
+      {lineups?.some(lineup => hasContent(lineup?.bandMembers?.map(m => m.instrument))) && (
         <>
          
           <h2 className="text-xl font-semibold  border-b-2 border-gray-300 pb-1 mb-3 text-gray-600">
@@ -341,7 +325,7 @@ Lineup Details & Requirements      </h2>
 
   <div className="flex flex-wrap gap-6">
 {/* Power, Sound & Lighting Section */}
-    <div className="w-full md:w-[48%]">
+    {versatility && <div className="w-full md:w-[48%]">
       <h2 className="text-xl font-semibold border-b-2 border-gray-300 pb-1 mb-3 text-gray-600">
         Sound & Setup Versatility
       </h2>
@@ -357,14 +341,15 @@ Lineup Details & Requirements      </h2>
       </ul>
     </div>
 
+    }
     {/* Rider Section */}
-    <div className="w-full md:w-[48%]">
+    {hasRider && <div className="w-full md:w-[48%]">
       <h2 className="text-xl font-semibold border-b-2 border-gray-300 pb-1 mb-3 text-gray-600">
         The Rider
       </h2>
       <ul className="list-disc pl-5 space-y-1 text-base text-gray-600 text-[17px]">
-        {renderRow("Performance Space", selectedLineup?.spaceRequired || "TBC")}
-        {renderRow("Sustenance", selectedLineup?.hotMeal ? `${selectedLineup.hotMeal} hot meals requested` : "TBC")}
+        {hasContent(selectedLineup?.spaceRequired) && renderRow("Performance Space", selectedLineup.spaceRequired)}
+        {hasContent(selectedLineup?.hotMeal) && renderRow("Sustenance", `${selectedLineup.hotMeal} hot meals requested`)}
         {selectedLineup?.changingRoom && renderRow("Private Changing Area", "Also known as a Green Room")}
         {selectedLineup?.parking && renderRow("Parking", `${selectedLineup.parking} vehicle spaces requested`)}
         {selectedLineup?.coverOverhead && renderRow("Weather Protection", "A covered performance area")}
@@ -373,9 +358,7 @@ Lineup Details & Requirements      </h2>
           renderRow("Additional Rider Items", selectedLineup.rider.join(", "))
         }
       </ul>
-    </div>
-
-    
+    </div>}
 
   </div>
 </div>

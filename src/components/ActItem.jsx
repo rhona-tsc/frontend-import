@@ -617,9 +617,9 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
         }}
         className="block text-gray-700"
       >
-        <div className="overflow-hidden aspect-[524/636] w-full bg-gray-100">
+        <div className="overflow-hidden aspect-[4/3] w-full bg-gray-100">
           <img
-            className="block h-full w-full object-cover hover:scale-110 transition ease-in-out"
+            className="block h-full w-full object-contain transition ease-in-out"
             src={cloudinaryImage(resolvedImage, 960)}
             alt={getBandImageAlt(resolvedImage, actData)}
           />
@@ -635,7 +635,7 @@ const ActItem = ({ actData, shortlistCount, standalone = false }) => {
               ) : displayTotal !== null ? (
                 price?.travelCalculated ? `£${displayTotal}` : `from £${displayTotal}`
               ) : (
-                "Loading price..."
+                "Price on enquiry"
               )}
             </div>
           </div>

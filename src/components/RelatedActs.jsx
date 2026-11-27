@@ -481,6 +481,8 @@ const afterStatus = afterCurrent.filter((a) => !a?.status || isVisibleStatus(a.s
     maxToShow,
   ]);
 
+  if (!related.length) return null;
+
   return (
     <div className="my-10">
       <div className="text-center text-3xl py-8">

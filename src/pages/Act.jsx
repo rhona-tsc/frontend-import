@@ -1,3 +1,4 @@
+import { hasAcousticSets, visibleExtras, hasTechnicalDetails } from '../utils/actSectionContent.js';
 import { websiteActView } from '../utils/websiteLineups.js';
 import { getMarketingAttribution } from '../utils/marketingAttribution.js';
 import BandAvailability from "../components/BandAvailability.jsx";
@@ -1451,6 +1452,12 @@ const Act = () => {
 
   // use a safe local reference everywhere you read selectedLineup
   const safeSelectedLineup = selectedLineup || actData.lineups?.[0] || null;
+  const showAcousticSets = hasAcousticSets(safeSelectedLineup);
+  const equipmentInclusion = [
+    actData.paSystem && (paMap[actData.paSystem] ? `A ${paMap[actData.paSystem]} PA system` : actData.paSystem),
+    actData.lightingSystem && (lightMap[actData.lightingSystem] ? `a ${lightMap[actData.lightingSystem]} lighting system to light up your stage${['mediumLight','largeLight'].includes(actData.lightingSystem) ? ' and dancefloor' : ''}` : actData.lightingSystem),
+  ].filter(Boolean).join(' and ');
+  const extraEntries = visibleExtras(actData?.extras, parseInt(safeSelectedLineup?.actSize || safeSelectedLineup?.bandMembers?.length || 0));
   // ✅ Preferred, stable canonical URL (keep host + path consistent with your sitemap)
   const SITE_ORIGIN = "https://thesupremecollective.co.uk"; // canonicalize to apex (non-www)
 
@@ -1616,7 +1623,7 @@ const Act = () => {
           {/* Left: Video & Bio stacked together */}
           <div className="w-full sm:w-[60%] ">
             {/* Video section */}
-            <div className="aspect-video" id="videos">
+            {videos.length > 0 && <><div className="aspect-video" id="videos">
               <div className="text-2xl mt-6">
                 <Title
                   text1={getPossessiveTitleCase(actData?.tscName)}
@@ -1706,6 +1713,7 @@ const Act = () => {
               })}
             </div>
 
+            </>}
             {/* Inclusions (mobile only) */}
             <div className="block sm:hidden" id="included">
               <div className="text-2xl mt-6" id="lineup-selector">
@@ -1988,20 +1996,7 @@ const Act = () => {
                     {actData?.lengthOfSets?.[1]}
                     mins live performance</>)}
                   </li>
-                  <li>
-                    {actData?.paSystem &&
-                      `A ${paMap[actData.paSystem]} PA system `}
-                    {actData?.lightingSystem && (
-                      <>
-                        {actData.paSystem && " and "}a{" "}
-                        {lightMap[actData.lightingSystem]} lighting system to
-                        light up your stage
-                        {["mediumLight", "largeLight"].includes(
-                          actData.lightingSystem,
-                        ) && " and dancefloor"}
-                      </>
-                    )}
-                  </li>
+                  {equipmentInclusion && <li>{equipmentInclusion}</li>}
                   <li>
                     The band on site for up to 7 hours or until midnight,
                     whichever comes first
@@ -2136,20 +2131,7 @@ const Act = () => {
                   {actData?.numberOfSets?.[1] || "?"}x
                   {actData?.lengthOfSets?.[1] || "?"}mins live performance</>)}
                 </li>
-                <li>
-                  {actData?.paSystem &&
-                    `A ${paMap[actData?.paSystem]} PA system `}
-                  {actData?.lightingSystem && (
-                    <>
-                      {actData?.paSystem && " and "}a{" "}
-                      {lightMap[actData?.lightingSystem]} lighting system to
-                      light up your stage
-                      {["mediumLight", "largeLight"].includes(
-                        actData?.lightingSystem,
-                      ) && " and dancefloor"}
-                    </>
-                  )}
-                </li>
+                {equipmentInclusion && <li>{equipmentInclusion}</li>}
                 <li>
                   The band on site for up to 7 hours or until midnight,
                   whichever comes first
@@ -2341,7 +2323,7 @@ const Act = () => {
           </div>
         </div>
 
-        <div className="full">
+        {actData.images?.length > 0 && <div className="full">
           <div className="text-2xl mt-12">
             <Title
               text1={getPossessiveTitleCase(actData?.tscName)}
@@ -2406,6 +2388,7 @@ const Act = () => {
           </div>
         </div>
 
+        }
         {/* Left Column (60%) */}
         <div className="flex flex-col sm:flex-row gap-12 mt-10" id="repertoire">
           <div className="w-full">
@@ -2423,7 +2406,7 @@ const Act = () => {
         <GenreBandLinks slug={actData.slug} />
         <ActLocalConnections history={publicHistory?.slug === actData.slug ? publicHistory : null} />
         {/* Reviews horizontal scroll gallery */}
-        <div className="relative mt-12" id="reviews">
+        {reviews.length > 0 && <div className="relative mt-12" id="reviews">
           <div className="text-2xl mb-2">
             <Title
               text1={getPossessiveTitleCase(actData?.tscName)}
@@ -2499,9 +2482,10 @@ const Act = () => {
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-10 mt-12 lg:gap-8">
-          <div
-            className="w-full lg:w-1/2 relative lg:-top-16 lg:pt-16"
+        }
+        {(showAcousticSets || extraEntries.length > 0) && <div className="flex flex-col lg:flex-row gap-10 mt-12 lg:gap-8">
+          {showAcousticSets && <div
+            className={`w-full ${extraEntries.length ? 'lg:w-1/2' : ''} relative lg:-top-16 lg:pt-16`}
             id="ceremony-afternoon-sets"
           >
             <div className="text-2xl mb-2">
@@ -2520,9 +2504,9 @@ const Act = () => {
                         <AcousticExtrasSelectorLazy
                           actData={actData}
                           lineups={actData.lineups}
-                          safeSelectedLineup={safeSelectedLineup}
+                          selectedLineup={safeSelectedLineup}
                           addToCart={addToCart}
-                          safeSelectedLineupId={safeSelectedLineup?._id}
+                          selectedLineupId={safeSelectedLineup?._id}
                         />
                       </VisibleOnScroll>
                     </Suspense>
@@ -2531,7 +2515,8 @@ const Act = () => {
               </div>
             </div>
           </div>
-          <div className="w-full lg:w-1/2" id="extras">
+          }
+          {extraEntries.length > 0 && <div className={`w-full ${showAcousticSets ? 'lg:w-1/2' : ''}`} id="extras">
             <div className="text-2xl mb-2">
               <Title
                 text1={getPossessiveTitleCase(actData?.tscName)}
@@ -2542,8 +2527,7 @@ const Act = () => {
               {/* Extas Right Column (40%) */}
               <div className="flex-1">
                 <div className="border rounded px-4 py-6 text-m text-gray-700 w-full my-2 sm:px-6 sm:py-6">
-                  {actData.extras &&
-                    Object.entries(actData.extras).map(([key, value]) => {
+                  {extraEntries.map(([key, value]) => {
                       const normalizedExtraKey = String(key || "")
                         .toLowerCase()
                         .replace(/[\s\-]+/g, "_")
@@ -2714,9 +2698,9 @@ const Act = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        <div className="w-full sm:w-full mt-10" id="faq">
+          </div>}
+        </div>}
+        {hasTechnicalDetails(actData) && <div className="w-full sm:w-full mt-10" id="faq">
           <div className="text-2xl mb-2">
             <Title
               text1={getPossessiveTitleCase(actData?.tscName)}
@@ -2732,6 +2716,7 @@ const Act = () => {
           </div>
         </div>
 
+        }
         <Suspense fallback={null}>
           <VisibleOnScroll>
             <RelatedActsLazy
