@@ -9,6 +9,10 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { recoverBrowserChunk } from './utils/chunkRecovery.js';
 import axios from 'axios';
 import { startMarketingAttribution } from './utils/marketingAttribution.js';
+import {consumeUploadGrant} from './utils/eventSheetUploadSession.js';
+// Remove the private upload capability before analytics initialize.
+const uploadLinkRef=window.location.pathname.match(/^\/event-sheet\/([^/]+)/)?.[1];
+if(uploadLinkRef){try{consumeUploadGrant(sessionStorage,decodeURIComponent(uploadLinkRef),window.location,window.history);}catch{window.history.replaceState(null,'',window.location.pathname+window.location.search);}}
 startMarketingAttribution();
 import { attachProtectedRequestToken } from './utils/protectedRequests.js';
 

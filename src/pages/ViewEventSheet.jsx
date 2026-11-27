@@ -326,7 +326,7 @@ const ViewEventSheet = () => {
   );
   const READ_ONLY = isReadOnlyParam || isReadOnlyRoute;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const uploadAccess = useEventSheetUploadAccess({backendUrl,bookingId:booking?.bookingId||booking?._id,readOnly:READ_ONLY});
+  const uploadAccess = useEventSheetUploadAccess({backendUrl,bookingId:routeId||booking?.bookingId||booking?._id,readOnly:READ_ONLY});
   const userHasEditedRef = React.useRef(false);
 
   useEffect(() => {
