@@ -24,7 +24,7 @@ import {
 import { isEntertainmentNationBooking, isDirectTscBooking, isEncoreBooking } from "../utils/eventSheetBookingSource";
 import SEO from "../components/SEO";
 import { resolveEventSheetHydration } from "../utils/eventSheetHydration";
-import { documentUploadError } from "../utils/protectedRequests.js";
+import { documentUploadError, notificationSendError } from "../utils/protectedRequests.js";
 import {
   mergeEventSheetBookingRefresh,
   mergeEventSheetEmergencyContactRefresh,
@@ -3558,7 +3558,7 @@ const ViewEventSheet = () => {
                         try {
                           const fd = new FormData();
                           fd.append("file", file);
-                          const res = await axios.post("/api/upload/menu", fd, {
+                          const res = await axios.post(`${backendUrl}/api/upload/menu`, fd, {
                             headers: { "Content-Type": "multipart/form-data" },
                           });
                           const url = res?.data?.url;
@@ -3633,7 +3633,7 @@ const ViewEventSheet = () => {
                           );
                         } catch (e) {
                           console.error("menu-to-band failed:", e);
-                          alert("Sorry—couldn’t send the menu just now.");
+                          alert(notificationSendError(e));
                         } finally {
                           setNotifying(false);
                         }
@@ -3663,15 +3663,15 @@ const ViewEventSheet = () => {
                           alert("Dietary requirements sent to the caterer ✅");
                         } catch (e) {
                           console.error("dietary-to-caterer failed:", e);
-                          alert("Sorry—couldn’t email the caterer just now.");
+                          alert(notificationSendError(e));
                         } finally {
                           setNotifying(false);
                         }
                       };
 
-                      const canSendMenuToBand = hasMenuAny && !notifying;
+                      const canSendMenuToBand = hasMenuAny && !notifying && !READ_ONLY;
                       const canSendDietaryToCaterer =
-                        hasCaterer && dietaryRows.length > 0 && !notifying;
+                        hasCaterer && dietaryRows.length > 0 && !notifying && !READ_ONLY;
 
                       return (
                         <>

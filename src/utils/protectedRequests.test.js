@@ -16,3 +16,9 @@ test("document errors explain sign-in and size restrictions", () => {
   assert.match(documentUploadError({ response: { status: 401 } }), /sign in/i);
   assert.equal(documentUploadError({ response: { status: 413, data: { message: "Please choose a file smaller than 20 MB." } } }), "Please choose a file smaller than 20 MB.");
 });
+
+test('catering notifications carry the client session only to the real backend', () => {
+  const backend='https://tsc-backend-v2.onrender.com';
+  assert.equal(attachProtectedRequestToken({url:backend+'/api/notifications/dietary-to-caterer'},backend,()=> 'session').headers.Authorization,'Bearer session');
+  assert.equal(attachProtectedRequestToken({url:'https://example.com/api/notifications/dietary-to-caterer'},backend,()=> 'session').headers,undefined);
+});

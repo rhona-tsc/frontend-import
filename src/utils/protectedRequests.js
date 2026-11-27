@@ -7,7 +7,7 @@ export function attachProtectedRequestToken(config, backendUrl, getToken) {
     target = new URL(config.url, config.baseURL || backend.href);
   } catch { return config; }
   if (target.origin !== backend.origin ||
-      !/^\/(?:api\/(?:finance|upload|admin|debug)|debug)(?:\/|$)/.test(target.pathname)) return config;
+      !/^\/(?:api\/(?:finance|upload|notifications|admin|debug)|debug)(?:\/|$)/.test(target.pathname)) return config;
   const headers = config.headers || {};
   const present = typeof headers.has === "function"
     ? headers.has("Authorization") || headers.has("token")
@@ -24,4 +24,9 @@ export function attachProtectedRequestToken(config, backendUrl, getToken) {
 export function documentUploadError(error) {
   if (error?.response?.status === 401) return "Please sign in to your client account before uploading a document.";
   return error?.response?.data?.message || "Upload failed — please try again.";
+}
+
+export function notificationSendError(error) {
+  if (error?.response?.status === 401) return 'Please sign in to your client account before sending this email.';
+  return error?.response?.data?.message || 'The email could not be sent. Please try again shortly.';
 }
