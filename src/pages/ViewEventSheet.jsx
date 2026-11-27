@@ -3486,7 +3486,8 @@ const ViewEventSheet = () => {
                       }
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      We’ll include a note that the band may need to be
+                      If possible, the band would prefer to eat before performing.
+                      Please allow 30 minutes for their meal. We’ll include a note that the band may need to be
                       fast-tracked during a short performance break and, if food
                       is initially served while performing, to keep plates
                       aside.
@@ -3596,17 +3597,7 @@ const ViewEventSheet = () => {
                       );
                       const hasCaterer = !!(answers.caterer_email || "").trim();
 
-                      // Reuse the hints you already show in the copy
-                      const fastTrackHint =
-                        String(
-                          answers.meal_fasttrack_ok || "",
-                        ).toLowerCase() === "yes"
-                          ? "The band may need to be fast-tracked during a short performance break."
-                          : "The band may need to be fast-tracked during a short performance break.";
-                      const plateAsideHint =
-                        "If food is initially served while the band is performing, please keep plates aside for them.";
-
-                      const serviceNotes = `${fastTrackHint} ${plateAsideHint}`;
+                      const serviceNotes = "If possible, the band would prefer to eat before performing. Please allow 30 minutes for their meal. If the meal needs to take place during a performance break, the band may need to be fast-tracked. If food is initially served while the band is performing, please keep plates aside for them.";
 
                       // Button 1: send menu to band (cc caterer)
                       const sendMenuToBand = async () => {

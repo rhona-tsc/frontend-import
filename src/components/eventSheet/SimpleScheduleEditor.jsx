@@ -1,6 +1,6 @@
 import { identifyScheduleRows } from '../../utils/eventSheetScheduleIdentity.js';
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { buildDefaultScheduleRows } from "../../utils/eventSheetScheduleRows.js";
+import { buildDefaultScheduleRows, usesMealScheduleTemplate } from "../../utils/eventSheetScheduleRows.js";
 
 const makeRow = (activity, time = "", notes = "") => ({
   id: `schedule_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
@@ -122,6 +122,9 @@ export default function SimpleScheduleEditor({
       setupMinutes,
       soundcheckMinutes,
       changeMinutes,
+      includeBandMeal: usesMealScheduleTemplate(booking),
+      startTime: normaliseTime(performance.startTime || answers.schedule_simple_start),
+      finishTime: normaliseTime(performance.finishTime || answers.schedule_simple_finish_time),
       range,
     });
 

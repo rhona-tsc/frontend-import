@@ -1,5 +1,15 @@
 const clean = (value) => String(value || "").trim();
 
+// Existing sheets, including legacy sheets without timestamps, retain their
+// original template. New bookings also receive an explicit version server-side.
+export const MEAL_SCHEDULE_ROLLOUT = '2026-11-27T14:35:00Z';
+export const usesMealScheduleTemplate = (booking = {}) => {
+  const version = booking.eventSheet?.scheduleTemplateVersion;
+  if (version != null) return Number(version) >= 2;
+  const created = Date.parse(booking.eventSheet?.createdAt || booking.createdAt || '');
+  return Number.isFinite(created) && created >= Date.parse(MEAL_SCHEDULE_ROLLOUT);
+};
+
 const sourceText = (booking = {}) => {
   const items = Array.isArray(booking?.actsSummary)
     ? booking.actsSummary
@@ -57,6 +67,23 @@ export const performanceSetPlan = (booking = {}, fallback = { sets: 3, length: 4
 const ordinalWord = (number) =>
   ["First", "Second", "Third", "Fourth", "Fifth"][number - 1] || `Set ${number}`;
 
+export const performanceSetLengths = (booking = {}) => {
+  const structured = booking.performanceTimes?.plan || booking.actsSummary?.[0]?.performance?.plan;
+  if (structured?.sets > 0 && structured?.length > 0) {
+    return Array.from({length: Math.min(20, structured.sets)}, () => Number(structured.length));
+  }
+  const plan = clean(booking.performancePlan || booking.actsSummary?.[0]?.performancePlan || booking.bookingDetails?.performancePlan);
+  const groups = [...plan.matchAll(/(\d+)\s*[x×]\s*(\d+)/gi)]
+    .map(match => ({sets:Number(match[1]),length:Number(match[2])}))
+    .filter(group => group.sets > 0 && group.length > 0);
+  if (!groups.length) return [40,40,60];
+  if (/\bor\b|\//i.test(plan)) {
+    const preferred = performanceSetPlan(booking);
+    return Array.from({length:Math.min(20,preferred.sets)},()=>preferred.length);
+  }
+  return groups.flatMap(group => Array.from({length:Math.min(20,group.sets)},()=>group.length)).slice(0,20);
+};
+
 export const buildDefaultScheduleRows = ({
   booking = {},
   arrival = "",
@@ -64,6 +91,9 @@ export const buildDefaultScheduleRows = ({
   setupMinutes = 60,
   soundcheckMinutes = 30,
   changeMinutes = 15,
+  includeBandMeal = false,
+  startTime = "",
+  finishTime = "",
   range = () => "",
 } = {}) => {
   const setupEnd = Number.isFinite(arrivalMinutes)
@@ -76,6 +106,7 @@ export const buildDefaultScheduleRows = ({
     ? soundcheckEnd + changeMinutes
     : null;
   const { sets, length } = performanceSetPlan(booking);
+  const lengths = includeBandMeal ? performanceSetLengths(booking) : Array(sets).fill(length);
   const serviceLabel = bookedScheduleServiceLabel(booking);
 
   const rows = [
@@ -97,13 +128,23 @@ export const buildDefaultScheduleRows = ({
     },
   ];
 
-  for (let index = 1; index <= sets; index += 1) {
+  if (includeBandMeal) {
+    const startMatch = clean(startTime).match(/^(\d{1,2}):(\d{2})$/);
+    let startMinutes = startMatch ? Number(startMatch[1])*60 + Number(startMatch[2]) : null;
+    if (startMinutes != null && Number.isFinite(arrivalMinutes) && startMinutes < arrivalMinutes) startMinutes += 1440;
+    const mealEnd = Number.isFinite(changeEnd) ? changeEnd + 30 : null;
+    const fitsBefore = startMinutes == null || (mealEnd != null && mealEnd <= startMinutes);
+    rows.push({activity:'Band meal',time:fitsBefore ? range(changeEnd,mealEnd) : '',
+      notes:'30 minutes — preferably before performing; otherwise during a performance break. Timing to be agreed.'});
+  }
+
+  for (let index = 1; index <= lengths.length; index += 1) {
     rows.push({
       activity: `${ordinalWord(index)} Set`,
-      time: "",
-      notes: `${length} minutes`,
+      time: includeBandMeal && index === 1 ? startTime : "",
+      notes: `${lengths[index-1]} minutes`,
     });
-    if (index < sets) {
+    if (index < lengths.length) {
       rows.push({
         activity: serviceLabel || "Intermission",
         time: "",
@@ -111,6 +152,8 @@ export const buildDefaultScheduleRows = ({
       });
     }
   }
+
+  if (includeBandMeal) rows.push({activity:'Band finish',time:finishTime,notes:'Contracted finish time'});
 
   return rows;
 };
