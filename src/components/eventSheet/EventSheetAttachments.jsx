@@ -1,9 +1,9 @@
 import React, { useId, useRef, useState } from 'react';
-import axios from 'axios';
+import EventSheetUploadSignIn from './EventSheetUploadSignIn.jsx';
 import { documentUploadError } from '../../utils/protectedRequests.js';
 import { ATTACHMENT_ACCEPT, MAX_SECTION_ATTACHMENTS, safeAttachmentUrl, validateEventSheetAttachment } from '../../utils/eventSheetAttachments.js';
 
-export default function EventSheetAttachments({ backendUrl, value, onChange, readOnly, help }) {
+export default function EventSheetAttachments({ value, onChange, readOnly, help, access }) {
   const inputId = useId();
   const files = Array.isArray(value) ? value : [];
   const current = useRef(files);
@@ -16,7 +16,7 @@ export default function EventSheetAttachments({ backendUrl, value, onChange, rea
   async function upload(event) {
     const selected = Array.from(event.target.files || []);
     event.target.value = '';
-    if (readOnly || busy.current || !selected.length) return;
+    if (readOnly || !access.allowed || busy.current || !selected.length) return;
     setError('');
     if (current.current.length + selected.length > MAX_SECTION_ATTACHMENTS) {
       setError('You can attach up to 10 files to this section.'); return;
@@ -29,8 +29,7 @@ export default function EventSheetAttachments({ backendUrl, value, onChange, rea
       for (const [index, file] of selected.entries()) {
         setProgress(`Uploading ${index + 1} of ${selected.length}: ${file.name}`);
         try {
-          const data = new FormData(); data.append('file', file);
-          const response = await axios.post(`${backendUrl}/api/upload/doc`, data);
+          const response = await access.uploadFile(file);
           const url = safeAttachmentUrl(response.data?.url);
           if (!url) throw new Error('The upload did not return a document link.');
           change([...current.current, { id: response.data.public_id || url, name: file.name, url, type: file.type,
@@ -45,8 +44,9 @@ export default function EventSheetAttachments({ backendUrl, value, onChange, rea
     <p className="text-sm font-semibold text-gray-800">Attachments (optional)</p>
     {!readOnly && <>
       <p className="mt-1 text-sm text-gray-600">{help}</p>
+      <EventSheetUploadSignIn access={access}/>
       <label htmlFor={inputId} className="mt-3 mb-1 block text-sm font-medium text-gray-700">Add attachments</label>
-      <input id={inputId} type="file" accept={ATTACHMENT_ACCEPT} multiple disabled={!!progress}
+      <input id={inputId} type="file" accept={ATTACHMENT_ACCEPT} multiple disabled={!!progress || !access.allowed}
         onChange={upload} className="block max-w-full text-sm text-gray-700" />
       <p className="mt-2 text-xs text-gray-500">PDF, Word or images; up to 20 MB per file. Attachments are shared with the band through the event sheet.</p>
     </>}

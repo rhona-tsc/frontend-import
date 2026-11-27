@@ -15,6 +15,8 @@ import axios from "axios";
 import { ShopContext } from "../context/ShopContext";
 import SimpleScheduleEditor from "../components/eventSheet/SimpleScheduleEditor";
 import EventSheetAttachments from "../components/eventSheet/EventSheetAttachments";
+import EventSheetUploadSignIn from '../components/eventSheet/EventSheetUploadSignIn.jsx';
+import useEventSheetUploadAccess from '../components/eventSheet/useEventSheetUploadAccess.js';
 import { SECTION_ATTACHMENTS } from "../utils/eventSheetAttachments.js";
 import EventSheetRepertoirePicker from "../components/eventSheet/EventSheetRepertoirePicker";
 import {
@@ -324,6 +326,7 @@ const ViewEventSheet = () => {
   );
   const READ_ONLY = isReadOnlyParam || isReadOnlyRoute;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const uploadAccess = useEventSheetUploadAccess({backendUrl,bookingId:booking?.bookingId||booking?._id,readOnly:READ_ONLY});
   const userHasEditedRef = React.useRef(false);
 
   useEffect(() => {
@@ -2920,26 +2923,18 @@ const ViewEventSheet = () => {
                     </label>
 
                     {/* Venue documentation upload */}
+                    {!READ_ONLY && <EventSheetUploadSignIn access={uploadAccess}/>}
                     <input
                       type="file"
                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      disabled={READ_ONLY || !uploadAccess.allowed}
                       className="text-sm"
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
 
                         try {
-                          const fd = new FormData();
-                          fd.append("file", file);
-                          const res = await axios.post(
-                            `${backendUrl}/api/upload/doc`,
-                            fd,
-                            {
-                              headers: {
-                                "Content-Type": "multipart/form-data",
-                              },
-                            },
-                          );
+                          const res = await uploadAccess.uploadFile(file);
 
                           const url = res?.data?.url;
                           if (!url) throw new Error("No URL returned");
@@ -3549,19 +3544,17 @@ const ViewEventSheet = () => {
                     <label className="text-sm text-gray-700 mb-1 block">
                       Upload a menu (PDF, DOCX, or image)
                     </label>
+                    {!READ_ONLY && <EventSheetUploadSignIn access={uploadAccess}/>}
                     <input
                       type="file"
                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      disabled={READ_ONLY || !uploadAccess.allowed}
                       className="block text-sm"
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         try {
-                          const fd = new FormData();
-                          fd.append("file", file);
-                          const res = await axios.post(`${backendUrl}/api/upload/menu`, fd, {
-                            headers: { "Content-Type": "multipart/form-data" },
-                          });
+                          const res = await uploadAccess.uploadFile(file);
                           const url = res?.data?.url;
                           if (url) {
                             handleAnswer("dietary_menu_file", url); // store URL, not File object
@@ -4495,7 +4488,7 @@ const ViewEventSheet = () => {
               </div>
               {SECTION_ATTACHMENTS[sec.id] && (
                 <EventSheetAttachments
-                  backendUrl={backendUrl}
+                  access={uploadAccess}
                   value={answers[SECTION_ATTACHMENTS[sec.id].key]}
                   onChange={(files) => handleAnswer(SECTION_ATTACHMENTS[sec.id].key, files)}
                   readOnly={READ_ONLY}

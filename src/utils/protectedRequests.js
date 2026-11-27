@@ -22,7 +22,7 @@ export function attachProtectedRequestToken(config, backendUrl, getToken) {
 }
 
 export function documentUploadError(error) {
-  if (error?.response?.status === 401) return "Please sign in to your client account before uploading a document.";
+  if (error?.response?.status === 401) return "Please sign in below before uploading a file. You can use Client sign-in or TSC staff sign-in.";
   return error?.response?.data?.message || "Upload failed — please try again.";
 }
 
