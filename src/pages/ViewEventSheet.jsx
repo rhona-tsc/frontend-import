@@ -14,6 +14,8 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { ShopContext } from "../context/ShopContext";
 import SimpleScheduleEditor from "../components/eventSheet/SimpleScheduleEditor";
+import EventSheetAttachments from "../components/eventSheet/EventSheetAttachments";
+import { SECTION_ATTACHMENTS } from "../utils/eventSheetAttachments.js";
 import EventSheetRepertoirePicker from "../components/eventSheet/EventSheetRepertoirePicker";
 import {
   getEventSheetMusicianId,
@@ -4500,6 +4502,15 @@ const ViewEventSheet = () => {
                   );
                 })}
               </div>
+              {SECTION_ATTACHMENTS[sec.id] && (
+                <EventSheetAttachments
+                  backendUrl={backendUrl}
+                  value={answers[SECTION_ATTACHMENTS[sec.id].key]}
+                  onChange={(files) => handleAnswer(SECTION_ATTACHMENTS[sec.id].key, files)}
+                  readOnly={READ_ONLY}
+                  help={SECTION_ATTACHMENTS[sec.id].help}
+                />
+              )}
             </div>
           ))}
         </div>
